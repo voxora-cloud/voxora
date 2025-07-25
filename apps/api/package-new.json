@@ -1,17 +1,13 @@
 {
-  "name": "api",
+  "name": "voxora-api",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Real-time chat support application backend with Socket.IO, Redis, and MongoDB",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["chat", "support", "realtime", "socket.io"],
-  "author": "",
-  "license": "ISC",
-  "description": "Real-time chat support application backend",
   "dependencies": {
     "express": "^5.1.0",
     "socket.io": "^4.7.5",

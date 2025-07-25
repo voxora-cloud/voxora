@@ -1,0 +1,181 @@
+import { Conversation, IConversation, Message, IMessage, User } from '../models';
+import { Types } from 'mongoose';
+
+export class ConversationService {
+  static async createConversation(data: {
+    createdBy: string;
+    participantId: string;
+    subject?: string;
+    priority?: string;
+    tags?: string[];
+  }): Promise<IConversation> {
+    // Check if conversation already exists between these participants
+    const existingConversation = await Conversation.findOne({
+      participants: {
+        $all: [data.createdBy, data.participantId],
+        $size: 2,
+      },
+      status: { $in: ['open', 'pending'] },
+    });
+
+    if (existingConversation) {
+      return existingConversation;
+    }
+
+    // Create new conversation
+    const conversation = new Conversation({
+      participants: [data.createdBy, data.participantId],
+      subject: data.subject,
+      priority: data.priority || 'medium',
+      tags: data.tags || [],
+      createdBy: data.createdBy,
+    });
+
+    await conversation.save();
+    await conversation.populate('participants', 'name email avatar role status');
+    
+    return conversation;
+  }
+
+  static async getConversations(
+    userId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      assignedTo?: string;
+    } = {}
+  ): Promise<{ conversations: IConversation[]; total: number; pages: number }> {
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const query: any = {
+      $or: [
+        { participants: userId },
+        { assignedTo: userId },
+        { createdBy: userId },
+      ],
+    };
+
+    if (options.status) {
+      query.status = options.status;
+    }
+
+    if (options.assignedTo) {
+      query.assignedTo = options.assignedTo;
+    }
+
+    const [conversations, total] = await Promise.all([
+      Conversation.find(query)
+        .populate('participants', 'name email avatar role status')
+        .populate('assignedTo', 'name email avatar')
+        .populate('lastMessage')
+        .sort({ lastMessageAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Conversation.countDocuments(query),
+    ]);
+
+    return {
+      conversations,
+      total,
+      pages: Math.ceil(total / limit),
+    };
+  }
+
+  static async getConversationById(
+    conversationId: string,
+    userId: string
+  ): Promise<IConversation | null> {
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      $or: [
+        { participants: userId },
+        { assignedTo: userId },
+        { createdBy: userId },
+      ],
+    })
+      .populate('participants', 'name email avatar role status')
+      .populate('assignedTo', 'name email avatar')
+      .populate('createdBy', 'name email avatar');
+
+    return conversation;
+  }
+
+  static async updateConversation(
+    conversationId: string,
+    userId: string,
+    updates: {
+      status?: string;
+      assignedTo?: string;
+      priority?: string;
+      tags?: string[];
+    }
+  ): Promise<IConversation | null> {
+    const conversation = await Conversation.findOneAndUpdate(
+      {
+        _id: conversationId,
+        $or: [
+          { participants: userId },
+          { assignedTo: userId },
+          { createdBy: userId },
+        ],
+      },
+      updates,
+      { new: true }
+    )
+      .populate('participants', 'name email avatar role status')
+      .populate('assignedTo', 'name email avatar');
+
+    return conversation;
+  }
+
+  static async assignConversation(
+    conversationId: string,
+    agentId: string
+  ): Promise<IConversation | null> {
+    // Verify agent exists and has the right role
+    const agent = await User.findOne({
+      _id: agentId,
+      role: { $in: ['agent', 'admin'] },
+      isActive: true,
+    });
+
+    if (!agent) {
+      throw new Error('Invalid agent or agent not found');
+    }
+
+    const conversation = await Conversation.findByIdAndUpdate(
+      conversationId,
+      {
+        assignedTo: agentId,
+        status: 'pending',
+      },
+      { new: true }
+    )
+      .populate('participants', 'name email avatar role status')
+      .populate('assignedTo', 'name email avatar');
+
+    return conversation;
+  }
+
+  static async closeConversation(
+    conversationId: string,
+    closedBy: string
+  ): Promise<IConversation | null> {
+    const conversation = await Conversation.findByIdAndUpdate(
+      conversationId,
+      {
+        status: 'closed',
+        closedAt: new Date(),
+        closedBy,
+      },
+      { new: true }
+    )
+      .populate('participants', 'name email avatar role status')
+      .populate('assignedTo', 'name email avatar');
+
+    return conversation;
+  }
+}
