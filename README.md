@@ -1,135 +1,220 @@
-# Turborepo starter
+<div align="center">
+  <h1>🎯 Voxora</h1>
+  <p><strong>Open-source, AI-powered live chat & voice support platform</strong></p>
+  <p>Built for modern web applications with real-time communication</p>
 
-This Turborepo starter is maintained by the Turborepo core team.
+  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+  [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+  [![Socket.io](https://img.shields.io/badge/Socket.io-black?style=for-the-badge&logo=socket.io&badgeColor=010101)](https://socket.io/)
+  [![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+  [![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+  [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 
-## Using this example
+  <p>
+    <a href="#features">Features</a> •
+    <a href="#quick-start">Quick Start</a> •
+    <a href="#documentation">Documentation</a> •
+    <a href="#api-reference">API</a> •
+    <a href="#contributing">Contributing</a>
+  </p>
+</div>
 
-Run the following command:
+---
 
-```sh
-npx create-turbo@latest
+## 🌟 What is Voxora?
+
+Voxora is a **modern, open-source customer support platform** that combines real-time chat, AI assistance, and voice communication. Built with performance and developer experience in mind, it's designed to be easily integrated into any web application.
+
+### 🎯 **Why Choose Voxora?**
+
+- 🚀 **Developer-First**: Easy integration with comprehensive APIs
+- 🤖 **AI-Powered**: Smart responses and conversation routing
+- 📱 **Real-time**: Instant messaging with WebSocket technology
+- 🎙️ **Voice Support**: Integrated voice chat capabilities
+- 🔧 **Customizable**: White-label solution with full customization
+- 📊 **Analytics**: Built-in conversation analytics and insights
+- 🔒 **Secure**: Enterprise-grade security and data protection
+- 🌐 **Scalable**: Horizontally scalable architecture
+
+---
+
+## ✨ Features
+
+### 💬 **Chat & Messaging**
+- Real-time bidirectional messaging
+- Rich text formatting and file sharing
+- Typing indicators and read receipts
+- Message reactions and emoji support
+- Conversation threading and history
+
+### 🤖 **AI Integration**
+- Intelligent auto-responses
+- Smart conversation routing
+- Sentiment analysis
+- Language detection and translation
+- Automated FAQ responses
+
+### 🎙️ **Voice Communication**
+- High-quality voice calls
+- Screen sharing capabilities
+- Call recording and transcription
+- Voice message support
+
+### 👥 **Team Management**
+- Agent dashboard and queue management
+- Role-based permissions
+- Performance analytics
+- Workload distribution
+- Team collaboration tools
+
+### 🛠️ **Developer Tools**
+- RESTful APIs and webhooks
+- SDK for multiple platforms
+- Comprehensive documentation
+- Real-time event streaming
+- Custom integrations
+
+### 📊 **Analytics & Reporting**
+- Conversation metrics
+- Response time tracking
+- Customer satisfaction scores
+- Agent performance insights
+- Custom reporting dashboards
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** (v18.0.0 or higher)
+- **MongoDB** (v5.0 or higher)
+- **Redis** (v6.0 or higher)
+- **Docker** (optional, recommended)
+
+### 🐋 Docker Setup (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/voxora.git
+cd voxora
+
+# Start with Docker Compose
+docker-compose up -d
+
+# The application will be available at:
+# API: http://localhost:3001
+# Dashboard: http://localhost:3000
 ```
 
-## What's inside?
+### 🔧 Manual Setup
 
-This Turborepo includes the following packages/apps:
+```bash
+# Install dependencies
+npm install
 
-### Apps and Packages
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your configuration
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+# Start the development servers
+npm run dev
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+# Or start individual services
+npm run dev:api     # Backend API (port 3001)
+npm run dev:web     # Dashboard (port 3000)
+npm run dev:widget  # Chat Widget (port 3002)
 ```
 
-You can build a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+---
+
+## 📁 Project Structure
 
 ```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+voxora/
+├── apps/
+│   ├── api/              # Backend API server
+│   ├── web/              # Admin dashboard (React)
+│   ├── widget/           # Chat widget (React)
+│   └── docs/             # Documentation site
+├── packages/
+│   ├── sdk/              # JavaScript SDK
+│   ├── ui/               # Shared UI components
+│   ├── types/            # TypeScript definitions
+│   └── config/           # Shared configuration
+├── docker-compose.yml    # Docker services
+└── package.json          # Monorepo configuration
 ```
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## 🤝 Contributing
 
-```
-cd my-turborepo
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+### Development Setup
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
+```bash
+# Fork and clone the repository
+git clone https://github.com/your-username/voxora.git
+cd voxora
 
-You can develop a specific package by using a [filter](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters):
+# Install dependencies
+npm install
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
+# Create a feature branch
+git checkout -b feature/amazing-feature
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+# Make your changes and commit
+git commit -m "Add amazing feature"
+
+# Push and create a pull request
+git push origin feature/amazing-feature
 ```
 
-### Remote Caching
+### Code Style
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+- **TypeScript** for type safety
+- **ESLint + Prettier** for code formatting
+- **Conventional Commits** for commit messages
+- **Jest** for testing
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+---
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
+## 📚 Documentation
 
-```
-cd my-turborepo
+- 📖 [Full Documentation](https://docs.voxora.io)
+- 🚀 [Getting Started Guide](https://docs.voxora.io/getting-started)
+- 🔌 [API Reference](https://docs.voxora.io/api)
+- 🛠️ [SDK Documentation](https://docs.voxora.io/sdk)
+- 💡 [Examples & Tutorials](https://docs.voxora.io/examples)
 
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
+---
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
-```
+## 🌍 Community & Support
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+- 💬 [Discord Community](https://discord.gg/voxora)
+- 📧 [Email Support](mailto:ompharate31@gmail.com)
+- 🐛 [Report Issues](https://github.com/voxora-io/voxora/issues)
+- 💡 [Feature Requests](https://github.com/voxora-io/voxora/discussions)
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
 
-```
-# With [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
+---
 
-# Without [global `turbo`](https://turborepo.com/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
+## 📄 License
 
-## Useful Links
+Voxora is open-source software licensed under the [MIT License](LICENSE).
 
-Learn more about the power of Turborepo:
+---
 
-- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.com/docs/reference/configuration)
-- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
+## 🙏 Acknowledgments
+
+Built with ❤️ by the Voxora team and our amazing contributors.
+
+
+
+<div align="center">
+  <p>⭐ Star us on GitHub if Voxora helps you build better customer support!</p>
+  <p>Made with ❤️ for the developer community</p>
+</div>
