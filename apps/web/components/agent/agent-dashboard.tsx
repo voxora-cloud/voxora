@@ -21,7 +21,9 @@ import {
   Circle,
   Send,
   Paperclip,
-  StickyNote
+  StickyNote,
+  LogOut,
+  UserMinus
 } from "lucide-react"
 
 interface Conversation {
@@ -162,11 +164,6 @@ export function AgentDashboard({
     }).format(date)
   }
 
-  const handleTransfer = () => {
-    // TODO: Implement transfer functionality
-    console.log("Transfer conversation")
-  }
-
   const handleAddNote = () => {
     if (internalNote.trim()) {
       // TODO: Save internal note
@@ -176,23 +173,87 @@ export function AgentDashboard({
     }
   }
 
+  const [showTransferModal, setShowTransferModal] = useState(false)
+  const [transferEmail, setTransferEmail] = useState("")
+
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to logout?")) {
+      // Implement logout logic here
+      window.location.href = "/support"
+    }
+  }
+
+  const handleTransfer = () => {
+    setShowTransferModal(true)
+  }
+
+  const executeTransfer = () => {
+    if (!selectedConversation || !transferEmail.trim()) return
+    
+    const conversation = conversations.find(c => c.id === selectedConversation)
+    if (conversation) {
+      console.log(`Transferring conversation ${conversation.id} to ${transferEmail}`)
+      // In real app, this would call an API
+      alert(`Conversation "${conversation.subject}" transferred to ${transferEmail}`)
+      setShowTransferModal(false)
+      setTransferEmail("")
+    }
+  }
+
   return (
-    <div className="h-screen bg-background flex">
-      {/* Conversations Sidebar */}
-      <div className="w-80 border-r border-border bg-card flex flex-col">
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Conversations</h2>
-            <div className="flex space-x-1">
-              <Button variant="ghost" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon">
-                <Bell className="h-4 w-4" />
-              </Button>
+    <div className="h-screen bg-background flex flex-col">
+      {/* Top Header */}
+      <header className="border-b border-border bg-card px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-lg font-bold text-primary-foreground">V</span>
+              </div>
+              <span className="text-xl font-bold text-foreground">Voxora Support</span>
+            </div>
+            <div className="flex items-center space-x-2 bg-secondary/50 rounded-lg px-3 py-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-foreground">Online</span>
             </div>
           </div>
+          
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon">
+              <Bell className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon">
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-sm font-medium text-primary-foreground">
+                  {agentName.split(" ").map(n => n[0]).join("")}
+                </span>
+              </div>
+              <span className="text-sm font-medium">{agentName}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Conversations Sidebar */}
+        <div className="w-80 border-r border-border bg-card flex flex-col">
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Conversations</h2>
+              <div className="flex space-x-1">
+                <Button variant="ghost" size="icon">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           
           <div className="relative mb-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -411,24 +472,44 @@ export function AgentDashboard({
               )}
 
               {/* Chat Interface */}
-              <Card className="flex-1">
-                <CardContent className="h-96 flex flex-col p-4">
-                  {/* Messages would go here - simplified for demo */}
-                  <div className="flex-1 bg-muted/30 rounded-lg p-4 mb-4">
-                    <p className="text-center text-muted-foreground">
-                      Chat messages would appear here...
-                    </p>
+              <Card className="flex-1 flex flex-col">
+                <CardContent className="flex flex-col p-0 h-full">
+                  {/* Messages Area */}
+                  <div className="flex-1 p-4 overflow-y-auto bg-muted/10">
+                    <div className="space-y-4">
+                      {/* Sample messages - replace with real data */}
+                      <div className="flex justify-end">
+                        <div className="max-w-xs bg-primary text-primary-foreground rounded-lg px-3 py-2">
+                          <p className="text-sm">Hello! How can I help you today?</p>
+                          <span className="text-xs opacity-70">12:34 PM</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <div className="max-w-xs bg-background border rounded-lg px-3 py-2">
+                          <p className="text-sm">Hi! I&apos;m having trouble with my account login.</p>
+                          <span className="text-xs text-muted-foreground">12:35 PM</span>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <div className="max-w-xs bg-primary text-primary-foreground rounded-lg px-3 py-2">
+                          <p className="text-sm">I&apos;d be happy to help you with that. Can you tell me what error message you&apos;re seeing?</p>
+                          <span className="text-xs opacity-70">12:36 PM</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   
                   {/* Message Input */}
-                  <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="icon">
-                      <Paperclip className="h-4 w-4" />
-                    </Button>
-                    <Input placeholder="Type your message..." className="flex-1" />
-                    <Button>
-                      <Send className="h-4 w-4" />
-                    </Button>
+                  <div className="border-t border-border p-4">
+                    <div className="flex items-center space-x-2">
+                      <Button variant="ghost" size="icon">
+                        <Paperclip className="h-4 w-4" />
+                      </Button>
+                      <Input placeholder="Type your message..." className="flex-1" />
+                      <Button>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -448,6 +529,50 @@ export function AgentDashboard({
           )}
         </div>
       </div>
+      
+      {/* Transfer Modal */}
+      {showTransferModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Transfer Conversation</CardTitle>
+              <CardDescription>
+                Transfer this conversation to another agent
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Agent Email</label>
+                  <Input 
+                    placeholder="agent@company.com" 
+                    value={transferEmail}
+                    onChange={(e) => setTransferEmail(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && executeTransfer()}
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowTransferModal(false)
+                      setTransferEmail("")
+                    }} 
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={executeTransfer} className="flex-1">
+                    <UserMinus className="mr-2 h-4 w-4" />
+                    Transfer
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
     </div>
   )
 }

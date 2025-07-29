@@ -10,15 +10,14 @@ import {
   Settings, 
   Bell, 
   Search, 
-  MoreVertical, 
   Mail, 
-  Shield, 
   UserCheck,
-  UserX,
   Edit,
   Trash2,
   Crown,
-  Star
+  Star,
+  LogOut,
+  Save
 } from "lucide-react"
 
 interface Team {
@@ -46,8 +45,18 @@ export function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"teams" | "agents">("teams")
   const [showCreateTeam, setShowCreateTeam] = useState(false)
   const [showInviteAgent, setShowInviteAgent] = useState(false)
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   
-  const [teams] = useState<Team[]>([
+  // Filter states
+  const [agentFilter, setAgentFilter] = useState({
+    role: "All",
+    team: "All", 
+    status: "All",
+    search: ""
+  })
+  
+  const [teams, setTeams] = useState<Team[]>([
     {
       id: "1",
       name: "Support",
@@ -74,7 +83,7 @@ export function AdminDashboard() {
     }
   ])
 
-  const [agents] = useState<Agent[]>([
+  const [agents, setAgents] = useState<Agent[]>([
     {
       id: "1",
       name: "Sarah Williams",
@@ -114,8 +123,104 @@ export function AdminDashboard() {
       status: "Busy",
       lastActive: new Date(Date.now() - 900000),
       inviteStatus: "Pending"
+    },
+    {
+      id: "5",
+      name: "Alex Chen",
+      email: "alex@company.com",
+      role: "Agent",
+      teams: ["Technical"],
+      status: "Online",
+      lastActive: new Date(Date.now() - 600000),
+      inviteStatus: "Active"
     }
   ])
+
+  // Team CRUD operations
+  const handleCreateTeam = (teamData: { name: string; description: string }) => {
+    const newTeam: Team = {
+      id: Date.now().toString(),
+      name: teamData.name,
+      description: teamData.description,
+      agentCount: 0,
+      onlineAgents: 0,
+      createdAt: new Date()
+    }
+    setTeams(prev => [...prev, newTeam])
+    setShowCreateTeam(false)
+  }
+
+  const handleUpdateTeam = (teamId: string, teamData: { name: string; description: string }) => {
+    setTeams(prev => prev.map(team => 
+      team.id === teamId ? { ...team, ...teamData } : team
+    ))
+    setEditingTeam(null)
+  }
+
+  const handleDeleteTeam = (teamId: string) => {
+    if (confirm("Are you sure you want to delete this team? This action cannot be undone.")) {
+      setTeams(prev => prev.filter(team => team.id !== teamId))
+      // Also remove team from agents
+      setAgents(prev => prev.map(agent => ({
+        ...agent,
+        teams: agent.teams.filter(team => teams.find(t => t.id === teamId)?.name !== team)
+      })))
+    }
+  }
+
+  // Agent CRUD operations
+  const handleInviteAgent = (agentData: { name: string; email: string; role: Agent['role']; teams: string[] }) => {
+    const newAgent: Agent = {
+      id: Date.now().toString(),
+      name: agentData.name,
+      email: agentData.email,
+      role: agentData.role,
+      teams: agentData.teams,
+      status: "Offline",
+      lastActive: new Date(),
+      inviteStatus: "Pending"
+    }
+    setAgents(prev => [...prev, newAgent])
+    setShowInviteAgent(false)
+  }
+
+  const handleUpdateAgent = (agentId: string, agentData: { name: string; email: string; role: Agent['role']; teams: string[] }) => {
+    setAgents(prev => prev.map(agent => 
+      agent.id === agentId ? { ...agent, ...agentData } : agent
+    ))
+    setEditingAgent(null)
+  }
+
+  const handleDeleteAgent = (agentId: string) => {
+    if (confirm("Are you sure you want to remove this agent? This action cannot be undone.")) {
+      setAgents(prev => prev.filter(agent => agent.id !== agentId))
+    }
+  }
+
+  // Filter logic
+  const filteredAgents = agents.filter(agent => {
+    if (agentFilter.search && !agent.name.toLowerCase().includes(agentFilter.search.toLowerCase()) && 
+        !agent.email.toLowerCase().includes(agentFilter.search.toLowerCase())) {
+      return false
+    }
+    if (agentFilter.role !== "All" && agent.role !== agentFilter.role) {
+      return false
+    }
+    if (agentFilter.team !== "All" && !agent.teams.includes(agentFilter.team)) {
+      return false
+    }
+    if (agentFilter.status !== "All" && agent.status !== agentFilter.status) {
+      return false
+    }
+    return true
+  })
+
+  const handleLogout = () => {
+    if (confirm("Are you sure you want to logout?")) {
+      // Implement logout logic here
+      window.location.href = "/"
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -163,6 +268,9 @@ export function AdminDashboard() {
             </Button>
             <Button variant="ghost" size="icon">
               <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-4 w-4" />
             </Button>
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
@@ -229,9 +337,22 @@ export function AdminDashboard() {
                           <CardTitle className="text-lg">{team.name}</CardTitle>
                           <CardDescription>{team.description}</CardDescription>
                         </div>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => setEditingTeam(team)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteTeam(team.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -244,14 +365,8 @@ export function AdminDashboard() {
                           <span className="text-muted-foreground">Online Now</span>
                           <span className="font-medium text-green-600">{team.onlineAgents}</span>
                         </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button variant="outline" size="sm" className="flex-1">
-                            <Edit className="mr-1 h-3 w-3" />
-                            Edit
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                        <div className="text-xs text-muted-foreground">
+                          Created: {team.createdAt.toLocaleDateString()}
                         </div>
                       </div>
                     </CardContent>
@@ -273,15 +388,55 @@ export function AdminDashboard() {
                 </Button>
               </div>
 
-              {/* Search */}
-              <div className="relative mb-6">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search agents..." className="pl-10 max-w-sm" />
+              {/* Search and Filters */}
+              <div className="flex gap-4 mb-6">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search agents..." 
+                    className="pl-10" 
+                    value={agentFilter.search}
+                    onChange={(e) => setAgentFilter(prev => ({ ...prev, search: e.target.value }))}
+                  />
+                </div>
+                
+                <select 
+                  className="flex h-10 w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  value={agentFilter.role}
+                  onChange={(e) => setAgentFilter(prev => ({ ...prev, role: e.target.value }))}
+                >
+                  <option value="All">All Roles</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Manager">Manager</option>
+                  <option value="Agent">Agent</option>
+                </select>
+
+                <select 
+                  className="flex h-10 w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  value={agentFilter.team}
+                  onChange={(e) => setAgentFilter(prev => ({ ...prev, team: e.target.value }))}
+                >
+                  <option value="All">All Teams</option>
+                  {teams.map(team => (
+                    <option key={team.id} value={team.name}>{team.name}</option>
+                  ))}
+                </select>
+
+                <select 
+                  className="flex h-10 w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  value={agentFilter.status}
+                  onChange={(e) => setAgentFilter(prev => ({ ...prev, status: e.target.value }))}
+                >
+                  <option value="All">All Status</option>
+                  <option value="Online">Online</option>
+                  <option value="Offline">Offline</option>
+                  <option value="Busy">Busy</option>
+                </select>
               </div>
 
               {/* Agents List */}
               <div className="space-y-4">
-                {agents.map((agent) => (
+                {filteredAgents.map((agent) => (
                   <Card key={agent.id}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -324,90 +479,266 @@ export function AdminDashboard() {
                           <span className="text-xs text-muted-foreground">
                             Last active: {formatTime(agent.lastActive)}
                           </span>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => setEditingAgent(agent)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteAgent(agent.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
                           </Button>
                         </div>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+                
+                {filteredAgents.length === 0 && (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <p className="text-muted-foreground">No agents found matching your filters.</p>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Create Team Modal Placeholder */}
+      {/* Create Team Modal */}
       {showCreateTeam && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Create New Team</CardTitle>
-              <CardDescription>Add a new team to organize your agents</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Team Name</label>
-                <Input placeholder="e.g., Support, Sales, Technical" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input placeholder="Brief description of team purpose" />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowCreateTeam(false)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button className="flex-1">Create Team</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <TeamModal
+          isOpen={showCreateTeam}
+          onClose={() => setShowCreateTeam(false)}
+          onSave={handleCreateTeam}
+          title="Create New Team"
+        />
       )}
 
-      {/* Invite Agent Modal Placeholder */}
-      {showInviteAgent && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Invite New Agent</CardTitle>
-              <CardDescription>Send an invitation to join your team</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Email Address</label>
-                <Input type="email" placeholder="agent@company.com" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Role</label>
-                <select className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                  <option value="Agent">Agent</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Admin">Admin</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Teams</label>
-                <div className="space-y-2">
-                  {teams.map((team) => (
-                    <label key={team.id} className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded border-border" />
-                      <span className="text-sm">{team.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowInviteAgent(false)} className="flex-1">
-                  Cancel
-                </Button>
-                <Button className="flex-1">Send Invite</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Edit Team Modal */}
+      {editingTeam && (
+        <TeamModal
+          isOpen={!!editingTeam}
+          onClose={() => setEditingTeam(null)}
+          onSave={(data) => handleUpdateTeam(editingTeam.id, data)}
+          title="Edit Team"
+          initialData={editingTeam}
+        />
       )}
+
+      {/* Invite Agent Modal */}
+      {showInviteAgent && (
+        <AgentModal
+          isOpen={showInviteAgent}
+          onClose={() => setShowInviteAgent(false)}
+          onSave={handleInviteAgent}
+          title="Invite New Agent"
+          teams={teams}
+        />
+      )}
+
+      {/* Edit Agent Modal */}
+      {editingAgent && (
+        <AgentModal
+          isOpen={!!editingAgent}
+          onClose={() => setEditingAgent(null)}
+          onSave={(data) => handleUpdateAgent(editingAgent.id, data)}
+          title="Edit Agent"
+          teams={teams}
+          initialData={editingAgent}
+        />
+      )}
+    </div>
+  )
+}
+
+// Team Modal Component
+interface TeamModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSave: (data: { name: string; description: string }) => void
+  title: string
+  initialData?: { name: string; description: string }
+}
+
+function TeamModal({ isOpen, onClose, onSave, title, initialData }: TeamModalProps) {
+  const [formData, setFormData] = useState({
+    name: initialData?.name || "",
+    description: initialData?.description || ""
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (formData.name.trim() && formData.description.trim()) {
+      onSave(formData)
+      setFormData({ name: "", description: "" })
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>
+            {initialData ? "Update team information" : "Add a new team to organize your agents"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Team Name</label>
+              <Input 
+                placeholder="e.g., Support, Sales, Technical" 
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description</label>
+              <Input 
+                placeholder="Brief description of team purpose" 
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1">
+                <Save className="mr-2 h-4 w-4" />
+                {initialData ? "Update" : "Create"} Team
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// Agent Modal Component
+interface AgentModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSave: (data: { name: string; email: string; role: Agent['role']; teams: string[] }) => void
+  title: string
+  teams: Team[]
+  initialData?: { name: string; email: string; role: Agent['role']; teams: string[] }
+}
+
+function AgentModal({ isOpen, onClose, onSave, title, teams, initialData }: AgentModalProps) {
+  const [formData, setFormData] = useState({
+    name: initialData?.name || "",
+    email: initialData?.email || "",
+    role: initialData?.role || "Agent" as Agent['role'],
+    teams: initialData?.teams || []
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (formData.name.trim() && formData.email.trim() && formData.teams.length > 0) {
+      onSave(formData)
+      setFormData({ name: "", email: "", role: "Agent", teams: [] })
+    }
+  }
+
+  const handleTeamToggle = (teamName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      teams: prev.teams.includes(teamName)
+        ? prev.teams.filter(t => t !== teamName)
+        : [...prev.teams, teamName]
+    }))
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>
+            {initialData ? "Update agent information" : "Send an invitation to join your team"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Full Name</label>
+              <Input 
+                placeholder="John Doe" 
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Email Address</label>
+              <Input 
+                type="email" 
+                placeholder="agent@company.com" 
+                value={formData.email}
+                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Role</label>
+              <select 
+                className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                value={formData.role}
+                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as Agent['role'] }))}
+              >
+                <option value="Agent">Agent</option>
+                <option value="Manager">Manager</option>
+                <option value="Admin">Admin</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Teams</label>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {teams.map((team) => (
+                  <label key={team.id} className="flex items-center space-x-2">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-border" 
+                      checked={formData.teams.includes(team.name)}
+                      onChange={() => handleTeamToggle(team.name)}
+                    />
+                    <span className="text-sm">{team.name}</span>
+                  </label>
+                ))}
+              </div>
+              {formData.teams.length === 0 && (
+                <p className="text-xs text-red-500">Please select at least one team</p>
+              )}
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1">
+                <Save className="mr-2 h-4 w-4" />
+                {initialData ? "Update" : "Invite"} Agent
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }

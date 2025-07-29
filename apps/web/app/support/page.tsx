@@ -1,5 +1,5 @@
-import { AgentDashboard } from "@/components/agent/agent-dashboard"
+import { SupportLandingPage } from "@/components/support/support-landing"
 
-export default function SupportDashboardPage() {
-  return <AgentDashboard />
+export default function SupportPage() {
+  return <SupportLandingPage />
 }
