@@ -20,9 +20,9 @@ interface Config {
   };
   jwt: {
     secret: string;
-    expiresIn: string;
+    expiresIn: string | number;
     refreshSecret: string;
-    refreshExpiresIn: string;
+    refreshExpiresIn: string | number;
   };
   upload: {
     maxFileSize: number;
