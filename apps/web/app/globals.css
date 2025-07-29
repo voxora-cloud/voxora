@@ -33,9 +33,9 @@
   --sidebar-accent-foreground: #1e3a8a;
   --sidebar-border: #e2e8f0;
   --sidebar-ring: #1d4ed8;
-  --font-sans: Lora;
-  --font-serif: Lora;
-  --font-mono: monospace;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', Times, serif;
+  --font-mono: 'Courier New', Courier, monospace;
   --radius: 0.5rem;
   --shadow-2xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.05);
@@ -82,9 +82,9 @@
   --sidebar-accent-foreground: #f8fafc;
   --sidebar-border: #1e293b;
   --sidebar-ring: #2563eb;
-  --font-sans: Lora;
-  --font-serif: Lora;
-  --font-mono: monospace;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', Times, serif;
+  --font-mono: 'Courier New', Courier, monospace;
   --radius: 0.5rem;
   --shadow-2xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0px 2px 4px 0px hsl(0 0% 0% / 0.05);
