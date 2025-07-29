@@ -1,9 +1,9 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export interface IMessage extends Document {
   _id: string;
-  conversationId: string;
-  senderId: string;
+  conversationId: Types.ObjectId;
+  senderId: Types.ObjectId;
   content: string;
   type: 'text' | 'file' | 'image' | 'system';
   metadata: {

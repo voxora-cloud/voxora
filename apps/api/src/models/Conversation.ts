@@ -1,18 +1,18 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema,Types } from 'mongoose';
 
 export interface IConversation extends Document {
   _id: string;
-  participants: string[]; // User IDs
+  participants: Types.ObjectId[]; // User IDs
   subject?: string;
   status: 'open' | 'pending' | 'resolved' | 'closed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  assignedTo?: string; // Agent ID
+  assignedTo?: Types.ObjectId | null;  // Agent ID
   tags: string[];
-  lastMessage?: string; // Message ID
+  lastMessage?: Types.ObjectId; // Message ID
   lastMessageAt: Date;
-  createdBy: string; // User ID
+  createdBy: Types.ObjectId; // User ID
   closedAt?: Date;
-  closedBy?: string; // User ID
+  closedBy?: Types.ObjectId | null; // User ID
   metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -58,7 +58,7 @@ const conversationSchema = new Schema<IConversation>({
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    // required: true,
   },
   closedAt: {
     type: Date,
