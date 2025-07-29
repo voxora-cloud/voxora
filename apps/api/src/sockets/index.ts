@@ -6,7 +6,6 @@ import { User } from '../models';
 import logger from '../utils/logger';
 import config from '../config';
 
-// Import socket handlers
 import { handleConnection } from './handlers/connectionHandler';
 import { handleMessage } from './handlers/messageHandler';
 import { handleConversation } from './handlers/conversationHandler';

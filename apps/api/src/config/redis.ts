@@ -3,12 +3,10 @@ import config from './index';
 import logger from '../utils/logger';
 
 export const redisClient = createClient({
-  host: config.redis.host,
-  port: config.redis.port,
-  password: config.redis.password,
-  retryDelayOnFailover: 100,
-  enableReadyCheck: false,
-  maxRetriesPerRequest: null,
+  url: `redis://:${config.redis.password}@${config.redis.host}:${config.redis.port}`,
+  socket: {
+    reconnectStrategy: (retries) => Math.min(retries * 50, 500)
+  }
 });
 
 export const redisSubscriber = redisClient.duplicate();

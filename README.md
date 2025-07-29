@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🎯 Voxora</h1>
+  <h1><img src="https://avatars.githubusercontent.com/u/222506196?s=48&v=4"> Voxora</h1>
   <p><strong>Open-source, AI-powered live chat & voice support platform</strong></p>
   <p>Built for modern web applications with real-time communication</p>
 
