@@ -45,15 +45,29 @@ export const authenticate = async (
   }
 };
 
-export const authorize = (...roles: string[]) => {
+// Alias for authenticate to match route expectations
+export const auth = authenticate;
+
+export const authorize = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as AuthenticatedRequest).user;
     
-    if (!user || !roles.includes(user.role)) {
-      sendError(res, 403, 'Insufficient permissions');
+    if (!user) {
+      res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
       return;
     }
-    
+
+    if (!roles.includes(user.role)) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied - insufficient permissions'
+      });
+      return;
+    }
+
     next();
   };
 };

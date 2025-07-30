@@ -2,6 +2,8 @@ import { Router } from 'express';
 import authRoutes from './auth';
 import conversationRoutes from './conversations';
 import messageRoutes from './messages';
+import adminRoutes from './admin';
+import agentRoutes from './agent';
 
 const router = Router();
 
@@ -9,6 +11,8 @@ const router = Router();
 router.use('/auth', authRoutes);
 router.use('/conversations', conversationRoutes);
 router.use('/messages', messageRoutes);
+router.use('/admin', adminRoutes);
+router.use('/agent', agentRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

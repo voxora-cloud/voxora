@@ -5,6 +5,9 @@ import {
   logout,
   refreshToken,
   getProfile,
+  adminSignup,
+  adminLogin,
+  agentLogin,
 } from '../controllers/authController';
 import { authenticate, validateRequest, authRateLimit } from '../middleware';
 import { userValidation } from '../utils/validation';
@@ -22,6 +25,25 @@ router.post('/login',
   authRateLimit,
   validateRequest(userValidation.login),
   login
+);
+
+// Admin/Agent specific auth routes
+router.post('/admin/signup',
+  authRateLimit,
+  validateRequest(userValidation.adminSignup),
+  adminSignup
+);
+
+router.post('/admin/login',
+  authRateLimit,
+  validateRequest(userValidation.login),
+  adminLogin
+);
+
+router.post('/agent/login',
+  authRateLimit,
+  validateRequest(userValidation.login),
+  agentLogin
 );
 
 router.post('/refresh-token', refreshToken);

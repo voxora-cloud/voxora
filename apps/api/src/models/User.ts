@@ -6,11 +6,25 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'agent' | 'admin';
+  role: 'user' | 'agent' | 'admin' | 'founder';
   avatar?: string;
   status: 'online' | 'away' | 'busy' | 'offline';
   lastSeen: Date;
   isActive: boolean;
+  teams: string[]; // Team IDs for agents
+  permissions: string[]; // Specific permissions
+  companyName?: string; // For founder/admin
+  phoneNumber?: string;
+  inviteStatus: 'pending' | 'active' | 'inactive';
+  invitedBy?: string; // User ID who invited this user
+  invitedAt?: Date;
+  activatedAt?: Date;
+  emailVerified: boolean;
+  emailVerificationToken?: string;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
+  totalChats: number;
+  rating: number;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -37,7 +51,7 @@ const userSchema = new Schema<IUser>({
   },
   role: {
     type: String,
-    enum: ['user', 'agent', 'admin'],
+    enum: ['user', 'agent', 'admin', 'founder'],
     default: 'user',
   },
   avatar: {
@@ -57,12 +71,65 @@ const userSchema = new Schema<IUser>({
     type: Boolean,
     default: true,
   },
+  teams: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Team',
+  }],
+  permissions: [{
+    type: String,
+  }],
+  companyName: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+  },
+  phoneNumber: {
+    type: String,
+    trim: true,
+  },
+  inviteStatus: {
+    type: String,
+    enum: ['pending', 'active', 'inactive'],
+    default: 'pending',
+  },
+  invitedBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  invitedAt: {
+    type: Date,
+  },
+  activatedAt: {
+    type: Date,
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailVerificationToken: {
+    type: String,
+  },
+  resetPasswordToken: {
+    type: String,
+  },
+  resetPasswordExpires: {
+    type: Date,
+  },
+  totalChats: {
+    type: Number,
+    default: 0,
+  },
+  rating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5,
+  },
 }, {
   timestamps: true,
 });
 
 // Index for better query performance
-userSchema.index({ email: 1 });
 userSchema.index({ role: 1, status: 1 });
 
 // Hash password before saving

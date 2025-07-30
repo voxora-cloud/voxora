@@ -8,6 +8,7 @@ interface Config {
     env: string;
     apiUrl: string;
     clientUrl: string;
+    frontendUrl: string;
   };
   database: {
     mongoUri: string;
@@ -23,6 +24,19 @@ interface Config {
     expiresIn: string | number;
     refreshSecret: string;
     refreshExpiresIn: string | number;
+  };
+  email: {
+    host: string;
+    port: number;
+    secure: boolean;
+    auth: {
+      user?: string;
+      pass?: string;
+    };
+    from: {
+      name: string;
+      email: string;
+    };
   };
   upload: {
     maxFileSize: number;
@@ -43,6 +57,7 @@ const config: Config = {
     env: process.env.NODE_ENV || 'development',
     apiUrl: process.env.API_URL || 'http://localhost:3001',
     clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   },
   database: {
     mongoUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/voxora-chat',
@@ -58,6 +73,19 @@ const config: Config = {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
     refreshSecret: process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+  },
+  email: {
+    host: process.env.EMAIL_HOST || 'localhost',
+    port: parseInt(process.env.EMAIL_PORT || '1025', 10), // MailHog default port
+    secure: false, // MailHog doesn't use SSL
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+    from: {
+      name: process.env.EMAIL_FROM_NAME || 'Voxora Support',
+      email: process.env.EMAIL_FROM_EMAIL || 'noreply@voxora.com',
+    },
   },
   upload: {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB

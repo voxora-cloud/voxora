@@ -93,4 +93,246 @@ export class AuthService {
     // and generating new tokens
     throw new Error('Refresh token functionality not implemented yet');
   }
+
+  // =================
+  // NEW AUTH METHODS
+  // =================
+
+  async adminSignup(userData: any) {
+    const { name, email, password, companyName } = userData;
+
+    // Check if any admin/founder already exists
+    const existingAdmin = await User.findOne({ 
+      role: { $in: ['admin', 'founder'] } 
+    });
+
+    let role = 'admin';
+    if (!existingAdmin) {
+      role = 'founder'; // First admin becomes founder
+    }
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return { 
+        success: false, 
+        message: 'Email already registered', 
+        statusCode: 400 
+      };
+    }
+
+    // Create admin user
+    const admin = new User({
+      name,
+      email,
+      password,
+      role,
+      isActive: true,
+      emailVerified: true,
+      companyName,
+      permissions: ['manage_teams', 'manage_agents', 'view_analytics', 'manage_settings']
+    });
+
+    await admin.save();
+
+    // Generate JWT token
+    const tokens = generateTokens({
+      userId: admin._id,
+      email: admin.email,
+      role: admin.role,
+    });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: admin._id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+          companyName: admin.companyName
+        },
+        token: tokens.accessToken
+      }
+    };
+  }
+
+  async adminLogin(loginData: any) {
+    const { email, password } = loginData;
+
+    // Find admin user
+    const admin = await User.findOne({
+      email,
+      role: { $in: ['admin', 'founder'] },
+      isActive: true
+    }).select('+password');
+
+    if (!admin || !(await admin.comparePassword(password))) {
+      return { 
+        success: false, 
+        message: 'Invalid email or password', 
+        statusCode: 401 
+      };
+    }
+
+    // Update last login
+    admin.lastSeen = new Date();
+    await admin.save();
+
+    // Generate JWT token
+    const tokens = generateTokens({
+      userId: admin._id,
+      email: admin.email,
+      role: admin.role,
+    });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: admin._id,
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+          companyName: admin.companyName,
+          permissions: admin.permissions
+        },
+        token: tokens.accessToken
+      }
+    };
+  }
+
+  async agentLogin(loginData: any) {
+    const { email, password } = loginData;
+
+    // Find agent user
+    const agent = await User.findOne({
+      email,
+      role: { $in: ['agent', 'admin'] },
+      isActive: true
+    }).select('+password').populate('teams', 'name color');
+
+    if (!agent || !(await agent.comparePassword(password))) {
+      return { 
+        success: false, 
+        message: 'Invalid email or password', 
+        statusCode: 401 
+      };
+    }
+
+    // Check if agent invitation is still pending
+    if (agent.inviteStatus === 'pending') {
+      return { 
+        success: false, 
+        message: 'Please accept your invitation first', 
+        statusCode: 403 
+      };
+    }
+
+    // Update last login and status
+    agent.lastSeen = new Date();
+    agent.status = 'online';
+    await agent.save();
+
+    // Generate JWT token
+    const tokens = generateTokens({
+      userId: agent._id,
+      email: agent.email,
+      role: agent.role,
+    });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: agent._id,
+          name: agent.name,
+          email: agent.email,
+          role: agent.role,
+          teams: agent.teams,
+          permissions: agent.permissions,
+          status: agent.status
+        },
+        token: tokens.accessToken
+      }
+    };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await User.findOne({ email, isActive: true });
+    
+    if (user) {
+      // Generate reset token
+      const resetToken = require('crypto').randomBytes(32).toString('hex');
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      await user.save();
+
+      // Send password reset email
+      const emailService = require('./EmailService').default;
+      await emailService.sendPasswordResetEmail(email, user.name, resetToken);
+    }
+
+    // Always return success for security reasons
+    return { success: true };
+  }
+
+  async resetPassword(userId: string, newPassword: string) {
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return { 
+        success: false, 
+        message: 'User not found', 
+        statusCode: 404 
+      };
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    // Generate new JWT token
+    const tokens = generateTokens({
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return {
+      success: true,
+      data: {
+        token: tokens.accessToken
+      }
+    };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await User.findById(userId).select('+password');
+    
+    if (!user) {
+      return { 
+        success: false, 
+        message: 'User not found', 
+        statusCode: 404 
+      };
+    }
+
+    // Verify current password
+    if (!(await user.comparePassword(currentPassword))) {
+      return { 
+        success: false, 
+        message: 'Current password is incorrect', 
+        statusCode: 400 
+      };
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    return { success: true };
+  }
 }

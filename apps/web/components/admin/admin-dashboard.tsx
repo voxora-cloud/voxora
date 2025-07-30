@@ -1,744 +1,407 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "@/components/auth/auth-context"
+import { useTeams, useAgents, useDashboardStats } from "@/lib/hooks/useAdmin"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   Users, 
-  Plus, 
-  Settings, 
-  Bell, 
+  UserPlus, 
   Search, 
   Mail, 
   UserCheck,
-  Edit,
   Trash2,
   Crown,
   Star,
   LogOut,
-  Save
+  AlertCircle
 } from "lucide-react"
 
-interface Team {
-  id: string
-  name: string
-  description: string
-  agentCount: number
-  onlineAgents: number
-  createdAt: Date
-}
-
-interface Agent {
-  id: string
-  name: string
-  email: string
-  role: "Admin" | "Manager" | "Agent"
-  teams: string[]
-  status: "Online" | "Offline" | "Busy"
-  avatar?: string
-  lastActive: Date
-  inviteStatus: "Pending" | "Active" | "Inactive"
-}
-
 export function AdminDashboard() {
+  const { user, logout, isAuthenticated, isLoading } = useAuth()
+  const { 
+    teams, 
+    loading: teamsLoading, 
+    error: teamsError, 
+    deleteTeam 
+  } = useTeams()
+  
+  const { 
+    agents, 
+    loading: agentsLoading, 
+    error: agentsError, 
+    deleteAgent 
+  } = useAgents()
+  
+  const { 
+    stats, 
+    loading: statsLoading, 
+    error: statsError 
+  } = useDashboardStats()
+
   const [activeTab, setActiveTab] = useState<"teams" | "agents">("teams")
-  const [showCreateTeam, setShowCreateTeam] = useState(false)
-  const [showInviteAgent, setShowInviteAgent] = useState(false)
-  const [editingTeam, setEditingTeam] = useState<Team | null>(null)
-  const [editingAgent, setEditingAgent] = useState<Agent | null>(null)
   
   // Filter states
-  const [agentFilter, setAgentFilter] = useState({
-    role: "All",
-    team: "All", 
-    status: "All",
-    search: ""
+  const [teamFilter, setTeamFilter] = useState({ search: "" })
+  const [agentFilter, setAgentFilter] = useState({ 
+    search: "", 
+    role: "All" as "All" | "admin" | "agent" | "manager"
   })
-  
-  const [teams, setTeams] = useState<Team[]>([
-    {
-      id: "1",
-      name: "Support",
-      description: "Customer support and technical assistance",
-      agentCount: 8,
-      onlineAgents: 5,
-      createdAt: new Date(Date.now() - 86400000)
-    },
-    {
-      id: "2", 
-      name: "Sales",
-      description: "Sales team for lead conversion and demos",
-      agentCount: 4,
-      onlineAgents: 3,
-      createdAt: new Date(Date.now() - 172800000)
-    },
-    {
-      id: "3",
-      name: "Technical",
-      description: "Advanced technical support and integration help",
-      agentCount: 3,
-      onlineAgents: 2,
-      createdAt: new Date(Date.now() - 259200000)
-    }
-  ])
 
-  const [agents, setAgents] = useState<Agent[]>([
-    {
-      id: "1",
-      name: "Sarah Williams",
-      email: "sarah@company.com",
-      role: "Manager",
-      teams: ["Support", "Technical"],
-      status: "Online",
-      lastActive: new Date(),
-      inviteStatus: "Active"
-    },
-    {
-      id: "2",
-      name: "John Smith", 
-      email: "john@company.com",
-      role: "Agent",
-      teams: ["Support"],
-      status: "Online",
-      lastActive: new Date(Date.now() - 300000),
-      inviteStatus: "Active"
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike@company.com", 
-      role: "Admin",
-      teams: ["Sales", "Support"],
-      status: "Offline",
-      lastActive: new Date(Date.now() - 3600000),
-      inviteStatus: "Active"
-    },
-    {
-      id: "4",
-      name: "Emma Davis",
-      email: "emma@company.com",
-      role: "Agent", 
-      teams: ["Sales"],
-      status: "Busy",
-      lastActive: new Date(Date.now() - 900000),
-      inviteStatus: "Pending"
-    },
-    {
-      id: "5",
-      name: "Alex Chen",
-      email: "alex@company.com",
-      role: "Agent",
-      teams: ["Technical"],
-      status: "Online",
-      lastActive: new Date(Date.now() - 600000),
-      inviteStatus: "Active"
+  // Handle authentication redirect
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      window.location.href = '/login'
     }
-  ])
+  }, [isAuthenticated, isLoading])
 
-  // Team CRUD operations
-  const handleCreateTeam = (teamData: { name: string; description: string }) => {
-    const newTeam: Team = {
-      id: Date.now().toString(),
-      name: teamData.name,
-      description: teamData.description,
-      agentCount: 0,
-      onlineAgents: 0,
-      createdAt: new Date()
-    }
-    setTeams(prev => [...prev, newTeam])
-    setShowCreateTeam(false)
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      </div>
+    )
   }
 
-  const handleUpdateTeam = (teamId: string, teamData: { name: string; description: string }) => {
-    setTeams(prev => prev.map(team => 
-      team.id === teamId ? { ...team, ...teamData } : team
-    ))
-    setEditingTeam(null)
+  // Redirect if not authenticated
+  if (!isAuthenticated || user?.role !== 'admin') {
+    return null
   }
 
-  const handleDeleteTeam = (teamId: string) => {
-    if (confirm("Are you sure you want to delete this team? This action cannot be undone.")) {
-      setTeams(prev => prev.filter(team => team.id !== teamId))
-      // Also remove team from agents
-      setAgents(prev => prev.map(agent => ({
-        ...agent,
-        teams: agent.teams.filter(team => teams.find(t => t.id === teamId)?.name !== team)
-      })))
+  const handleDeleteTeam = async (teamId: string) => {
+    if (window.confirm('Are you sure you want to delete this team?')) {
+      try {
+        await deleteTeam(teamId)
+      } catch (error) {
+        console.error('Failed to delete team:', error)
+      }
     }
   }
 
-  // Agent CRUD operations
-  const handleInviteAgent = (agentData: { name: string; email: string; role: Agent['role']; teams: string[] }) => {
-    const newAgent: Agent = {
-      id: Date.now().toString(),
-      name: agentData.name,
-      email: agentData.email,
-      role: agentData.role,
-      teams: agentData.teams,
-      status: "Offline",
-      lastActive: new Date(),
-      inviteStatus: "Pending"
-    }
-    setAgents(prev => [...prev, newAgent])
-    setShowInviteAgent(false)
-  }
-
-  const handleUpdateAgent = (agentId: string, agentData: { name: string; email: string; role: Agent['role']; teams: string[] }) => {
-    setAgents(prev => prev.map(agent => 
-      agent.id === agentId ? { ...agent, ...agentData } : agent
-    ))
-    setEditingAgent(null)
-  }
-
-  const handleDeleteAgent = (agentId: string) => {
-    if (confirm("Are you sure you want to remove this agent? This action cannot be undone.")) {
-      setAgents(prev => prev.filter(agent => agent.id !== agentId))
+  const handleDeleteAgent = async (agentId: string) => {
+    if (window.confirm('Are you sure you want to delete this agent?')) {
+      try {
+        await deleteAgent(agentId)
+      } catch (error) {
+        console.error('Failed to delete agent:', error)
+      }
     }
   }
 
-  // Filter logic
-  const filteredAgents = agents.filter(agent => {
-    if (agentFilter.search && !agent.name.toLowerCase().includes(agentFilter.search.toLowerCase()) && 
-        !agent.email.toLowerCase().includes(agentFilter.search.toLowerCase())) {
+  const filteredTeams = teams?.filter(team => 
+    teamFilter.search === "" || 
+    team.name.toLowerCase().includes(teamFilter.search.toLowerCase()) ||
+    team.description.toLowerCase().includes(teamFilter.search.toLowerCase())
+  ) || []
+
+  const filteredAgents = agents?.filter(agent => {
+    if (agentFilter.search && !agent.email.toLowerCase().includes(agentFilter.search.toLowerCase())) {
       return false
     }
     if (agentFilter.role !== "All" && agent.role !== agentFilter.role) {
       return false
     }
-    if (agentFilter.team !== "All" && !agent.teams.includes(agentFilter.team)) {
-      return false
-    }
-    if (agentFilter.status !== "All" && agent.status !== agentFilter.status) {
-      return false
-    }
     return true
-  })
-
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
-      // Implement logout logic here
-      window.location.href = "/"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Online": return "text-green-500"
-      case "Offline": return "text-gray-500"
-      case "Busy": return "text-yellow-500"
-      default: return "text-gray-500"
-    }
-  }
-
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case "Admin": return <Crown className="h-4 w-4" />
-      case "Manager": return <Star className="h-4 w-4" />
-      case "Agent": return <UserCheck className="h-4 w-4" />
-      default: return <UserCheck className="h-4 w-4" />
-    }
-  }
-
-  const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).format(date)
-  }
+  }) || []
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="container mx-auto p-6 space-y-8">
       {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="flex h-16 items-center justify-between px-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-lg font-bold text-primary-foreground">V</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">Voxora Admin</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-primary-foreground">F</span>
-              </div>
-              <span className="text-sm font-medium">Founder</span>
-            </div>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage your teams, agents, and organization settings
+          </p>
         </div>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 border-r border-border bg-card">
-          <nav className="p-4 space-y-2">
-            <Button 
-              variant={activeTab === "teams" ? "secondary" : "ghost"} 
-              className="w-full justify-start"
-              onClick={() => setActiveTab("teams")}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Teams
-              <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full px-2 py-1">
-                {teams.length}
-              </span>
-            </Button>
-            <Button 
-              variant={activeTab === "agents" ? "secondary" : "ghost"} 
-              className="w-full justify-start"
-              onClick={() => setActiveTab("agents")}
-            >
-              <UserCheck className="mr-2 h-4 w-4" />
-              Agents
-              <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full px-2 py-1">
-                {agents.filter(a => a.inviteStatus === "Active").length}
-              </span>
-            </Button>
-          </nav>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 p-6">
-          {activeTab === "teams" ? (
-            <div>
-              {/* Teams Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">Teams</h1>
-                  <p className="text-muted-foreground">Manage your support teams and organization</p>
-                </div>
-                <Button onClick={() => setShowCreateTeam(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Team
-                </Button>
-              </div>
-
-              {/* Teams Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {teams.map((team) => (
-                  <Card key={team.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{team.name}</CardTitle>
-                          <CardDescription>{team.description}</CardDescription>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setEditingTeam(team)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleDeleteTeam(team.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Total Agents</span>
-                          <span className="font-medium">{team.agentCount}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Online Now</span>
-                          <span className="font-medium text-green-600">{team.onlineAgents}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Created: {team.createdAt.toLocaleDateString()}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              {/* Agents Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">Agents</h1>
-                  <p className="text-muted-foreground">Manage your team members and their permissions</p>
-                </div>
-                <Button onClick={() => setShowInviteAgent(true)}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Invite Agent
-                </Button>
-              </div>
-
-              {/* Search and Filters */}
-              <div className="flex gap-4 mb-6">
-                <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search agents..." 
-                    className="pl-10" 
-                    value={agentFilter.search}
-                    onChange={(e) => setAgentFilter(prev => ({ ...prev, search: e.target.value }))}
-                  />
-                </div>
-                
-                <select 
-                  className="flex h-10 w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  value={agentFilter.role}
-                  onChange={(e) => setAgentFilter(prev => ({ ...prev, role: e.target.value }))}
-                >
-                  <option value="All">All Roles</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Agent">Agent</option>
-                </select>
-
-                <select 
-                  className="flex h-10 w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  value={agentFilter.team}
-                  onChange={(e) => setAgentFilter(prev => ({ ...prev, team: e.target.value }))}
-                >
-                  <option value="All">All Teams</option>
-                  {teams.map(team => (
-                    <option key={team.id} value={team.name}>{team.name}</option>
-                  ))}
-                </select>
-
-                <select 
-                  className="flex h-10 w-32 rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                  value={agentFilter.status}
-                  onChange={(e) => setAgentFilter(prev => ({ ...prev, status: e.target.value }))}
-                >
-                  <option value="All">All Status</option>
-                  <option value="Online">Online</option>
-                  <option value="Offline">Offline</option>
-                  <option value="Busy">Busy</option>
-                </select>
-              </div>
-
-              {/* Agents List */}
-              <div className="space-y-4">
-                {filteredAgents.map((agent) => (
-                  <Card key={agent.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary-foreground">
-                              {agent.name.split(" ").map(n => n[0]).join("")}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-medium text-foreground">{agent.name}</h3>
-                              {getRoleIcon(agent.role)}
-                              <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded">
-                                {agent.role}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{agent.email}</p>
-                            <div className="flex items-center space-x-4 mt-1">
-                              <span className={`text-xs flex items-center ${getStatusColor(agent.status)}`}>
-                                <div className={`w-2 h-2 rounded-full mr-1 ${
-                                  agent.status === "Online" ? "bg-green-500" :
-                                  agent.status === "Busy" ? "bg-yellow-500" : "bg-gray-500"
-                                }`} />
-                                {agent.status}
-                              </span>
-                              <span className="text-xs text-muted-foreground">
-                                Teams: {agent.teams.join(", ")}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          {agent.inviteStatus === "Pending" && (
-                            <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                              Pending Invite
-                            </span>
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            Last active: {formatTime(agent.lastActive)}
-                          </span>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setEditingAgent(agent)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleDeleteAgent(agent.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                
-                {filteredAgents.length === 0 && (
-                  <Card>
-                    <CardContent className="p-8 text-center">
-                      <p className="text-muted-foreground">No agents found matching your filters.</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          )}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Crown className="h-5 w-5 text-yellow-500" />
+            <span className="font-medium">{user?.email}</span>
+          </div>
+          <Button onClick={logout} variant="outline" size="sm">
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
         </div>
       </div>
 
-      {/* Create Team Modal */}
-      {showCreateTeam && (
-        <TeamModal
-          isOpen={showCreateTeam}
-          onClose={() => setShowCreateTeam(false)}
-          onSave={handleCreateTeam}
-          title="Create New Team"
-        />
+      {/* Stats Cards */}
+      {statsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : statsError ? (
+        <div className="text-red-500">Failed to load stats</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Teams</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalTeams || teams?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                Active teams in your organization
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Agents</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats?.totalAgents || agents?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                Active agents across all teams
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Agents</CardTitle>
+              <Star className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {stats?.activeAgents || agents?.filter(a => a.inviteStatus === 'active').length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Currently active agents
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Edit Team Modal */}
-      {editingTeam && (
-        <TeamModal
-          isOpen={!!editingTeam}
-          onClose={() => setEditingTeam(null)}
-          onSave={(data) => handleUpdateTeam(editingTeam.id, data)}
-          title="Edit Team"
-          initialData={editingTeam}
-        />
-      )}
+      {/* Main Content */}
+      <div className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
+          <Button
+            variant={activeTab === "teams" ? "default" : "ghost"}
+            onClick={() => setActiveTab("teams")}
+            className="px-4 py-2"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Teams
+          </Button>
+          <Button
+            variant={activeTab === "agents" ? "default" : "ghost"}
+            onClick={() => setActiveTab("agents")}
+            className="px-4 py-2"
+          >
+            <UserCheck className="h-4 w-4 mr-2" />
+            Agents
+          </Button>
+        </div>
 
-      {/* Invite Agent Modal */}
-      {showInviteAgent && (
-        <AgentModal
-          isOpen={showInviteAgent}
-          onClose={() => setShowInviteAgent(false)}
-          onSave={handleInviteAgent}
-          title="Invite New Agent"
-          teams={teams}
-        />
-      )}
-
-      {/* Edit Agent Modal */}
-      {editingAgent && (
-        <AgentModal
-          isOpen={!!editingAgent}
-          onClose={() => setEditingAgent(null)}
-          onSave={(data) => handleUpdateAgent(editingAgent.id, data)}
-          title="Edit Agent"
-          teams={teams}
-          initialData={editingAgent}
-        />
-      )}
-    </div>
-  )
-}
-
-// Team Modal Component
-interface TeamModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: { name: string; description: string }) => void
-  title: string
-  initialData?: { name: string; description: string }
-}
-
-function TeamModal({ isOpen, onClose, onSave, title, initialData }: TeamModalProps) {
-  const [formData, setFormData] = useState({
-    name: initialData?.name || "",
-    description: initialData?.description || ""
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (formData.name.trim() && formData.description.trim()) {
-      onSave(formData)
-      setFormData({ name: "", description: "" })
-    }
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>
-            {initialData ? "Update team information" : "Add a new team to organize your agents"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Team Name</label>
-              <Input 
-                placeholder="e.g., Support, Sales, Technical" 
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <Input 
-                placeholder="Brief description of team purpose" 
-                value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1">
-                <Save className="mr-2 h-4 w-4" />
-                {initialData ? "Update" : "Create"} Team
+        {/* Teams Tab */}
+        {activeTab === "teams" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search teams..."
+                    value={teamFilter.search}
+                    onChange={(e) => setTeamFilter({ search: e.target.value })}
+                    className="pl-10 w-64"
+                  />
+                </div>
+              </div>
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create Team
               </Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
 
-// Agent Modal Component
-interface AgentModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSave: (data: { name: string; email: string; role: Agent['role']; teams: string[] }) => void
-  title: string
-  teams: Team[]
-  initialData?: { name: string; email: string; role: Agent['role']; teams: string[] }
-}
-
-function AgentModal({ isOpen, onClose, onSave, title, teams, initialData }: AgentModalProps) {
-  const [formData, setFormData] = useState({
-    name: initialData?.name || "",
-    email: initialData?.email || "",
-    role: initialData?.role || "Agent" as Agent['role'],
-    teams: initialData?.teams || []
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (formData.name.trim() && formData.email.trim() && formData.teams.length > 0) {
-      onSave(formData)
-      setFormData({ name: "", email: "", role: "Agent", teams: [] })
-    }
-  }
-
-  const handleTeamToggle = (teamName: string) => {
-    setFormData(prev => ({
-      ...prev,
-      teams: prev.teams.includes(teamName)
-        ? prev.teams.filter(t => t !== teamName)
-        : [...prev.teams, teamName]
-    }))
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>
-            {initialData ? "Update agent information" : "Send an invitation to join your team"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Full Name</label>
-              <Input 
-                placeholder="John Doe" 
-                value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email Address</label>
-              <Input 
-                type="email" 
-                placeholder="agent@company.com" 
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Role</label>
-              <select 
-                className="flex h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                value={formData.role}
-                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as Agent['role'] }))}
-              >
-                <option value="Agent">Agent</option>
-                <option value="Manager">Manager</option>
-                <option value="Admin">Admin</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Teams</label>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {teams.map((team) => (
-                  <label key={team.id} className="flex items-center space-x-2">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-border" 
-                      checked={formData.teams.includes(team.name)}
-                      onChange={() => handleTeamToggle(team.name)}
-                    />
-                    <span className="text-sm">{team.name}</span>
-                  </label>
+            {teamsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="animate-pulse space-y-3">
+                        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        <div className="h-3 bg-gray-200 rounded w-full"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
-              {formData.teams.length === 0 && (
-                <p className="text-xs text-red-500">Please select at least one team</p>
-              )}
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                Cancel
+            ) : teamsError ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-red-500 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Failed to load teams
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredTeams.map((team) => (
+                  <Card key={team.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">{team.name}</CardTitle>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteTeam(team.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <CardDescription>{team.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Agents:</span>
+                          <span>{team.agentCount || 0}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Online Agents:</span>
+                          <span>{team.onlineAgents || 0}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span>Created:</span>
+                          <span>{new Date(team.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Agents Tab */}
+        {activeTab === "agents" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Input
+                    placeholder="Search agents..."
+                    value={agentFilter.search}
+                    onChange={(e) => setAgentFilter(prev => ({ ...prev, search: e.target.value }))}
+                    className="pl-10 w-64"
+                  />
+                </div>
+                <select
+                  value={agentFilter.role}
+                  onChange={(e) => 
+                    setAgentFilter(prev => ({ ...prev, role: e.target.value as typeof agentFilter.role }))
+                  }
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm w-40"
+                >
+                  <option value="All">All Roles</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="agent">Agent</option>
+                </select>
+              </div>
+              <Button>
+                <Mail className="h-4 w-4 mr-2" />
+                Invite Agent
               </Button>
-              <Button type="submit" className="flex-1">
-                <Save className="mr-2 h-4 w-4" />
-                {initialData ? "Update" : "Invite"} Agent
-              </Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+
+            {agentsLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="animate-pulse flex items-center space-x-4">
+                        <div className="rounded-full bg-gray-200 h-10 w-10"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : agentsError ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-red-500 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />
+                  Failed to load agents
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredAgents.map((agent) => (
+                  <Card key={agent.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                            {agent.email.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="font-medium">{agent.name || agent.email}</h3>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span className="px-2 py-1 bg-gray-100 rounded text-xs capitalize">
+                                {agent.role}
+                              </span>
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                agent.inviteStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {agent.inviteStatus}
+                              </span>
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                agent.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {agent.status}
+                              </span>
+                              {agent.teams?.length > 0 && (
+                                <span>• {agent.teams.length} team{agent.teams.length !== 1 ? 's' : ''}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteAgent(agent.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
+
+export default AdminDashboard

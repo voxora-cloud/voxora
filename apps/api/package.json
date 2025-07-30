@@ -8,38 +8,45 @@
     "build": "tsc",
     "start": "node dist/index.js"
   },
-  "keywords": ["chat", "support", "realtime", "socket.io"],
+  "keywords": [
+    "chat",
+    "support",
+    "realtime",
+    "socket.io"
+  ],
   "author": "",
   "license": "ISC",
   "description": "Real-time chat support application backend",
   "dependencies": {
-    "express": "^5.1.0",
-    "socket.io": "^4.7.5",
-    "mongoose": "^8.0.3",
-    "redis": "^4.6.12",
     "@socket.io/redis-adapter": "^8.2.1",
-    "cors": "^2.8.5",
-    "helmet": "^7.1.0",
-    "jsonwebtoken": "^9.0.2",
+    "@types/nodemailer": "^6.4.17",
     "bcryptjs": "^2.4.3",
-    "joi": "^17.11.0",
-    "winston": "^3.11.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.3.1",
+    "express": "^5.1.0",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.0.3",
     "multer": "^1.4.5-lts.1",
-    "uuid": "^9.0.1"
+    "nodemailer": "^7.0.5",
+    "redis": "^4.6.12",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.1.0",
-    "@types/cors": "^2.8.17",
-    "@types/jsonwebtoken": "^9.0.5",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.5",
     "@types/multer": "^1.4.11",
+    "@types/node": "^24.1.0",
     "@types/uuid": "^9.0.7",
+    "nodemon": "^3.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
-    "nodemon": "^3.0.2"
+    "typescript": "^5.8.3"
   }
 }

@@ -31,7 +31,7 @@ router.put('/:conversationId',
 );
 
 router.post('/:conversationId/assign',
-  authorize('agent', 'admin'),
+  authorize(['agent', 'admin']),
   assignConversation
 );
 

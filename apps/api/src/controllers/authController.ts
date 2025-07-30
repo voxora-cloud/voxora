@@ -3,6 +3,8 @@ import { AuthService } from '../services';
 import { sendResponse, sendError, asyncHandler } from '../utils/response';
 import { AuthenticatedRequest } from '../middleware/auth';
 
+const authService = new AuthService();
+
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password, role } = req.body;
 
@@ -71,5 +73,62 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     sendError(res, 500, 'Failed to retrieve profile');
+  }
+});
+
+// =================
+// ADMIN AUTH
+// =================
+
+export const adminSignup = asyncHandler(async (req: Request, res: Response) => {
+  const { name, email, password, organization } = req.body;
+
+  try {
+    const result = await authService.adminSignup({
+      name,
+      email,
+      password,
+      organization,
+    });
+
+    if (!result.success) {
+      return sendError(res, result.statusCode || 400, result.message || 'Signup failed');
+    }
+
+    sendResponse(res, 201, true, 'Admin account created successfully', result.data);
+  } catch (error: any) {
+    sendError(res, 400, error.message);
+  }
+});
+
+export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  try {
+    const result = await authService.adminLogin({ email, password });
+
+    if (!result.success) {
+      return sendError(res, result.statusCode || 401, result.message || 'Login failed');
+    }
+
+    sendResponse(res, 200, true, 'Login successful', result.data);
+  } catch (error: any) {
+    sendError(res, 401, error.message);
+  }
+});
+
+export const agentLogin = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  try {
+    const result = await authService.agentLogin({ email, password });
+
+    if (!result.success) {
+      return sendError(res, result.statusCode || 401, result.message || 'Login failed');
+    }
+
+    sendResponse(res, 200, true, 'Login successful', result.data);
+  } catch (error: any) {
+    sendError(res, 401, error.message);
   }
 });

@@ -46,6 +46,23 @@ export const sendError = (
   return res.status(statusCode).json(response);
 };
 
+export const sendSuccess = <T>(
+  res: Response,
+  data?: T,
+  message: string = 'Success',
+  statusCode: number = 200,
+  pagination?: ApiResponse['pagination']
+): Response => {
+  const response: ApiResponse<T> = {
+    success: true,
+    message,
+    ...(data && { data }),
+    ...(pagination && { pagination }),
+  };
+
+  return res.status(statusCode).json(response);
+};
+
 export const asyncHandler = (fn: Function) => (
   req: Request,
   res: Response,

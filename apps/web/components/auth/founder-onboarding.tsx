@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Mail, Lock, User, Building, Globe, Briefcase } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, Building, Globe, Briefcase, AlertCircle } from "lucide-react"
+import { useAuth } from "./auth-context"
 import Link from "next/link"
 
 interface FounderData {
@@ -20,8 +21,10 @@ interface FounderData {
 }
 
 export function FounderOnboarding() {
+  const { signup } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
@@ -56,22 +59,43 @@ export function FounderOnboarding() {
   }
 
   const handleNext = async () => {
+    setError("")
+    
     if (currentStep === 1) {
-      if (formData.password !== formData.confirmPassword) {
-        alert("Passwords don't match!")
+      // Validate step 1
+      if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+        setError("Please fill in all fields")
         return
       }
+      
+      if (formData.password !== formData.confirmPassword) {
+        setError("Passwords don't match!")
+        return
+      }
+      
+      if (formData.password.length < 6) {
+        setError("Password must be at least 6 characters long")
+        return
+      }
+      
       setCurrentStep(2)
     } else {
+      // Validate step 2 and submit
+      if (!formData.companyName) {
+        setError("Company name is required")
+        return
+      }
+      
       setIsLoading(true)
       try {
-        // TODO: Submit founder registration
-        console.log("Founder registration:", formData)
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        // Redirect to admin dashboard
-        window.location.href = "/admin"
+        await signup({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          companyName: formData.companyName
+        })
       } catch (error) {
-        console.error("Registration error:", error)
+        setError(error instanceof Error ? error.message : "Registration failed")
       } finally {
         setIsLoading(false)
       }
@@ -80,6 +104,7 @@ export function FounderOnboarding() {
 
   const handleBack = () => {
     setCurrentStep(1)
+    setError("")
   }
 
   return (
@@ -109,6 +134,14 @@ export function FounderOnboarding() {
         </CardHeader>
         
         <CardContent>
+          {/* Error Message */}
+          {error && (
+            <div className="flex items-center space-x-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          )}
+
           {currentStep === 1 ? (
             // Step 1: Account Information
             <div className="space-y-4">

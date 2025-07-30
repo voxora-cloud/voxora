@@ -1,5 +1,5 @@
-import { DashboardLayout } from "@/components/dashboard/dashboard-layout"
+import { AgentDashboard } from "@/components/agent/agent-dashboard"
 
 export default function DashboardPage() {
-  return <DashboardLayout isSupport={false} />
+  return <AgentDashboard />
 }

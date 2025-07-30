@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/components/auth/auth-context"
 import { 
   MessageCircle, 
   Phone,
@@ -49,14 +50,19 @@ interface AgentDashboardProps {
 }
 
 export function AgentDashboard({ 
-  agentName = "Sarah Williams", 
-  agentTeams = ["Support", "Technical"] 
-}: AgentDashboardProps) {
+  agentName, 
+  agentTeams 
+}: AgentDashboardProps = {}) {
+  const { user, logout, isAuthenticated, isLoading } = useAuth()
   const [selectedConversation, setSelectedConversation] = useState<string | null>("1")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterTeam, setFilterTeam] = useState<string>("all")
   const [showNotes, setShowNotes] = useState(false)
   const [internalNote, setInternalNote] = useState("")
+
+  // Use auth user data or fallback to props
+  const displayName = user?.name || agentName || "Agent"
+  const userTeams = user?.teams?.map(team => team.name) || agentTeams || ["Support"]
   
   const [conversations] = useState<Conversation[]>([
     {
@@ -178,8 +184,7 @@ export function AgentDashboard({
 
   const handleLogout = () => {
     if (confirm("Are you sure you want to logout?")) {
-      // Implement logout logic here
-      window.location.href = "/support"
+      logout()
     }
   }
 
@@ -198,6 +203,29 @@ export function AgentDashboard({
       setShowTransferModal(false)
       setTransferEmail("")
     }
+  }
+
+  // Authentication checks - do these after all hooks are called
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+            <span className="text-2xl font-bold text-primary-foreground">V</span>
+          </div>
+          <div className="text-lg font-medium">Loading...</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Auth check - redirect if not authenticated or not agent
+  if (!isAuthenticated || (user?.role !== 'agent' && user?.role !== 'admin' && user?.role !== 'founder')) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
+    return null
   }
 
   return (
@@ -231,10 +259,10 @@ export function AgentDashboard({
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-primary-foreground">
-                  {agentName.split(" ").map(n => n[0]).join("")}
+                  {displayName.split(" ").map(n => n[0]).join("")}
                 </span>
               </div>
-              <span className="text-sm font-medium">{agentName}</span>
+              <span className="text-sm font-medium">{displayName}</span>
             </div>
           </div>
         </div>
@@ -273,13 +301,13 @@ export function AgentDashboard({
               <option value="waiting">Waiting</option>
               <option value="resolved">Resolved</option>
             </select>
-            <select 
+            <select
               value={filterTeam}
               onChange={(e) => setFilterTeam(e.target.value)}
               className="flex h-8 w-full rounded border border-border bg-background px-2 text-xs"
             >
               <option value="all">All Teams</option>
-              {agentTeams.map(team => (
+              {userTeams.map(team => (
                 <option key={team} value={team}>{team}</option>
               ))}
             </select>
@@ -359,7 +387,7 @@ export function AgentDashboard({
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-foreground">Agent Dashboard</h1>
             <span className="text-sm text-muted-foreground">•</span>
-            <span className="text-sm text-muted-foreground">{agentName}</span>
+            <span className="text-sm text-muted-foreground">{displayName}</span>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -369,11 +397,11 @@ export function AgentDashboard({
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-primary-foreground">
-                  {agentName.split(" ").map(n => n[0]).join("")}
+                  {displayName.split(" ").map(n => n[0]).join("")}
                 </span>
               </div>
               <div className="text-sm">
-                <div className="font-medium text-foreground">{agentName}</div>
+                <div className="font-medium text-foreground">{displayName}</div>
                 <div className="text-xs text-green-600 flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-1" />
                   Online
