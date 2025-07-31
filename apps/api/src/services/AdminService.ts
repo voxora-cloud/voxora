@@ -360,14 +360,6 @@ export class AdminService {
       };
     }
 
-    // Don't allow deleting founder
-    if (agent.role === 'founder') {
-      return { 
-        success: false, 
-        message: 'Cannot delete founder account', 
-        statusCode: 403 
-      };
-    }
 
     await User.findByIdAndDelete(id);
 
