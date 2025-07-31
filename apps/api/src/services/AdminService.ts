@@ -149,13 +149,9 @@ export class AdminService {
     
     // Build query
     const query: any = {
-      role: { $in: ['agent', 'admin'] },
+      role: 'agent', // Only agents, not admins
       isActive: true
     };
-
-    if (role) {
-      query.role = role;
-    }
 
     if (status) {
       query.status = status;
@@ -235,15 +231,13 @@ export class AdminService {
       name,
       email,
       password: tempPassword,
-      role,
+      role: 'agent', // Always create as agent
       teams,
       inviteStatus: 'pending',
       invitedBy,
       invitedAt: new Date(),
       emailVerificationToken: inviteToken,
-      permissions: role === 'admin' 
-        ? ['manage_teams', 'manage_agents', 'view_analytics'] 
-        : ['chat_support']
+      permissions: ['chat_support'] // Basic agent permissions
     });
 
     await agent.save();
@@ -442,16 +436,16 @@ export class AdminService {
   async getDashboardStats() {
     const totalTeams = await Team.countDocuments({ isActive: true });
     const totalAgents = await User.countDocuments({ 
-      role: { $in: ['agent', 'admin'] }, 
+      role: 'agent', 
       isActive: true 
     });
     const onlineAgents = await User.countDocuments({ 
-      role: { $in: ['agent', 'admin'] }, 
+      role: 'agent', 
       isActive: true,
       status: 'online'
     });
     const pendingInvites = await User.countDocuments({ 
-      role: { $in: ['agent', 'admin'] }, 
+      role: 'agent', 
       inviteStatus: 'pending'
     });
 
@@ -484,7 +478,7 @@ export class AdminService {
 
     // Get recent activities
     const recentAgents = await User.find({
-      role: { $in: ['agent', 'admin'] }
+      role: 'agent'
     })
     .select('name email role inviteStatus createdAt')
     .sort({ createdAt: -1 })

@@ -101,14 +101,17 @@ export class AuthService {
   async adminSignup(userData: any) {
     const { name, email, password, companyName } = userData;
 
-    // Check if any admin/founder already exists
+    // Check if any admin already exists
     const existingAdmin = await User.findOne({ 
-      role: { $in: ['admin', 'founder'] } 
+      role: 'admin' 
     });
 
-    let role = 'admin';
-    if (!existingAdmin) {
-      role = 'founder'; // First admin becomes founder
+    if (existingAdmin) {
+      return { 
+        success: false, 
+        message: 'Admin account already exists. Only one admin per organization.', 
+        statusCode: 400 
+      };
     }
 
     // Check if email already exists
@@ -126,7 +129,7 @@ export class AuthService {
       name,
       email,
       password,
-      role,
+      role: 'admin',
       isActive: true,
       emailVerified: true,
       companyName,

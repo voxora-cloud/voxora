@@ -21,7 +21,7 @@ export interface AuthResponse {
   statusCode?: number
 }
 
-export interface FounderRegistrationData {
+export interface AdminRegistrationData {
   name: string
   email: string
   password: string
@@ -48,7 +48,7 @@ export interface Agent {
   id: string
   name: string
   email: string
-  role: 'admin' | 'agent' | 'manager'
+  role: 'admin' | 'agent'
   teams: Array<{ id: string; name: string; color?: string }>
   status: 'online' | 'offline' | 'busy'
   avatar?: string
@@ -74,7 +74,7 @@ export interface UpdateTeamData {
 export interface CreateAgentData {
   name: string
   email: string
-  role: 'admin' | 'agent' | 'manager'
+  role: 'agent' // Always agent
   teamIds: string[]
   permissions?: string[]
 }
@@ -82,7 +82,7 @@ export interface CreateAgentData {
 export interface UpdateAgentData {
   name?: string
   email?: string
-  role?: 'admin' | 'agent' | 'manager'
+  role?: 'agent' // Always agent
   teamIds?: string[]
   permissions?: string[]
 }
@@ -157,7 +157,7 @@ class ApiService {
   }
 
   // Auth API methods
-  async adminSignup(data: FounderRegistrationData): Promise<AuthResponse> {
+  async adminSignup(data: AdminRegistrationData): Promise<AuthResponse> {
     return this.makeRequest<AuthResponse>('/auth/admin/signup', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -200,8 +200,30 @@ class ApiService {
   }
 
   // Team Management APIs
-  async getTeams(): Promise<{ success: boolean; data: Team[] }> {
-    return this.makeRequest<{ success: boolean; data: Team[] }>('/admin/teams', {
+  async getTeams(): Promise<{ 
+    success: boolean; 
+    data: {
+      teams: Team[];
+      pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+      };
+    }
+  }> {
+    return this.makeRequest<{ 
+      success: boolean; 
+      data: {
+        teams: Team[];
+        pagination: {
+          currentPage: number;
+          totalPages: number;
+          totalItems: number;
+          itemsPerPage: number;
+        };
+      }
+    }>('/admin/teams', {
       method: 'GET',
     })
   }
@@ -233,8 +255,30 @@ class ApiService {
   }
 
   // Agent Management APIs
-  async getAgents(): Promise<{ success: boolean; data: Agent[] }> {
-    return this.makeRequest<{ success: boolean; data: Agent[] }>('/admin/agents', {
+  async getAgents(): Promise<{ 
+    success: boolean; 
+    data: {
+      agents: Agent[];
+      pagination: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+      };
+    }
+  }> {
+    return this.makeRequest<{ 
+      success: boolean; 
+      data: {
+        agents: Agent[];
+        pagination: {
+          currentPage: number;
+          totalPages: number;
+          totalItems: number;
+          itemsPerPage: number;
+        };
+      }
+    }>('/admin/agents', {
       method: 'GET',
     })
   }
@@ -294,23 +338,51 @@ class ApiService {
   async getDashboardStats(): Promise<{ 
     success: boolean; 
     data: {
-      totalTeams: number;
-      totalAgents: number;
-      activeAgents: number;
-      totalConversations: number;
-      activeConversations: number;
-      avgResponseTime: number;
+      overview: {
+        totalTeams: number;
+        totalAgents: number;
+        onlineAgents: number;
+        pendingInvites: number;
+      };
+      teamStats: Array<{
+        _id: string;
+        name: string;
+        agentCount: number;
+        onlineAgents: number;
+      }>;
+      recentAgents: Array<{
+        _id: string;
+        name: string;
+        email: string;
+        role: string;
+        inviteStatus?: string;
+        createdAt: string;
+      }>;
     }
   }> {
     return this.makeRequest<{ 
       success: boolean; 
       data: {
-        totalTeams: number;
-        totalAgents: number;
-        activeAgents: number;
-        totalConversations: number;
-        activeConversations: number;
-        avgResponseTime: number;
+        overview: {
+          totalTeams: number;
+          totalAgents: number;
+          onlineAgents: number;
+          pendingInvites: number;
+        };
+        teamStats: Array<{
+          _id: string;
+          name: string;
+          agentCount: number;
+          onlineAgents: number;
+        }>;
+        recentAgents: Array<{
+          _id: string;
+          name: string;
+          email: string;
+          role: string;
+          inviteStatus?: string;
+          createdAt: string;
+        }>;
       }
     }>('/admin/stats/dashboard', {
       method: 'GET',

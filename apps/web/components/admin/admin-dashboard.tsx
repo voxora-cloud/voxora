@@ -47,18 +47,36 @@ export function AdminDashboard() {
   const [teamFilter, setTeamFilter] = useState({ search: "" })
   const [agentFilter, setAgentFilter] = useState({ 
     search: "", 
-    role: "All" as "All" | "admin" | "agent" | "manager"
+    role: "All" as "All" | "admin" | "agent"
   })
 
   // Handle authentication redirect
   useEffect(() => {
+    console.log('Auth state:', { isLoading, isAuthenticated, user })
     if (!isLoading && !isAuthenticated) {
+      console.log('Redirecting to login - not authenticated')
       window.location.href = '/login'
     }
-  }, [isAuthenticated, isLoading])
+  }, [isAuthenticated, isLoading, user])
+
+  // Debug data loading
+  useEffect(() => {
+    console.log('Dashboard data:', { 
+      teams, 
+      agents, 
+      stats, 
+      teamsLoading, 
+      agentsLoading, 
+      statsLoading,
+      teamsError,
+      agentsError,
+      statsError
+    })
+  }, [teams, agents, stats, teamsLoading, agentsLoading, statsLoading, teamsError, agentsError, statsError])
 
   // Show loading while checking authentication
   if (isLoading) {
+    console.log('Showing loading spinner')
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
@@ -68,8 +86,15 @@ export function AdminDashboard() {
 
   // Redirect if not authenticated
   if (!isAuthenticated || user?.role !== 'admin') {
-    return null
+    console.log('Access denied:', { isAuthenticated, userRole: user?.role })
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-red-500">Access denied. Admin role required.</div>
+      </div>
+    )
   }
+
+  console.log('Rendering dashboard...')
 
   const handleDeleteTeam = async (teamId: string) => {
     if (window.confirm('Are you sure you want to delete this team?')) {
@@ -91,21 +116,21 @@ export function AdminDashboard() {
     }
   }
 
-  const filteredTeams = teams?.filter(team => 
-    teamFilter.search === "" || 
-    team.name.toLowerCase().includes(teamFilter.search.toLowerCase()) ||
-    team.description.toLowerCase().includes(teamFilter.search.toLowerCase())
-  ) || []
+  const filteredTeams = (teams || []).filter(team => 
+    !teamFilter.search || 
+    team.name?.toLowerCase().includes(teamFilter.search.toLowerCase()) ||
+    team.description?.toLowerCase().includes(teamFilter.search.toLowerCase())
+  )
 
-  const filteredAgents = agents?.filter(agent => {
-    if (agentFilter.search && !agent.email.toLowerCase().includes(agentFilter.search.toLowerCase())) {
+  const filteredAgents = (agents || []).filter(agent => {
+    if (agentFilter.search && !agent.email?.toLowerCase().includes(agentFilter.search.toLowerCase())) {
       return false
     }
     if (agentFilter.role !== "All" && agent.role !== agentFilter.role) {
       return false
     }
     return true
-  }) || []
+  })
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -153,7 +178,7 @@ export function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalTeams || teams?.length || 0}</div>
+              <div className="text-2xl font-bold">{stats?.overview?.totalTeams || teams?.length || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Active teams in your organization
               </p>
@@ -165,7 +190,7 @@ export function AdminDashboard() {
               <UserCheck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalAgents || agents?.length || 0}</div>
+              <div className="text-2xl font-bold">{stats?.overview?.totalAgents || agents?.length || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Active agents across all teams
               </p>
@@ -178,10 +203,10 @@ export function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stats?.activeAgents || agents?.filter(a => a.inviteStatus === 'active').length || 0}
+                {stats?.overview?.onlineAgents || agents?.filter(a => a.inviteStatus === 'active').length || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                Currently active agents
+                Currently online agents
               </p>
             </CardContent>
           </Card>
@@ -254,41 +279,55 @@ export function AdminDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredTeams.map((team) => (
-                  <Card key={team.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{team.name}</CardTitle>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteTeam(team.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                {filteredTeams.length > 0 ? (
+                  filteredTeams.map((team) => (
+                    <Card key={team.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{team.name}</CardTitle>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteTeam(team.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <CardDescription>{team.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Agents:</span>
-                          <span>{team.agentCount || 0}</span>
+                        <CardDescription>{team.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>Agents:</span>
+                            <span>{team.agentCount || 0}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Online Agents:</span>
+                            <span>{team.onlineAgents || 0}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>Created:</span>
+                            <span>{new Date(team.createdAt).toLocaleDateString()}</span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Online Agents:</span>
-                          <span>{team.onlineAgents || 0}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span>Created:</span>
-                          <span>{new Date(team.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full flex items-center justify-center py-16">
+                    <div className="text-center">
+                      <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No teams yet</h3>
+                      <p className="text-gray-500 mb-4">Get started by creating your first team.</p>
+                      <Button>
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Create Team
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -317,7 +356,6 @@ export function AdminDashboard() {
                 >
                   <option value="All">All Roles</option>
                   <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
                   <option value="agent">Agent</option>
                 </select>
               </div>
@@ -352,49 +390,63 @@ export function AdminDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredAgents.map((agent) => (
-                  <Card key={agent.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                            {agent.email.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{agent.name || agent.email}</h3>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <span className="px-2 py-1 bg-gray-100 rounded text-xs capitalize">
-                                {agent.role}
-                              </span>
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                agent.inviteStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {agent.inviteStatus}
-                              </span>
-                              <span className={`px-2 py-1 rounded text-xs ${
-                                agent.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {agent.status}
-                              </span>
-                              {agent.teams?.length > 0 && (
-                                <span>• {agent.teams.length} team{agent.teams.length !== 1 ? 's' : ''}</span>
-                              )}
+                {filteredAgents.length > 0 ? (
+                  filteredAgents.map((agent) => (
+                    <Card key={agent.id}>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                              {agent.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <h3 className="font-medium">{agent.name || agent.email}</h3>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span className="px-2 py-1 bg-gray-100 rounded text-xs capitalize">
+                                  {agent.role}
+                                </span>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  agent.inviteStatus === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {agent.inviteStatus}
+                                </span>
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  agent.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {agent.status}
+                                </span>
+                                {agent.teams?.length > 0 && (
+                                  <span>• {agent.teams.length} team{agent.teams.length !== 1 ? 's' : ''}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteAgent(agent.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteAgent(agent.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center py-16">
+                    <div className="text-center">
+                      <UserCheck className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No agents yet</h3>
+                      <p className="text-gray-500 mb-4">Invite your first agent to get started.</p>
+                      <Button>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Invite Agent
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

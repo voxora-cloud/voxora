@@ -8,7 +8,7 @@ import { Eye, EyeOff, Mail, Lock, User, Building, Globe, Briefcase, AlertCircle 
 import { useAuth } from "./auth-context"
 import Link from "next/link"
 
-interface FounderData {
+interface AdminData {
   // Step 1: Account
   name: string
   email: string
@@ -20,7 +20,7 @@ interface FounderData {
   industry: string
 }
 
-export function FounderOnboarding() {
+export function AdminOnboarding() {
   const { signup } = useAuth()
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
@@ -28,7 +28,7 @@ export function FounderOnboarding() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
-  const [formData, setFormData] = useState<FounderData>({
+  const [formData, setFormData] = useState<AdminData>({
     name: "",
     email: "",
     password: "",
@@ -117,11 +117,11 @@ export function FounderOnboarding() {
             </div>
           </div>
           <CardTitle className="text-2xl text-center">
-            {currentStep === 1 ? "Create Founder Account" : "Company Information"}
+            {currentStep === 1 ? "Create Admin Account" : "Company Information"}
           </CardTitle>
           <CardDescription className="text-center">
             {currentStep === 1 
-              ? "Start your Voxora journey as a founder" 
+              ? "Start your Voxora journey as an admin" 
               : "Tell us about your company"
             }
           </CardDescription>

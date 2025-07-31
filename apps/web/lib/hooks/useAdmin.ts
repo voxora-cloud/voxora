@@ -13,7 +13,7 @@ export function useTeams() {
       setLoading(true)
       const response = await apiService.getTeams()
       if (response.success) {
-        setTeams(response.data)
+        setTeams(response.data.teams)
       } else {
         setError('Failed to fetch teams')
       }
@@ -99,7 +99,7 @@ export function useAgents() {
       setLoading(true)
       const response = await apiService.getAgents()
       if (response.success) {
-        setAgents(response.data)
+        setAgents(response.data.agents)
       } else {
         setError('Failed to fetch agents')
       }
@@ -248,12 +248,26 @@ export function useAgents() {
 
 export function useDashboardStats() {
   const [stats, setStats] = useState<{
-    totalTeams: number;
-    totalAgents: number;
-    activeAgents: number;
-    totalConversations: number;
-    activeConversations: number;
-    avgResponseTime: number;
+    overview: {
+      totalTeams: number;
+      totalAgents: number;
+      onlineAgents: number;
+      pendingInvites: number;
+    };
+    teamStats: Array<{
+      _id: string;
+      name: string;
+      agentCount: number;
+      onlineAgents: number;
+    }>;
+    recentAgents: Array<{
+      _id: string;
+      name: string;
+      email: string;
+      role: string;
+      inviteStatus?: string;
+      createdAt: string;
+    }>;
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -262,6 +276,7 @@ export function useDashboardStats() {
     try {
       setLoading(true)
       const response = await apiService.getDashboardStats()
+      console.log('Dashboard stats retrieved:', response.data)
       if (response.success) {
         setStats(response.data)
       } else {

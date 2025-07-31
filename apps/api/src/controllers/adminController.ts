@@ -198,9 +198,9 @@ export const resendInvite = asyncHandler(async (req: Request, res: Response) => 
 // =================
 
 export const getDashboardStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  console.log("getting request for dashboard stats");
   try {
     const stats = await adminService.getDashboardStats();
+    console.log("Dashboard stats retrieved:", stats);
     sendResponse(res, 200, true, 'Dashboard stats retrieved successfully', stats);
   } catch (error: any) {
     sendError(res, 500, error.message);

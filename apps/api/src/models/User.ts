@@ -6,14 +6,14 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  role: 'user' | 'agent' | 'admin' | 'founder';
+  role: 'admin' | 'agent';
   avatar?: string;
   status: 'online' | 'away' | 'busy' | 'offline';
   lastSeen: Date;
   isActive: boolean;
   teams: string[]; // Team IDs for agents
   permissions: string[]; // Specific permissions
-  companyName?: string; // For founder/admin
+  companyName?: string; // For admin
   phoneNumber?: string;
   inviteStatus: 'pending' | 'active' | 'inactive';
   invitedBy?: string; // User ID who invited this user
@@ -51,8 +51,8 @@ const userSchema = new Schema<IUser>({
   },
   role: {
     type: String,
-    enum: ['user', 'agent', 'admin', 'founder'],
-    default: 'user',
+    enum: ['admin', 'agent'],
+    default: 'agent',
   },
   avatar: {
     type: String,

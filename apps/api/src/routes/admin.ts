@@ -20,7 +20,7 @@ const router = Router();
 
 // Apply authentication and authorization middleware
 router.use(authenticate);
-router.use(authorize(['admin', 'founder']));
+router.use(authorize(['admin']));
 
 // =================
 // TEAM ROUTES
@@ -86,6 +86,6 @@ router.post('/agents/:id/resend-invite', resendInvite);
 // =================
 
 // Dashboard stats
-router.get('/stats', getDashboardStats);
+router.get('/stats/dashboard', getDashboardStats);
 
 export default router;

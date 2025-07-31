@@ -20,14 +20,22 @@ export const authenticate = async (
     const token = extractTokenFromHeader(req.headers.authorization);
     
     if (!token) {
+      console.log('No access token provided');
       sendError(res, 401, 'Access token is required');
       return;
     }
 
     const decoded = verifyToken(token, 'access') as JWTPayload;
-    
+    if (!decoded || !decoded.userId || !decoded.email || !decoded.role) {
+      console.log('Invalid token payload');
+      sendError(res, 401, 'Invalid access token');
+      return;
+    }
+
     // Verify user still exists and is active
     const user = await User.findById(decoded.userId).select('-password');
+    console.log(`Authenticated user: ${decoded.userId} with role: ${decoded.role}`);
+    console.log(`User active status: ${user?.isActive}`);
     if (!user || !user.isActive) {
       sendError(res, 401, 'Invalid token or user not found');
       return;
@@ -52,6 +60,8 @@ export const authorize = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as AuthenticatedRequest).user;
     
+    console.log("Authorizing user:", user);
+
     if (!user) {
       res.status(401).json({
         success: false,
