@@ -1,13 +1,10 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useTeams, useAgents, useDashboardStats } from "@/lib/hooks/useAdmin"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { 
   Users, 
   Search, 
@@ -22,208 +19,40 @@ import {
   BarChart3,
   Target,
   Activity,
-  X,
   RotateCcw,
-  Power,
-  PowerOff,
-  Eye
+  Eye,
+  X
 } from "lucide-react"
-import type { Team, Agent, CreateTeamData, CreateAgentData, UpdateTeamData, UpdateAgentData } from "@/lib/api"
 
-// Form data types
-interface TeamFormData {
+import type { Team, Agent, CreateTeamData, CreateAgentData, UpdateTeamData, UpdateAgentData } from "@/lib/api"
+import { apiService } from "@/lib/api"
+
+
+import TeamForm from "./team/Form"
+import AgentForm from "./agent/Form"
+import Modal from "../ui/model"
+import Spinner from "../ui/Spinner"
+
+export interface TeamFormData {
   name: string
   description: string
   color?: string
 }
 
-interface AgentFormData {
+export interface AgentFormData {
   name: string
   email: string
   role: 'admin' | 'agent'
   teamIds: string[]
 }
 
-// Modal Component
-function Modal({ isOpen, onClose, title, children }: {
-  isOpen: boolean
-  onClose: () => void
-  title: string
-  children: React.ReactNode
-}) {
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-// Team Form Component
-function TeamForm({ team = null, onSubmit, onCancel }: {
-  team?: Team | null
-  onSubmit: (data: TeamFormData) => void
-  onCancel: () => void
-}) {
-  const [formData, setFormData] = useState<TeamFormData>({
-    name: team?.name || '',
-    description: team?.description || '',
-    color: team?.color || '#3b82f6'
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="name">Team Name</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Enter team name"
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Enter team description"
-          rows={3}
-        />
-      </div>
-      <div>
-        <Label htmlFor="color">Team Color</Label>
-        <div className="flex gap-2 items-center">
-          <Input
-            id="color"
-            type="color"
-            value={formData.color}
-            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            className="w-16 h-10"
-          />
-          <Input
-            value={formData.color}
-            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-            placeholder="#3b82f6"
-            className="flex-1"
-          />
-        </div>
-      </div>
-      <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1">
-          {team ? 'Update Team' : 'Create Team'}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-          Cancel
-        </Button>
-      </div>
-    </form>
-  )
-}
-
-// Agent Form Component
-function AgentForm({ agent = null, teams, onSubmit, onCancel }: {
-  agent?: Agent | null
-  teams: Team[]
-  onSubmit: (data: AgentFormData) => void
-  onCancel: () => void
-}) {
-  const [formData, setFormData] = useState<AgentFormData>({
-    name: agent?.name || '',
-    email: agent?.email || '',
-    role: agent?.role || 'agent',
-    teamIds: agent?.teams?.map(t => t.id) || []
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
-
-  const toggleTeam = (teamId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      teamIds: prev.teamIds.includes(teamId)
-        ? prev.teamIds.filter(id => id !== teamId)
-        : [...prev.teamIds, teamId]
-    }))
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="name">Agent Name</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Enter agent name"
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          placeholder="Enter agent email"
-          required
-          disabled={!!agent} // Disable email editing for existing agents
-        />
-      </div>
-      <div>
-        <Label>Teams</Label>
-        <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
-          {teams.map((team) => (
-            <label key={team.id} className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.teamIds.includes(team.id)}
-                onChange={() => toggleTeam(team.id)}
-                className="rounded"
-              />
-              <span className="text-sm">{team.name}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1">
-          {agent ? 'Update Agent' : 'Invite Agent'}
-        </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-          Cancel
-        </Button>
-      </div>
-    </form>
-  )
-
-}
-
-// Team Detail Modal Component
 function TeamDetailModal({ team, isOpen, onClose }: {
   team: Team | null
   isOpen: boolean
   onClose: () => void
 }) {
+
+
   if (!isOpen || !team) return null
 
   return (
@@ -282,7 +111,7 @@ function TeamDetailModal({ team, isOpen, onClose }: {
   )
 }
 
-// Agent Detail Modal Component  
+
 function AgentDetailModal({ agent, isOpen, onClose }: {
   agent: Agent | null
   isOpen: boolean
@@ -390,29 +219,28 @@ export function AdminDashboard() {
     error: teamsError, 
     createTeam,
     updateTeam,
-    deleteTeam 
+    deleteTeam,
   } = useTeams()
   
   const { 
     agents, 
     loading: agentsLoading, 
     error: agentsError,
-    createAgent,
     updateAgent, 
     deleteAgent,
-    activateAgent,
-    deactivateAgent,
-    resendInvite
+    resendInvite,
   } = useAgents()
   
   const { 
     stats, 
-    loading: statsLoading 
+    loading: statsLoading,
   } = useDashboardStats()
+
+
 
   const [activeTab, setActiveTab] = useState<"overview" | "teams" | "agents">("overview")
   
-  // Modal states
+
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false)
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false)
   const [isTeamDetailModalOpen, setIsTeamDetailModalOpen] = useState(false)
@@ -422,14 +250,33 @@ export function AdminDashboard() {
   const [viewingTeam, setViewingTeam] = useState<Team | null>(null)
   const [viewingAgent, setViewingAgent] = useState<Agent | null>(null)
   
-  // Filter states
+  
+  const [operationLoading, setOperationLoading] = useState<{
+    teamCreate: boolean
+    teamUpdate: boolean
+    teamDelete: string | null
+    agentCreate: boolean
+    agentUpdate: boolean
+    agentDelete: string | null
+    agentResendInvite: string | null
+  }>({
+    teamCreate: false,
+    teamUpdate: false,
+    teamDelete: null,
+    agentCreate: false,
+    agentUpdate: false,
+    agentDelete: null,
+    agentResendInvite: null
+  })
+  
+
   const [teamFilter, setTeamFilter] = useState({ search: "" })
   const [agentFilter, setAgentFilter] = useState({ 
     search: "", 
     role: "All" as "All" | "admin" | "agent"
   })
 
-  // Toast notification state
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -437,23 +284,19 @@ export function AdminDashboard() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  // Handle authentication redirect
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       window.location.href = '/login'
     }
   }, [isAuthenticated, isLoading])
 
-  // Show loading while checking authentication
+ 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
-      </div>
-    )
+      <Spinner />
   }
 
-  // Redirect if not authenticated
+
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -462,121 +305,162 @@ export function AdminDashboard() {
     )
   }
 
-  // Team CRUD handlers
+
   const handleCreateTeam = async (data: TeamFormData) => {
+    setOperationLoading(prev => ({ ...prev, teamCreate: true }))
     try {
       const createData: CreateTeamData = {
         name: data.name,
         description: data.description,
         color: data.color
       }
+      
       await createTeam(createData)
       setIsTeamModalOpen(false)
+      showToast(`Team "${data.name}" created successfully`, 'success')
     } catch (error) {
       console.error('Failed to create team:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create team'
+      showToast(errorMessage, 'error')
+    } finally {
+      setOperationLoading(prev => ({ ...prev, teamCreate: false }))
     }
   }
 
   const handleUpdateTeam = async (data: TeamFormData) => {
     if (!editingTeam) return
+    
+    setOperationLoading(prev => ({ ...prev, teamUpdate: true }))
     try {
       const updateData: UpdateTeamData = {
         name: data.name,
         description: data.description,
         color: data.color
       }
+      
       await updateTeam(editingTeam.id, updateData)
+      // Refresh team and stats data after successful update
+  
       setEditingTeam(null)
       setIsTeamModalOpen(false)
+      showToast(`Team "${data.name}" updated successfully`, 'success')
     } catch (error) {
       console.error('Failed to update team:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update team'
+      showToast(errorMessage, 'error')
+    } finally {
+      setOperationLoading(prev => ({ ...prev, teamUpdate: false }))
     }
   }
 
   const handleDeleteTeam = async (teamId: string) => {
-    if (window.confirm('Are you sure you want to delete this team?')) {
+    const team = teams?.find(t => t.id === teamId)
+    const teamName = team?.name || 'this team'
+    
+    if (window.confirm(`Are you sure you want to delete "${teamName}"? This action cannot be undone and will remove all agents from this team.`)) {
+      setOperationLoading(prev => ({ ...prev, teamDelete: teamId }))
       try {
         await deleteTeam(teamId)
+
+        showToast(`Team "${teamName}" deleted successfully`, 'success')
       } catch (error) {
         console.error('Failed to delete team:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete team'
+        showToast(errorMessage, 'error')
+      } finally {
+        setOperationLoading(prev => ({ ...prev, teamDelete: null }))
       }
     }
   }
 
-  // Agent CRUD handlers
   const handleCreateAgent = async (data: AgentFormData) => {
+    setOperationLoading(prev => ({ ...prev, agentCreate: true }))
     try {
       const createData: CreateAgentData = {
         name: data.name,
         email: data.email,
-        role: 'agent', // API only accepts 'agent' role for creation
+        role: 'agent', 
         teamIds: data.teamIds
       }
-      await createAgent(createData)
-      setIsAgentModalOpen(false)
+      const result = await apiService.inviteAgent(createData)
+      if (result.success) {
+    
+        setIsAgentModalOpen(false)
+        showToast(`Invitation sent to "${data.name}" (${data.email})`, 'success')
+      }
     } catch (error) {
       console.error('Failed to create agent:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to invite agent'
+      showToast(errorMessage, 'error')
+    } finally {
+      setOperationLoading(prev => ({ ...prev, agentCreate: false }))
     }
   }
 
   const handleUpdateAgent = async (data: AgentFormData) => {
     if (!editingAgent) return
+    
+    setOperationLoading(prev => ({ ...prev, agentUpdate: true }))
     try {
       const updateData: UpdateAgentData = {
         name: data.name,
-        email: data.email,
-        role: data.role === 'agent' ? 'agent' : undefined, // API only accepts 'agent' role
+        role: 'agent', 
         teamIds: data.teamIds
       }
-      await updateAgent(editingAgent.id, updateData)
+
+      if (data.email !== editingAgent.email) {
+        updateData.email = data.email
+      }
+      
+      await updateAgent(editingAgent._id, updateData)
+
+      
       setEditingAgent(null)
       setIsAgentModalOpen(false)
+      showToast(`Agent "${data.name}" updated successfully`, 'success')
     } catch (error) {
       console.error('Failed to update agent:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update agent'
+      showToast(errorMessage, 'error')
+    } finally {
+      setOperationLoading(prev => ({ ...prev, agentUpdate: false }))
     }
   }
 
   const handleDeleteAgent = async (agentId: string) => {
-    if (window.confirm('Are you sure you want to delete this agent?')) {
+    const agent = agents?.find(a => a._id === agentId)
+    const agentName = agent?.name || agent?.email || 'this agent'
+    
+    if (window.confirm(`Are you sure you want to delete "${agentName}"? This will permanently remove their account and access to the system.`)) {
+      setOperationLoading(prev => ({ ...prev, agentDelete: agentId }))
       try {
         await deleteAgent(agentId)
+ 
+        showToast(`Agent "${agentName}" deleted successfully`, 'success')
       } catch (error) {
         console.error('Failed to delete agent:', error)
-      }
-    }
-  }
-
-  const handleActivateAgent = async (agentId: string) => {
-    try {
-      await activateAgent(agentId)
-      showToast('Agent activated successfully', 'success')
-    } catch (error) {
-      console.error('Failed to activate agent:', error)
-      showToast('Failed to activate agent', 'error')
-    }
-  }
-
-  const handleDeactivateAgent = async (agentId: string) => {
-    if (window.confirm('Are you sure you want to deactivate this agent?')) {
-      try {
-        await deactivateAgent(agentId)
-        showToast('Agent deactivated successfully', 'success')
-      } catch (error) {
-        console.error('Failed to deactivate agent:', error)
-        showToast('Failed to deactivate agent', 'error')
+        const errorMessage = error instanceof Error ? error.message : 'Failed to delete agent'
+        showToast(errorMessage, 'error')
+      } finally {
+        setOperationLoading(prev => ({ ...prev, agentDelete: null }))
       }
     }
   }
 
   const handleResendInvite = async (agentId: string) => {
+    setOperationLoading(prev => ({ ...prev, agentResendInvite: agentId }))
     try {
       const inviteLink = await resendInvite(agentId)
       if (inviteLink) {
+
         showToast('Invitation resent successfully', 'success')
       }
     } catch (error) {
       console.error('Failed to resend invite:', error)
-      showToast('Failed to resend invitation', 'error')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to resend invitation'
+      showToast(errorMessage, 'error')
+    } finally {
+      setOperationLoading(prev => ({ ...prev, agentResendInvite: null }))
     }
   }
 
@@ -595,6 +479,7 @@ export function AdminDashboard() {
     }
     return true
   })
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -874,13 +759,6 @@ export function AdminDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Teams</h2>
                 <p className="text-gray-600">Organize your support agents into teams</p>
               </div>
-              <Button 
-                onClick={() => setIsTeamModalOpen(true)}
-                className="flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Team
-              </Button>
             </div>
 
             {/* Teams Search */}
@@ -964,9 +842,14 @@ export function AdminDashboard() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteTeam(team.id)}
+                            onClick={() => handleDeleteTeam(team._id)}
+                            disabled={operationLoading.teamDelete === team._id}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {operationLoading.teamDelete === team._id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -1018,13 +901,6 @@ export function AdminDashboard() {
                 <h2 className="text-2xl font-bold text-gray-900">Agents</h2>
                 <p className="text-gray-600">Manage your customer support agents</p>
               </div>
-              <Button 
-                onClick={() => setIsAgentModalOpen(true)}
-                className="flex items-center"
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                Invite Agent
-              </Button>
             </div>
 
             {/* Agents Search and Filter */}
@@ -1151,25 +1027,12 @@ export function AdminDashboard() {
                               size="sm"
                               onClick={() => handleResendInvite(agent.id)}
                               title="Resend Invite"
+                              disabled={operationLoading.agentResendInvite === agent.id}
                             >
-                              <RotateCcw className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {agent.inviteStatus === 'active' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => 
-                                agent.status === 'online' 
-                                  ? handleDeactivateAgent(agent.id)
-                                  : handleActivateAgent(agent.id)
-                              }
-                              title={agent.status === 'online' ? 'Deactivate Agent' : 'Activate Agent'}
-                            >
-                              {agent.status === 'online' ? (
-                                <PowerOff className="h-4 w-4" />
+                              {operationLoading.agentResendInvite === agent.id ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
                               ) : (
-                                <Power className="h-4 w-4" />
+                                <RotateCcw className="h-4 w-4" />
                               )}
                             </Button>
                           )}
@@ -1177,8 +1040,13 @@ export function AdminDashboard() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteAgent(agent.id)}
+                            disabled={operationLoading.agentDelete === agent.id}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            {operationLoading.agentDelete === agent.id ? (
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -1221,6 +1089,7 @@ export function AdminDashboard() {
             setIsTeamModalOpen(false)
             setEditingTeam(null)
           }}
+          isLoading={editingTeam ? operationLoading.teamUpdate : operationLoading.teamCreate}
         />
       </Modal>
 
@@ -1240,6 +1109,7 @@ export function AdminDashboard() {
             setIsAgentModalOpen(false)
             setEditingAgent(null)
           }}
+          isLoading={editingAgent ? operationLoading.agentUpdate : operationLoading.agentCreate}
         />
       </Modal>
 

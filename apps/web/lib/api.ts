@@ -32,9 +32,9 @@ export interface LoginData {
   email: string
   password: string
 }
-
+  
 export interface Team {
-  id: string
+  _id: string
   name: string
   description: string
   color?: string
@@ -45,11 +45,11 @@ export interface Team {
 }
 
 export interface Agent {
-  id: string
+  _id: string
   name: string
   email: string
   role: 'admin' | 'agent'
-  teams: Array<{ id: string; name: string; color?: string }>
+  teams: Array<{ _id: string; name: string; color?: string }>
   status: 'online' | 'offline' | 'busy'
   avatar?: string
   lastActive: Date

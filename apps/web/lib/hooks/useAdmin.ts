@@ -27,6 +27,7 @@ export function useTeams() {
   const createTeam = async (data: CreateTeamData): Promise<Team | null> => {
     try {
       const response = await apiService.createTeam(data)
+      console.log("Team created:", response.data)
       if (response.success) {
         setTeams(prev => [...prev, response.data])
         return response.data
@@ -45,7 +46,7 @@ export function useTeams() {
       const response = await apiService.updateTeam(teamId, data)
       if (response.success) {
         setTeams(prev => prev.map(team => 
-          team.id === teamId ? response.data : team
+          team._id === teamId ? response.data : team
         ))
         return response.data
       } else {
