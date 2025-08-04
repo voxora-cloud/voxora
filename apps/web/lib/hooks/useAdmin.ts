@@ -111,21 +111,6 @@ export function useAgents() {
     }
   }
 
-  const createAgent = async (data: CreateAgentData): Promise<Agent | null> => {
-    try {
-      const response = await apiService.createAgent(data)
-      if (response.success) {
-        setAgents(prev => [...prev, response.data])
-        return response.data
-      } else {
-        setError('Failed to create agent')
-        return null
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create agent')
-      return null
-    }
-  }
 
   const inviteAgent = async (data: CreateAgentData): Promise<{ agent: Agent; inviteLink?: string } | null> => {
     try {
@@ -236,7 +221,6 @@ export function useAgents() {
     agents,
     loading,
     error,
-    createAgent,
     inviteAgent,
     updateAgent,
     deleteAgent,

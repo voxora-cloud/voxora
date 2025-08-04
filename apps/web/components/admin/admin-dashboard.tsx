@@ -227,6 +227,7 @@ export function AdminDashboard() {
     loading: agentsLoading, 
     error: agentsError,
     updateAgent, 
+    inviteAgent,
     deleteAgent,
     resendInvite,
   } = useAgents()
@@ -386,12 +387,9 @@ export function AdminDashboard() {
 
       console.log("Creating agent with data:", createData)
 
-      const result = await apiService.inviteAgent(createData)
-      if (result.success) {
-    
-        setIsAgentModalOpen(false)
-        showToast(`Invitation sent to "${data.name}" (${data.email})`, 'success')
-      }
+      await inviteAgent(createData)
+      setIsAgentModalOpen(false)
+      showToast(`Invitation sent to "${data.name}" (${data.email})`, 'success')
     } catch (error) {
       console.error('Failed to create agent:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to invite agent'
