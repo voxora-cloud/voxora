@@ -316,9 +316,16 @@ export class AdminService {
 
     console.log("Updating agent with data:", updateData);
 
+    // Convert teamIds to teams if provided
+    const updateFields = { ...updateData };
+    if (updateData.teamIds) {
+      updateFields.teams = updateData.teamIds;
+      delete updateFields.teamIds; // Remove teamIds since we use teams field in the model
+    }
+
     const agent = await User.findOneAndUpdate(
       { _id: id, role: { $in: ['agent', 'admin'] } },
-      updateData,
+      updateFields,
       { new: true, runValidators: true }
     ).populate('teams', 'name color').select('-password');
 
