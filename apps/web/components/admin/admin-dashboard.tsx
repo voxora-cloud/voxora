@@ -297,6 +297,7 @@ export function AdminDashboard() {
   }
 
 
+
   if (!isAuthenticated || user?.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -337,8 +338,8 @@ export function AdminDashboard() {
         description: data.description,
         color: data.color
       }
-      
-      await updateTeam(editingTeam.id, updateData)
+
+      await updateTeam(editingTeam._id, updateData)
       // Refresh team and stats data after successful update
   
       setEditingTeam(null)
