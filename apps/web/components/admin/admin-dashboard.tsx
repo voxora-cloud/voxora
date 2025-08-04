@@ -417,7 +417,8 @@ export function AdminDashboard() {
         updateData.email = data.email
       }
       
-
+      // Actually call the updateAgent function to send the update to the API
+      await updateAgent(editingAgent._id, updateData)
       
       setEditingAgent(null)
       setIsAgentModalOpen(false)
