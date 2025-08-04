@@ -1044,10 +1044,10 @@ export function AdminDashboard() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteAgent(agent.id)}
-                            disabled={operationLoading.agentDelete === agent.id}
+                            onClick={() => handleDeleteAgent(agent._id)}
+                            disabled={operationLoading.agentDelete === agent._id}
                           >
-                            {operationLoading.agentDelete === agent.id ? (
+                            {operationLoading.agentDelete === agent._id ? (
                               <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600"></div>
                             ) : (
                               <Trash2 className="h-4 w-4" />
