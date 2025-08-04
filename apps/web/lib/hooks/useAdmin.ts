@@ -63,7 +63,7 @@ export function useTeams() {
     try {
       const response = await apiService.deleteTeam(teamId)
       if (response.success) {
-        setTeams(prev => prev.filter(team => team.id !== teamId))
+        setTeams(prev => prev.filter(team => team._id !== teamId))
         return true
       } else {
         setError('Failed to delete team')
@@ -148,7 +148,7 @@ export function useAgents() {
       const response = await apiService.updateAgent(agentId, data)
       if (response.success) {
         setAgents(prev => prev.map(agent => 
-          agent.id === agentId ? response.data : agent
+          agent._id === agentId ? response.data : agent
         ))
         return response.data
       } else {
@@ -165,7 +165,7 @@ export function useAgents() {
     try {
       const response = await apiService.deleteAgent(agentId)
       if (response.success) {
-        setAgents(prev => prev.filter(agent => agent.id !== agentId))
+        setAgents(prev => prev.filter(agent => agent._id !== agentId))
         return true
       } else {
         setError('Failed to delete agent')
@@ -182,7 +182,7 @@ export function useAgents() {
       const response = await apiService.activateAgent(agentId)
       if (response.success) {
         setAgents(prev => prev.map(agent => 
-          agent.id === agentId ? response.data : agent
+          agent._id === agentId ? response.data : agent
         ))
         return true
       } else {
@@ -200,7 +200,7 @@ export function useAgents() {
       const response = await apiService.deactivateAgent(agentId)
       if (response.success) {
         setAgents(prev => prev.map(agent => 
-          agent.id === agentId ? response.data : agent
+          agent._id === agentId ? response.data : agent
         ))
         return true
       } else {
