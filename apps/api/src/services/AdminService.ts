@@ -200,7 +200,7 @@ export class AdminService {
   }
 
   async inviteAgent(inviteData: any) {
-    const { name, email, role, teams, invitedBy } = inviteData;
+    const { name, email, role, teamIds = [], invitedBy } = inviteData;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -213,8 +213,8 @@ export class AdminService {
     }
 
     // Verify teams exist
-    const teamObjects = await Team.find({ _id: { $in: teams } });
-    if (teamObjects.length !== teams.length) {
+    const teamObjects = await Team.find({ _id: { $in: teamIds } });
+    if (teamObjects.length !== teamIds.length) {
       return { 
         success: false, 
         message: 'One or more teams not found', 
@@ -232,7 +232,7 @@ export class AdminService {
       email,
       password: tempPassword,
       role: 'agent', // Always create as agent
-      teams,
+      teams: teamIds,
       inviteStatus: 'pending',
       invitedBy,
       invitedAt: new Date(),
@@ -257,7 +257,7 @@ export class AdminService {
       agentId: agent._id,
       email,
       role,
-      teams,
+      teamIds,
       invitedBy
     });
 
@@ -276,6 +276,7 @@ export class AdminService {
   }
 
   async updateAgent(id: string, updateData: any) {
+    console.log("Updating agent with data:", updateData);
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { 
         success: false, 
@@ -283,6 +284,7 @@ export class AdminService {
         statusCode: 400 
       };
     }
+
 
     // Check if email already exists (excluding current agent)
     if (updateData.email) {
@@ -301,9 +303,9 @@ export class AdminService {
     }
 
     // Verify teams exist if provided
-    if (updateData.teams) {
-      const teamObjects = await Team.find({ _id: { $in: updateData.teams } });
-      if (teamObjects.length !== updateData.teams.length) {
+    if (updateData.teamIds) {
+      const teamObjects = await Team.find({ _id: { $in: updateData.teamIds } });
+      if (teamObjects.length !== updateData.teamIds.length) {
         return { 
           success: false, 
           message: 'One or more teams not found', 
@@ -311,6 +313,8 @@ export class AdminService {
         };
       }
     }
+
+    console.log("Updating agent with data:", updateData);
 
     const agent = await User.findOneAndUpdate(
       { _id: id, role: { $in: ['agent', 'admin'] } },

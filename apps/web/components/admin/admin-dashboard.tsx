@@ -383,6 +383,9 @@ export function AdminDashboard() {
         role: 'agent', 
         teamIds: data.teamIds
       }
+
+      console.log("Creating agent with data:", createData)
+
       const result = await apiService.inviteAgent(createData)
       if (result.success) {
     
@@ -408,12 +411,12 @@ export function AdminDashboard() {
         role: 'agent', 
         teamIds: data.teamIds
       }
+      console.log("Updating agent with data:", updateData)
 
       if (data.email !== editingAgent.email) {
         updateData.email = data.email
       }
       
-      await updateAgent(editingAgent._id, updateData)
 
       
       setEditingAgent(null)

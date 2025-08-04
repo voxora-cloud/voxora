@@ -51,6 +51,17 @@ services:
     networks:
       - voxora-dev-network
 
+  # MailHog for email testing in development
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: voxora-mailhog-dev
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP server port
+      - "8025:8025"  # Web UI port
+    networks:
+      - voxora-dev-network
+
 volumes:
   mongodb_data_dev:
     driver: local

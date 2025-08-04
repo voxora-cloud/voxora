@@ -36,7 +36,7 @@ export const userValidation = {
     name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
     role: Joi.string().valid('agent', 'admin').required(),
-    teams: Joi.array().items(Joi.string().required()).min(1).required(),
+    teamIds: Joi.array().items(Joi.string().required()).min(1).required(),
   }),
 
   // Update agent validation
@@ -44,7 +44,7 @@ export const userValidation = {
     name: Joi.string().min(2).max(50),
     email: Joi.string().email(),
     role: Joi.string().valid('agent', 'admin'),
-    teams: Joi.array().items(Joi.string().required()),
+    teamIds: Joi.array().items(Joi.string().required()),
     isActive: Joi.boolean(),
     status: Joi.string().valid('online', 'offline', 'busy', 'away'),
   }),

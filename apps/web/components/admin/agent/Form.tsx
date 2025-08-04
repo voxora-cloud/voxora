@@ -17,11 +17,14 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
     name: agent?.name || '',
     email: agent?.email || '',
     role: agent?.role || 'agent',
-    teamIds: agent?.teams?.map(t => t.id) || []
+    teamIds: agent?.teams?.map(t => t._id) || []
   })
+
+  console.log("printing agent form data:", agent)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+   
     onSubmit(formData)
   }
 
@@ -63,11 +66,11 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
         <Label>Teams</Label>
         <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
           {teams.map((team) => (
-            <label key={team.id} className="flex items-center space-x-2 cursor-pointer">
+            <label key={team._id} className="flex items-center space-x-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={formData.teamIds.includes(team.id)}
-                onChange={() => toggleTeam(team.id)}
+                checked={formData.teamIds.includes(team._id)}
+                onChange={() => toggleTeam(team._id)}
                 className="rounded"
               />
               <span className="text-sm">{team.name}</span>
