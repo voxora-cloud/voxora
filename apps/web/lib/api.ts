@@ -79,7 +79,7 @@ export interface CreateAgentData {
   role: 'agent' // Always agent
   teamIds: string[]
   permissions?: string[]
-  password: string
+  password?: string
 }
 
 export interface UpdateAgentData {
