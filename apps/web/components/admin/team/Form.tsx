@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Team } from "@/lib/api"
-import { TeamFormData } from "../admin-dashboard"
+import { TeamFormData } from "@/lib/interfaces/admin"
 import { useState } from "react"
 
 // Team Form Component
@@ -76,6 +76,8 @@ function TeamForm({ team = null, onSubmit, onCancel, isLoading = false }: {
             className="flex-1"
           />
         </div>
+      </div>
+      
       <div className="flex gap-2 pt-4">
         <Button type="submit" className="flex-1" disabled={isLoading}>
           {isLoading ? (
@@ -91,9 +93,8 @@ function TeamForm({ team = null, onSubmit, onCancel, isLoading = false }: {
           Cancel
         </Button>
       </div>
-      </div>
     </form>
-  )
+  );
 }
 
-export default TeamForm
+export default TeamForm;

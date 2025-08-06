@@ -1,3 +1,5 @@
+import { DashboardStats, TeamStats } from './interfaces/admin';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api/v1'
 
 export interface User {
@@ -337,53 +339,11 @@ class ApiService {
   // Analytics and Stats APIs
   async getDashboardStats(): Promise<{ 
     success: boolean; 
-    data: {
-      overview: {
-        totalTeams: number;
-        totalAgents: number;
-        onlineAgents: number;
-        pendingInvites: number;
-      };
-      teamStats: Array<{
-        _id: string;
-        name: string;
-        agentCount: number;
-        onlineAgents: number;
-      }>;
-      recentAgents: Array<{
-        _id: string;
-        name: string;
-        email: string;
-        role: string;
-        inviteStatus?: string;
-        createdAt: string;
-      }>;
-    }
+    data: DashboardStats;
   }> {
     return this.makeRequest<{ 
       success: boolean; 
-      data: {
-        overview: {
-          totalTeams: number;
-          totalAgents: number;
-          onlineAgents: number;
-          pendingInvites: number;
-        };
-        teamStats: Array<{
-          _id: string;
-          name: string;
-          agentCount: number;
-          onlineAgents: number;
-        }>;
-        recentAgents: Array<{
-          _id: string;
-          name: string;
-          email: string;
-          role: string;
-          inviteStatus?: string;
-          createdAt: string;
-        }>;
-      }
+      data: DashboardStats;
     }>('/admin/stats/dashboard', {
       method: 'GET',
     })
@@ -391,23 +351,11 @@ class ApiService {
 
   async getTeamStats(teamId: string): Promise<{ 
     success: boolean; 
-    data: {
-      teamId: string;
-      agentCount: number;
-      onlineAgents: number;
-      totalConversations: number;
-      avgResponseTime: number;
-    }
+    data: TeamStats;
   }> {
     return this.makeRequest<{ 
       success: boolean; 
-      data: {
-        teamId: string;
-        agentCount: number;
-        onlineAgents: number;
-        totalConversations: number;
-        avgResponseTime: number;
-      }
+      data: TeamStats;
     }>(`/admin/stats/teams/${teamId}`, {
       method: 'GET',
     })

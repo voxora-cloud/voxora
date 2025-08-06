@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Agent, Team } from "@/lib/api"
-import { AgentFormData, TeamFormData } from "../admin-dashboard"
+import { AgentFormData } from "@/lib/interfaces/admin"
 import { useState } from "react"
+
 // Agent Form Component
 function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false }: {
   agent?: Agent | null
@@ -16,23 +16,20 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
   const [formData, setFormData] = useState<AgentFormData>({
     name: agent?.name || '',
     email: agent?.email || '',
-    role: agent?.role || 'agent',
+    role: 'agent', // Always agent based on interface definition
     teamIds: agent?.teams?.map(t => t._id) || []
   })
 
-  console.log("printing agent form data:", agent)
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-   
     onSubmit(formData)
   }
 
   const toggleTeam = (teamId: string) => {
-    setFormData(prev => ({
+    setFormData((prev: AgentFormData) => ({
       ...prev,
       teamIds: prev.teamIds.includes(teamId)
-        ? prev.teamIds.filter(id => id !== teamId)
+        ? prev.teamIds.filter((id: string) => id !== teamId)
         : [...prev.teamIds, teamId]
     }))
   }
@@ -77,6 +74,8 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
             </label>
           ))}
         </div>
+      </div>
+      
       <div className="flex gap-2 pt-4">
         <Button type="submit" className="flex-1" disabled={isLoading}>
           {isLoading ? (
@@ -92,10 +91,8 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
           Cancel
         </Button>
       </div>
-      </div>
     </form>
-  )
-
+  );
 }
 
-export default AgentForm
+export default AgentForm;
