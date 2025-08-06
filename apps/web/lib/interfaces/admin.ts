@@ -52,6 +52,7 @@ export interface AgentFormData {
   role: 'agent';
   teamIds: string[];
   permissions?: string[];
+    password?: string; // Optional for existing agents
 }
 
 // Response interfaces for admin API calls

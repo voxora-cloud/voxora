@@ -132,3 +132,20 @@ export const agentLogin = asyncHandler(async (req: Request, res: Response) => {
     sendError(res, 401, error.message);
   }
 });
+
+
+export const acceptInvite = asyncHandler(async (req: Request, res: Response) => {
+  const { token } = req.body;
+  console.log('Accepting invite with token:', token);
+  try {
+    const result = await authService.acceptInvite(token);
+
+    if (!result.success) {
+      return sendError(res, result.statusCode || 400, result.message || 'Failed to accept invitation');
+    }
+
+    sendResponse(res, 200, true, 'Invitation accepted successfully', result.data);
+  } catch (error: any) {
+    sendError(res, 500, error.message || 'Internal server error');
+  }
+});

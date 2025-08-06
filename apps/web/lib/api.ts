@@ -79,6 +79,7 @@ export interface CreateAgentData {
   role: 'agent' // Always agent
   teamIds: string[]
   permissions?: string[]
+  password: string
 }
 
 export interface UpdateAgentData {
@@ -321,6 +322,13 @@ class ApiService {
   async resendInvite(agentId: string): Promise<{ success: boolean; inviteLink?: string }> {
     return this.makeRequest<{ success: boolean; inviteLink?: string }>(`/admin/agents/${agentId}/resend-invite`, {
       method: 'POST',
+    })
+  }
+  
+  async acceptInvite(token: string): Promise<AuthResponse> {
+    return this.makeRequest<AuthResponse>('/auth/accept-invite', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
     })
   }
 

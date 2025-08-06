@@ -1,3 +1,4 @@
+import { access } from 'fs';
 import Joi from 'joi';
 
 export const userValidation = {
@@ -23,6 +24,10 @@ export const userValidation = {
     status: Joi.string().valid('online', 'away', 'busy', 'offline').required(),
   }),
 
+  acceptInvite: Joi.object({
+    token: Joi.string().required(),
+  }),
+
   // Admin signup validation
   adminSignup: Joi.object({
     name: Joi.string().min(2).max(50).required(),
@@ -35,6 +40,7 @@ export const userValidation = {
   inviteAgent: Joi.object({
     name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
+    password: Joi.string().min(8).required(),
     role: Joi.string().valid('agent', 'admin').required(),
     teamIds: Joi.array().items(Joi.string().required()).min(1).required(),
   }),

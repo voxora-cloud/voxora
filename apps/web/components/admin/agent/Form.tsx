@@ -1,39 +1,45 @@
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Agent, Team } from "@/lib/api"
-import { AgentFormData } from "@/lib/interfaces/admin"
-import { useState } from "react"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Agent, Team } from "@/lib/api";
+import { AgentFormData } from "@/lib/interfaces/admin";
+import { useState } from "react";
 
 // Agent Form Component
-function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false }: {
-  agent?: Agent | null
-  teams: Team[]
-  onSubmit: (data: AgentFormData) => void
-  onCancel: () => void
-  isLoading?: boolean
+function AgentForm({
+  agent = null,
+  teams,
+  onSubmit,
+  onCancel,
+  isLoading = false,
+}: {
+  agent?: Agent | null;
+  teams: Team[];
+  onSubmit: (data: AgentFormData) => void;
+  onCancel: () => void;
+  isLoading?: boolean;
 }) {
   const [formData, setFormData] = useState<AgentFormData>({
-    name: agent?.name || '',
-    email: agent?.email || '',
-    role: 'agent', // Always agent based on interface definition
-    teamIds: agent?.teams?.map(t => t._id) || []
-  })
+    name: agent?.name || "",
+    email: agent?.email || "",
+    role: "agent", // Always agent based on interface definition
+    teamIds: agent?.teams?.map((t) => t._id) || [],
+    password: "",
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit(formData)
-  }
+    e.preventDefault();
+    onSubmit(formData);
+  };
 
   const toggleTeam = (teamId: string) => {
     setFormData((prev: AgentFormData) => ({
       ...prev,
       teamIds: prev.teamIds.includes(teamId)
         ? prev.teamIds.filter((id: string) => id !== teamId)
-        : [...prev.teamIds, teamId]
-    }))
-  }
-
+        : [...prev.teamIds, teamId],
+    }));
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -60,10 +66,26 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
         />
       </div>
       <div>
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          value={formData.password}
+          onChange={(e) =>
+            setFormData({ ...formData, password: e.target.value })
+          }
+          placeholder="Enter agent password"
+          required={!agent} // Require password for new agents
+        />
+      </div>
+      <div>
         <Label>Teams</Label>
         <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
           {teams.map((team) => (
-            <label key={team._id} className="flex items-center space-x-2 cursor-pointer">
+            <label
+              key={team._id}
+              className="flex items-center space-x-2 cursor-pointer"
+            >
               <input
                 type="checkbox"
                 checked={formData.teamIds.includes(team._id)}
@@ -75,19 +97,27 @@ function AgentForm({ agent = null, teams, onSubmit, onCancel, isLoading = false 
           ))}
         </div>
       </div>
-      
+
       <div className="flex gap-2 pt-4">
         <Button type="submit" className="flex-1" disabled={isLoading}>
           {isLoading ? (
             <>
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white mr-2"></div>
-              {agent ? 'Updating...' : 'Inviting...'}
+              {agent ? "Updating..." : "Inviting..."}
             </>
+          ) : agent ? (
+            "Update Agent"
           ) : (
-            agent ? 'Update Agent' : 'Invite Agent'
+            "Invite Agent"
           )}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel} className="flex-1" disabled={isLoading}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          className="flex-1"
+          disabled={isLoading}
+        >
           Cancel
         </Button>
       </div>

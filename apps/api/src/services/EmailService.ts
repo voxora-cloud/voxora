@@ -53,8 +53,8 @@ class EmailService {
     }
   }
 
-  async sendInviteEmail(to: string, inviterName: string, role: string, token: string): Promise<boolean> {
-    const inviteUrl = `${config.app.frontendUrl}/auth/accept-invite?token=${token}`;
+  async sendInviteEmail(to: string, inviterName: string, role: string, token: string, teamNames: string): Promise<boolean> {
+    const inviteUrl = `${config.app.frontendUrl}/accept-invite?token=${token}`;
     
     const html = `
       <!DOCTYPE html>
@@ -76,12 +76,12 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>🎉 You're Invited!</h1>
-            <p>Join the Voxora Support Team</p>
+            <p>Join the Voxora ${teamNames.split(', ').map(name => `<b>${name}</b>`).join(', ')} Teams</p>
           </div>
           <div class="content">
             <h2>Hello!</h2>
-            <p><strong>${inviterName}</strong> has invited you to join their support team as a <strong>${role}</strong>.</p>
-            
+            <p><strong>${inviterName}</strong> has invited you to join their <b>${teamNames.split(', ').map(name => `<b>${name}</b>`).join(', ')}</b> Teams as a <strong>${role}</strong>.</p>
+
             <p>Voxora is a powerful real-time chat support platform that helps teams provide exceptional customer service.</p>
             
             <p>Click the button below to accept your invitation and set up your account:</p>
@@ -89,12 +89,12 @@ class EmailService {
             <a href="${inviteUrl}" class="button">Accept Invitation</a>
             
             <p>Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #1d4ed8;">${inviteUrl}</p>
-            
+            <a style="word-break: break-all; color: #1d4ed8;">${inviteUrl}</a>
+
             <p><strong>Note:</strong> This invitation will expire in 7 days.</p>
           </div>
           <div class="footer">
-            <p>© 2024 Voxora. All rights reserved.</p>
+            <p>© 2025 Voxora. All rights reserved.</p>
             <p>If you didn't expect this invitation, you can safely ignore this email.</p>
           </div>
         </div>

@@ -184,16 +184,23 @@ export const deleteAgent = asyncHandler(async (req: AuthenticatedRequest, res: R
   }
 });
 
-export const resendInvite = asyncHandler(async (req: Request, res: Response) => {
+export const resendInvite = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   
   try {
-    // For now, just return success - implement later when needed
+    const result = await adminService.resendAgentInvite(id, req.user.userId);
+    if (!result.success) {
+      return sendError(res, result.statusCode || 400, result.message || 'Resend invite failed');
+    }
     sendResponse(res, 200, true, 'Invitation resent successfully');
   } catch (error: any) {
     sendError(res, 500, error.message);
   }
 });
+
+
+
+
 
 // =================
 // DASHBOARD STATS

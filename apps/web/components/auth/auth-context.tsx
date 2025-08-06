@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean
   login: (email: string, password: string, loginType?: 'admin' | 'agent') => Promise<void>
   signup: (data: { name: string; email: string; password: string; companyName: string }) => Promise<void>
+  acceptInvite: (token: string) => Promise<boolean>
   logout: () => void
   updateUser: (user: User) => void
 }
@@ -104,6 +105,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(updatedUser)
     apiService.setUser(updatedUser)
   }
+  
+  const acceptInvite = async (token: string) =>  {
+    try {
+      console.log('Accepting invite with token:', token)
+      const response = await apiService.acceptInvite(token)
+      console.log('Accept invite API response:', response)
+      
+      if (response.success && response.data) {
+         return true
+      } else {
+        console.error('Failed to accept invite:', response.message || 'Unknown error')
+         // If we know the database updated correctly, we could force true here
+         return false
+      }
+    } catch (error) {
+      console.error('Accept invite error:', error)
+      return false
+    }
+  }
 
   const value: AuthContextType = {
     user,
@@ -111,6 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     login,
     signup,
+    acceptInvite,
     logout,
     updateUser,
   }

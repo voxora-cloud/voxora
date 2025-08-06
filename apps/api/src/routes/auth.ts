@@ -8,6 +8,7 @@ import {
   adminSignup,
   adminLogin,
   agentLogin,
+  acceptInvite
 } from '../controllers/authController';
 import { authenticate, validateRequest, authRateLimit } from '../middleware';
 import { userValidation } from '../utils/validation';
@@ -44,6 +45,11 @@ router.post('/agent/login',
   authRateLimit,
   validateRequest(userValidation.login),
   agentLogin
+);
+
+router.post("/accept-invite",
+  validateRequest(userValidation.acceptInvite),
+  acceptInvite
 );
 
 router.post('/refresh-token', refreshToken);

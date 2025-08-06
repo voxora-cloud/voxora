@@ -205,8 +205,7 @@ export class AdminService {
   }
 
   async inviteAgent(inviteData: any) {
-    const { name, email, role, teamIds = [], invitedBy } = inviteData;
-
+    const { name, email, role,password, teamIds = [], invitedBy } = inviteData;
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -228,14 +227,14 @@ export class AdminService {
     }
 
     // Generate temporary password and invite token
-    const tempPassword = crypto.randomBytes(12).toString('hex');
+    const finalPassword = !password ?  crypto.randomBytes(12).toString('hex') : password;
     const inviteToken = crypto.randomBytes(32).toString('hex');
 
     // Create agent user
     const agent = new User({
       name,
       email,
-      password: tempPassword,
+      password: finalPassword,
       role: 'agent', // Always create as agent
       teams: teamIds,
       inviteStatus: 'pending',
@@ -266,13 +265,14 @@ export class AdminService {
 
     // Get inviter info
     const inviter = await User.findById(invitedBy);
-    
+    const teamNames = teamObjects.map(team => team.name).join(', ');
     // Send invite email
     await emailService.sendInviteEmail(
-      email, 
-      inviter?.name || 'Admin', 
-      role, 
-      inviteToken
+      email,
+      inviter?.name || 'Admin',
+      role,
+      inviteToken,
+      teamNames
     );
 
     logger.info('Agent invited successfully', {
@@ -487,7 +487,7 @@ export class AdminService {
       _id: id,
       role: { $in: ['agent', 'admin'] },
       inviteStatus: 'pending'
-    });
+    }).populate('teams', 'name');
 
     if (!agent) {
       return { 
@@ -505,13 +505,14 @@ export class AdminService {
 
     // Get resender info
     const resender = await User.findById(resentBy);
-    
+    const teamNames = (agent.teams as any[]).map(team => team.name).join(', ');
     // Send invite email
     await emailService.sendInviteEmail(
       agent.email, 
       resender?.name || 'Admin', 
       agent.role, 
-      inviteToken
+      inviteToken,
+      teamNames
     );
 
     logger.info('Invitation resent successfully', {

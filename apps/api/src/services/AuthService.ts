@@ -338,4 +338,45 @@ export class AuthService {
 
     return { success: true };
   }
+
+  async acceptInvite(token: string) {
+    // Find user by invite token
+    const user = await User.findOne({ emailVerificationToken: token, inviteStatus: 'pending' });
+    console.log('User found for invite:', user);
+    if (!user) {
+      return { 
+        success: false, 
+        message: 'Invalid or expired invitation token', 
+        statusCode: 400 
+      };
+    }
+
+    // Update user status and clear invite token
+    user.inviteStatus = 'active';
+    user.emailVerificationToken = undefined;
+    user.status = 'online';
+    await user.save();
+
+    // Generate JWT token
+    const tokens = generateTokens({
+      userId: user._id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          teams: user.teams,
+          status: user.status
+        },
+        token: tokens.accessToken
+      }
+    };
+  }
 }

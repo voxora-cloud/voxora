@@ -199,7 +199,8 @@ export default function AgentPage() {
         name: data.name,
         email: data.email,
         role: 'agent',
-        teamIds: data.teamIds
+        teamIds: data.teamIds,
+        password: data.password
       });
       if (response.success) {
         setShowCreateModal(false);
