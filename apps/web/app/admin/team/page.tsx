@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Team } from "@/lib/api";
-import { TeamFormData } from "@/components/admin/admin-dashboard";
 import { Edit, Plus, Trash2, Users, X } from "lucide-react";
 import TeamForm from "@/components/admin/team/Form";
 import { apiService } from "@/lib/api";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { TeamFormData } from "@/lib/interfaces/admin";
 
 function TeamDetailModal({ team, isOpen, onClose }: {
   team: Team | null
