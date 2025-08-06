@@ -12,13 +12,12 @@ interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Dialog: React.FC<DialogProps> = ({
   open = false,
-  onOpenChange: _onOpenChange,
   children,
 }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/20 backdrop-blur-sm">
       {children}
     </div>
   );
@@ -31,7 +30,7 @@ const DialogContent: React.FC<DialogContentProps> = ({
 }) => {
   return (
     <div
-      className={`bg-white rounded-lg shadow-lg max-h-[90vh] overflow-y-auto p-6 w-full max-w-md mx-4 ${className || ""}`}
+      className={`bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto p-6 w-full max-w-md mx-4 ${className || ""}`}
       {...props}
     >
       {children}
