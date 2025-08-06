@@ -100,7 +100,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               }`}
             >
               <BarChart3 className="h-5 w-5 mr-3" />
-              Overview
+              <span className="flex-1 text-left">Dashboard</span>
+            
             </Button>
 
             <Button
@@ -167,10 +168,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </Button>
         </div>
       </div>
+
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full p-6 overflow-y-auto bg-gray-50">{children}</div>
-      </div>
+      <div className="flex-1 p-6 bg-gray-50">{children}</div>
     </div>
   );
 };
