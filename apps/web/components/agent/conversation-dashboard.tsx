@@ -5,19 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/components/auth/auth-context"
+import { useRouter } from "next/navigation"
 import { 
   MessageCircle, 
   Phone,
   Search, 
   Filter,
-  MoreVertical,
-  ArrowRight,
-  Tag,
+  Plus,
   User,
-  Paperclip,
-  Send,
+  Tag,
   StickyNote,
-  UserMinus
+  ArrowRight,
+  MoreVertical,
+  Send,
+  Paperclip
 } from "lucide-react"
 
 // Mock conversation data
@@ -99,17 +100,39 @@ const mockConversations = [
   }
 ]
 
+// Define types for our conversation components
+interface Message {
+  id: string;
+  sender: 'agent' | 'customer';
+  content: string;
+  timestamp: Date;
+}
+
+interface Conversation {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  subject: string;
+  lastMessage: string;
+  timestamp: Date;
+  status: string;
+  priority: string;
+  team: string;
+  type: string;
+  tags: string[];
+  notes: string;
+  messages?: Message[];
+}
+
 export function ConversationDashboard() {
+  const router = useRouter()
   const { user, isLoading, isAuthenticated } = useAuth()
   
   // State
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterTeam, setFilterTeam] = useState("all")
-  const [internalNote, setInternalNote] = useState("")
-  const [showNotes, setShowNotes] = useState(false)
-  const [showTransferModal, setShowTransferModal] = useState(false)
-  const [transferEmail, setTransferEmail] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
   
   // Use mock data
   const conversations = mockConversations
@@ -117,36 +140,21 @@ export function ConversationDashboard() {
   // Auth user data
   const userTeams = user?.teams?.map(team => team.name) || ["Technical", "Billing", "Product"]
   
-  // Filtered conversations based on status and team
+  // Filtered conversations based on status, team and search query
   const filteredConversations = conversations.filter((conversation) => {
-    const statusMatch = filterStatus === "all" || conversation.status === filterStatus
-    const teamMatch = filterTeam === "all" || conversation.team === filterTeam
-    return statusMatch && teamMatch
-  })
+    const statusMatch = filterStatus === "all" || conversation.status === filterStatus;
+    const teamMatch = filterTeam === "all" || conversation.team === filterTeam;
+    const searchMatch = !searchQuery || 
+      conversation.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      conversation.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      conversation.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return statusMatch && teamMatch && searchMatch;
+  });
   
   // Helper functions
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-  
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case "new": return "text-blue-500"
-      case "active": return "text-green-500"
-      case "waiting": return "text-yellow-500"
-      case "resolved": return "text-gray-500"
-      default: return "text-gray-500"
-    }
-  }
-  
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case "new": return "🔵"
-      case "active": return "🟢"
-      case "waiting": return "🟡"
-      case "resolved": return "⚪️"
-      default: return "⚪️"
-    }
   }
   
   const getPriorityColor = (priority: string) => {
@@ -158,35 +166,7 @@ export function ConversationDashboard() {
     }
   }
   
-  // Event handlers
-  const handleAddNote = () => {
-    if (internalNote.trim()) {
-      // In a real app, this would call an API to add the note
-      alert(`Note added: ${internalNote}`)
-      setInternalNote("")
-    }
-  }
-  
-  const handleTransfer = () => {
-    setShowTransferModal(true)
-  }
-  
-  const executeTransfer = () => {
-    if (!transferEmail.trim()) {
-      alert("Please enter an agent email")
-      return
-    }
-    
-    const conversation = conversations.find(c => c.id === selectedConversation)
-    
-    if (conversation) {
-      console.log(`Transferring conversation ${conversation.id} to ${transferEmail}`)
-      // In real app, this would call an API
-      alert(`Conversation "${conversation.subject}" transferred to ${transferEmail}`)
-      setShowTransferModal(false)
-      setTransferEmail("")
-    }
-  }
+
   
   // Authentication checks - do these after all hooks are called
   // Show loading state
@@ -214,21 +194,29 @@ export function ConversationDashboard() {
   return (
     <div className="h-full flex">
       {/* Conversations Sidebar */}
-      <div className="w-80 border-r border-border bg-card flex flex-col">
+      <div className={`md:w-80 border-r border-border bg-card flex flex-col ${selectedConversation ? 'hidden md:flex' : 'w-full'}`}>
         {/* Sidebar Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">Conversations</h2>
-            <div className="flex space-x-1">
-              <Button variant="ghost" size="icon">
+            <div className="flex space-x-2">
+              <Button variant="outline" size="icon" className="h-8 w-8">
                 <Filter className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-primary/10 text-primary">
+                {filteredConversations.length}
               </Button>
             </div>
           </div>
           
           <div className="relative mb-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search conversations..." className="pl-10" />
+            <Input 
+              placeholder="Search conversations..." 
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
 
           {/* Filters */}
@@ -262,60 +250,77 @@ export function ConversationDashboard() {
           {filteredConversations.map((conversation) => (
             <div
               key={conversation.id}
-              className={`p-4 border-b border-border cursor-pointer hover:bg-accent transition-colors ${
-                selectedConversation === conversation.id ? 'bg-accent' : ''
+              className={`p-4 border-b border-border cursor-pointer hover:bg-accent/50 transition-colors ${
+                selectedConversation === conversation.id ? 'bg-accent/30' : ''
               }`}
-              onClick={() => setSelectedConversation(conversation.id)}
+              onClick={() => router.push(`/support/dashboard/chat/${conversation.id}`)}
             >
-              <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-3">
+                {/* Avatar */}
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  conversation.status === "active" ? 'bg-green-100' : 
+                  conversation.status === "new" ? 'bg-blue-100' : 
+                  conversation.status === "waiting" ? 'bg-yellow-100' : 'bg-gray-100'
+                }`}>
+                  <span className="text-base font-semibold">
+                    {conversation.customerName.split(" ").map(n => n[0]).join("")}
+                  </span>
+                </div>
+                
+                {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className={`${getStatusColor(conversation.status)}`}>
-                      {getStatusIcon(conversation.status)}
-                    </span>
+                  <div className="flex items-center justify-between mb-1">
                     <h3 className="font-medium text-sm text-foreground truncate">
                       {conversation.customerName}
                     </h3>
-                    {conversation.type === "call" && (
-                      <Phone className="h-3 w-3 text-muted-foreground" />
+                    <div className="flex items-center">
+                      <span className={`text-xs ${
+                        conversation.status === "active" ? 'text-green-600' : 
+                        conversation.status === "new" ? 'text-blue-600' : 
+                        conversation.status === "waiting" ? 'text-yellow-600' : 'text-gray-600'
+                      }`}>
+                        {formatTime(conversation.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground truncate max-w-[80%]">
+                      <span className="font-medium text-xs mr-1 text-foreground">{conversation.subject}:</span> 
+                      {conversation.lastMessage}
+                    </p>
+                    {conversation.unreadCount > 0 && (
+                      <div className="w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                        {conversation.unreadCount}
+                      </div>
                     )}
                   </div>
-                  <p className="text-xs font-medium text-foreground mb-1">
-                    {conversation.subject}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {conversation.lastMessage}
-                  </p>
-                </div>
-                
-                <div className="flex flex-col items-end space-y-1">
-                  <span className="text-xs text-muted-foreground">
-                    {formatTime(conversation.timestamp)}
-                  </span>
-                  {conversation.unreadCount > 0 && (
-                    <div className="w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                      {conversation.unreadCount}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(conversation.priority)}`}>
-                    {conversation.priority}
-                  </span>
-                  <span className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded">
-                    {conversation.team}
-                  </span>
-                </div>
-                
-                <div className="flex space-x-1">
-                  {conversation.tags.slice(0, 2).map((tag) => (
-                    <span key={tag} className="text-xs bg-muted text-muted-foreground px-1 rounded">
-                      #{tag}
+                  
+                  <div className="flex items-center mt-1 space-x-1">
+                    {/* Priority */}
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${getPriorityColor(conversation.priority)}`}>
+                      {conversation.priority}
                     </span>
-                  ))}
+                    
+                    {/* Team */}
+                    <span className="text-xs bg-secondary/60 text-secondary-foreground px-1.5 py-0.5 rounded-full">
+                      {conversation.team}
+                    </span>
+                    
+                    {/* Tags */}
+                    {conversation.tags.slice(0, 1).map((tag) => (
+                      <span key={tag} className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
+                        #{tag}
+                      </span>
+                    ))}
+                    
+                    {/* Call indicator */}
+                    {conversation.type === "call" && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex items-center">
+                        <Phone className="h-3 w-3 mr-0.5" /> Call
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -323,198 +328,241 @@ export function ConversationDashboard() {
         </div>
       </div>
 
-      {/* Main Conversation Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content Area */}
+      <div className={`flex-1 flex flex-col bg-muted/10 ${selectedConversation ? 'flex' : 'hidden md:flex'}`}>
         {selectedConversation ? (
-          <div className="h-full flex flex-col">
-            {/* Conversation Header */}
-            <Card className="rounded-none border-0 border-b">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">
-                        {conversations.find(c => c.id === selectedConversation)?.customerName}
-                      </CardTitle>
-                      <CardDescription>
-                        {conversations.find(c => c.id === selectedConversation)?.customerEmail}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => setShowNotes(!showNotes)}>
-                      <StickyNote className="mr-1 h-3 w-3" />
-                      Notes
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleTransfer}>
-                      <ArrowRight className="mr-1 h-3 w-3" />
-                      Transfer
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Conversation Tags & Info */}
-                <div className="flex items-center space-x-4 mt-3">
-                  <div className="flex items-center space-x-2">
-                    {conversations.find(c => c.id === selectedConversation)?.tags.map((tag) => (
-                      <span key={tag} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded flex items-center">
-                        <Tag className="mr-1 h-3 w-3" />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(
-                    conversations.find(c => c.id === selectedConversation)?.priority || "low"
-                  )}`}>
-                    {conversations.find(c => c.id === selectedConversation)?.priority} priority
-                  </span>
-                </div>
-              </CardHeader>
-            </Card>
-
-            {/* Internal Notes */}
-            {showNotes && (
-              <Card className="mb-4 mx-4 mt-4">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Internal Notes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {conversations.find(c => c.id === selectedConversation)?.notes && (
-                      <div className="bg-muted p-3 rounded-lg">
-                        <p className="text-sm text-foreground">
-                          {conversations.find(c => c.id === selectedConversation)?.notes}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">Added by Sarah Williams</p>
-                      </div>
-                    )}
-                    <div className="flex space-x-2">
-                      <Input
-                        value={internalNote}
-                        onChange={(e) => setInternalNote(e.target.value)}
-                        placeholder="Add internal note..."
-                        className="flex-1"
-                      />
-                      <Button onClick={handleAddNote} disabled={!internalNote.trim()}>
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Chat Interface */}
-            <div className="flex-1 flex flex-col px-4 pb-4">
-              {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto bg-muted/10 p-4 rounded-lg">
-                <div className="space-y-4">
-                  {/* Sample messages - replace with real data */}
-                  <div className="flex justify-end">
-                    <div className="max-w-xs bg-primary text-primary-foreground rounded-lg px-3 py-2">
-                      <p className="text-sm">Hello! How can I help you today?</p>
-                      <span className="text-xs opacity-70">12:34 PM</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-start">
-                    <div className="max-w-xs bg-background border rounded-lg px-3 py-2">
-                      <p className="text-sm">Hi! I&apos;m having trouble with my account login.</p>
-                      <span className="text-xs text-muted-foreground">12:35 PM</span>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <div className="max-w-xs bg-primary text-primary-foreground rounded-lg px-3 py-2">
-                      <p className="text-sm">I&apos;d be happy to help you with that. Can you tell me what error message you&apos;re seeing?</p>
-                      <span className="text-xs opacity-70">12:36 PM</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Message Input */}
-              <div className="mt-4">
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="icon">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                  <Input placeholder="Type your message..." className="flex-1" />
-                  <Button>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ConversationView 
+            conversation={conversations.find(c => c.id === selectedConversation)!}
+            onClose={() => setSelectedConversation(null)}
+          />
         ) : (
-          <div className="h-full flex items-center justify-center">
-            <Card className="w-96">
+          <div className="flex-1 flex items-center justify-center">
+            <Card className="w-96 border-muted">
               <CardContent className="text-center p-6">
                 <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">
                   Select a conversation
                 </h3>
                 <p className="text-muted-foreground">
-                  Choose a conversation from the sidebar to start helping customers
+                  Choose a conversation from the sidebar to view and reply to messages
                 </p>
               </CardContent>
             </Card>
           </div>
         )}
       </div>
-      
-      {/* Transfer Modal */}
-      {showTransferModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Transfer Conversation</CardTitle>
-              <CardDescription>
-                Transfer this conversation to another agent
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Agent Email</label>
-                  <Input 
-                    placeholder="agent@company.com" 
-                    value={transferEmail}
-                    onChange={(e) => setTransferEmail(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        executeTransfer()
-                      }
-                    }}
-                  />
-                </div>
-                <div className="flex gap-2 pt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setShowTransferModal(false)
-                      setTransferEmail("")
-                    }} 
-                    className="flex-1"
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={executeTransfer} className="flex-1">
-                    <UserMinus className="mr-2 h-4 w-4" />
-                    Transfer
-                  </Button>
-                </div>
+
+    </div>
+  )
+}
+
+// ConversationView component to display the selected conversation
+function ConversationView({ conversation, onClose }: { conversation: Conversation, onClose: () => void }) {
+  const { user } = useAuth()
+  const [message, setMessage] = useState("")
+  const [internalNote, setInternalNote] = useState("")
+  const [showNotes, setShowNotes] = useState(false)
+
+  // Initialize messages array if it doesn't exist
+  if (!conversation.messages) {
+    conversation.messages = [
+      {
+        id: "m1",
+        sender: "agent",
+        content: "Hello! How can I help you today?",
+        timestamp: new Date(Date.now() - 60000 * 10)
+      },
+      {
+        id: "m2",
+        sender: "customer",
+        content: "Hi! I'm having trouble with my account login.",
+        timestamp: new Date(Date.now() - 60000 * 8)
+      },
+      {
+        id: "m3",
+        sender: "agent",
+        content: "I'd be happy to help you with that. Can you tell me what error message you're seeing?",
+        timestamp: new Date(Date.now() - 60000 * 5)
+      }
+    ]
+  }
+
+  const handleSendMessage = () => {
+    if (!message.trim()) return
+
+    // In a real app, you would send this to your API
+    const newMessage: Message = {
+      id: `m${conversation.messages!.length + 1}`,
+      sender: "agent",
+      content: message,
+      timestamp: new Date()
+    }
+
+    conversation.messages!.push(newMessage)
+    setMessage("")
+  }
+
+  const handleAddNote = () => {
+    if (internalNote.trim()) {
+      // In a real app, this would call an API to add the note
+      alert(`Note added: ${internalNote}`)
+      setInternalNote("")
+    }
+  }
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const getPriorityColor = (priority: string) => {
+    switch(priority) {
+      case "high": return "bg-red-100 text-red-700"
+      case "medium": return "bg-yellow-100 text-yellow-700"
+      case "low": return "bg-green-100 text-green-700"
+      default: return "bg-gray-100 text-gray-700"
+    }
+  }
+
+  return (
+    <div className="h-full flex flex-col p-4 w-full">
+      {/* Conversation Header */}
+      <Card className="mb-4">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="mr-2 md:hidden"
+                onClick={onClose}
+              >
+                ←
+              </Button>
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                <User className="h-5 w-5 text-primary-foreground" />
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div>
+                <CardTitle className="text-lg">{conversation.customerName}</CardTitle>
+                <CardDescription>{conversation.customerEmail}</CardDescription>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" onClick={() => setShowNotes(!showNotes)}>
+                <StickyNote className="mr-1 h-3 w-3" />
+                Notes
+              </Button>
+              <Button variant="outline" size="sm">
+                <ArrowRight className="mr-1 h-3 w-3" />
+                Transfer
+              </Button>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Conversation Tags & Info */}
+          <div className="flex items-center space-x-4 mt-3">
+            <div className="flex items-center space-x-2">
+              {conversation.tags.map((tag) => (
+                <span key={tag} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded flex items-center">
+                  <Tag className="mr-1 h-3 w-3" />
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(conversation.priority)}`}>
+              {conversation.priority} priority
+            </span>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Internal Notes */}
+      {showNotes && (
+        <Card className="mb-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Internal Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {conversation.notes && (
+                <div className="bg-muted p-3 rounded-lg">
+                  <p className="text-sm text-foreground">{conversation.notes}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Added by {user?.name || 'Agent'}</p>
+                </div>
+              )}
+              <div className="flex space-x-2">
+                <Input
+                  value={internalNote}
+                  onChange={(e) => setInternalNote(e.target.value)}
+                  placeholder="Add internal note..."
+                  className="flex-1"
+                />
+                <Button onClick={handleAddNote} disabled={!internalNote.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Chat Interface */}
+      <Card className="flex-1 flex flex-col">
+        <CardContent className="flex flex-col p-0 h-full">
+          {/* Messages Area */}
+          <div className="flex-1 p-4 overflow-y-auto bg-muted/10">
+            <div className="space-y-4">
+              {conversation.messages!.map((msg) => (
+                <div 
+                  key={msg.id}
+                  className={`flex ${msg.sender === 'agent' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-md ${
+                    msg.sender === 'agent' 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-background border'
+                  } rounded-lg px-3 py-2`}
+                  >
+                    <p className="text-sm">{msg.content}</p>
+                    <span className={`text-xs ${
+                      msg.sender === 'agent' ? 'opacity-70' : 'text-muted-foreground'
+                    }`}>
+                      {formatTime(new Date(msg.timestamp))}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Message Input */}
+          <div className="border-t border-border p-4">
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" size="icon">
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              <Input 
+                placeholder="Type your message..." 
+                className="flex-1"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+              />
+              <Button onClick={handleSendMessage} disabled={!message.trim()}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
