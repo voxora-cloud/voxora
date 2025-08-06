@@ -1,0 +1,53 @@
+---
+name: Lint and Code Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  code_quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache npm
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-cache
+
+      - name: Install Tools
+        run: |
+          echo "Installing necessary quality tools..."
+          npm install -g eslint prettier htmlhint stylelint markdownlint-cli
+          sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run ESLint (JS/TS)
+        run: |
+          echo "Running ESLint..."
+          eslint . --ext .js,.ts || true
+
+      - name: Run HTMLHint
+        run: |
+          echo "Linting HTML files..."
+          htmlhint "**/*.html" || true
+
+      - name: Run Stylelint (CSS)
+        run: |
+          echo "Linting CSS files..."
+          stylelint "**/*.css" || true
+
+      - name: Run Markdownlint
+        run: |
+          echo "Linting Markdown files..."
+          markdownlint "**/*.md" || true
+
+      - name: Run ShellCheck
+        run: |
+          echo "Linting shell scripts..."
+          find . -type f -name "*.sh" -exec shellcheck {} + || true
