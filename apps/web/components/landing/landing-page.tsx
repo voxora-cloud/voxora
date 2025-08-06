@@ -321,31 +321,31 @@ export function LandingPage() {
         </div>
         
         <div className="container mx-auto">
-          <div className="max-w-4xl mx-auto bg-gradient-to-br from-background/10 to-background/30 backdrop-blur-md rounded-2xl p-10 shadow-2xl border border-white/10">
+          <div className="max-w-4xl mx-auto bg-background/80 backdrop-blur-md rounded-2xl p-10 shadow-2xl border border-border">
             <div className="text-center">
-              <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/20 text-white mb-6">
-                <span className="text-xs font-medium">Limited Time Offer</span>
+              <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-primary/10 text-primary mb-6">
+          <span className="text-xs font-medium">Limited Time Offer</span>
               </div>
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
-                Ready to transform your support experience?
+              <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
+          Ready to transform your support experience?
               </h2>
-              <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-                Join thousands of teams already using Voxora to provide exceptional customer support.
-                Start your 14-day free trial today.
+              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          Join thousands of teams already using Voxora to provide exceptional customer support.
+          Start your 14-day free trial today.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" variant="secondary" className="shadow-xl" asChild>
-                  <Link href="/register">
-                    Start Free Trial
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="outline" className="bg-transparent border-white text-white hover:bg-white hover:text-primary shadow-xl" asChild>
-                  <Link href="/contact">Schedule Demo</Link>
-                </Button>
+          <Button size="lg" className="shadow-xl" asChild>
+            <Link href="/register">
+              Start Free Trial
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+          <Button size="lg" variant="outline" className="shadow-xl" asChild>
+            <Link href="/contact">Schedule Demo</Link>
+          </Button>
               </div>
-              <p className="text-sm text-white/70 mt-6">
-                No credit card required. 14-day free trial.
+              <p className="text-sm text-muted-foreground mt-6">
+          No credit card required. 14-day free trial.
               </p>
             </div>
           </div>
