@@ -1,5 +1,5 @@
-import { AgentDashboard } from "@/components/agent/agent-dashboard"
+import { ConversationDashboard } from "@/components/agent/conversation-dashboard"
 
 export default function SupportDashboardPage() {
-  return <AgentDashboard />
+  return <ConversationDashboard />
 }

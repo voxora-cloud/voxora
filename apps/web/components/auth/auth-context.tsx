@@ -64,7 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (user.role === 'admin') {
           window.location.href = '/admin'
         } else if (user.role === 'agent') {
-          window.location.href = '/dashboard'
+          window.location.href = '/support/dashboard'
         }
       } else {
         throw new Error(response.message || 'Login failed')

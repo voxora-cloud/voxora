@@ -93,7 +93,7 @@ const config: Config = {
   },
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 1000), // 15 minutes
-    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 1000),
+    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10000', 1000),
   },
   cors: {
     allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],

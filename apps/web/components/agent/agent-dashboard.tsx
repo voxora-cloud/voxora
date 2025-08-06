@@ -230,43 +230,7 @@ export function AgentDashboard({
 
   return (
     <div className="h-screen bg-background flex flex-col">
-      {/* Top Header */}
-      <header className="border-b border-border bg-card px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-lg font-bold text-primary-foreground">V</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">Voxora Support</span>
-            </div>
-            <div className="flex items-center space-x-2 bg-secondary/50 rounded-lg px-3 py-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-foreground">Online</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-primary-foreground">
-                  {displayName.split(" ").map(n => n[0]).join("")}
-                </span>
-              </div>
-              <span className="text-sm font-medium">{displayName}</span>
-            </div>
-          </div>
-        </div>
-      </header>
+    
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
