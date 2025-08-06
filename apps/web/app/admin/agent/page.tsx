@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Agent, Team } from "@/lib/api";
-import { Edit, Mail, Plus, Trash2, User, X } from "lucide-react";
+import { Edit, Mail, Plus, Search, Trash2, User, X } from "lucide-react";
 import AgentForm from "@/components/admin/agent/Form";
 import { apiService } from "@/lib/api";
 import { AgentFormData } from "@/lib/interfaces/admin";
+import { Input } from "@/components/ui/input";
 
 function AgentDetailModal({ agent, isOpen, onClose }: {
   agent: Agent | null
@@ -110,6 +111,7 @@ function AgentDetailModal({ agent, isOpen, onClose }: {
 
 export default function AgentPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
@@ -118,11 +120,49 @@ export default function AgentPage() {
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "online", "offline", "busy"
+  const [teamFilter, setTeamFilter] = useState<string>("all");
 
   useEffect(() => {
     fetchAgents();
     fetchTeams();
   }, []);
+  
+  // Apply filters to agents
+  useEffect(() => {
+    if (!agents.length) {
+      setFilteredAgents([]);
+      return;
+    }
+
+    let result = [...agents];
+    
+    // Apply search filter
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(agent => 
+        agent.name.toLowerCase().includes(query) || 
+        agent.email.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== "all") {
+      result = result.filter(agent => agent.status === statusFilter);
+    }
+
+    // Apply team filter
+    if (teamFilter !== "all") {
+      result = result.filter(agent => 
+        agent.teams && agent.teams.some(team => team._id === teamFilter)
+      );
+    }
+
+    setFilteredAgents(result);
+  }, [agents, searchQuery, statusFilter, teamFilter]);
 
   const fetchAgents = async () => {
     setLoading(true);
@@ -253,6 +293,89 @@ export default function AgentPage() {
         </div>
       )}
 
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search agents by name or email..."
+            className="pl-9"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {/* Status Filter */}
+          <div className="flex items-center">
+            <span className="text-sm font-medium mr-2">Status:</span>
+            <div className="flex gap-1">
+              <Button
+                variant={statusFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('all')}
+              >
+                All
+              </Button>
+              <Button
+                variant={statusFilter === 'online' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('online')}
+                className="text-green-600 border-green-200"
+              >
+                Online
+              </Button>
+              <Button
+                variant={statusFilter === 'busy' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('busy')}
+                className="text-amber-600 border-amber-200"
+              >
+                Busy
+              </Button>
+              <Button
+                variant={statusFilter === 'offline' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter('offline')}
+                className="text-gray-600 border-gray-200"
+              >
+                Offline
+              </Button>
+            </div>
+          </div>
+
+          {/* Team Filter */}
+          {teams.length > 0 && (
+            <div className="flex items-center ml-2">
+              <span className="text-sm font-medium mr-2">Team:</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={teamFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTeamFilter('all')}
+                >
+                  All Teams
+                </Button>
+                {teams.map(team => (
+                  <Button
+                    key={team._id}
+                    variant={teamFilter === team._id ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setTeamFilter(team._id)}
+                    className="flex items-center gap-1"
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: team.color || '#3b82f6' }}
+                    ></div>
+                    {team.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {loading ? (
         <div className="grid grid-cols-1 gap-6">
           {Array(3).fill(0).map((_, i) => (
@@ -261,7 +384,7 @@ export default function AgentPage() {
             </Card>
           ))}
         </div>
-      ) : agents.length > 0 ? (
+      ) : filteredAgents.length > 0 ? (
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -275,7 +398,7 @@ export default function AgentPage() {
                 </tr>
               </thead>
               <tbody>
-                {agents.map((agent) => (
+                {filteredAgents.map((agent) => (
                   <tr key={agent._id} className="border-t border-gray-200 hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-3">
@@ -373,12 +496,33 @@ export default function AgentPage() {
           <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
             <User className="h-6 w-6 text-gray-500" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900">No agents added yet</h3>
-          <p className="text-gray-500 mt-1">Invite agents to start managing your support team</p>
-          <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Invite Agent
-          </Button>
+          
+          {agents.length === 0 ? (
+            <>
+              <h3 className="text-lg font-medium text-gray-900">No agents added yet</h3>
+              <p className="text-gray-500 mt-1">Invite agents to start managing your support team</p>
+              <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Invite Agent
+              </Button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-medium text-gray-900">No matching agents found</h3>
+              <p className="text-gray-500 mt-1">Try changing your search criteria or filters</p>
+              <Button 
+                variant="outline" 
+                className="mt-4" 
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                  setTeamFilter("all");
+                }}
+              >
+                Clear All Filters
+              </Button>
+            </>
+          )}
         </div>
       )}
 

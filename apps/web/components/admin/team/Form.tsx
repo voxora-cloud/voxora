@@ -33,6 +33,7 @@ function TeamForm({ team = null, onSubmit, onCancel, isLoading = false }: {
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
           placeholder="Enter team name"
+          disabled ={!!team} // Disable name editing for existing teams
           required
         />
        

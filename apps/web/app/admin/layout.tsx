@@ -167,9 +167,10 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </Button>
         </div>
       </div>
-
       {/* Main Content */}
-      <div className="flex-1 p-6 bg-gray-50">{children}</div>
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full p-6 overflow-y-auto bg-gray-50">{children}</div>
+      </div>
     </div>
   );
 };

@@ -18,6 +18,8 @@ export const getTeams = asyncHandler(async (req: Request, res: Response) => {
       limit: Number(limit),
       search: search as string
     });
+
+    // console.log("Teams retrieved:", result);
     
     sendResponse(res, 200, true, 'Teams retrieved successfully', result);
   } catch (error: any) {

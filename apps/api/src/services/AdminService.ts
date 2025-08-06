@@ -98,6 +98,7 @@ export class AdminService {
       return { success: false, message: 'Invalid team ID', statusCode: 400 };
     }
 
+
     const team = await Team.findOne({ _id: id, isActive: true });
     
     if (!team) {
@@ -110,13 +111,17 @@ export class AdminService {
       isActive: true 
     });
 
-    if (agentCount > 0) {
-      return { 
-        success: false, 
-        message: 'Cannot delete team with active agents. Please reassign or remove agents first.',
-        statusCode: 400 
-      };
-    }
+    // console.log("Deleting team with ID:", id, "by user:", deletedBy);  
+
+    // Todo - Uncomment this check if you want to prevent deletion of teams with active agents  
+
+    // if (agentCount > 0) {
+    //   return { 
+    //     success: false, 
+    //     message: 'Cannot delete team with active agents. Please reassign or remove agents first.',
+    //     statusCode: 400 
+    //   };
+    // }
 
     // Soft delete
     await Team.findByIdAndUpdate(id, {
@@ -242,6 +247,23 @@ export class AdminService {
 
     await agent.save();
 
+    // Update agent count for each team
+    if (teamIds.length > 0) {
+      try {
+        await Team.updateMany(
+          { _id: { $in: teamIds } },
+          { $inc: { agentCount: 1 } }
+        );
+        logger.info('Incremented agent count for teams:', teamIds);
+      } catch (error) {
+        logger.error('Failed to increment agent count for teams:', { 
+          teamIds, 
+          error: (error as Error).message 
+        });
+        // Continue with the invitation process even if team count update fails
+      }
+    }
+
     // Get inviter info
     const inviter = await User.findById(invitedBy);
     
@@ -276,7 +298,6 @@ export class AdminService {
   }
 
   async updateAgent(id: string, updateData: any) {
-    console.log("Updating agent with data:", updateData);
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { 
         success: false, 
@@ -314,11 +335,65 @@ export class AdminService {
       }
     }
 
-    console.log("Updating agent with data:", updateData);
+
+    // Get the current agent to compare team changes
+    const currentAgent = await User.findOne({ _id: id, role: { $in: ['agent', 'admin'] } });
+    if (!currentAgent) {
+      return { 
+        success: false, 
+        message: 'Agent not found', 
+        statusCode: 404 
+      };
+    }
 
     // Convert teamIds to teams if provided
     const updateFields = { ...updateData };
     if (updateData.teamIds) {
+      // Get the current teams to calculate differences
+      const currentTeamIds = currentAgent.teams.map(team => team.toString());
+      const newTeamIds = updateData.teamIds;
+      
+      // Find teams to remove agent from
+      const teamsToDecrement = currentTeamIds.filter((teamId: string) => !newTeamIds.includes(teamId));
+      
+      // Find teams to add agent to
+      const teamsToIncrement = newTeamIds.filter((teamId: string) => !currentTeamIds.includes(teamId));
+      
+      // Update agent count for removed teams
+      if (teamsToDecrement.length > 0) {
+        try {
+          await Team.updateMany(
+            { _id: { $in: teamsToDecrement } },
+            { $inc: { agentCount: -1 } }
+          );
+          logger.info('Decremented agent count for teams:', teamsToDecrement);
+        } catch (error) {
+          logger.error('Failed to decrement agent count for teams:', { 
+            teams: teamsToDecrement, 
+            error: (error as Error).message 
+          });
+          // Continue with the update process even if team count update fails
+        }
+      }
+      
+      // Update agent count for added teams
+      if (teamsToIncrement.length > 0) {
+        try {
+          await Team.updateMany(
+            { _id: { $in: teamsToIncrement } },
+            { $inc: { agentCount: 1 } }
+          );
+          logger.info('Incremented agent count for teams:', teamsToIncrement);
+        } catch (error) {
+          logger.error('Failed to increment agent count for teams:', { 
+            teams: teamsToIncrement, 
+            error: (error as Error).message 
+          });
+          // Continue with the update process even if team count update fails
+        }
+      }
+      
+      // Update the teams field
       updateFields.teams = updateData.teamIds;
       delete updateFields.teamIds; // Remove teamIds since we use teams field in the model
     }
@@ -371,6 +446,22 @@ export class AdminService {
       };
     }
 
+    // Decrement agent count from all teams the agent belongs to
+    if (agent.teams && agent.teams.length > 0) {
+      try {
+        await Team.updateMany(
+          { _id: { $in: agent.teams } },
+          { $inc: { agentCount: -1 } }
+        );
+        logger.info('Decremented agent count for teams:', agent.teams);
+      } catch (error) {
+        logger.error('Failed to decrement agent count for teams:', { 
+          teams: agent.teams, 
+          error: (error as Error).message 
+        });
+        // Continue with the deletion process even if team count update fails
+      }
+    }
 
     await User.findByIdAndDelete(id);
 
