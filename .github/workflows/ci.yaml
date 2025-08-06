@@ -3,9 +3,9 @@ name: Lint and Code Quality
 
 on:
   push:
-    branches: [main, voxora-vaishnav]
+    branches: [main]
   pull_request:
-    branches: [main, voxora-vaishnav]
+    branches: [main]
 
 jobs:
   code_quality:
