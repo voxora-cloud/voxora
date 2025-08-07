@@ -199,6 +199,21 @@ export const resendInvite = asyncHandler(async (req: AuthenticatedRequest, res: 
 });
 
 
+export const createWidget = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const widgetData = {
+      ...req.body,
+      userId: req.user.userId
+    };
+    
+    const widget = await adminService.createWidget(widgetData);
+    sendResponse(res, 201, true, 'Widget created successfully', widget);
+  } catch (error: any) {
+    sendError(res, 400, error.message);
+  }
+});
+
+
 
 
 

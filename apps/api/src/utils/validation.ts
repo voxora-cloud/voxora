@@ -124,6 +124,20 @@ export const messageValidation = {
   }),
 };
 
+export const widgetValidation = {
+  create: Joi.object({
+    displayName: Joi.string().min(1).max(50).required(),
+    logoUrl: Joi.string().uri().allow(''),
+    backgroundColor: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/).default('#ffffff'),
+    userId: Joi.string().required(), // User ID who owns the message
+  }),
+  update: Joi.object({
+    displayName: Joi.string().min(1).max(50),
+    logoUrl: Joi.string().uri().allow(''),
+    backgroundColor: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/),
+  }),
+};
+
 export const queryValidation = {
   pagination: Joi.object({
     page: Joi.number().integer().min(1).default(1),

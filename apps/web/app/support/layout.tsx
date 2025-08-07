@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/components/auth/auth-context"
 import { 
@@ -17,14 +17,21 @@ export default function Layout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, logout } = useAuth()
+  const { user, logout,isAuthenticated,isLoading } = useAuth()
   
   const handleLogout = () => {
     if (confirm("Are you sure you want to logout?")) {
       logout()
     }
   }
-  
+
+  useEffect(()=>{
+    // Redirect to login if not authenticated
+    if (!isAuthenticated && !isLoading) {
+      window.location.href = "/login"
+    }
+  }, [isAuthenticated, isLoading])
+
   // Use auth user data
   const displayName = user?.name || "Agent"
   const userTeams = user?.teams?.map(team => team.name) || ["Support"]

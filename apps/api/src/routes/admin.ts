@@ -11,10 +11,11 @@ import {
   updateAgent,
   deleteAgent,
   resendInvite,
-  getDashboardStats
+  getDashboardStats,
+  createWidget
 } from '../controllers/adminController';
 import { authenticate, authorize, validateRequest } from '../middleware';
-import { teamValidation, userValidation, queryValidation } from '../utils/validation';
+import { teamValidation, userValidation, queryValidation,widgetValidation } from '../utils/validation';
 
 const router = Router();
 
@@ -80,6 +81,12 @@ router.delete('/agents/:id', deleteAgent);
 
 // Resend invitation
 router.post('/agents/:id/resend-invite', resendInvite);
+
+
+router.post("/create-widget", 
+  validateRequest(widgetValidation.create), 
+  createWidget
+);
 
 // =================
 // DASHBOARD ROUTES

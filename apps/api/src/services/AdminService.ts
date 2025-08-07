@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { Team } from '../models/Team';
 import emailService from './EmailService';
 import logger from '../utils/logger';
+import { Widget } from '../models';
 
 export class AdminService {
   
@@ -522,6 +523,23 @@ export class AdminService {
     });
 
     return { success: true };
+  }
+
+  async createWidget(widgetData: any) {
+    const widget = new Widget({
+      ...widgetData,
+      userId: widgetData.userId // Assuming userId is passed in widgetData
+    });
+
+    await widget.save();
+
+    logger.info('Widget created successfully', {
+      widgetId: widget._id,
+      displayName: widget.displayName,
+      userId: widget.userId
+    });
+
+    return widget;
   }
 
   // =================

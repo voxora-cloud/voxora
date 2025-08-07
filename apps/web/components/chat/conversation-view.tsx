@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/components/auth/auth-context"
-import { useRouter } from "next/navigation"
 import { 
   User, 
   Tag,
@@ -16,6 +15,7 @@ import {
   Paperclip,
   ArrowLeft
 } from "lucide-react"
+import { useRouter } from 'next/navigation'
 
 // Define types
 interface Message {
@@ -226,9 +226,9 @@ export function ConversationView({ id }: ConversationViewProps) {
   }
 
   return (
-    <div className="h-full flex flex-col p-6">
-      {/* Back Button */}
-      <div className="mb-4">
+    <div className="h-full flex flex-col p-1 md:p-2 w-full max-w-full">
+      {/* Back Button - only visible on mobile */}
+      <div className="mb-1 md:hidden">
         <Button 
           variant="outline" 
           size="sm" 
@@ -241,12 +241,12 @@ export function ConversationView({ id }: ConversationViewProps) {
       </div>
 
       {/* Conversation Header */}
-      <Card className="mb-4">
-        <CardHeader className="pb-3">
+      <Card className="mb-2">
+        <CardHeader className="pb-1 px-2 py-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                <User className="h-5 w-5 text-primary-foreground" />
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
+                <User className="h-4 w-4 text-primary-foreground" />
               </div>
               <div>
                 <CardTitle className="text-lg">{conversation.customerName}</CardTitle>
@@ -320,14 +320,14 @@ export function ConversationView({ id }: ConversationViewProps) {
       <Card className="flex-1 flex flex-col">
         <CardContent className="flex flex-col p-0 h-full">
           {/* Messages Area */}
-          <div className="flex-1 p-4 overflow-y-auto bg-muted/10">
-            <div className="space-y-4">
+          <div className="flex-1 p-2 overflow-y-auto bg-muted/10">
+            <div className="space-y-3">
               {conversation.messages?.map((msg: Message) => (
                 <div 
                   key={msg.id}
                   className={`flex ${msg.sender === 'agent' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-md ${
+                  <div className={`max-w-[90%] ${
                     msg.sender === 'agent' 
                       ? 'bg-primary text-primary-foreground' 
                       : 'bg-background border'
@@ -346,7 +346,7 @@ export function ConversationView({ id }: ConversationViewProps) {
           </div>
           
           {/* Message Input */}
-          <div className="border-t border-border p-4">
+          <div className="border-t border-border p-2">
             <div className="flex items-center space-x-2">
               <Button variant="ghost" size="icon">
                 <Paperclip className="h-4 w-4" />
