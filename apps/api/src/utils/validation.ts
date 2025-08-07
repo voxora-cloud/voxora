@@ -129,13 +129,18 @@ export const widgetValidation = {
     displayName: Joi.string().min(1).max(50).required(),
     logoUrl: Joi.string().uri().allow(''),
     backgroundColor: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/).default('#ffffff'),
-    userId: Joi.string().required(), // User ID who owns the message
   }),
   update: Joi.object({
     displayName: Joi.string().min(1).max(50),
     logoUrl: Joi.string().uri().allow(''),
     backgroundColor: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/),
-  }),
+    // Allow these fields but ignore them in update
+    _id: Joi.string().optional(),
+    userId: Joi.string().optional(),
+    createdAt: Joi.date().optional(),
+    updatedAt: Joi.date().optional(),
+    __v: Joi.number().optional(),
+  }).options({ stripUnknown: true }), // This will remove any unknown fields
 };
 
 export const queryValidation = {

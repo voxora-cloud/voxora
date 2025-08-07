@@ -526,9 +526,32 @@ export class AdminService {
   }
 
   async createWidget(widgetData: any) {
+    // Check if user already has a widget
+    const existingWidget = await Widget.findOne({ userId: widgetData.userId });
+    
+    if (existingWidget) {
+      // Update existing widget instead of creating new one
+      const updatedWidget = await Widget.findOneAndUpdate(
+        { userId: widgetData.userId },
+        widgetData,
+        { new: true, runValidators: true }
+      );
+
+      if (updatedWidget) {
+        logger.info('Widget updated (via create endpoint)', {
+          widgetId: updatedWidget._id,
+          displayName: updatedWidget.displayName,
+          userId: updatedWidget.userId
+        });
+      }
+
+      return updatedWidget;
+    }
+
+    // Create new widget if none exists
     const widget = new Widget({
       ...widgetData,
-      userId: widgetData.userId // Assuming userId is passed in widgetData
+      userId: widgetData.userId
     });
 
     await widget.save();
@@ -542,6 +565,48 @@ export class AdminService {
     return widget;
   }
 
+  async getWidget(userId: string) {
+    const widget = await Widget.findOne({ userId });
+
+    if (!widget) {
+      throw new Error('Widget not found for this user');
+    }
+
+    return widget;
+  }
+
+  async updateWidget(userId: string, updateData: any) {
+    // Extract only the fields that should be updated
+    const allowedUpdates = {
+      displayName: updateData.displayName,
+      logoUrl: updateData.logoUrl,
+      backgroundColor: updateData.backgroundColor
+    };
+
+    // Remove undefined fields to avoid overwriting with undefined
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(allowedUpdates).filter(([_, value]) => value !== undefined)
+    );
+
+    const widget = await Widget.findOneAndUpdate(
+      { userId },
+      cleanUpdates,
+      { new: true, runValidators: true }
+    );
+
+    if (!widget) {
+      throw new Error('Widget not found for this user');
+    }
+
+    logger.info('Widget updated successfully', {
+      widgetId: widget._id,
+      displayName: widget.displayName,
+      userId: widget.userId,
+      updates: cleanUpdates
+    });
+
+    return widget;
+  }
   // =================
   // ANALYTICS & STATS
   // =================

@@ -90,6 +90,27 @@ export interface UpdateAgentData {
   permissions?: string[]
 }
 
+export interface CreateWidgetData {
+  displayName: string
+  backgroundColor: string
+  logoUrl: string
+}
+
+export interface UpdateWidgetData {
+  displayName?: string
+  backgroundColor?: string
+  logoUrl?: string
+}
+
+export interface Widget {
+  _id: string
+  displayName: string
+  backgroundColor: string
+  logoUrl: string
+  createdAt: Date
+  updatedAt?: Date
+}
+
 class ApiService {
   private async makeRequest<T>(
     endpoint: string,
@@ -341,6 +362,33 @@ class ApiService {
   async deactivateAgent(agentId: string): Promise<{ success: boolean; data: Agent }> {
     return this.makeRequest<{ success: boolean; data: Agent }>(`/admin/agents/${agentId}/deactivate`, {
       method: 'POST',
+    })
+  }
+
+  // Widget Management APIs
+  async createWidget(data: CreateWidgetData): Promise<{ success: boolean; data: Widget }> {
+    return this.makeRequest<{ success: boolean; data: Widget }>('/admin/create-widget', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getWidget(): Promise<{ 
+    success: boolean; 
+    data: Widget
+  }> {
+    return this.makeRequest<{ 
+      success: boolean; 
+      data: Widget
+    }>('/admin/widget', {
+      method: 'GET',
+    })
+  }
+
+  async updateWidget(data: UpdateWidgetData): Promise<{ success: boolean; data: Widget }> {
+    return this.makeRequest<{ success: boolean; data: Widget }>('/admin/widget', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     })
   }
 

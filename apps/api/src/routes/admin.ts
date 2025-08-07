@@ -12,7 +12,9 @@ import {
   deleteAgent,
   resendInvite,
   getDashboardStats,
-  createWidget
+  createWidget,
+  getWidget,
+  updateWidget
 } from '../controllers/adminController';
 import { authenticate, authorize, validateRequest } from '../middleware';
 import { teamValidation, userValidation, queryValidation,widgetValidation } from '../utils/validation';
@@ -86,6 +88,15 @@ router.post('/agents/:id/resend-invite', resendInvite);
 router.post("/create-widget", 
   validateRequest(widgetValidation.create), 
   createWidget
+);
+
+router.get("/widget",
+  getWidget
+);
+
+router.put("/widget",
+  validateRequest(widgetValidation.update),
+  updateWidget
 );
 
 // =================

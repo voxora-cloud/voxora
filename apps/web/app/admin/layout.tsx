@@ -141,6 +141,22 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 {agents?.length || 0}
               </span>
             </Button>
+
+            <Button
+              onClick={() => {
+                setActiveTab("widgets");
+                window.location.href = "/admin/widget";
+              }}
+              variant="ghost"
+              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === "widgets"
+                  ? "bg-blue-100 text-blue-700 border-r-2 border-blue-700"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+              }`}
+            >
+              <Crown className="h-5 w-5 mr-3" />
+              <span className="flex-1 text-left">Widgets</span>
+            </Button>
           </div>
         </nav>
 

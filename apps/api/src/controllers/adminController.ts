@@ -208,6 +208,29 @@ export const createWidget = asyncHandler(async (req: AuthenticatedRequest, res: 
     
     const widget = await adminService.createWidget(widgetData);
     sendResponse(res, 201, true, 'Widget created successfully', widget);
+    } catch (error: any) {
+      sendError(res, 400, error.message);
+    }
+  });
+
+export const getWidget = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const result = await adminService.getWidget(req.user.userId)
+      sendResponse(res, 200, true, 'Widget retrieved successfully', result);
+    } catch (error: any) {
+    sendError(res, 500, error.message);
+  }
+});
+
+export const updateWidget = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const updateData = {
+      ...req.body,
+      userId: req.user.userId
+    };
+    
+    const widget = await adminService.updateWidget(req.user.userId, updateData);
+    sendResponse(res, 200, true, 'Widget updated successfully', widget);
   } catch (error: any) {
     sendError(res, 400, error.message);
   }
