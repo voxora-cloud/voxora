@@ -13,6 +13,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       const path = window.location.pathname;
       if (path.includes("/admin/team")) return "teams";
       if (path.includes("/admin/agent")) return "agents";
+      if (path.includes("/admin/widget")) return "widgets";
     }
     return "overview";
   });
