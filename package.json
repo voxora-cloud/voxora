@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
     "dev:full": "npm run docker:start && turbo run dev",
+    "dev": "turbo run dev",
     "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express",
     "docker:stop": "cd docker && docker-compose -f docker-compose.dev.yml down",
     "lint": "turbo run lint",
@@ -23,6 +23,7 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "api/*"
+    "api/*",
+    "chat-simulation/*"
   ]
 }

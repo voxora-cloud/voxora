@@ -1,5 +1,10 @@
 (function() {
   // Widget state
+  const currentScript = document.currentScript;
+
+  const customerKey = currentScript.getAttribute("data-voxora-key");
+  console.log("Customer Key:", customerKey);
+
   var isWidgetOpen = false;
   var iframe;
   var chatButton;
@@ -83,7 +88,7 @@
   // Create iframe widget
   function createWidget() {
     iframe = document.createElement("iframe");
-    iframe.src = "http://localhost:3002/widget";
+    iframe.src = "http://localhost:3002/widget?customerKey=" + encodeURIComponent(customerKey);
     iframe.allow = "microphone; camera";
     
     Object.assign(iframe.style, {
