@@ -9,6 +9,7 @@ import routes from './routes';
 import { globalRateLimit, errorHandler, notFound } from './middleware';
 import SocketManager from './sockets';
 import logger from './utils/logger';
+import path from 'path';
 
 class Application {
   private app: express.Application;
@@ -28,14 +29,17 @@ class Application {
     // Security middleware
     this.app.use(helmet({
       crossOriginEmbedderPolicy: false,
-    }));
+      contentSecurityPolicy:{
+        directives:{
+          defaultSrc: ["'self'"],
+          frameAncestors: ["*"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+      }
+    }}));
 
     // CORS configuration
     this.app.use(cors({
-      origin: config.cors.allowedOrigins,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      origin: "*"
     }));
 
     // Rate limiting
@@ -58,6 +62,25 @@ class Application {
   private setupRoutes(): void {
     // API routes
     this.app.use('/api/v1', routes);
+
+    // Serve HTML at /widget
+    this.app.get("/widget", (req, res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.type("text/html"); // correct MIME type for HTML
+      res.sendFile(path.join(__dirname, "public", "widget.html"));
+    });
+
+
+    // Serve JS loader at /widget-loader
+    this.app.get("/widget-loader.js", (req, res) => {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      res.type("application/javascript");
+      res.sendFile(path.join(__dirname, "public", "widget-loader.js"));
+    });
+
+
 
     // Root endpoint
     this.app.get('/', (req, res) => {

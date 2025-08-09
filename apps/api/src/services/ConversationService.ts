@@ -178,4 +178,65 @@ export class ConversationService {
 
     return conversation;
   }
+
+  // Widget-specific methods
+  static async createWidgetConversation(data: {
+    customerName: string;
+    customerEmail: string;
+    customerPhone?: string;
+    subject: string;
+    initialMessage: string;
+  }): Promise<IConversation> {
+    // Create a temporary customer user for widget conversations
+    let customer = await User.findOne({ email: data.customerEmail });
+    
+    if (!customer) {
+      customer = new User({
+        name: data.customerName,
+        email: data.customerEmail,
+        phone: data.customerPhone,
+        role: 'customer',
+        isEmailVerified: false,
+        // Widget customers don't need passwords as they're not authenticated users
+        password: 'widget-customer-' + Date.now(),
+      });
+      await customer.save();
+    }
+
+    // Create conversation
+    const conversation = new Conversation({
+      participants: [customer._id],
+      subject: data.subject,
+      priority: 'medium',
+      status: 'open',
+      tags: ['widget'],
+      metadata: {
+        source: 'widget',
+        customerName: data.customerName,
+        customerEmail: data.customerEmail,
+        customerPhone: data.customerPhone,
+      },
+    });
+
+    await conversation.save();
+
+    // Create initial message
+    if (data.initialMessage) {
+      const message = new Message({
+        conversationId: conversation._id,
+        senderId: customer._id,
+        content: data.initialMessage,
+        type: 'text',
+        metadata: {
+          source: 'widget',
+          senderName: data.customerName,
+          senderEmail: data.customerEmail,
+        },
+      });
+      await message.save();
+    }
+
+    await conversation.populate('participants', 'name email avatar role status');
+    return conversation;
+  }
 }

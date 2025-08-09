@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Widget CORS</title>
+</head>
+<body>
+    <h1>Testing Widget CORS</h1>
+    <button onclick="loadWidget()">Load Widget</button>
+    <div id="result"></div>
+
+    <script>
+        function loadWidget() {
+            const script = document.createElement('script');
+            script.src = 'http://localhost:3002/widget-loader';
+            script.onload = function() {
+                document.getElementById('result').innerHTML = '<p style="color: green;">Widget loaded successfully!</p>';
+            };
+            script.onerror = function() {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Widget failed to load - CORS error</p>';
+            };
+            document.head.appendChild(script);
+        }
+
+        // Also test with fetch for more detailed error info
+        function testFetch() {
+            fetch('http://localhost:3002/widget-loader')
+                .then(response => {
+                    console.log('Response headers:', [...response.headers.entries()]);
+                    return response.text();
+                })
+                .then(data => {
+                    console.log('Widget script loaded:', data.substring(0, 100) + '...');
+                    document.getElementById('result').innerHTML = '<p style="color: green;">Fetch successful!</p>';
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    document.getElementById('result').innerHTML = '<p style="color: red;">Fetch failed: ' + error.message + '</p>';
+                });
+        }
+
+        // Test both methods
+        setTimeout(testFetch, 1000);
+    </script>
+</body>
+</html>

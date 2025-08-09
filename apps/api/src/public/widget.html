@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voxora Chat</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      height: 100vh;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .chat-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .header-info h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .header-info p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+
+    .minimize-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .minimize-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Chat Container */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 140px);
+    }
+
+    /* Welcome Screen */
+    .welcome-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .welcome-icon {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      color: white;
+    }
+
+    .welcome-screen h2 {
+      font-size: 24px;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .welcome-screen p {
+      color: #666;
+      font-size: 16px;
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+
+    .start-chat-form {
+      width: 100%;
+      max-width: 280px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      background: #f9fafb;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      background: white;
+    }
+
+    .start-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .start-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    .start-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Chat Interface */
+    .chat-interface {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      scroll-behavior: smooth;
+    }
+
+    .message {
+      display: flex;
+      margin-bottom: 16px;
+      animation: messageSlide 0.3s ease-out;
+    }
+
+    .message.user {
+      justify-content: flex-end;
+    }
+
+    .message-bubble {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 14px;
+      line-height: 1.4;
+      word-wrap: break-word;
+    }
+
+    .message.agent .message-bubble {
+      background: #f1f3f4;
+      color: #1a1a1a;
+      border-bottom-left-radius: 6px;
+    }
+
+    .message.user .message-bubble {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-bottom-right-radius: 6px;
+    }
+
+    .message-time {
+      font-size: 11px;
+      opacity: 0.6;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    .typing-indicator {
+      display: none;
+      padding: 16px 20px;
+      color: #666;
+      font-size: 14px;
+      font-style: italic;
+    }
+
+    /* Input Area */
+    .input-area {
+      padding: 16px 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .input-container {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      background: white;
+      border-radius: 24px;
+      padding: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e9ecef;
+    }
+
+    .message-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 8px 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      resize: none;
+      max-height: 100px;
+      overflow-y: auto;
+      background: transparent;
+    }
+
+    .send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Animations */
+    @keyframes messageSlide {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Powered by */
+    .powered-by {
+      padding: 8px 20px;
+      text-align: center;
+      font-size: 11px;
+      color: #9ca3af;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+    }
+
+    .powered-by a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    /* Scrollbar */
+    .messages-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+      background: #d1d5db;
+      border-radius: 2px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover {
+      background: #9ca3af;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 480px) {
+      .chat-header {
+        padding: 12px 16px;
+      }
+      
+      .welcome-screen {
+        padding: 24px 20px;
+      }
+      
+      .messages-container {
+        padding: 16px;
+      }
+      
+      .input-area {
+        padding: 12px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="header-content">
+      <div class="avatar">V</div>
+      <div class="header-info">
+        <h3>Voxora Support</h3>
+        <p>We typically reply instantly</p>
+      </div>
+    </div>
+    <button class="minimize-btn" onclick="minimizeWidget()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Chat Container -->
+  <div class="chat-container">
+    <!-- Welcome Screen -->
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="welcome-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </div>
+      <h2>Hello! 👋</h2>
+      <p>We're here to help. Send us a message and we'll respond as soon as possible.</p>
+      
+      <form class="start-chat-form" id="startChatForm">
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required placeholder="Enter your name">
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required placeholder="Enter your email">
+        </div>
+        <div class="form-group">
+          <label for="message">How can we help?</label>
+          <input type="text" id="initialMessage" name="message" placeholder="Describe your question..." required>
+        </div>
+        <button type="submit" class="start-btn" id="startBtn">Start Conversation</button>
+      </form>
+    </div>
+
+    <!-- Chat Interface -->
+    <div class="chat-interface" id="chatInterface">
+      <div class="messages-container" id="messagesContainer">
+        <!-- Messages will be added here -->
+      </div>
+      <div class="typing-indicator" id="typingIndicator">
+        Support is typing...
+      </div>
+      <div class="input-area">
+        <div class="input-container">
+          <textarea 
+            class="message-input" 
+            id="messageInput" 
+            placeholder="Type your message..." 
+            rows="1"
+          ></textarea>
+          <button class="send-btn" id="sendBtn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22,2 15,22 11,13 2,9"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Powered by -->
+  <div class="powered-by">
+    Powered by <a href="#" target="_blank">Voxora</a>
+  </div>
+
+  <script>
+    // State management
+    let chatId = null;
+    let userName = '';
+    let userEmail = '';
+    let isConnected = false;
+
+    // DOM elements
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const chatInterface = document.getElementById('chatInterface');
+    const startChatForm = document.getElementById('startChatForm');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const startBtn = document.getElementById('startBtn');
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      setupEventListeners();
+      adjustTextareaHeight();
+    });
+
+    function setupEventListeners() {
+      // Start chat form
+      startChatForm.addEventListener('submit', handleStartChat);
+      
+      // Message input
+      messageInput.addEventListener('input', function() {
+        adjustTextareaHeight();
+        sendBtn.disabled = !this.value.trim();
+      });
+      
+      messageInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+      
+      // Send button
+      sendBtn.addEventListener('click', sendMessage);
+    }
+
+    async function handleStartChat(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(e.target);
+      const data = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        message: formData.get('message')
+      };
+
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting...';
+
+      try {
+        // Create conversation via API
+        const response = await fetch('/api/v1/widget/conversations', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          chatId = result.data.conversationId || 'demo-' + Date.now();
+          userName = data.name;
+          userEmail = data.email;
+          
+          // Switch to chat interface
+          showChatInterface();
+          
+          // Add initial message
+          if (data.message) {
+            addMessage(data.message, 'user', userName);
+            
+            // Simulate agent response
+            setTimeout(() => {
+              showTyping();
+              setTimeout(() => {
+                hideTyping();
+                addMessage(`Hi ${userName}! Thanks for reaching out. I've received your message and I'm here to help. Let me look into this for you.`, 'agent', 'Support Team');
+              }, 2000);
+            }, 1000);
+          } else {
+            // Welcome message
+            setTimeout(() => {
+              addMessage(`Hi ${userName}! Welcome to Voxora support. How can I assist you today?`, 'agent', 'Support Team');
+            }, 500);
+          }
+        } else {
+          throw new Error('Failed to start chat');
+        }
+      } catch (error) {
+        console.error('Error starting chat:', error);
+        alert('Sorry, there was an error starting the chat. Please try again.');
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start Conversation';
+      }
+    }
+
+    function showChatInterface() {
+      welcomeScreen.style.display = 'none';
+      chatInterface.style.display = 'flex';
+      messageInput.focus();
+      isConnected = true;
+    }
+
+    function addMessage(text, type, senderName) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+      
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      messageDiv.innerHTML = `
+        <div class="message-bubble">
+          ${text}
+          <div class="message-time">${time}</div>
+        </div>
+      `;
+      
+      messagesContainer.appendChild(messageDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      
+      // Notify parent window of new message
+      if (type === 'agent' && window.parent) {
+        window.parent.postMessage({ type: 'NEW_MESSAGE', text }, '*');
+      }
+    }
+
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || !isConnected) return;
+      
+      addMessage(text, 'user', userName);
+      messageInput.value = '';
+      adjustTextareaHeight();
+      sendBtn.disabled = true;
+      
+      // Simulate sending to server
+      sendMessageToServer(text);
+      
+      // Simulate agent typing and response
+      setTimeout(() => {
+        showTyping();
+        setTimeout(() => {
+          hideTyping();
+          const responses = [
+            "Thanks for your message! I'm looking into this right now.",
+            "I understand your concern. Let me help you with that.",
+            "That's a great question! Here's what I can tell you...",
+            "I've reviewed your request and I have some suggestions.",
+            "Let me check our documentation for the most up-to-date information."
+          ];
+          const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+          addMessage(randomResponse, 'agent', 'Support Team');
+        }, Math.random() * 2000 + 1000);
+      }, 500);
+    }
+
+    async function sendMessageToServer(message) {
+      try {
+        // Send message via API
+        await fetch(`/api/v1/widget/conversations/${chatId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            content: message,
+            sender: userName,
+            email: userEmail
+          })
+        });
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
+    }
+
+    function showTyping() {
+      typingIndicator.style.display = 'block';
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function hideTyping() {
+      typingIndicator.style.display = 'none';
+    }
+
+    function adjustTextareaHeight() {
+      messageInput.style.height = 'auto';
+      messageInput.style.height = Math.min(messageInput.scrollHeight, 100) + 'px';
+    }
+
+    function minimizeWidget() {
+      if (window.parent) {
+        window.parent.postMessage({ type: 'MINIMIZE_WIDGET' }, '*');
+      }
+    }
+
+    // Expose functions for parent window
+    window.chatWidget = {
+      addMessage,
+      showTyping,
+      hideTyping,
+      sendMessage: sendMessageToServer
+    };
+  </script>
+</body>
+</html>

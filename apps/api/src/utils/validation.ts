@@ -93,6 +93,15 @@ export const conversationValidation = {
     tags: Joi.array().items(Joi.string()).max(10),
   }),
 
+  // Widget conversation creation (public, no auth required)
+  createWidget: Joi.object({
+    name: Joi.string().min(2).max(50).required(),
+    email: Joi.string().email().required(),
+    message: Joi.string().max(1000).required(),
+    phone: Joi.string().max(20).optional(),
+    subject: Joi.string().max(200).optional(),
+  }),
+
   update: Joi.object({
     status: Joi.string().valid('open', 'pending', 'resolved', 'closed'),
     assignedTo: Joi.string(),
@@ -121,6 +130,13 @@ export const messageValidation = {
     content: Joi.string().max(5000).required(),
     type: Joi.string().valid('text', 'file', 'image', 'system').default('text'),
     metadata: Joi.object(),
+  }),
+
+  // Widget message (public, no auth required)
+  sendWidget: Joi.object({
+    content: Joi.string().min(1).max(5000).required(),
+    sender: Joi.string().max(50).optional(),
+    email: Joi.string().email().optional(),
   }),
 };
 

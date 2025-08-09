@@ -1,8 +1,34 @@
 import { Request, Response } from 'express';
-import { ConversationService } from '../services';
+import { ConversationService, MessageService } from '../services';
 import { sendResponse, sendError, asyncHandler } from '../utils/response';
 import { AuthenticatedRequest } from '../middleware/auth';
 
+// Widget-specific controllers (no auth required)
+export const createWidgetConversation = asyncHandler(async (req: Request, res: Response) => {
+  const { name, email, message, phone, subject } = req.body;
+
+  try {
+    // Create the conversation
+    const conversation = await ConversationService.createWidgetConversation({
+      customerName: name,
+      customerEmail: email,
+      customerPhone: phone,
+      subject: subject || 'Widget Conversation',
+      initialMessage: message,
+    });
+
+    sendResponse(res, 201, true, 'Conversation created successfully', {
+      conversationId: conversation._id,
+      conversation,
+    });
+  } catch (error: any) {
+    sendError(res, 400, error.message);
+  }
+});
+
+
+
+// Existing authenticated controllers
 export const createConversation = asyncHandler(async (req: Request, res: Response) => {
   const { participantId, subject, priority, tags } = req.body;
   const userId = (req as AuthenticatedRequest).user.userId;

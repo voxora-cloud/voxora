@@ -4,6 +4,7 @@ import conversationRoutes from './conversations';
 import messageRoutes from './messages';
 import adminRoutes from './admin';
 import agentRoutes from './agent';
+import widgetRoutes from './widget';
 
 const router = Router();
 
@@ -13,6 +14,9 @@ router.use('/conversations', conversationRoutes);
 router.use('/messages', messageRoutes);
 router.use('/admin', adminRoutes);
 router.use('/agent', agentRoutes);
+
+// Public widget routes (no authentication required)
+router.use('/widget', widgetRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
