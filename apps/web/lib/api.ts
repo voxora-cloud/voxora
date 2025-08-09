@@ -91,6 +91,7 @@ export interface UpdateAgentData {
 }
 
 export interface CreateWidgetData {
+  _id?: string
   displayName: string
   backgroundColor: string
   logoUrl: string

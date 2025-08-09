@@ -186,6 +186,8 @@ export class ConversationService {
     customerPhone?: string;
     subject: string;
     initialMessage: string;
+    widgetSessionId?: string;
+    origin?: string;
   }): Promise<IConversation> {
     // Create a temporary customer user for widget conversations
     let customer = await User.findOne({ email: data.customerEmail });
@@ -215,6 +217,8 @@ export class ConversationService {
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
+        widgetSessionId: data.widgetSessionId,
+        origin: data.origin,
       },
     });
 
@@ -231,6 +235,7 @@ export class ConversationService {
           source: 'widget',
           senderName: data.customerName,
           senderEmail: data.customerEmail,
+          widgetSessionId: data.widgetSessionId,
         },
       });
       await message.save();

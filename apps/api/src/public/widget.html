@@ -495,6 +495,8 @@
       let userName = "";
       let userEmail = "";
       let isConnected = false;
+      let widgetToken = null;
+      let voxoraPublicKey = null;
 
       // DOM elements
       const welcomeScreen = document.getElementById("welcomeScreen");
@@ -506,11 +508,47 @@
       const typingIndicator = document.getElementById("typingIndicator");
       const startBtn = document.getElementById("startBtn");
 
+      // JWT Authentication functions
+      async function makeAuthenticatedRequest(url, options = {}) {
+        const defaultHeaders = {
+          'Content-Type': 'application/json',
+        };
+
+        if (widgetToken) {
+          defaultHeaders.Authorization = `Bearer ${widgetToken}`;
+        }
+
+        const mergedOptions = {
+          ...options,
+          headers: {
+            ...defaultHeaders,
+            ...options.headers
+          }
+        };
+
+        try {
+          const response = await fetch(url, mergedOptions);
+          
+          if (response.status === 401 && widgetToken) {
+            console.log('Widget token expired or invalid');
+            // Token might be expired, but we'll continue without token for this demo
+          }
+
+          return response;
+        } catch (error) {
+          console.error('API request failed:', error);
+          throw error;
+        }
+      }
+
       // Initialize
       document.addEventListener("DOMContentLoaded", function () {
         const params = new URLSearchParams(window.location.search);
-        const customerKey = params.get("customerKey");
-        console.log("Customer Key inside iframe widget:", customerKey);
+        voxoraPublicKey = params.get("voxoraPublicKey");
+        widgetToken = params.get("token");
+        
+        console.log("Customer Key inside iframe widget:", voxoraPublicKey);
+        console.log("Widget token present:", !!widgetToken);
 
         setupEventListeners();
         adjustTextareaHeight();
@@ -551,13 +589,13 @@
         startBtn.textContent = "Starting...";
 
         try {
-          // Create conversation via API
-          const response = await fetch("/api/v1/widget/conversations", {
+          // Create conversation via API with authentication
+          const response = await makeAuthenticatedRequest("/api/v1/widget/conversations", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
+            body: JSON.stringify({
+              ...data,
+              voxoraPublicKey: voxoraPublicKey
+            }),
           });
 
           if (response.ok) {
@@ -677,16 +715,14 @@
 
       async function sendMessageToServer(message) {
         try {
-          // Send message via API
-          await fetch(`/api/v1/widget/conversations/${chatId}/messages`, {
+          // Send message via API with authentication
+          await makeAuthenticatedRequest(`/api/v1/widget/conversations/${chatId}/messages`, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
             body: JSON.stringify({
               content: message,
               sender: userName,
               email: userEmail,
+              voxoraPublicKey: voxoraPublicKey
             }),
           });
         } catch (error) {

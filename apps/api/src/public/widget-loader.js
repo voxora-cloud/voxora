@@ -1,15 +1,84 @@
 (function() {
   // Widget state
   const currentScript = document.currentScript;
-
-  const customerKey = currentScript.getAttribute("data-voxora-key");
-  console.log("Customer Key:", customerKey);
-
+  const voxoraPublicKey = currentScript.getAttribute("data-voxora-public-key");
+  
   var isWidgetOpen = false;
   var iframe;
   var chatButton;
   var unreadBadge;
   var unreadCount = 0;
+  var widgetToken = null;
+  var apiBaseUrl = "http://localhost:3002";
+
+  // JWT Authentication functions
+  async function generateWidgetToken() {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/widget/auth/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          voxoraPublicKey: voxoraPublicKey,
+          origin: window.location.origin
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.data.token) {
+        widgetToken = data.data.token;
+        console.log('Widget token generated successfully');
+        return widgetToken;
+      } else {
+        throw new Error('Failed to generate token');
+      }
+    } catch (error) {
+      console.error('Error generating widget token:', error);
+      throw error;
+    }
+  }
+
+  // API call function with JWT
+  async function makeAuthenticatedRequest(url, options = {}) {
+    if (!widgetToken) {
+      await generateWidgetToken();
+    }
+
+    const defaultHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${widgetToken}`
+    };
+
+    const mergedOptions = {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...options.headers
+      }
+    };
+
+    try {
+      const response = await fetch(url, mergedOptions);
+      
+      // If token expired, regenerate and retry
+      if (response.status === 401) {
+        console.log('Token expired, regenerating...');
+        await generateWidgetToken();
+        mergedOptions.headers.Authorization = `Bearer ${widgetToken}`;
+        return await fetch(url, mergedOptions);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
+  }
 
   // Create chat button
   function createChatButton() {
@@ -86,10 +155,16 @@
   }
 
   // Create iframe widget
-  function createWidget() {
-    iframe = document.createElement("iframe");
-    iframe.src = "http://localhost:3002/widget?customerKey=" + encodeURIComponent(customerKey);
-    iframe.allow = "microphone; camera";
+  async function createWidget() {
+    try {
+      // Generate JWT token first
+      if (!widgetToken) {
+        await generateWidgetToken();
+      }
+
+      iframe = document.createElement("iframe");
+      iframe.src = `${apiBaseUrl}/widget?voxoraPublicKey=${encodeURIComponent(voxoraPublicKey)}&token=${encodeURIComponent(widgetToken)}`;
+      iframe.allow = "microphone; camera";
     
     Object.assign(iframe.style, {
       position: "fixed",
@@ -127,6 +202,36 @@
     });
 
     return iframe;
+    } catch (error) {
+      console.error('Error creating widget:', error);
+      // Create iframe without token as fallback
+      iframe = document.createElement("iframe");
+      iframe.src = `${apiBaseUrl}/widget?voxoraPublicKey=${encodeURIComponent(voxoraPublicKey)}`;
+      iframe.allow = "microphone; camera";
+      
+      Object.assign(iframe.style, {
+        position: "fixed",
+        bottom: "100px",
+        right: "24px",
+        width: "380px",
+        height: "600px",
+        maxWidth: "calc(100vw - 48px)",
+        maxHeight: "calc(100vh - 140px)",
+        border: "none",
+        borderRadius: "16px",
+        boxShadow: "0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+        overflow: "hidden",
+        zIndex: "999998",
+        background: "white",
+        transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+        transform: "scale(0.8) translateY(20px)",
+        opacity: "0",
+        transformOrigin: "bottom right",
+        display: "none"
+      });
+      
+      return iframe;
+    }
   }
 
   // Toggle widget visibility
@@ -195,11 +300,11 @@
   }
 
   // Initialize widget
-  function initWidget() {
+  async function initWidget() {
     // Create elements
     createChatButton();
     createUnreadBadge();
-    createWidget();
+    await createWidget();
     
     // Append to DOM
     document.body.appendChild(chatButton);

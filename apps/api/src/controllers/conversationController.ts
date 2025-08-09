@@ -1,13 +1,23 @@
 import { Request, Response } from 'express';
 import { ConversationService, MessageService } from '../services';
 import { sendResponse, sendError, asyncHandler } from '../utils/response';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { AuthenticatedRequest, WidgetAuthenticatedRequest } from '../middleware/auth';
 
-// Widget-specific controllers (no auth required)
+// Widget-specific controllers (requires widget auth)
 export const createWidgetConversation = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, message, phone, subject } = req.body;
+  const { name, email, message, phone, subject, voxoraPublicKey } = req.body;
+  const widgetSession = (req as WidgetAuthenticatedRequest).widgetSession;
 
   try {
+    console.log('Creating widget conversation for session:', widgetSession.sessionId);
+    console.log('Public key from request:', voxoraPublicKey);
+    console.log('Public key from session:', widgetSession.publicKey);
+
+    // Verify the public key matches the authenticated session
+    if (voxoraPublicKey !== widgetSession.publicKey) {
+      return sendError(res, 400, 'Public key mismatch');
+    }
+
     // Create the conversation
     const conversation = await ConversationService.createWidgetConversation({
       customerName: name,
@@ -15,13 +25,17 @@ export const createWidgetConversation = asyncHandler(async (req: Request, res: R
       customerPhone: phone,
       subject: subject || 'Widget Conversation',
       initialMessage: message,
+      widgetSessionId: widgetSession.sessionId,
+      origin: widgetSession.origin,
     });
 
     sendResponse(res, 201, true, 'Conversation created successfully', {
       conversationId: conversation._id,
       conversation,
+      sessionId: widgetSession.sessionId,
     });
   } catch (error: any) {
+    console.error('Error creating widget conversation:', error);
     sendError(res, 400, error.message);
   }
 });

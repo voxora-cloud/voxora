@@ -26,6 +26,13 @@ export default function CreateWidgetPage() {
     logoUrl: ''
   })
 
+
+     useEffect(()=>{
+       const script = document.createElement("script");
+       script.src = "http://localhost:3002/widget-loader.js";
+       script.setAttribute("data-voxora-public-key", formData._id ? formData._id : 'will-be-generated');
+       document.body.appendChild(script);
+     }, [formData._id])
   // Handle input changes
   const handleInputChange = (field: keyof CreateWidgetData, value: string) => {
     setFormData(prev => ({
@@ -318,166 +325,14 @@ export default function CreateWidgetPage() {
                 Add this code to your website to enable the chat widget:
               </p>
               <code className="block text-sm bg-gray-800 text-green-400 p-4 rounded-lg font-mono overflow-x-auto">
-                {`<script src="https://widget.voxora.com/widget.js" 
-        data-widget-id="${isExistingWidget ? 'your-widget-id' : 'will-be-generated'}"></script>`}
+                {`<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
+        data-voxora-public-key="${isExistingWidget ? formData._id : 'will-be-generated'}"></script>`}
               </code>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Floating Chat Widget - Real Demo */}
-      <div className="fixed bottom-6 right-6 z-50">
-        {/* Chat Button */}
-        <button
-          onClick={() => setIsChatOpen(true)}
-          className="w-16 h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center group"
-          style={{ backgroundColor: formData.backgroundColor }}
-        >
-          {formData.logoUrl ? (
-            <Image
-              unoptimized
-              src={formData.logoUrl}
-              alt="Logo"
-              width={28}
-              height={28}
-              className="object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-              }}
-            />
-          ) : (
-            <MessageCircle className="w-7 h-7 text-white" />
-          )}
-          {/* Online Badge */}
-          <div className="absolute -top-1 -left-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white flex items-center justify-center">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          </div>
-        </button>
-      </div>
-
-      {/* Chat Popup Overlay - Contact Form Preview */}
-      {isChatOpen && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/30 z-[99] animate-fade-in"
-            onClick={() => setIsChatOpen(false)}
-          />
-          {/* Popup */}
-          <div className="fixed bottom-8 right-8 z-[100] w-[350px] max-w-[95vw] animate-slide-up">
-            <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
-              {/* Header */}
-              <div 
-                className="px-6 py-4 text-white relative flex items-center justify-between"
-                style={{ backgroundColor: formData.backgroundColor }}
-              >
-                <div className="flex items-center gap-3">
-                  {formData.logoUrl ? (
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center overflow-hidden">
-                      <Image 
-                        unoptimized
-                        src={formData.logoUrl} 
-                        alt="Logo" 
-                        width={32}
-                        height={32}
-                        className="object-contain"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none'
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-base">
-                      {formData.displayName || 'Customer Support'}
-                    </h4>
-                    <div className="flex items-center gap-1 text-sm opacity-90">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <span>We&apos;re online</span>
-                    </div>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setIsChatOpen(false)}
-                  className="w-8 h-8 rounded-full hover:bg-white/20 flex items-center justify-center"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {/* Contact Form */}
-              <div className="p-6 bg-gray-50 flex-1 flex flex-col justify-center">
-                <div className="mb-4">
-                  <h5 className="font-medium text-gray-900 mb-2">Start a conversation</h5>
-                  <p className="text-sm text-gray-600 mb-4">
-                    We usually respond within a few minutes
-                  </p>
-                </div>
-                <form className="space-y-4">
-                  {/* Name Field */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter your name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  {/* Email Field */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Email Address *
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="Enter your email"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  {/* Phone Field */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      placeholder="Enter your phone"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  {/* Start Chat Button */}
-                  <button
-                    type="button"
-                    className="w-full py-3 text-white font-medium rounded-lg transition-colors hover:opacity-90 flex items-center justify-center gap-2"
-                    style={{ backgroundColor: formData.backgroundColor }}
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    Start Conversation
-                  </button>
-                </form>
-                {/* Privacy Notice */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 text-center">
-                    We respect your privacy. Your information is secure and never shared.
-                  </p>
-                </div>
-                <div className="mt-2 text-center">
-                  <span className="text-xs text-gray-400">Powered by </span>
-                  <span className="text-xs font-semibold" style={{ color: formData.backgroundColor }}>
-                    Voxora
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   )
 }

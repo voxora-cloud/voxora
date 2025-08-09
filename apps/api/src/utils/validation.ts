@@ -87,6 +87,7 @@ export const teamValidation = {
 
 export const conversationValidation = {
   create: Joi.object({
+    // voxoraPublicKey: Joi.string().required(),
     participantId: Joi.string().required(),
     subject: Joi.string().max(200),
     priority: Joi.string().valid('low', 'medium', 'high', 'urgent').default('medium'),
@@ -95,6 +96,7 @@ export const conversationValidation = {
 
   // Widget conversation creation (public, no auth required)
   createWidget: Joi.object({
+    voxoraPublicKey: Joi.string().required(),
     name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
     message: Joi.string().max(1000).required(),

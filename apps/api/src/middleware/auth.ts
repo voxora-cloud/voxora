@@ -2,12 +2,23 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken, extractTokenFromHeader, JWTPayload } from '../utils/auth';
 import { sendError } from '../utils/response';
 import { User } from '../models';
+import jwt from 'jsonwebtoken';
+import config from '../config';
 
 export interface AuthenticatedRequest extends Request {
   user: {
     userId: string;
     email: string;
     role: string;
+  };
+}
+
+export interface WidgetAuthenticatedRequest extends Request {
+  widgetSession: {
+    publicKey: string;
+    origin: string;
+    sessionId: string;
+    type: string;
   };
 }
 
@@ -80,4 +91,42 @@ export const authorize = (roles: string[]) => {
 
     next();
   };
+};
+
+export const authenticateWidget = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const token = extractTokenFromHeader(req.headers.authorization);
+    
+    if (!token) {
+      console.log('No widget token provided');
+      sendError(res, 401, 'Widget access token is required');
+      return;
+    }
+
+    // Verify widget token
+    const decoded = jwt.verify(token, config.jwt.secret!) as any;
+    
+    if (!decoded || decoded.type !== 'widget_session') {
+      console.log('Invalid widget token payload');
+      sendError(res, 401, 'Invalid widget access token');
+      return;
+    }
+
+    (req as WidgetAuthenticatedRequest).widgetSession = {
+      publicKey: decoded.publicKey,
+      origin: decoded.origin,
+      sessionId: decoded.sessionId,
+      type: decoded.type
+    };
+
+    console.log(`Authenticated widget session: ${decoded.sessionId} for key: ${decoded.publicKey}`);
+    next();
+  } catch (error: any) {
+    console.error('Widget authentication error:', error.message);
+    sendError(res, 401, 'Invalid widget access token');
+  }
 };
