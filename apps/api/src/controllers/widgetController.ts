@@ -2,32 +2,37 @@ import { Request, Response } from 'express';
 import { sendResponse, sendError, asyncHandler } from '../utils/response';
 import jwt from 'jsonwebtoken';
 import config from '../config';
+import { Widget } from '../models';
 
 export const generateWidgetToken = asyncHandler(async (req: Request, res: Response) => {
   const { voxoraPublicKey, origin } = req.body;
 
   try {
-    // Validate public key exists and is valid
     if (!voxoraPublicKey) {
       return sendError(res, 400, 'Voxora public key is required');
     }
 
-    // Here you would typically validate the public key against your database
-    // For now, we'll create a basic widget session token
+    const widget = await Widget.findById(voxoraPublicKey);
+
+
+    if (!widget) {
+      return sendError(res, 404, 'Widget not found');
+    }
+
     const widgetPayload = {
       publicKey: voxoraPublicKey,
+      displayName: widget.displayName || 'Unknown Widget',
+      userId: widget.userId,
+      backgroundColor: widget.backgroundColor || '#FFFFFF',
       origin: origin || req.get('origin') || 'unknown',
-      type: 'widget_session',
-      sessionId: `widget_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      type: "widget_session"
     };
 
-    // Generate a widget-specific JWT token (valid for 24 hours)
     const token = jwt.sign(widgetPayload, config.jwt.secret!, { expiresIn: '24h' });
 
     sendResponse(res, 200, true, 'Widget token generated successfully', {
       token,
-      expiresIn: '24h',
-      sessionId: widgetPayload.sessionId
+      expiresIn: '24h'
     });
   } catch (error: any) {
     sendError(res, 500, 'Failed to generate widget token: ' + error.message);
@@ -42,8 +47,8 @@ export const validateWidgetToken = asyncHandler(async (req: Request, res: Respon
       return sendError(res, 400, 'Token is required');
     }
 
-    // Token validation is handled by middleware
-    // If we reach here, token is valid
+    // todo: Validate the token and extract user information
+
     sendResponse(res, 200, true, 'Token is valid', {
       valid: true,
       user: (req as any).widgetSession

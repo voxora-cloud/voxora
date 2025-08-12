@@ -3,23 +3,14 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 export interface IMessage extends Document {
   _id: string;
   conversationId: Types.ObjectId;
-  senderId: Types.ObjectId;
+  senderId: string;
   content: string;
   type: 'text' | 'file' | 'image' | 'system';
   metadata: {
-    fileName?: string;
-    fileSize?: number;
-    fileType?: string;
-    fileUrl?: string;
-    isEdited?: boolean;
-    editedAt?: Date;
-    readBy?: Array<{
-      userId: string;
-      readAt: Date;
-    }>;
+    senderName: string;
+    senderEmail: string;
+    source: string;
   };
-  isDeleted: boolean;
-  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,9 +22,7 @@ const messageSchema = new Schema<IMessage>({
     required: true,
   },
   senderId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
+    type: String,
   },
   content: {
     type: String,
@@ -46,33 +35,9 @@ const messageSchema = new Schema<IMessage>({
     default: 'text',
   },
   metadata: {
-    fileName: String,
-    fileSize: Number,
-    fileType: String,
-    fileUrl: String,
-    isEdited: {
-      type: Boolean,
-      default: false,
-    },
-    editedAt: Date,
-    readBy: [{
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-      },
-      readAt: {
-        type: Date,
-        default: Date.now,
-      },
-    }],
-  },
-  isDeleted: {
-    type: Boolean,
-    default: false,
-  },
-  deletedAt: {
-    type: Date,
-    default: null,
+    senderName: String,
+    senderEmail: String,
+    source: String
   },
 }, {
   timestamps: true,
@@ -81,6 +46,4 @@ const messageSchema = new Schema<IMessage>({
 // Indexes for better query performance
 messageSchema.index({ conversationId: 1, createdAt: -1 });
 messageSchema.index({ senderId: 1 });
-messageSchema.index({ 'metadata.readBy.userId': 1 });
-
 export const Message = mongoose.model<IMessage>('Message', messageSchema);

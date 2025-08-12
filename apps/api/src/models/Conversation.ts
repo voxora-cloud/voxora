@@ -8,8 +8,6 @@ export interface IConversation extends Document {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   assignedTo?: Types.ObjectId | null;  // Agent ID
   tags: string[];
-  lastMessage?: Types.ObjectId; // Message ID
-  lastMessageAt: Date;
   createdBy: Types.ObjectId; // User ID
   closedAt?: Date;
   closedBy?: Types.ObjectId | null; // User ID
@@ -47,14 +45,6 @@ const conversationSchema = new Schema<IConversation>({
     type: String,
     trim: true,
   }],
-  lastMessage: {
-    type: Schema.Types.ObjectId,
-    ref: 'Message',
-  },
-  lastMessageAt: {
-    type: Date,
-    default: Date.now,
-  },
   createdBy: {
     type: Schema.Types.ObjectId,
     ref: 'User',

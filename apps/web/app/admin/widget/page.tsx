@@ -29,7 +29,7 @@ export default function CreateWidgetPage() {
 
      useEffect(()=>{
        const script = document.createElement("script");
-       script.src = "http://localhost:3002/widget-loader.js";
+  script.src = process.env.NEXT_PUBLIC_CDN_URL || 'http://localhost:3002/widget-loader.js';
        script.setAttribute("data-voxora-public-key", formData._id ? formData._id : 'will-be-generated');
        document.body.appendChild(script);
      }, [formData._id])

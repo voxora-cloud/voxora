@@ -1,266 +1,302 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/auth/auth-context"
 import { useRouter } from "next/navigation"
-import { 
-  Search, 
-  Filter,
-  Phone,
-} from "lucide-react"
+import { Search, Bell } from "lucide-react"
+import io from 'socket.io-client'
 
-// Mock conversation data
-const mockConversations = [
-  {
-    id: "1",
-    customerName: "John Smith",
-    customerEmail: "john@example.com",
-    subject: "Account Login Issue",
-    lastMessage: "I'm having trouble accessing my account after the update.",
-    timestamp: new Date(2023, 7, 14, 14, 32),
-    unreadCount: 0,
-    status: "active",
-    priority: "high",
-    team: "Technical",
-    type: "chat",
-    tags: ["account", "login"],
-    notes: "Customer tried password reset but didn't receive email."
-  },
-  {
-    id: "2",
-    customerName: "Sarah Johnson",
-    customerEmail: "sarah@example.com",
-    subject: "Billing Question",
-    lastMessage: "I was charged twice for my subscription last month.",
-    timestamp: new Date(2023, 7, 14, 13, 15),
-    unreadCount: 2,
-    status: "waiting",
-    priority: "medium",
-    team: "Billing",
-    type: "chat",
-    tags: ["billing", "subscription"],
-    notes: ""
-  },
-  {
-    id: "3",
-    customerName: "Michael Chen",
-    customerEmail: "mchen@example.com",
-    subject: "Feature Request",
-    lastMessage: "Would it be possible to add dark mode to the app?",
-    timestamp: new Date(2023, 7, 14, 10, 45),
-    unreadCount: 0,
-    status: "new",
-    priority: "low",
-    team: "Product",
-    type: "chat",
-    tags: ["feature", "ui"],
-    notes: ""
-  },
-  {
-    id: "4",
-    customerName: "Olivia Wilson",
-    customerEmail: "olivia@example.com",
-    subject: "API Integration Help",
-    lastMessage: "I'm receiving a 403 error when trying to authenticate.",
-    timestamp: new Date(2023, 7, 13, 16, 20),
-    unreadCount: 1,
-    status: "active",
-    priority: "high",
-    team: "Technical",
-    type: "chat",
-    tags: ["api", "integration"],
-    notes: "Developer ticket - needs senior review"
-  },
-  {
-    id: "5",
-    customerName: "James Rodriguez",
-    customerEmail: "james@example.com",
-    subject: "Cannot Update Profile",
-    lastMessage: "Every time I try to save my changes, the page refreshes.",
-    timestamp: new Date(2023, 7, 13, 11, 5),
-    unreadCount: 0,
-    status: "resolved",
-    priority: "medium",
-    team: "Technical",
-    type: "call",
-    tags: ["profile", "bug"],
-    notes: "Resolved: Browser cache issue. Customer was advised to clear cache."
+interface Conversation {
+  _id: string
+  participants: Array<{
+    _id: string
+    name: string
+    email: string
+    avatar?: string
+  }>
+  subject: string
+  lastMessage?: {
+    content: string
+    createdAt: string
+    senderId: {
+      name: string
+    }
   }
-]
+  status: 'open' | 'pending' | 'resolved' | 'closed'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  tags: string[]
+  metadata?: {
+    source?: string
+    customerName?: string
+    customerEmail?: string
+    customerPhone?: string
+  }
+  unreadCount: number
+  createdAt: string
+  lastMessageAt?: string
+}
 
 export function ConversationSidebar() {
   const router = useRouter()
   const { user } = useAuth()
   
   // State
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState("all")
-  const [filterTeam, setFilterTeam] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
-  
-  // Use mock data
-  const conversations = mockConversations
-  
-  // Auth user data
-  const userTeams = user?.teams?.map(team => team.name) || ["Technical", "Billing", "Product"]
-  
-  // Filtered conversations based on status, team and search query
-  const filteredConversations = conversations.filter((conversation) => {
-    const statusMatch = filterStatus === "all" || conversation.status === filterStatus;
-    const teamMatch = filterTeam === "all" || conversation.team === filterTeam;
-    const searchMatch = !searchQuery || 
-      conversation.customerName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      conversation.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conversation.lastMessage.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return statusMatch && teamMatch && searchMatch;
-  });
-  
-  // Helper functions
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-  
-  const getPriorityColor = (priority: string) => {
-    switch(priority) {
-      case "high": return "bg-red-100 text-red-700"
-      case "medium": return "bg-yellow-100 text-yellow-700"
-      case "low": return "bg-green-100 text-green-700"
-      default: return "bg-gray-100 text-gray-700"
+  const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null)
+  const [notifications, setNotifications] = useState<Array<{id: string; type: string; title: string; message: string; timestamp: Date}>>([])
+
+  // Fetch conversations
+  useEffect(() => {
+    fetchConversations()
+  }, [filterStatus])
+
+  // Initialize socket connection for real-time updates
+  useEffect(() => {
+    if (user) {
+      const token = localStorage.getItem('token')
+  const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3002', {
+        auth: {
+          token
+        },
+        transports: ['websocket', 'polling']
+      })
+
+      socketInstance.on('connect', () => {
+        console.log('Agent socket connected')
+      })
+
+      socketInstance.on('new_widget_conversation', (data) => {
+        console.log('New widget conversation:', data)
+        setNotifications(prev => [...prev, {
+          id: data.conversationId,
+          type: 'new_conversation',
+          title: 'New Customer Message',
+          message: `${data.customer.name} started a conversation: ${data.subject}`,
+          timestamp: new Date(data.timestamp)
+        }])
+        
+        // Refresh conversations list
+        fetchConversations()
+      })
+
+      socketInstance.on('new_message', (data) => {
+        if (data?.message?.metadata?.source === 'widget') {
+          // Update the conversation in the list
+          setConversations(prev => prev.map(conv => 
+            conv._id === data.conversationId 
+              ? { ...conv, lastMessage: data.message, unreadCount: (conv.unreadCount || 0) + 1 }
+              : conv
+          ))
+        }
+      })
+
+      setSocket(socketInstance)
+
+      return () => {
+        socketInstance.disconnect()
+      }
+    }
+  }, [user])
+
+  const fetchConversations = async () => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api/v1'}/conversations`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setConversations(data.data.conversations || [])
+      }
+    } catch (error) {
+      console.error('Error fetching conversations:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
+  const getCustomerName = (conversation: Conversation) => {
+    return conversation.metadata?.customerName || 
+           conversation.participants[0]?.name || 
+           'Unknown Customer'
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const hours = diff / (1000 * 60 * 60)
+    
+    if (hours < 1) return 'Just now'
+    if (hours < 24) return `${Math.floor(hours)}h ago`
+    return date.toLocaleDateString()
+  }
+
+  const clearNotifications = () => {
+    setNotifications([])
+  }
+
+  // Filter conversations
+  const filteredConversations = conversations.filter(conversation => {
+    const statusMatch = filterStatus === "all" || conversation.status === filterStatus
+    const searchMatch = !searchQuery || 
+      (conversation.metadata?.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       conversation.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       conversation.lastMessage?.content.toLowerCase().includes(searchQuery.toLowerCase()))
+    
+    return statusMatch && searchMatch
+  })
+
   return (
-    <div className="w-full md:w-64 border-r border-border bg-card flex flex-col">
-      {/* Sidebar Header */}
+    <div className="h-full flex flex-col bg-background border-r border-border">
+      {/* Header */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Conversations</h2>
-          <div className="flex space-x-2">
-            <Button variant="outline" size="icon" className="h-8 w-8">
-              <Filter className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8 rounded-full bg-primary/10 text-primary">
-              {filteredConversations.length}
-            </Button>
-          </div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">Conversations</h2>
+          {notifications.length > 0 && (
+            <button
+              onClick={clearNotifications}
+              className="relative p-2 text-blue-600 hover:bg-blue-50 rounded-full"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {notifications.length}
+              </span>
+            </button>
+          )}
         </div>
         
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search conversations..." 
-            className="pl-10"
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
           />
         </div>
 
         {/* Filters */}
-        <div className="flex space-x-2">
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="flex h-8 w-full rounded border border-border bg-background px-2 text-xs"
-          >
-            <option value="all">All Status</option>
-            <option value="new">New</option>
-            <option value="active">Active</option>
-            <option value="waiting">Waiting</option>
-            <option value="resolved">Resolved</option>
-          </select>
-          <select
-            value={filterTeam}
-            onChange={(e) => setFilterTeam(e.target.value)}
-            className="flex h-8 w-full rounded border border-border bg-background px-2 text-xs"
-          >
-            <option value="all">All Teams</option>
-            {userTeams.map(team => (
-              <option key={team} value={team}>{team}</option>
-            ))}
-          </select>
-        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="w-full px-3 py-2 text-sm border border-input bg-background rounded-md"
+        >
+          <option value="all">All Status</option>
+          <option value="open">Open</option>
+          <option value="pending">Pending</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
       </div>
+
+      {/* Notifications */}
+      {notifications.length > 0 && (
+        <div className="p-2 bg-blue-50 border-b border-border">
+          {notifications.slice(0, 3).map((notification) => (
+            <div key={notification.id} className="p-2 bg-white rounded border text-sm mb-1">
+              <div className="font-medium">{notification.title}</div>
+              <div className="text-gray-600 text-xs">{notification.message}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
-        {filteredConversations.map((conversation) => (
-          <div
-            key={conversation.id}
-            className="p-4 border-b border-border cursor-pointer hover:bg-accent/50 transition-colors"
-            onClick={() => router.push(`/support/dashboard/chat/${conversation.id}`)}
-          >
-            <div className="flex items-center gap-3">
-              {/* Avatar */}
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                conversation.status === "active" ? 'bg-green-100' : 
-                conversation.status === "new" ? 'bg-blue-100' : 
-                conversation.status === "waiting" ? 'bg-yellow-100' : 'bg-gray-100'
-              }`}>
-                <span className="text-base font-semibold">
-                  {conversation.customerName.split(" ").map(n => n[0]).join("")}
-                </span>
-              </div>
-              
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <h3 className="font-medium text-sm text-foreground truncate">
-                    {conversation.customerName}
-                  </h3>
-                  <div className="flex items-center">
-                    <span className={`text-xs ${
-                      conversation.status === "active" ? 'text-green-600' : 
-                      conversation.status === "new" ? 'text-blue-600' : 
-                      conversation.status === "waiting" ? 'text-yellow-600' : 'text-gray-600'
-                    }`}>
-                      {formatTime(conversation.timestamp)}
+        {loading ? (
+          <div className="p-4 text-center text-muted-foreground">
+            Loading conversations...
+          </div>
+        ) : filteredConversations.length === 0 ? (
+          <div className="p-4 text-center text-muted-foreground">
+            No conversations found
+          </div>
+        ) : (
+          filteredConversations.map((conversation) => (
+            <div
+              key={conversation._id}
+              className="p-4 border-b border-border hover:bg-muted cursor-pointer transition-colors"
+              onClick={() => {
+                // Join conversation via socket when clicking
+                if (socket) {
+                  socket.emit('join_conversation', conversation._id)
+                }
+                router.push(`/support/dashboard/chat/${conversation._id}`)
+              }}
+            >
+              <div className="flex items-start space-x-3">
+                {/* Avatar */}
+                <div className={`
+                  w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium
+                  ${conversation.status === "open" ? 'bg-green-500' :
+                    conversation.status === "pending" ? 'bg-yellow-500' :
+                    conversation.status === "resolved" ? 'bg-blue-500' : 'bg-gray-500'}
+                `}>
+                  {getCustomerName(conversation).split(" ").map((n: string) => n[0]).join("").toUpperCase()}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  {/* Customer Name & Status */}
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-sm font-medium text-foreground truncate">
+                      {getCustomerName(conversation)}
+                    </h4>
+                    <span className={`
+                      text-xs px-2 py-1 rounded-full
+                      ${conversation.status === "open" ? 'text-green-600 bg-green-100' :
+                        conversation.status === "pending" ? 'text-yellow-600 bg-yellow-100' :
+                        conversation.status === "resolved" ? 'text-blue-600 bg-blue-100' : 'text-gray-600 bg-gray-100'}
+                    `}>
+                      {conversation.status}
                     </span>
                   </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground truncate max-w-[80%]">
-                    <span className="font-medium text-xs mr-1 text-foreground">{conversation.subject}:</span> 
-                    {conversation.lastMessage}
+
+                  {/* Subject */}
+                  <p className="text-sm font-medium text-foreground mb-1 truncate">
+                    {conversation.subject}
                   </p>
-                  {conversation.unreadCount > 0 && (
-                    <div className="w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                      {conversation.unreadCount}
+
+                  {/* Last Message */}
+                  <p className="text-xs text-muted-foreground truncate mb-2">
+                    {conversation.lastMessage?.content || 'No messages yet'}
+                  </p>
+
+                  {/* Meta info */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {conversation.metadata?.source === 'widget' && (
+                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-600 rounded-full">
+                          Widget
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {formatTime(conversation.lastMessageAt || conversation.createdAt)}
+                      </span>
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex items-center mt-1 space-x-1">
-                  {/* Priority */}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${getPriorityColor(conversation.priority)}`}>
-                    {conversation.priority}
-                  </span>
-                  
-                  {/* Team */}
-                  <span className="text-xs bg-secondary/60 text-secondary-foreground px-1.5 py-0.5 rounded-full">
-                    {conversation.team}
-                  </span>
-                  
-                  {/* Tags */}
-                  {conversation.tags.slice(0, 1).map((tag) => (
-                    <span key={tag} className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
-                      #{tag}
-                    </span>
-                  ))}
-                  
-                  {/* Call indicator */}
-                  {conversation.type === "call" && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full flex items-center">
-                      <Phone className="h-3 w-3 mr-0.5" /> Call
-                    </span>
-                  )}
+
+                    {conversation.unreadCount > 0 && (
+                      <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
+                        {conversation.unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )

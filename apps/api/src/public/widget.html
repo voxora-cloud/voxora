@@ -81,7 +81,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 140px);
+        overflow: hidden;
       }
 
       /* Welcome Screen */
@@ -89,73 +89,123 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 40px 24px;
+        padding: 20px 24px;
+        background: #ffffff;
+        overflow-y: auto;
+        min-height: 0;
+      }
+
+      .welcome-header {
         text-align: center;
+        margin-bottom: 24px;
+        flex-shrink: 0;
       }
 
       .welcome-icon {
-        width: 64px;
-        height: 64px;
+        width: 48px;
+        height: 48px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 24px;
+        margin: 0 auto 16px;
         color: white;
+        font-weight: 600;
+        font-size: 18px;
       }
 
       .welcome-screen h2 {
-        font-size: 24px;
-        color: #1a1a1a;
-        margin-bottom: 8px;
+        font-size: 20px;
+        color: #1f2937;
+        margin-bottom: 6px;
         font-weight: 600;
       }
 
       .welcome-screen p {
-        color: #666;
-        font-size: 16px;
-        line-height: 1.5;
-        margin-bottom: 32px;
+        color: #6b7280;
+        font-size: 14px;
+        line-height: 1.4;
       }
 
       .start-chat-form {
-        width: 100%;
-        max-width: 280px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .form-section {
+        flex: 1;
+        margin-bottom: 16px;
+        overflow-y: auto;
+        min-height: 0;
       }
 
       .form-group {
         margin-bottom: 16px;
-        text-align: left;
+        position: relative;
       }
 
-      .form-group label {
-        display: block;
-        font-size: 14px;
-        font-weight: 500;
-        color: #374151;
-        margin-bottom: 6px;
+      .form-group:last-of-type {
+        margin-bottom: 0;
       }
 
-      .form-group input {
+      .form-group input,
+      .form-group textarea {
         width: 100%;
-        padding: 12px 16px;
-        border: 2px solid #e5e7eb;
+        padding: 14px 16px;
+        border: 1px solid #e5e7eb;
         border-radius: 8px;
-        font-size: 14px;
-        transition:
-          border-color 0.2s,
-          box-shadow 0.2s;
-        background: #f9fafb;
+        font-size: 15px;
+        font-family: inherit;
+        transition: all 0.2s ease;
+        background: #ffffff;
+        resize: none;
       }
 
-      .form-group input:focus {
+      .form-group input:focus,
+      .form-group textarea:focus {
         outline: none;
         border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+      }
+
+      .form-group input::placeholder,
+      .form-group textarea::placeholder {
+        color: #9ca3af;
+        font-size: 15px;
+      }
+
+      .form-group.required::after {
+        content: '*';
+        color: #ef4444;
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 16px;
+        pointer-events: none;
+      }
+
+      .form-group.textarea {
+        margin-bottom: 0;
+      }
+
+      .form-group textarea {
+        min-height: 70px;
+        max-height: 100px;
+        resize: vertical;
+        padding-top: 12px;
+        padding-bottom: 12px;
+        line-height: 1.5;
+      }
+
+      .form-footer {
+        padding-top: 16px;
+        border-top: 1px solid #f3f4f6;
+        flex-shrink: 0;
+        margin-top: auto;
       }
 
       .start-btn {
@@ -163,25 +213,37 @@
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        padding: 14px 24px;
+        padding: 16px 24px;
         border-radius: 8px;
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         cursor: pointer;
-        transition:
-          transform 0.2s,
-          box-shadow 0.2s;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       }
 
-      .start-btn:hover {
+      .start-btn:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+      }
+
+      .start-btn:active:not(:disabled) {
+        transform: translateY(0);
       }
 
       .start-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
         transform: none;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      .privacy-note {
+        text-align: center;
+        color: #9ca3af;
+        font-size: 12px;
+        margin-top: 16px;
+        line-height: 1.4;
       }
 
       /* Chat Interface */
@@ -352,7 +414,7 @@
         }
 
         .welcome-screen {
-          padding: 24px 20px;
+          padding: 16px 20px;
         }
 
         .messages-container {
@@ -361,6 +423,15 @@
 
         .input-area {
           padding: 12px 16px;
+        }
+
+        .form-group {
+          margin-bottom: 12px;
+        }
+
+        .form-group textarea {
+          min-height: 60px;
+          max-height: 80px;
         }
       }
     </style>
@@ -393,60 +464,58 @@
     <div class="chat-container">
       <!-- Welcome Screen -->
       <div class="welcome-screen" id="welcomeScreen">
-        <div class="welcome-icon">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-            ></path>
-          </svg>
+        <div class="welcome-header">
+          <div class="welcome-icon">V</div>
+          <h2>Let's chat!</h2>
+          <p>We're here to help. Send us a message and we'll respond as soon as possible.</p>
         </div>
-        <h2>Hello! 👋</h2>
-        <p>
-          We're here to help. Send us a message and we'll respond as soon as
-          possible.
-        </p>
 
         <form class="start-chat-form" id="startChatForm">
-          <div class="form-group">
-            <label for="name">Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              required
-              placeholder="Enter your name"
-            />
+          <div class="form-section">
+            <div class="form-group required">
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                placeholder="Your name"
+              />
+            </div>
+            <div class="form-group required">
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                placeholder="Your email address"
+              />
+            </div>
+            <div class="form-group">
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                placeholder="Phone number (optional)"
+              />
+            </div>
+            <div class="form-group textarea">
+              <textarea
+                id="initialMessage"
+                name="message"
+                placeholder="How can we help you?"
+                required
+              ></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              required
-              placeholder="Enter your email"
-            />
+          
+          <div class="form-footer">
+            <button type="submit" class="start-btn" id="startBtn">
+              Send message
+            </button>
+            <p class="privacy-note">
+              By continuing, you accept our privacy policy and terms of service.
+            </p>
           </div>
-          <div class="form-group">
-            <label for="message">How can we help?</label>
-            <input
-              type="text"
-              id="initialMessage"
-              name="message"
-              placeholder="Describe your question..."
-              required
-            />
-          </div>
-          <button type="submit" class="start-btn" id="startBtn">
-            Start Conversation
-          </button>
         </form>
       </div>
 
@@ -489,6 +558,7 @@
       Powered by <a href="#" target="_blank">Voxora</a>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
       // State management
       let chatId = null;
@@ -497,6 +567,7 @@
       let isConnected = false;
       let widgetToken = null;
       let voxoraPublicKey = null;
+      let socket = null;
 
       // DOM elements
       const welcomeScreen = document.getElementById("welcomeScreen");
@@ -508,6 +579,92 @@
       const typingIndicator = document.getElementById("typingIndicator");
       const startBtn = document.getElementById("startBtn");
 
+      // Initialize socket connection for widget users
+      function initializeSocket() {
+        // Only initialize if we have a token
+        if (!widgetToken) {
+          console.error('Missing widget token, cannot connect');
+          return;
+        }
+        
+        socket = io({
+          auth: {
+            token: widgetToken
+          },
+          transports: ['websocket', 'polling']
+        });
+
+        socket.on('connect_error', (err) => {
+          console.error('Socket connection error:', err.message);
+          
+          // Auto refresh token on authentication errors
+          if (err.message.includes('Authentication error') && voxoraPublicKey) {
+            // Attempt to get a fresh token
+            fetch(`/api/v1/widget/auth/token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                voxoraPublicKey,
+                origin: window.location.origin
+              })
+            })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success && data.data.token) {
+                widgetToken = data.data.token;
+                socket.disconnect();
+                setTimeout(() => {
+                  socket = io({
+                    auth: { token: widgetToken },
+                    transports: ['websocket', 'polling']
+                  });
+                }, 1000);
+              }
+            })
+            .catch(() => {
+              // Silent fail - don't spam the console in production
+            });
+          }
+        });
+
+        socket.on('connect', () => {
+          console.log('Socket connected for widget user with ID:', socket.id);
+          
+          if (chatId) {
+            console.log('Joining conversation:', chatId);
+            socket.emit('join_conversation', chatId);
+          }
+        });
+
+        socket.on('disconnect', () => {
+          console.log('Socket disconnected');
+        });
+
+        socket.on('new_message', (data) => {
+          if (data.conversationId !== chatId) return;
+          // Ignore messages sent by this widget user (they are already optimistically rendered)
+          if (data.message?.metadata?.source === 'widget') return;
+          const senderName = data.message?.metadata?.senderName || 'Support Agent';
+          addMessage(data.message.content, "agent", senderName);
+        });
+
+        socket.on('agent_typing', (data) => {
+          if (data.conversationId === chatId) {
+            showTyping();
+          }
+        });
+
+        socket.on('agent_stopped_typing', (data) => {
+          if (data.conversationId === chatId) {
+            hideTyping();
+          }
+        });
+
+        // Removed system message on agent assignment to avoid dummy messages
+        socket.on('conversation_assigned', (data) => {
+          // Optionally handle UI state without adding a chat bubble
+        });
+      }
       // JWT Authentication functions
       async function makeAuthenticatedRequest(url, options = {}) {
         const defaultHeaders = {
@@ -531,7 +688,6 @@
           
           if (response.status === 401 && widgetToken) {
             console.log('Widget token expired or invalid');
-            // Token might be expired, but we'll continue without token for this demo
           }
 
           return response;
@@ -546,12 +702,12 @@
         const params = new URLSearchParams(window.location.search);
         voxoraPublicKey = params.get("voxoraPublicKey");
         widgetToken = params.get("token");
-        
-        console.log("Customer Key inside iframe widget:", voxoraPublicKey);
-        console.log("Widget token present:", !!widgetToken);
 
+        
         setupEventListeners();
         adjustTextareaHeight();
+        
+        initializeSocket();
       });
 
       function setupEventListeners() {
@@ -582,56 +738,60 @@
         const data = {
           name: formData.get("name"),
           email: formData.get("email"),
+          phone: formData.get("phone"),
+          subject: formData.get("subject") || "General Inquiry",
           message: formData.get("message"),
+          voxoraPublicKey: voxoraPublicKey
         };
 
         startBtn.disabled = true;
-        startBtn.textContent = "Starting...";
+        startBtn.textContent = "Sending...";
 
         try {
           // Create conversation via API with authentication
           const response = await makeAuthenticatedRequest("/api/v1/widget/conversations", {
             method: "POST",
-            body: JSON.stringify({
-              ...data,
-              voxoraPublicKey: voxoraPublicKey
-            }),
+            body: JSON.stringify(data),
           });
 
           if (response.ok) {
             const result = await response.json();
-            chatId = result.data.conversationId || "demo-" + Date.now();
+            chatId = result.data.conversationId
             userName = data.name;
             userEmail = data.email;
+
+            // Initialize socket connection if not already done
+            if (!socket && widgetToken) {
+              initializeSocket();
+            }
 
             // Switch to chat interface
             showChatInterface();
 
+            // Join the conversation room via socket
+            if (socket) {
+              socket.emit('join_conversation', chatId);
+            }
+
             // Add initial message
             if (data.message) {
               addMessage(data.message, "user", userName);
+              
+              // Send the message via socket to agents
+              if (socket) {
+                socket.emit('send_message', {
+                  conversationId: chatId,
+                  content: data.message,
+                  type: 'text',
+                  metadata: {
+                    senderName: userName,
+                    senderEmail: userEmail,
+                    source: 'widget'
+                  }
+                });
+              }
 
-              // Simulate agent response
-              setTimeout(() => {
-                showTyping();
-                setTimeout(() => {
-                  hideTyping();
-                  addMessage(
-                    `Hi ${userName}! Thanks for reaching out. I've received your message and I'm here to help. Let me look into this for you.`,
-                    "agent",
-                    "Support Team"
-                  );
-                }, 2000);
-              }, 1000);
-            } else {
-              // Welcome message
-              setTimeout(() => {
-                addMessage(
-                  `Hi ${userName}! Welcome to Voxora support. How can I assist you today?`,
-                  "agent",
-                  "Support Team"
-                );
-              }, 500);
+              // Removed informational system message to avoid dummy messages
             }
           } else {
             throw new Error("Failed to start chat");
@@ -643,7 +803,7 @@
           );
         } finally {
           startBtn.disabled = false;
-          startBtn.textContent = "Start Conversation";
+          startBtn.textContent = "Send message";
         }
       }
 
@@ -652,6 +812,12 @@
         chatInterface.style.display = "flex";
         messageInput.focus();
         isConnected = true;
+        
+        // Debug info
+        console.log("Chat interface shown after form submission");
+        if (socket) {
+          console.log("Socket ID:", socket.id);
+        }
       }
 
       function addMessage(text, type, senderName) {
@@ -688,47 +854,24 @@
         adjustTextareaHeight();
         sendBtn.disabled = true;
 
-        // Simulate sending to server
-        sendMessageToServer(text);
-
-        // Simulate agent typing and response
-        setTimeout(() => {
-          showTyping();
-          setTimeout(
-            () => {
-              hideTyping();
-              const responses = [
-                "Thanks for your message! I'm looking into this right now.",
-                "I understand your concern. Let me help you with that.",
-                "That's a great question! Here's what I can tell you...",
-                "I've reviewed your request and I have some suggestions.",
-                "Let me check our documentation for the most up-to-date information.",
-              ];
-              const randomResponse =
-                responses[Math.floor(Math.random() * responses.length)];
-              addMessage(randomResponse, "agent", "Support Team");
-            },
-            Math.random() * 2000 + 1000
-          );
-        }, 500);
-      }
-
-      async function sendMessageToServer(message) {
-        try {
-          // Send message via API with authentication
-          await makeAuthenticatedRequest(`/api/v1/widget/conversations/${chatId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({
-              content: message,
-              sender: userName,
-              email: userEmail,
-              voxoraPublicKey: voxoraPublicKey
-            }),
+        // Send message via socket
+        if (socket && chatId) {
+          socket.emit('send_message', {
+            conversationId: chatId,
+            content: text,
+            type: 'text',
+            metadata: {
+              senderName: userName,
+              senderEmail: userEmail,
+              source: 'widget'
+            }
           });
-        } catch (error) {
-          console.error("Error sending message:", error);
+        } else {
+          console.error("Cannot send message: Socket or chatId not available");
         }
       }
+
+      // Remove unused sendMessageToServer function since we're using sockets now
 
       function showTyping() {
         typingIndicator.style.display = "block";
@@ -756,7 +899,25 @@
         addMessage,
         showTyping,
         hideTyping,
-        sendMessage: sendMessageToServer,
+        sendMessage: (message) => {
+          if (socket && chatId) {
+            socket.emit('send_message', {
+              conversationId: chatId,
+              content: message,
+              type: 'text',
+              metadata: {
+                senderName: userName,
+                senderEmail: userEmail,
+                source: 'widget'
+              }
+            });
+          }
+        },
+        joinConversation: (conversationId) => {
+          if (socket) {
+            socket.emit('join_conversation', conversationId);
+          }
+        }
       };
     </script>
   </body>

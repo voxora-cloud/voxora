@@ -1,375 +1,304 @@
 "use client"
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/components/auth/auth-context"
 import { 
-  User, 
-  Tag,
-  StickyNote,
-  ArrowRight,
   MoreVertical,
   Send,
   Paperclip,
-  ArrowLeft
+  ArrowLeft,
+  Clock
 } from "lucide-react"
 import { useRouter } from 'next/navigation'
+import io, { Socket } from 'socket.io-client'
 
 // Define types
 interface Message {
-  id: string;
-  sender: 'agent' | 'customer';
+  _id: string;
+  senderId: string;
   content: string;
-  timestamp: Date;
+  type: string;
+  metadata: {
+    senderName: string;
+    senderEmail: string;
+    source: string;
+  };
+  createdAt: string;
 }
 
-interface Conversation {
-  id: string;
-  customerName: string;
-  customerEmail: string;
+interface Customer {
+  name: string;
+  email: string;
+  phone?: string;
+}
+
+interface ConversationData {
+  _id: string;
   subject: string;
-  lastMessage: string;
-  timestamp: Date;
   status: string;
   priority: string;
-  team: string;
-  type: string;
-  tags: string[];
-  notes: string;
-  messages?: Message[];
+  metadata: {
+    customer: Customer;
+    source?: string;
+  };
+  messages: Message[];
 }
-
-// Mock conversation data (in a real app, you'd fetch this from an API)
-const mockConversations: Conversation[] = [
-  {
-    id: "1",
-    customerName: "John Smith",
-    customerEmail: "john@example.com",
-    subject: "Account Login Issue",
-    lastMessage: "I'm having trouble accessing my account after the update.",
-    timestamp: new Date(2023, 7, 14, 14, 32),
-    status: "active",
-    priority: "high",
-    team: "Technical",
-    type: "chat",
-    tags: ["account", "login"],
-    notes: "Customer tried password reset but didn't receive email.",
-    messages: [
-      {
-        id: "m1",
-        sender: "agent",
-        content: "Hello! How can I help you today?",
-        timestamp: new Date(2023, 7, 14, 14, 30)
-      },
-      {
-        id: "m2",
-        sender: "customer",
-        content: "Hi! I'm having trouble with my account login.",
-        timestamp: new Date(2023, 7, 14, 14, 31)
-      },
-      {
-        id: "m3",
-        sender: "agent",
-        content: "I'd be happy to help you with that. Can you tell me what error message you're seeing?",
-        timestamp: new Date(2023, 7, 14, 14, 32)
-      }
-    ]
-  },
-  {
-    id: "2",
-    customerName: "Sarah Johnson",
-    customerEmail: "sarah@example.com",
-    subject: "Billing Question",
-    lastMessage: "I was charged twice for my subscription last month.",
-    timestamp: new Date(2023, 7, 14, 13, 15),
-    status: "waiting",
-    priority: "medium",
-    team: "Billing",
-    type: "chat",
-    tags: ["billing", "subscription"],
-    notes: "",
-    messages: [
-      {
-        id: "m1",
-        sender: "agent",
-        content: "Hello Sarah! How can I assist you today?",
-        timestamp: new Date(2023, 7, 14, 13, 10)
-      },
-      {
-        id: "m2",
-        sender: "customer",
-        content: "Hi, I was checking my bank statement and noticed I was charged twice for my subscription last month.",
-        timestamp: new Date(2023, 7, 14, 13, 12)
-      },
-      {
-        id: "m3",
-        sender: "agent",
-        content: "I apologize for that issue. Let me check your billing records right away.",
-        timestamp: new Date(2023, 7, 14, 13, 15)
-      }
-    ]
-  },
-  {
-    id: "3",
-    customerName: "Michael Chen",
-    customerEmail: "mchen@example.com",
-    subject: "Feature Request",
-    lastMessage: "Would it be possible to add dark mode to the app?",
-    timestamp: new Date(2023, 7, 14, 10, 45),
-    status: "new",
-    priority: "low",
-    team: "Product",
-    type: "chat",
-    tags: ["feature", "ui"],
-    notes: "",
-    messages: [
-      {
-        id: "m1",
-        sender: "customer",
-        content: "Hello, I've been using your app for a while and I love it. I was wondering if there are any plans to add dark mode?",
-        timestamp: new Date(2023, 7, 14, 10, 40)
-      },
-      {
-        id: "m2",
-        sender: "agent",
-        content: "Hi Michael! Thanks for reaching out. That's a great suggestion! Many users have been requesting this feature.",
-        timestamp: new Date(2023, 7, 14, 10, 42)
-      },
-      {
-        id: "m3",
-        sender: "customer",
-        content: "Would it be possible to add dark mode to the app in the next update?",
-        timestamp: new Date(2023, 7, 14, 10, 45)
-      }
-    ]
-  }
-]
 
 interface ConversationViewProps {
-  id: string;
+  conversationId: string;
 }
 
-export function ConversationView({ id }: ConversationViewProps) {
-  const router = useRouter()
+export function ConversationView({ conversationId }: ConversationViewProps) {
+  const [conversation, setConversation] = useState<ConversationData | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
+  const [newMessage, setNewMessage] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [socket, setSocket] = useState<Socket | null>(null)
   const { user } = useAuth()
-  const [conversation, setConversation] = useState<Conversation | null>(
-    // Find conversation by id
-    mockConversations.find(c => c.id === id) || null
-  )
-  const [message, setMessage] = useState("")
-  const [showNotes, setShowNotes] = useState(false)
-  const [internalNote, setInternalNote] = useState("")
+  const router = useRouter()
 
-  if (!conversation) {
+  // Initialize socket and fetch conversation
+  useEffect(() => {
+    if (!conversationId) return
+  let sock: Socket | null = null
+
+    const fetchConversation = async () => {
+      try {
+        setLoading(true)
+        
+        // Initialize socket connection
+        const token = localStorage.getItem('token')
+  const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3002', {
+          auth: { token },
+          transports: ['websocket', 'polling']
+        })
+
+    sock = socketInstance
+        socketInstance.on('connect', () => {
+          console.log('Connected to conversation socket')
+          // Join the conversation room
+          socketInstance.emit('join_conversation', conversationId)
+        })
+
+        // Listen for new messages
+        socketInstance.on('new_message', (data: { conversationId: string; message: Message }) => {
+          if (data.conversationId !== conversationId) return
+          // Skip echo of our own agent message, since we do optimistic update
+          if (data.message?.metadata?.source === 'web') return
+          setMessages(prev => {
+            if (prev.some(m => m._id === data.message._id)) return prev
+            return [...prev, data.message]
+          })
+        })
+
+        setSocket(socketInstance)
+
+        // Fetch conversation data and messages
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api/v1'}/conversations/${conversationId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            setConversation(data.data.conversation)
+            setMessages(data.data.messages || [])
+          }
+        } else {
+          // Handle case where conversation doesn't exist yet or failed to fetch
+          console.log('Could not fetch conversation, it might be new')
+        }
+      } catch (error) {
+        console.error('Error fetching conversation:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchConversation()
+
+    return () => {
+      try {
+        if (sock) {
+          sock.emit('leave_conversation', conversationId)
+          sock.off('new_message')
+          sock.disconnect()
+        }
+  } catch {
+        // no-op
+      }
+    }
+  }, [conversationId]) // socket is intentionally omitted to avoid recreating connection
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !socket) return
+
+    const messageData = {
+      conversationId,
+      content: newMessage,
+      type: 'text',
+      metadata: {
+        senderName: user?.name || 'Agent',
+        senderEmail: user?.email || '',
+        source: 'web'
+      }
+    }
+
+    // Send via socket
+    socket.emit('send_message', messageData)
+
+    // Add optimistic update
+    const tempMessage: Message = {
+      _id: `temp-${Date.now()}`,
+      senderId: user?.id || 'agent',
+      content: newMessage,
+      type: 'text',
+      metadata: messageData.metadata,
+      createdAt: new Date().toISOString()
+    }
+
+    setMessages(prev => [...prev, tempMessage])
+    setNewMessage("")
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
+  }
+
+  const isAgentMessage = (message: Message) => {
+    return message.metadata?.source === 'web' || message.senderId === user?.id
+  }
+
+  if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Card>
-          <CardContent className="p-6">
-            <p>Conversation not found</p>
-            <Button 
-              variant="outline" 
-              className="mt-4"
-              onClick={() => router.push('/support/dashboard')}
-            >
-              Back to Conversations
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-muted-foreground">Loading conversation...</p>
+        </div>
       </div>
     )
   }
 
-  const handleSendMessage = () => {
-    if (!message.trim() || !conversation) return
-
-    // In a real app, you would send this to your API
-    const newMessage: Message = {
-      id: `m${conversation.messages?.length ? conversation.messages.length + 1 : 1}`,
-      sender: "agent",
-      content: message,
-      timestamp: new Date()
-    }
-
-    if (!conversation.messages) {
-      conversation.messages = []
-    }
-
-    setConversation({
-      ...conversation,
-      messages: [...conversation.messages, newMessage]
-    })
-
-    setMessage("")
-  }
-
-  const handleAddNote = () => {
-    if (internalNote.trim()) {
-      // In a real app, this would call an API to add the note
-      alert(`Note added: ${internalNote}`)
-      setInternalNote("")
-    }
-  }
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch(priority) {
-      case "high": return "bg-red-100 text-red-700"
-      case "medium": return "bg-yellow-100 text-yellow-700"
-      case "low": return "bg-green-100 text-green-700"
-      default: return "bg-gray-100 text-gray-700"
-    }
-  }
+  const customerName = conversation?.metadata?.customer?.name || 'Unknown Customer'
+  const customerEmail = conversation?.metadata?.customer?.email || ''
 
   return (
-    <div className="h-full flex flex-col p-1 md:p-2 w-full max-w-full">
-      {/* Back Button - only visible on mobile */}
-      <div className="mb-1 md:hidden">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center" 
-          onClick={() => router.push('/support/dashboard')}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Conversations
-        </Button>
+    <div className="h-full flex flex-col bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+        <div className="flex items-center space-x-3">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => router.push('/support/dashboard')}
+            className="md:hidden"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-blue-700 font-semibold">
+                {customerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <h2 className="font-semibold text-foreground">{customerName}</h2>
+              <p className="text-sm text-muted-foreground">{customerEmail}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+            conversation?.status === 'open' ? 'bg-green-100 text-green-700' :
+            conversation?.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+            'bg-blue-100 text-blue-700'
+          }`}>
+            {conversation?.status || 'active'}
+          </span>
+          <Button variant="ghost" size="icon">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Conversation Header */}
-      <Card className="mb-2">
-        <CardHeader className="pb-1 px-2 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">{conversation.customerName}</CardTitle>
-                <CardDescription>{conversation.customerEmail}</CardDescription>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" onClick={() => setShowNotes(!showNotes)}>
-                <StickyNote className="mr-1 h-3 w-3" />
-                Notes
-              </Button>
-              <Button variant="outline" size="sm">
-                <ArrowRight className="mr-1 h-3 w-3" />
-                Transfer
-              </Button>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </div>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">
+            <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+            <p>No messages yet. Start the conversation!</p>
           </div>
-          
-          {/* Conversation Tags & Info */}
-          <div className="flex items-center space-x-4 mt-3">
-            <div className="flex items-center space-x-2">
-              {conversation.tags.map((tag: string) => (
-                <span key={tag} className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded flex items-center">
-                  <Tag className="mr-1 h-3 w-3" />
-                  {tag}
-                </span>
-              ))}
-            </div>
-            <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(conversation.priority)}`}>
-              {conversation.priority} priority
-            </span>
-          </div>
-        </CardHeader>
-      </Card>
-
-      {/* Internal Notes */}
-      {showNotes && (
-        <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Internal Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {conversation.notes && (
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="text-sm text-foreground">{conversation.notes}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Added by {user?.name || 'Agent'}</p>
+        ) : (
+          messages.map((message) => (
+            <div 
+              key={message._id}
+              className={`flex ${isAgentMessage(message) ? 'justify-end' : 'justify-start'}`}
+            >
+              <div className={`
+                max-w-[70%] px-4 py-3 rounded-lg
+                ${isAgentMessage(message) 
+                  ? 'bg-blue-500 text-white' 
+                  : 'bg-white border border-border'
+                }
+              `}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-medium opacity-75">
+                    {message.metadata?.senderName || (isAgentMessage(message) ? 'You' : 'Customer')}
+                  </span>
+                  <span className="text-xs opacity-50 ml-2">
+                    {formatTime(message.createdAt)}
+                  </span>
                 </div>
-              )}
-              <div className="flex space-x-2">
-                <Input
-                  value={internalNote}
-                  onChange={(e) => setInternalNote(e.target.value)}
-                  placeholder="Add internal note..."
-                  className="flex-1"
-                />
-                <Button onClick={handleAddNote} disabled={!internalNote.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ))
+        )}
+      </div>
 
-      {/* Chat Interface */}
-      <Card className="flex-1 flex flex-col">
-        <CardContent className="flex flex-col p-0 h-full">
-          {/* Messages Area */}
-          <div className="flex-1 p-2 overflow-y-auto bg-muted/10">
-            <div className="space-y-3">
-              {conversation.messages?.map((msg: Message) => (
-                <div 
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'agent' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[90%] ${
-                    msg.sender === 'agent' 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-background border'
-                  } rounded-lg px-3 py-2`}
-                  >
-                    <p className="text-sm">{msg.content}</p>
-                    <span className={`text-xs ${
-                      msg.sender === 'agent' ? 'opacity-70' : 'text-muted-foreground'
-                    }`}>
-                      {formatTime(new Date(msg.timestamp))}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* Message Input */}
+      <div className="p-4 border-t border-border bg-card">
+        <div className="flex space-x-2">
+          <Textarea
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Type your message..."
+            className="flex-1 min-h-[80px] resize-none"
+            disabled={loading}
+          />
+          <div className="flex flex-col space-y-2">
+            <Button variant="outline" size="icon">
+              <Paperclip className="h-4 w-4" />
+            </Button>
+            <Button 
+              onClick={sendMessage}
+              disabled={!newMessage.trim() || loading}
+              size="icon"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
-          
-          {/* Message Input */}
-          <div className="border-t border-border p-2">
-            <div className="flex items-center space-x-2">
-              <Button variant="ghost" size="icon">
-                <Paperclip className="h-4 w-4" />
-              </Button>
-              <Input 
-                placeholder="Type your message..." 
-                className="flex-1"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-              />
-              <Button onClick={handleSendMessage} disabled={!message.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

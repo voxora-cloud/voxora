@@ -52,57 +52,58 @@ export default function Layout({
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <Button variant="ghost" size="icon" title="Notifications">
-            <Bell className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" title="Settings">
-            <Settings className="h-5 w-5" />
-          </Button>
-          <div className="h-8 border-l border-border mx-1"></div>
-          <div className="flex items-center space-x-2">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{userTeams.join(", ")}</p>
-            </div>
-            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
-              <UserIcon className="h-4 w-4" />
-            </div>
-            <Button variant="ghost" size="icon" title="Logout" onClick={handleLogout}>
-              <LogOut className="h-5 w-5" />
+          <div className="flex items-center space-x-3">
+            <Button variant="ghost" size="icon" title="Notifications">
+              <Bell className="h-5 w-5" />
             </Button>
+            <Button variant="ghost" size="icon" title="Settings">
+              <Settings className="h-5 w-5" />
+            </Button>
+            <div className="h-8 border-l border-border mx-1"></div>
+            <div className="flex items-center space-x-2">
+              <div className="text-right hidden sm:block">
+                <p className="text-sm font-medium">{displayName}</p>
+                <p className="text-xs text-muted-foreground">{userTeams.join(", ")}</p>
+              </div>
+              <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center">
+                <UserIcon className="h-4 w-4" />
+              </div>
+              <Button variant="ghost" size="icon" title="Logout" onClick={handleLogout}>
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
+        </header>
+
+        {/* Secondary Navbar */}
+        <div className="h-12 border-b border-border bg-card px-4 flex items-center">
+          <nav className="flex space-x-2">
+            <Link href="/support/dashboard">
+              <Button variant="ghost" className="text-sm h-8" size="sm">
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Conversations
+              </Button>
+            </Link>
+            <Link href="/support/analytics">
+              <Button variant="ghost" className="text-sm h-8" size="sm">
+                <Bell className="h-4 w-4 mr-2" />
+                Notifications
+              </Button>
+            </Link>
+            <Link href="/support/settings">
+              <Button variant="ghost" className="text-sm h-8" size="sm">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+            </Link>
+          </nav>
         </div>
-      </header>
 
-      {/* Secondary Navbar */}
-      <div className="h-12 border-b border-border bg-card px-4 flex items-center">
-        <nav className="flex space-x-2">
-          <Link href="/support/dashboard">
-            <Button variant="ghost" className="text-sm h-8" size="sm">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Conversations
-            </Button>
-          </Link>
-          <Link href="/support/analytics">
-            <Button variant="ghost" className="text-sm h-8" size="sm">
-              <Bell className="h-4 w-4 mr-2" />
-              Notifications
-            </Button>
-          </Link>
-          <Link href="/support/settings">
-            <Button variant="ghost" className="text-sm h-8" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-          </Link>
-        </nav>
+        {/* Main Content Area - Full Width */}
+        <main className="flex-1 overflow-auto bg-muted/20">
+          {children}
+        </main>
       </div>
-
-      {/* Main Content Area - Full Width */}
-      <main className="flex-1 overflow-auto bg-muted/20">
-        {children}
-      </main>
-    </div>
+ 
   )
 }

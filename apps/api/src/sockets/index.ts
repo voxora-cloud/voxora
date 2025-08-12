@@ -5,11 +5,14 @@ import { verifyToken } from '../utils/auth';
 import { User } from '../models';
 import logger from '../utils/logger';
 import config from '../config';
+import { handleMessage } from './handlers/handlerMessage';
 
-import { handleConnection } from './handlers/connectionHandler';
-import { handleMessage } from './handlers/messageHandler';
-import { handleConversation } from './handlers/conversationHandler';
-import { handleTyping } from './handlers/typingHandler';
+// import { handleConnection } from './handlers/connectionHandler';
+// import { handleMessage } from './handlers/messageHandler';
+// import { handleConversation } from './handlers/conversationHandler';
+// import { handleTyping } from './handlers/typingHandler';
+
+let socketManagerInstance: SocketManager | null = null;
 
 export class SocketManager {
   private io: Server;
@@ -28,6 +31,14 @@ export class SocketManager {
     this.setupRedisAdapter();
     this.setupMiddleware();
     this.setupEventHandlers();
+    
+    // Set global instance
+    socketManagerInstance = this;
+  }
+
+  // Public getter for the io instance
+  public get ioInstance() {
+    return this.io;
   }
 
   private async setupRedisAdapter(): Promise<void> {
@@ -83,10 +94,10 @@ export class SocketManager {
       this.updateUserStatus(socket.data.user.userId, 'online');
 
       // Setup event handlers
-      handleConnection(socket, this.io);
-      handleMessage(socket, this.io);
-      handleConversation(socket, this.io);
-      handleTyping(socket, this.io);
+      // handleConnection(socket, this.io);
+      handleMessage({socket, io: this.io});
+      // handleConversation(socket, this.io);
+      // handleTyping(socket, this.io);
 
       // Handle disconnection
       socket.on('disconnect', () => {
@@ -102,7 +113,6 @@ export class SocketManager {
       // Handle custom events
       socket.on('join_conversation', (conversationId: string) => {
         socket.join(`conversation:${conversationId}`);
-        logger.debug(`User ${socket.data.user.userId} joined conversation ${conversationId}`);
       });
 
       socket.on('leave_conversation', (conversationId: string) => {
@@ -166,5 +176,8 @@ export class SocketManager {
     this.io.emit(event, data);
   }
 }
+
+// Export the singleton instance getter
+export const getSocketManager = () => socketManagerInstance;
 
 export default SocketManager;

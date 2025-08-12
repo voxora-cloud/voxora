@@ -8,6 +8,7 @@ import { connectRedis } from './config/redis';
 import routes from './routes';
 import { globalRateLimit, errorHandler, notFound } from './middleware';
 import SocketManager from './sockets';
+import { setSocketManager } from './controllers/conversationController';
 import logger from './utils/logger';
 import path from 'path';
 
@@ -23,8 +24,12 @@ class Application {
     this.setupRoutes();
     this.setupErrorHandling();
     this.socketManager = new SocketManager(this.server);
+    
+    // Set socket manager instance in conversation controller
+    setSocketManager(this.socketManager);
   }
 
+  
   private setupMiddleware(): void {
     // Security middleware
     this.app.use(helmet({
