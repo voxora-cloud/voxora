@@ -107,6 +107,7 @@ export default function CreateWidgetPage() {
       })
     } finally {
       setIsLoading(false)
+      window.location.reload()
     }
   }
 

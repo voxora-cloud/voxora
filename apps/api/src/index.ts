@@ -34,13 +34,20 @@ class Application {
     // Security middleware
     this.app.use(helmet({
       crossOriginEmbedderPolicy: false,
-      contentSecurityPolicy:{
-        directives:{
+      contentSecurityPolicy: {
+        directives: {
           defaultSrc: ["'self'"],
           frameAncestors: ["*"],
           scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["*", "data:", "blob:"],
+          connectSrc: ["*"],
+          fontSrc: ["*", "data:"],
+          mediaSrc: ["*"],
+          objectSrc: ["'none'"]
+        }
       }
-    }}));
+    }));
 
     // CORS configuration
     this.app.use(cors({
@@ -53,6 +60,16 @@ class Application {
     // Body parsing middleware
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Serve uploads statically (for logos and assets)
+    const uploadsDir = path.resolve(process.cwd(), config.upload.uploadPath);
+    this.app.use('/uploads', express.static(uploadsDir, {
+      maxAge: '1d',
+      setHeaders: (res) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      }
+    }));
 
     // Request logging
     this.app.use((req, res, next) => {

@@ -57,3 +57,42 @@ export const validateWidgetToken = asyncHandler(async (req: Request, res: Respon
     sendError(res, 401, 'Invalid token');
   }
 });
+
+// Public: fetch widget configuration by voxoraPublicKey
+export const getWidgetConfig = asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { voxoraPublicKey } = req.query as { voxoraPublicKey?: string };
+
+    if (!voxoraPublicKey) {
+      return sendError(res, 400, 'voxoraPublicKey is required');
+    }
+
+    const widget = await Widget.findById(voxoraPublicKey)
+      .select('displayName logoUrl backgroundColor')
+      .lean();
+
+    if (!widget) {
+      return sendError(res, 404, 'Widget not found');
+    }
+
+    // Normalize logo URL to absolute if necessary
+    let logoUrl = (widget as any).logoUrl as string | undefined;
+    if (logoUrl && !/^https?:\/\//i.test(logoUrl)) {
+      const scheme = (req.get('x-forwarded-proto') || req.protocol || 'http');
+      const host = req.get('host');
+      const base = `${scheme}://${host}`;
+      if (!logoUrl.startsWith('/')) logoUrl = '/' + logoUrl;
+      logoUrl = `${base}${logoUrl}`;
+    }
+
+    return sendResponse(res, 200, true, 'Widget config fetched', {
+      config: {
+        displayName: (widget as any).displayName,
+        backgroundColor: (widget as any).backgroundColor,
+        logoUrl,
+      },
+    });
+  } catch (error: any) {
+    return sendError(res, 500, 'Failed to fetch widget config: ' + error.message);
+  }
+});

@@ -10,6 +10,7 @@
   var unreadCount = 0;
   var widgetToken = null;
   var apiBaseUrl = "http://localhost:3002";
+  var widgetConfig = null;
 
   // JWT Authentication functions
   async function generateWidgetToken() {
@@ -89,14 +90,15 @@
       </svg>
     `;
     
-    Object.assign(chatButton.style, {
+  const baseBg = (widgetConfig && widgetConfig.backgroundColor) || "#667eea";
+  Object.assign(chatButton.style, {
       position: "fixed",
       bottom: "24px",
       right: "24px",
       width: "60px",
       height: "60px",
       borderRadius: "50%",
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+  background: baseBg,
       boxShadow: "0 8px 24px rgba(102, 126, 234, 0.4)",
       cursor: "pointer",
       display: "flex",
@@ -163,7 +165,8 @@
       }
 
       iframe = document.createElement("iframe");
-      iframe.src = `${apiBaseUrl}/widget?voxoraPublicKey=${encodeURIComponent(voxoraPublicKey)}&token=${encodeURIComponent(widgetToken)}`;
+  const cfg = widgetConfig ? encodeURIComponent(btoa(JSON.stringify(widgetConfig))) : '';
+  iframe.src = `${apiBaseUrl}/widget?voxoraPublicKey=${encodeURIComponent(voxoraPublicKey)}&token=${encodeURIComponent(widgetToken)}${cfg ? `&cfg=${cfg}` : ''}`;
       iframe.allow = "microphone; camera";
     
     Object.assign(iframe.style, {
@@ -187,18 +190,25 @@
       display: "none"
     });
 
-    // Add iframe message listener
+    // Add iframe message listener (accept from any origin; adjust if you restrict hosting)
     window.addEventListener("message", function(event) {
-      if (event.origin !== "http://127.0.0.1:5500") return;
-      
-      if (event.data.type === "MINIMIZE_WIDGET") {
-        closeWidget();
-      } else if (event.data.type === "NEW_MESSAGE") {
-        if (!isWidgetOpen) {
-          unreadCount++;
-          updateUnreadBadge();
+      try {
+        const t = event?.data?.type;
+        if (!t) return;
+        // Debug: log message type and origin
+        if (typeof t === 'string') {
+          // Keep lightweight; comment out if too chatty
+          // console.debug('[VoxoraWidget] postMessage', t, 'from', event.origin);
         }
-      }
+        if (t === "MINIMIZE_WIDGET") {
+          closeWidget();
+        } else if (t === "NEW_MESSAGE") {
+          if (!isWidgetOpen) {
+            unreadCount++;
+            updateUnreadBadge();
+          }
+        }
+      } catch {}
     });
 
     return iframe;
@@ -230,6 +240,22 @@
         display: "none"
       });
       
+      // Add iframe message listener (fallback path)
+      window.addEventListener("message", function(event) {
+        try {
+          const t = event?.data?.type;
+          if (!t) return;
+          if (t === "MINIMIZE_WIDGET") {
+            closeWidget();
+          } else if (t === "NEW_MESSAGE") {
+            if (!isWidgetOpen) {
+              unreadCount++;
+              updateUnreadBadge();
+            }
+          }
+        } catch {}
+      });
+
       return iframe;
     }
   }
@@ -270,7 +296,7 @@
 
   // Close widget
   function closeWidget() {
-    isWidgetOpen = false;
+  isWidgetOpen = false;
     
     // Update button appearance
     chatButton.innerHTML = `
@@ -281,12 +307,13 @@
     chatButton.style.transform = "scale(1) rotate(0deg)";
     
     // Animate widget out
-    iframe.style.transform = "scale(0.8) translateY(20px)";
-    iframe.style.opacity = "0";
-    
-    setTimeout(() => {
-      iframe.style.display = "none";
-    }, 300);
+    if (iframe) {
+      iframe.style.transform = "scale(0.8) translateY(20px)";
+      iframe.style.opacity = "0";
+      setTimeout(() => {
+        if (iframe) iframe.style.display = "none";
+      }, 300);
+    }
   }
 
   // Update unread badge
@@ -302,6 +329,17 @@
   // Initialize widget
   async function initWidget() {
     // Create elements
+    // Preload widget config
+    try {
+      const resp = await fetch(`${apiBaseUrl}/api/v1/widget/config?voxoraPublicKey=${encodeURIComponent(voxoraPublicKey)}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        widgetConfig = data?.data?.config || null;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch widget config', e);
+    }
+
     createChatButton();
     createUnreadBadge();
     await createWidget();
