@@ -84,7 +84,7 @@ export default function Layout({
                 Conversations
               </Button>
             </Link>
-            <Link href="/support/analytics">
+            {/* <Link href="/support/analytics">
               <Button variant="ghost" className="text-sm h-8" size="sm">
                 <Bell className="h-4 w-4 mr-2" />
                 Notifications
@@ -95,7 +95,7 @@ export default function Layout({
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-            </Link>
+            </Link> */}
           </nav>
         </div>
 

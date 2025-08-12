@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/components/auth/auth-context"
 import { useRouter } from "next/navigation"
@@ -29,9 +28,16 @@ interface Conversation {
   tags: string[]
   metadata?: {
     source?: string
-    customerName?: string
-    customerEmail?: string
-    customerPhone?: string
+    customer?: {
+      name?: string
+      email?: string
+      phone?: string
+      // other widget metadata like initialMessage, startedAt may exist
+      initialMessage?: string
+      startedAt?: string
+    }
+  // backward compatibility with older records
+  customerName?: string
   }
   unreadCount: number
   createdAt: string
@@ -126,9 +132,10 @@ export function ConversationSidebar() {
   }
 
   const getCustomerName = (conversation: Conversation) => {
-    return conversation.metadata?.customerName || 
-           conversation.participants[0]?.name || 
-           'Unknown Customer'
+  return conversation.metadata?.customer?.name ||
+       conversation.metadata?.customerName ||
+       conversation.participants[0]?.name ||
+       'Unknown Customer'
   }
 
   const formatTime = (dateString: string) => {
@@ -150,9 +157,10 @@ export function ConversationSidebar() {
   const filteredConversations = conversations.filter(conversation => {
     const statusMatch = filterStatus === "all" || conversation.status === filterStatus
     const searchMatch = !searchQuery || 
-      (conversation.metadata?.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       conversation.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       conversation.lastMessage?.content.toLowerCase().includes(searchQuery.toLowerCase()))
+      (conversation.metadata?.customer?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       conversation.metadata?.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       conversation.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       conversation.lastMessage?.content?.toLowerCase().includes(searchQuery.toLowerCase()))
     
     return statusMatch && searchMatch
   })
