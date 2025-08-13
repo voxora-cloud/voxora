@@ -7,7 +7,6 @@ import React, { useEffect } from "react";
 import { Team, Agent } from "@/lib/api";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  // Set initial active tab based on the current path
   const [activeTab, setActiveTab] = React.useState(() => {
     if (typeof window !== "undefined") {
       const path = window.location.pathname;

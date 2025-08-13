@@ -44,43 +44,6 @@
     }
   }
 
-  // API call function with JWT
-  async function makeAuthenticatedRequest(url, options = {}) {
-    if (!widgetToken) {
-      await generateWidgetToken();
-    }
-
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${widgetToken}`
-    };
-
-    const mergedOptions = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers
-      }
-    };
-
-    try {
-      const response = await fetch(url, mergedOptions);
-      
-      // If token expired, regenerate and retry
-      if (response.status === 401) {
-        console.log('Token expired, regenerating...');
-        await generateWidgetToken();
-        mergedOptions.headers.Authorization = `Bearer ${widgetToken}`;
-        return await fetch(url, mergedOptions);
-      }
-
-      return response;
-    } catch (error) {
-      console.error('API request failed:', error);
-      throw error;
-    }
-  }
-
   // Create chat button
   function createChatButton() {
     chatButton = document.createElement("div");
