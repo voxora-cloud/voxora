@@ -405,6 +405,138 @@
         text-decoration: none;
       }
 
+      /* Tab Navigation */
+      .tab-navigation {
+        display: flex;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 0 20px;
+      }
+
+      .tab-btn {
+        flex: 1;
+        padding: 12px 16px;
+        background: none;
+        border: none;
+        color: #6b7280;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.2s ease;
+        border-bottom: 2px solid transparent;
+      }
+
+      .tab-btn.active {
+        color: var(--vx-accent-color, #667eea);
+        border-bottom-color: var(--vx-accent-color, #667eea);
+      }
+
+      .tab-btn:hover {
+        color: var(--vx-accent-color, #667eea);
+        background: rgba(102, 126, 234, 0.04);
+      }
+
+      /* Tab Content */
+      .tab-content {
+        display: none;
+        flex: 1;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .tab-content.active {
+        display: flex;
+      }
+
+      /* Recent Conversations */
+      .recent-conversations {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px;
+      }
+
+      .conversation-item {
+        padding: 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-bottom: 8px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s ease;
+        background: white;
+      }
+
+      .conversation-item:hover {
+        border-color: var(--vx-accent-color, #667eea);
+        background: rgba(102, 126, 234, 0.02);
+      }
+
+      .conversation-item.active {
+        border-color: var(--vx-accent-color, #667eea);
+        background: rgba(102, 126, 234, 0.05);
+      }
+
+      .conversation-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .conversation-preview {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 4px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.3;
+      }
+
+      .conversation-time {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+
+      .no-conversations {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6b7280;
+      }
+
+      .no-conversations-icon {
+        width: 48px;
+        height: 48px;
+        background: #f3f4f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        color: #9ca3af;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 480px) {
+        .tab-btn {
+          padding: 10px 12px;
+          font-size: 13px;
+        }
+        
+        .recent-conversations {
+          padding: 12px 16px;
+        }
+        
+        .conversation-item {
+          padding: 10px;
+        }
+      }
+
       .avatar img {
         width: 100%;
         height: 100%;
@@ -484,91 +616,127 @@
       </button>
     </div>
 
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+      <button class="tab-btn active" data-tab="home">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: -2px;">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9,22 9,12 15,12 15,22"></polyline>
+        </svg>
+        Home
+      </button>
+      <button class="tab-btn" data-tab="recent">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px; vertical-align: -2px;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12,6 12,12 16,14"></polyline>
+        </svg>
+        Recent
+      </button>
+    </div>
+
   <!-- Chat Container -->
     <div class="chat-container">
-      <!-- Welcome Screen -->
-      <div class="welcome-screen" id="welcomeScreen">
-        <div class="welcome-header">
-          <div class="welcome-icon" id="vx-welcome-icon">V</div>
-          <h2>Let's chat!</h2>
-          <p>Questions? Chat with us</p>
+      <!-- Home Tab Content -->
+      <div class="tab-content active" id="homeTab">
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-header">
+            <div class="welcome-icon" id="vx-welcome-icon">V</div>
+            <h2>Let's chat!</h2>
+            <p>Questions? Chat with us</p>
+          </div>
+
+          <form class="start-chat-form" id="startChatForm">
+            <div class="form-section">
+              <div class="form-group required">
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  required
+                  placeholder="Your name"
+                />
+              </div>
+              <div class="form-group required">
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  required
+                  placeholder="Your email address"
+                />
+              </div>
+              <div class="form-group">
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  placeholder="Phone number (optional)"
+                />
+              </div>
+              <div class="form-group textarea">
+                <textarea
+                  id="initialMessage"
+                  name="message"
+                  placeholder="How can we help you?"
+                  required
+                ></textarea>
+              </div>
+            </div>
+            
+            <div class="form-footer">
+              <button type="submit" class="start-btn" id="startBtn">
+                Send message
+              </button>
+            </div>
+          </form>
         </div>
 
-        <form class="start-chat-form" id="startChatForm">
-          <div class="form-section">
-            <div class="form-group required">
-              <input
-                type="text"
-                id="name"
-                name="name"
-                required
-                placeholder="Your name"
-              />
-            </div>
-            <div class="form-group required">
-              <input
-                type="email"
-                id="email"
-                name="email"
-                required
-                placeholder="Your email address"
-              />
-            </div>
-            <div class="form-group">
-              <input
-                type="tel"
-                id="phone"
-                name="phone"
-                placeholder="Phone number (optional)"
-              />
-            </div>
-            <div class="form-group textarea">
+        <!-- Chat Interface -->
+        <div class="chat-interface" id="chatInterface">
+          <div class="messages-container" id="messagesContainer">
+            <!-- Messages will be added here -->
+          </div>
+          <div class="typing-indicator" id="typingIndicator">
+            Support is typing...
+          </div>
+          <div class="input-area">
+            <div class="input-container">
               <textarea
-                id="initialMessage"
-                name="message"
-                placeholder="How can we help you?"
-                required
+                class="message-input"
+                id="messageInput"
+                placeholder="Type your message..."
+                rows="1"
               ></textarea>
+              <button class="send-btn" id="sendBtn" disabled>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22,2 15,22 11,13 2,9"></polygon>
+                </svg>
+              </button>
             </div>
           </div>
-          
-          <div class="form-footer">
-            <button type="submit" class="start-btn" id="startBtn">
-              Send message
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
 
-      <!-- Chat Interface -->
-      <div class="chat-interface" id="chatInterface">
-        <div class="messages-container" id="messagesContainer">
-          <!-- Messages will be added here -->
-        </div>
-        <div class="typing-indicator" id="typingIndicator">
-          Support is typing...
-        </div>
-        <div class="input-area">
-          <div class="input-container">
-            <textarea
-              class="message-input"
-              id="messageInput"
-              placeholder="Type your message..."
-              rows="1"
-            ></textarea>
-            <button class="send-btn" id="sendBtn" disabled>
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22,2 15,22 11,13 2,9"></polygon>
+      <!-- Recent Tab Content -->
+      <div class="tab-content" id="recentTab">
+        <div class="recent-conversations" id="recentConversations">
+          <div class="no-conversations" id="noConversations">
+            <div class="no-conversations-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
-            </button>
+            </div>
+            <p>No recent conversations</p>
+            <small>Start a new conversation to see your chat history here</small>
           </div>
         </div>
       </div>
@@ -601,6 +769,217 @@
       const sendBtn = document.getElementById("sendBtn");
       const typingIndicator = document.getElementById("typingIndicator");
       const startBtn = document.getElementById("startBtn");
+
+      // Tab elements
+      const tabBtns = document.querySelectorAll('.tab-btn');
+      const homeTab = document.getElementById('homeTab');
+      const recentTab = document.getElementById('recentTab');
+      const recentConversations = document.getElementById('recentConversations');
+      const noConversations = document.getElementById('noConversations');
+
+      // Local Storage Management
+      const STORAGE_KEYS = {
+        CONVERSATIONS: 'voxora_conversations',
+        CURRENT_USER: 'voxora_current_user'
+      };
+
+      // Get conversations from localStorage
+      function getStoredConversations() {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+          return stored ? JSON.parse(stored) : [];
+        } catch (error) {
+          console.error('Error reading conversations from localStorage:', error);
+          return [];
+        }
+      }
+
+      // Save conversation to localStorage
+      function saveConversationToStorage(conversation) {
+        try {
+          const conversations = getStoredConversations();
+          const existingIndex = conversations.findIndex(c => c.id === conversation.id);
+          
+          if (existingIndex !== -1) {
+            conversations[existingIndex] = { ...conversations[existingIndex], ...conversation };
+          } else {
+            conversations.unshift(conversation);
+          }
+          
+          // Keep only last 50 conversations
+          if (conversations.length > 50) {
+            conversations.splice(50);
+          }
+          
+          localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+          updateRecentConversations();
+        } catch (error) {
+          console.error('Error saving conversation to localStorage:', error);
+        }
+      }
+
+      // Update conversation in storage
+      function updateConversationInStorage(conversationId, updates) {
+        try {
+          const conversations = getStoredConversations();
+          const conversation = conversations.find(c => c.id === conversationId);
+          if (conversation) {
+            Object.assign(conversation, updates);
+            localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+            updateRecentConversations();
+          }
+        } catch (error) {
+          console.error('Error updating conversation in localStorage:', error);
+        }
+      }
+
+      // Tab switching functionality
+      function switchTab(tabName) {
+        // Update tab buttons
+        tabBtns.forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Update tab content
+        homeTab.classList.toggle('active', tabName === 'home');
+        recentTab.classList.toggle('active', tabName === 'recent');
+
+        // Load recent conversations if switching to recent tab
+        if (tabName === 'recent') {
+          updateRecentConversations();
+        }
+      }
+
+      // Update recent conversations display
+      function updateRecentConversations() {
+        const conversations = getStoredConversations();
+        
+        if (conversations.length === 0) {
+          noConversations.style.display = 'block';
+          return;
+        }
+
+        noConversations.style.display = 'none';
+        
+        // Clear existing conversation items (except no-conversations div)
+        const existingItems = recentConversations.querySelectorAll('.conversation-item');
+        existingItems.forEach(item => item.remove());
+
+        // Add conversation items
+        conversations.forEach(conversation => {
+          const item = createConversationItem(conversation);
+          recentConversations.insertBefore(item, noConversations);
+        });
+      }
+
+      // Create conversation item element
+      function createConversationItem(conversation) {
+        const item = document.createElement('div');
+        item.className = 'conversation-item';
+        item.dataset.conversationId = conversation.id;
+        
+        const lastMessage = conversation.lastMessage || 'No messages yet';
+        const truncatedMessage = lastMessage.length > 60 ? lastMessage.substring(0, 60) + '...' : lastMessage;
+        const timeAgo = formatTimeAgo(new Date(conversation.updatedAt || conversation.createdAt));
+        
+        item.innerHTML = `
+          <div class="conversation-title">${conversation.title || 'Chat conversation'}</div>
+          <div class="conversation-preview">${truncatedMessage}</div>
+          <div class="conversation-time">${timeAgo}</div>
+        `;
+        
+        item.addEventListener('click', () => loadConversation(conversation.id));
+        
+        return item;
+      }
+
+      // Format time ago
+      function formatTimeAgo(date) {
+        const now = new Date();
+        const diffInMs = now - date;
+        const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        const diffInDays = Math.floor(diffInHours / 24);
+
+        if (diffInMinutes < 1) return 'Just now';
+        if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+        if (diffInHours < 24) return `${diffInHours}h ago`;
+        if (diffInDays < 7) return `${diffInDays}d ago`;
+        return date.toLocaleDateString();
+      }
+
+      // Load conversation from storage
+      function loadConversation(conversationId) {
+        const conversations = getStoredConversations();
+        const conversation = conversations.find(c => c.id === conversationId);
+        
+        if (!conversation) {
+          console.error('Conversation not found:', conversationId);
+          return;
+        }
+
+        // Set current chat ID and user info
+        chatId = conversation.id;
+        userName = conversation.userName || '';
+        userEmail = conversation.userEmail || '';
+        
+        // Switch to home tab and show chat interface
+        switchTab('home');
+        welcomeScreen.style.display = 'none';
+        chatInterface.style.display = 'flex';
+        isConnected = true; // Set connection state
+        
+        // Focus on message input
+        messageInput.focus();
+        
+        // Load messages
+        loadMessagesFromStorage(conversationId);
+        
+        // Reconnect socket for this conversation
+        if (socket) {
+          socket.emit('join_conversation', chatId);
+        } else if (widgetToken) {
+          // Initialize socket if it doesn't exist but we have a token
+          initializeSocket();
+          // Join conversation after socket is initialized
+          setTimeout(() => {
+            if (socket) {
+              socket.emit('join_conversation', chatId);
+            }
+          }, 1000);
+        }
+        
+        // Update active conversation styling
+        document.querySelectorAll('.conversation-item').forEach(item => {
+          item.classList.toggle('active', item.dataset.conversationId === conversationId);
+        });
+      }
+
+      // Load messages from storage
+      function loadMessagesFromStorage(conversationId) {
+        const conversations = getStoredConversations();
+        const conversation = conversations.find(c => c.id === conversationId);
+        
+        if (conversation && conversation.messages) {
+          messagesContainer.innerHTML = '';
+          conversation.messages.forEach(message => {
+            addMessageToUI(message.content, message.sender, message.timestamp);
+          });
+          scrollToBottom();
+        }
+      }
+
+      // Add tab event listeners
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          switchTab(btn.dataset.tab);
+        });
+      });
+
+      // Initialize recent conversations on load
+      document.addEventListener('DOMContentLoaded', () => {
+        updateRecentConversations();
+      });
 
       // Initialize socket connection for widget users
       function initializeSocket() {
@@ -667,6 +1046,10 @@
           if (data.conversationId !== chatId) return;
           // Ignore messages sent by this widget user (they are already optimistically rendered)
           if (data.message?.metadata?.source === 'widget') return;
+          
+          // Re-enable send button when we receive any new message
+          sendBtn.disabled = false;
+          
           const senderName = data.message?.metadata?.senderName || 'Support Agent';
           addMessage(data.message.content, "agent", senderName);
         });
@@ -686,6 +1069,12 @@
         // Removed system message on agent assignment to avoid dummy messages
         socket.on('conversation_assigned', (data) => {
           // Optionally handle UI state without adding a chat bubble
+        });
+
+        // Handle message sent acknowledgment
+        socket.on('message_sent', (data) => {
+          // Re-enable send button when message is acknowledged by server
+          sendBtn.disabled = false;
         });
       }
       // JWT Authentication functions
@@ -794,6 +1183,19 @@
             userName = data.name;
             userEmail = data.email;
 
+            // Save new conversation to localStorage
+            const newConversation = {
+              id: chatId,
+              title: `Chat with ${userName}`,
+              userName: userName,
+              userEmail: userEmail,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              lastMessage: data.message || 'New conversation started',
+              messages: []
+            };
+            saveConversationToStorage(newConversation);
+
             // Initialize socket connection if not already done
             if (!socket && widgetToken) {
               initializeSocket();
@@ -871,7 +1273,12 @@
       `;
 
         messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        scrollToBottom();
+
+        // Save message to localStorage if we have a chat ID
+        if (chatId) {
+          saveMessageToStorage(text, type, senderName);
+        }
 
         // Notify parent window of new message
         if (type === "agent" && window.parent) {
@@ -879,9 +1286,71 @@
         }
       }
 
+      // Save message to localStorage
+      function saveMessageToStorage(content, sender, senderName) {
+        if (!chatId) return;
+
+        try {
+          const conversations = getStoredConversations();
+          let conversation = conversations.find(c => c.id === chatId);
+          
+          if (!conversation) {
+            // Create new conversation
+            conversation = {
+              id: chatId,
+              title: `Chat with ${userName || 'User'}`,
+              userName: userName,
+              userEmail: userEmail,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              messages: []
+            };
+          }
+
+          // Add message to conversation
+          const message = {
+            content: content,
+            sender: sender,
+            senderName: senderName,
+            timestamp: new Date().toISOString()
+          };
+
+          if (!conversation.messages) {
+            conversation.messages = [];
+          }
+          
+          conversation.messages.push(message);
+          conversation.lastMessage = content;
+          conversation.updatedAt = new Date().toISOString();
+
+          // Update or add conversation to storage
+          saveConversationToStorage(conversation);
+        } catch (error) {
+          console.error('Error saving message to localStorage:', error);
+        }
+      }
+
+      // Alias function for backward compatibility
+      function addMessageToUI(content, sender, timestamp) {
+        const senderName = sender === 'user' ? userName : 'Support Agent';
+        addMessage(content, sender, senderName);
+      }
+
+      // Scroll messages container to bottom
+      function scrollToBottom() {
+        if (messagesContainer) {
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      }
+
       function sendMessage() {
         const text = messageInput.value.trim();
-        if (!text || !isConnected) return;
+        console.log('Send message called:', { text, isConnected, chatId, socket: !!socket });
+        
+        if (!text || !isConnected) {
+          console.log('Cannot send message: missing text or not connected');
+          return;
+        }
 
         addMessage(text, "user", userName);
         messageInput.value = "";
@@ -902,8 +1371,15 @@
           });
           // stop typing when message is sent
           typingStop();
+          
+          // Re-enable send button after a short delay
+          setTimeout(() => {
+            sendBtn.disabled = false;
+          }, 1000);
         } else {
           console.error("Cannot send message: Socket or chatId not available");
+          // Re-enable send button if there was an error
+          sendBtn.disabled = false;
         }
       }
 
@@ -911,7 +1387,7 @@
 
       function showTyping() {
         typingIndicator.style.display = "block";
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        scrollToBottom();
       }
 
       function hideTyping() {
