@@ -589,6 +589,8 @@
       let widgetToken = null;
       let voxoraPublicKey = null;
       let socket = null;
+  let typingTimeout = null;
+  let isTyping = false;
 
       // DOM elements
       const welcomeScreen = document.getElementById("welcomeScreen");
@@ -744,6 +746,7 @@
         messageInput.addEventListener("input", function () {
           adjustTextareaHeight();
           sendBtn.disabled = !this.value.trim();
+          handleTypingChanged(this.value);
         });
 
         messageInput.addEventListener("keydown", function (e) {
@@ -755,6 +758,11 @@
 
         // Send button
         sendBtn.addEventListener("click", sendMessage);
+
+        // Stop typing on blur
+        messageInput.addEventListener('blur', () => {
+          typingStop();
+        });
       }
 
       async function handleStartChat(e) {
@@ -892,6 +900,8 @@
               source: 'widget'
             }
           });
+          // stop typing when message is sent
+          typingStop();
         } else {
           console.error("Cannot send message: Socket or chatId not available");
         }
@@ -906,6 +916,36 @@
 
       function hideTyping() {
         typingIndicator.style.display = "none";
+      }
+
+      function typingStart() {
+        if (!socket || !chatId) return;
+        if (!isTyping) {
+          socket.emit('typing_start', { conversationId: chatId });
+          isTyping = true;
+        }
+        if (typingTimeout) clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(typingStop, 1500);
+      }
+
+      function typingStop() {
+        if (!socket || !chatId) return;
+        if (isTyping) {
+          socket.emit('typing_stop', { conversationId: chatId });
+          isTyping = false;
+        }
+        if (typingTimeout) {
+          clearTimeout(typingTimeout);
+          typingTimeout = null;
+        }
+      }
+
+      function handleTypingChanged(val) {
+        if (!val || !val.trim()) {
+          typingStop();
+        } else {
+          typingStart();
+        }
       }
 
       function adjustTextareaHeight() {

@@ -56,6 +56,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [newMessage, setNewMessage] = useState("")
   const [loading, setLoading] = useState(true)
   const [socket, setSocket] = useState<Socket | null>(null)
+  const [isCustomerTyping, setIsCustomerTyping] = useState(false)
+  const typingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const customerTypingHideRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isAgentTypingRef = React.useRef(false)
   const { user } = useAuth()
   const router = useRouter()
 
@@ -93,6 +97,23 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           })
         })
 
+        // Typing indicators from customer
+        socketInstance.on('customer_typing', (data: { conversationId: string }) => {
+          if (data.conversationId !== conversationId) return
+          setIsCustomerTyping(true)
+          if (customerTypingHideRef.current) clearTimeout(customerTypingHideRef.current)
+          customerTypingHideRef.current = setTimeout(() => setIsCustomerTyping(false), 3000)
+        })
+
+        socketInstance.on('customer_stopped_typing', (data: { conversationId: string }) => {
+          if (data.conversationId !== conversationId) return
+          setIsCustomerTyping(false)
+          if (customerTypingHideRef.current) {
+            clearTimeout(customerTypingHideRef.current)
+            customerTypingHideRef.current = null
+          }
+        })
+
         setSocket(socketInstance)
 
         // Fetch conversation data and messages
@@ -127,8 +148,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         if (sock) {
           sock.emit('leave_conversation', conversationId)
           sock.off('new_message')
+          sock.off('customer_typing')
+          sock.off('customer_stopped_typing')
           sock.disconnect()
         }
+        // ensure typing is stopped
+        if (isAgentTypingRef.current && sock) {
+          try { sock.emit('typing_stop', { conversationId }) } catch { void 0 }
+          isAgentTypingRef.current = false
+        }
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+        if (customerTypingHideRef.current) clearTimeout(customerTypingHideRef.current)
   } catch {
         // no-op
       }
@@ -147,6 +177,13 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         senderEmail: user?.email || '',
         source: 'web'
       }
+    }
+
+    // stop typing when sending
+    if (isAgentTypingRef.current) {
+      try { socket.emit('typing_stop', { conversationId }) } catch { void 0 }
+      isAgentTypingRef.current = false
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
     }
 
     // Send via socket
@@ -171,6 +208,24 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       e.preventDefault()
       sendMessage()
     }
+  }
+
+  // Emit agent typing events with debounce
+  const handleInputChange: React.ChangeEventHandler<HTMLTextAreaElement> = (e) => {
+    const val = e.target.value
+    setNewMessage(val)
+    if (!socket) return
+    if (conversationId && !isAgentTypingRef.current && val.trim().length > 0) {
+      socket.emit('typing_start', { conversationId })
+      isAgentTypingRef.current = true
+    }
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    typingTimerRef.current = setTimeout(() => {
+      if (isAgentTypingRef.current) {
+        socket.emit('typing_stop', { conversationId })
+        isAgentTypingRef.current = false
+      }
+    }, 1500)
   }
 
   const formatTime = (timestamp: string) => {
@@ -274,12 +329,16 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         )}
       </div>
 
+      {isCustomerTyping && (
+        <div className="px-4 pb-2 text-sm text-muted-foreground italic">Customer is typing…</div>
+      )}
+
       {/* Message Input */}
       <div className="p-4 border-t border-border bg-card">
         <div className="flex space-x-2">
           <Textarea
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyPress}
             placeholder="Type your message..."
             className="flex-1 min-h-[80px] resize-none"
