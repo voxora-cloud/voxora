@@ -1,220 +1,129 @@
-<div align="center">
-  <h1><img src="https://avatars.githubusercontent.com/u/222506196?s=48&v=4"> Voxora</h1>
-  <p><strong>Open-source, AI-powered live chat & voice support platform</strong></p>
-  <p>Built for modern web applications with real-time communication</p>
+# Voxora
 
-  [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-  [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
-  [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
-  [![Socket.io](https://img.shields.io/badge/Socket.io-black?style=for-the-badge&logo=socket.io&badgeColor=010101)](https://socket.io/)
-  [![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-  [![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-  [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+Voxora is a monorepo for a modern, realtime customer support platform. It includes a Next.js web app and an Express + Socket.IO API with MongoDB and Redis. Teams can manage agents, converse with users in realtime, and embed a lightweight chat widget.
 
-  <p>
-    <a href="#features">Features</a> •
-    <a href="#quick-start">Quick Start</a> •
-    <a href="#documentation">Documentation</a> •
-    <a href="#api-reference">API</a> •
-    <a href="#contributing">Contributing</a>
-  </p>
-</div>
+## What’s inside
 
----
+- apps/web: Next.js 15 React 19 app (App Router, Tailwind)
+- apps/api: Express 5 + Socket.IO backend, MongoDB (Mongoose), Redis
+- packages/*: shared ESLint and TypeScript config
+- docker/: local dev services (MongoDB, Redis, Mongo Express, MailHog)
 
-## 🌟 What is Voxora?
+## Current implementation
 
-Voxora is a **modern, open-source customer support platform** that combines real-time chat, AI assistance, and voice communication. Built with performance and developer experience in mind, it's designed to be easily integrated into any web application.
+- Realtime chat
+	- Socket.IO with Redis adapter for horizontal scalability
+	- Conversations and messages stored in MongoDB (Mongoose models)
+	- Chat widget served from API at /widget and /widget-loader.js
+- Auth and teams
+	- JWT auth flows, registration, login, invite acceptance, forgot password UI
+	- Admin and Agent dashboards/pages in the web app
+- API foundation
+	- Express 5, validation (express-validator/Joi), Helmet, CORS, rate limiting
+	- Centralized error handling and structured logging (winston)
+	- REST routes under /api/v1, plus a simple root health at /
+- Email and assets
+	- MailHog for local email testing (SMTP: 1025, UI: 8025)
+	- Static uploads served from /uploads
 
-### 🎯 **Why Choose Voxora?**
+## Future implementation (roadmap)
 
-- 🚀 **Developer-First**: Easy integration with comprehensive APIs
-- 🤖 **AI-Powered**: Smart responses and conversation routing
-- 📱 **Real-time**: Instant messaging with WebSocket technology
-- 🎙️ **Voice Support**: Integrated voice chat capabilities
-- 🔧 **Customizable**: White-label solution with full customization
-- 📊 **Analytics**: Built-in conversation analytics and insights
-- 🔒 **Secure**: Enterprise-grade security and data protection
-- 🌐 **Scalable**: Horizontally scalable architecture
+1. AI agent will talk
+	 - LLM-powered automated replies with intent detection and context memory
+	 - Escalation handoff to human agent with full conversation context
+2. AI voice
+	 - Text-to-speech for agent responses and speech-to-text for user input
+	 - Realtime voice calls in the widget with streaming transcription
 
----
+## Quick start (developer)
 
-## ✨ Features
+Prerequisites
 
-### 💬 **Chat & Messaging**
-- Real-time bidirectional messaging
-- Rich text formatting and file sharing
-- Typing indicators and read receipts
-- Message reactions and emoji support
-- Conversation threading and history
+- Docker Desktop
+- Node.js >= 18 and npm 10+
+- VS Code extensions (recommended)
+	- Better Comments (aaron-bond.better-comments)
+	- Prettier – Code formatter (esbenp.prettier-vscode)
 
-### 🤖 **AI Integration**
-- Intelligent auto-responses
-- Smart conversation routing
-- Sentiment analysis
-- Language detection and translation
-- Automated FAQ responses
+1) Fork
 
-### 🎙️ **Voice Communication**
-- High-quality voice calls
-- Screen sharing capabilities
-- Call recording and transcription
-- Voice message support
+- Fork this repository on GitHub to your account.
 
-### 👥 **Team Management**
-- Agent dashboard and queue management
-- Role-based permissions
-- Performance analytics
-- Workload distribution
-- Team collaboration tools
-
-### 🛠️ **Developer Tools**
-- RESTful APIs and webhooks
-- SDK for multiple platforms
-- Comprehensive documentation
-- Real-time event streaming
-- Custom integrations
-
-### 📊 **Analytics & Reporting**
-- Conversation metrics
-- Response time tracking
-- Customer satisfaction scores
-- Agent performance insights
-- Custom reporting dashboards
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Node.js** (v18.0.0 or higher)
-- **MongoDB** (v5.0 or higher)
-- **Redis** (v6.0 or higher)
-- **Docker** (optional, recommended)
-
-### 🐋 Docker Setup (Recommended)
+2) Clone
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-org/voxora.git
+git clone <your-fork-url>
 cd voxora
-
-# Start with Docker Compose
-docker-compose up -d
-
-# The application will be available at:
-# API: http://localhost:3001
-# Dashboard: http://localhost:3000
 ```
 
-### 🔧 Manual Setup
+3) Environment files
+
+- Ensure both apps have .env files. You can copy development templates:
+	- apps/api: copy .env.development to .env (adjust if needed)
+	- apps/web: copy .env.development to .env (adjust if needed)
+
+4) Install dependencies
 
 ```bash
-# Install dependencies
-npm install
+npm i
+```
 
-# Setup environment variables
-cp .env.example .env
-# Edit .env with your configuration
+5) Start everything (Docker + dev servers)
 
-# Start the development servers
+```bash
+npm run dev:full
+```
+
+This will:
+
+- Start Redis, MongoDB, and Mongo Express in Docker
+- Run the web and API dev servers via Turborepo
+
+6) Open the apps
+
+- Web app: http://localhost:3000
+- API base: http://localhost:3002
+	- REST routes live under http://localhost:3002/api/v1
+	- Root health: http://localhost:3002/
+- Mongo Express: http://localhost:8081
+	- Note: Port 8081 is defined in docker/docker-compose.dev.yml
+- MailHog (Mail UI): http://localhost:8025
+	- SMTP server (for local email): localhost:1025
+
+Optional widget endpoints during development (served by API):
+
+- Widget HTML: http://localhost:3002/widget
+- Loader script: http://localhost:3002/widget-loader.js
+
+## Common scripts
+
+From the repository root:
+
+```bash
+# Start Docker services (Redis, MongoDB, Mongo Express) only
+npm run docker:start
+
+# Stop Docker services
+npm run docker:stop
+
+# Run all dev servers without starting Docker
 npm run dev
 
-# Or start individual services
-npm run dev:api     # Backend API (port 3001)
-npm run dev:web     # Dashboard (port 3000)
-npm run dev:widget  # Chat Widget (port 3002)
+# Build all packages/apps
+npm run build
+
+# Lint and format
+npm run lint
+npm run format
 ```
 
----
+## Notes
 
-## 📁 Project Structure
+- If ports are already in use, stop conflicting services or change ports in docker/docker-compose.dev.yml and env files.
+- For MongoDB auth locally, credentials are seeded in the .env files and docker-compose; see apps/api/.env.* and docker/docker-compose.dev.yml.
+- The web app uses Next.js with Turbopack in dev; if you hit issues, you can switch to the classic dev server by adjusting the script.
 
-```
-voxora/
-├── apps/
-│   ├── api/              # Backend API server
-│   ├── web/              # Admin dashboard (React)
-│   ├── widget/           # Chat widget (React)
-│   └── docs/             # Documentation site
-├── packages/
-│   ├── sdk/              # JavaScript SDK
-│   ├── ui/               # Shared UI components
-│   ├── types/            # TypeScript definitions
-│   └── config/           # Shared configuration
-├── docker-compose.yml    # Docker services
-└── package.json          # Monorepo configuration
-```
+## License
 
----
+TBD
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Fork and clone the repository
-git clone https://github.com/your-username/voxora.git
-cd voxora
-
-# Install dependencies
-npm install
-
-# Create a feature branch
-git checkout -b feature/amazing-feature
-
-# Make your changes and commit
-git commit -m "Add amazing feature"
-
-# Push and create a pull request
-git push origin feature/amazing-feature
-```
-
-### Code Style
-
-- **TypeScript** for type safety
-- **ESLint + Prettier** for code formatting
-- **Conventional Commits** for commit messages
-- **Jest** for testing
-
----
-
-## 📚 Documentation
-
-- 📖 [Full Documentation](https://docs.voxora.io)
-- 🚀 [Getting Started Guide](https://docs.voxora.io/getting-started)
-- 🔌 [API Reference](https://docs.voxora.io/api)
-- 🛠️ [SDK Documentation](https://docs.voxora.io/sdk)
-- 💡 [Examples & Tutorials](https://docs.voxora.io/examples)
-
----
-
-## 🌍 Community & Support
-
-- 💬 [Discord Community](https://discord.gg/voxora)
-- 📧 [Email Support](mailto:ompharate31@gmail.com)
-- 🐛 [Report Issues](https://github.com/voxora-io/voxora/issues)
-- 💡 [Feature Requests](https://github.com/voxora-io/voxora/discussions)
-
-
----
-
-## 📄 License
-
-Voxora is open-source software licensed under the [MIT License](LICENSE).
-
----
-
-## 🙏 Acknowledgments
-
-Built with ❤️ by the Voxora team and our amazing contributors.
-
-
-
-<div align="center">
-  <p>⭐ Star us on GitHub if Voxora helps you build better customer support!</p>
-  <p>Made with ❤️ for the developer community</p>
-</div>
