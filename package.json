@@ -23,7 +23,6 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "api/*",
-    "chat-simulation/*"
+    "api/*"
   ]
 }
