@@ -1,0 +1,61 @@
+name: "🚀 Feature request"
+description: "Suggest an idea for Voxora"
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe the problem and the solution you’d like.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I searched existing issues and didn’t find a duplicate
+          required: true
+        - label: I read the Contribution Guidelines
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What’s the user problem or need?
+      placeholder: Users cannot...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe how you’d like it to work
+      placeholder: Add ... so that ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope & constraints
+      description: In/out of scope, data, security, performance, UX constraints
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: Other approaches you’ve thought about
+
+  - type: textarea
+    id: ux
+    attributes:
+      label: UX/UI notes
+      description: Wireframes, screenshots, or rough sketches
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      placeholder: Links, related issues, or references
