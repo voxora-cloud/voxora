@@ -1,11 +1,10 @@
-    import { Message, Conversation } from "../../models";
+import { Message, Conversation } from "../../models";
 import logger from "../../utils/logger";
 
-export const handleMessage = ({socket, io}: {
+export const handleMessage = ({ socket, io }: {
     socket: any,
     io: any
 }) => {
-    // Handler for sending messages
     socket.on('send_message', async (data: {
         conversationId: string,
         content: string,
@@ -31,7 +30,7 @@ export const handleMessage = ({socket, io}: {
                 type,
                 metadata
             });
-            
+
             await message.save();
 
             // Update conversation's last activity
@@ -71,15 +70,15 @@ export const handleMessage = ({socket, io}: {
     socket.on('join_conversation', async (conversationId: string) => {
         try {
             const roomName = `conversation:${conversationId}`;
-            
+
             // Join the socket to the conversation room
             socket.join(roomName);
-            
+
             // If the joiner is an agent (has user data), update the conversation
             if (socket.data?.user?.role === 'agent' || socket.data?.user?.role === 'admin') {
                 // Update conversation with agent assignment
                 await Conversation.findByIdAndUpdate(conversationId, {
-                    $set: { 
+                    $set: {
                         assignedTo: socket.data.user.userId,
                         status: 'active'
                     }
@@ -91,7 +90,7 @@ export const handleMessage = ({socket, io}: {
                     agentId: socket.data.user.userId,
                     agentName: socket.data.user.name
                 });
-                
+
                 logger.info(`Agent ${socket.data.user.name} (${socket.data.user.userId}) joined conversation ${conversationId}`);
             } else {
                 logger.info(`Widget user ${socket.id} joined conversation ${conversationId}`);
@@ -112,12 +111,12 @@ export const handleMessage = ({socket, io}: {
     socket.on('typing_start', (data: { conversationId: string }) => {
         const { conversationId } = data;
         const roomName = `conversation:${conversationId}`;
-        
+
         // Determine if it's an agent or customer typing
         if (socket.data?.user?.role === 'agent' || socket.data?.user?.role === 'admin') {
-            socket.to(roomName).emit('agent_typing', { 
+            socket.to(roomName).emit('agent_typing', {
                 conversationId,
-                agentName: socket.data.user.name 
+                agentName: socket.data.user.name
             });
         } else {
             socket.to(roomName).emit('customer_typing', { conversationId });
@@ -127,7 +126,7 @@ export const handleMessage = ({socket, io}: {
     socket.on('typing_stop', (data: { conversationId: string }) => {
         const { conversationId } = data;
         const roomName = `conversation:${conversationId}`;
-        
+
         if (socket.data?.user?.role === 'agent' || socket.data?.user?.role === 'admin') {
             socket.to(roomName).emit('agent_stopped_typing', { conversationId });
         } else {

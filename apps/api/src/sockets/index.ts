@@ -7,10 +7,6 @@ import logger from '../utils/logger';
 import config from '../config';
 import { handleMessage } from './handlers/handlerMessage';
 
-// import { handleConnection } from './handlers/connectionHandler';
-// import { handleMessage } from './handlers/messageHandler';
-// import { handleConversation } from './handlers/conversationHandler';
-// import { handleTyping } from './handlers/typingHandler';
 
 let socketManagerInstance: SocketManager | null = null;
 
@@ -93,11 +89,9 @@ export class SocketManager {
       // Update user status to online
       this.updateUserStatus(socket.data.user.userId, 'online');
 
-      // Setup event handlers
-      // handleConnection(socket, this.io);
+
       handleMessage({socket, io: this.io});
-      // handleConversation(socket, this.io);
-      // handleTyping(socket, this.io);
+
 
       // Handle disconnection
       socket.on('disconnect', () => {
@@ -123,7 +117,6 @@ export class SocketManager {
       socket.on('update_status', async (status: string) => {
         await this.updateUserStatus(socket.data.user.userId, status);
         
-        // Broadcast status update to relevant conversations
         this.broadcastUserStatusUpdate(socket.data.user.userId, status);
       });
     });

@@ -54,7 +54,7 @@ router.post("/accept-invite",
 
 router.post('/refresh-token', refreshToken);
 
-// Protected routes
+// Protected routes. - below routes are authenticated
 router.use(authenticate);
 
 router.post('/logout', logout);

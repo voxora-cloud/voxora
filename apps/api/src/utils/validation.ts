@@ -1,4 +1,3 @@
-import { access } from 'fs';
 import Joi from 'joi';
 
 export const userValidation = {

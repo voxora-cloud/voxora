@@ -21,14 +21,11 @@ import { teamValidation, userValidation, queryValidation,widgetValidation } from
 
 const router = Router();
 
-// Apply authentication and authorization middleware
 router.use(authenticate);
 router.use(authorize(['admin']));
 
-// =================
-// TEAM ROUTES
-// =================
 
+// ** TEAM ROUTES **
 // Get all teams
 router.get('/teams', 
   validateRequest(queryValidation.pagination, 'query'), 
@@ -53,10 +50,8 @@ router.put('/teams/:id',
 // Delete team
 router.delete('/teams/:id', deleteTeam);
 
-// =================
-// AGENT ROUTES
-// =================
 
+// ** AGENT ROUTES **
 // Get all agents
 router.get('/agents', 
   validateRequest(queryValidation.agentFilters, 'query'), 
@@ -85,6 +80,7 @@ router.delete('/agents/:id', deleteAgent);
 router.post('/agents/:id/resend-invite', resendInvite);
 
 
+// ** WIDGET ROUTES **
 router.post("/create-widget", 
   validateRequest(widgetValidation.create), 
   createWidget
@@ -99,11 +95,7 @@ router.put("/widget",
   updateWidget
 );
 
-// =================
-// DASHBOARD ROUTES
-// =================
-
-// Dashboard stats
+// ** DASHBOARD ROUTES **
 router.get('/stats/dashboard', getDashboardStats);
 
 export default router;

@@ -1,8 +1,6 @@
 import mongoose from 'mongoose';
 import { User } from '../models/User';
-import { Team } from '../models/Team';
 import { Conversation } from '../models/Conversation';
-import { Message } from '../models/Message';
 import logger from '../utils/logger';
 
 export class AgentService {

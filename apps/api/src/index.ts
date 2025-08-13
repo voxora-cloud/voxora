@@ -32,6 +32,7 @@ class Application {
   
   private setupMiddleware(): void {
     // Security middleware
+    // Todo: Implement security best practices
     this.app.use(helmet({
       crossOriginEmbedderPolicy: false,
       contentSecurityPolicy: {
@@ -50,6 +51,7 @@ class Application {
     }));
 
     // CORS configuration
+    // Todo: Implement CORS best practices
     this.app.use(cors({
       origin: "*"
     }));
@@ -86,6 +88,7 @@ class Application {
     this.app.use('/api/v1', routes);
 
     // Serve HTML at /widget
+    // ** NOTE: temporary hosting cdn from this api server later cdn will seprately hosted
     this.app.get("/widget", (req, res) => {
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
@@ -93,8 +96,6 @@ class Application {
       res.sendFile(path.join(__dirname, "public", "widget.html"));
     });
 
-
-    // Serve JS loader at /widget-loader
     this.app.get("/widget-loader.js", (req, res) => {
       res.setHeader("Access-Control-Allow-Origin", "*");
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");

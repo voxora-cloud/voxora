@@ -13,15 +13,6 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-export interface WidgetAuthenticatedRequest extends Request {
-  widgetSession: {
-    publicKey: string;
-    origin: string;
-    sessionId: string;
-    type: string;
-  };
-}
-
 export const authenticate = async (
   req: Request,
   res: Response,
@@ -116,12 +107,7 @@ export const authenticateWidget = async (
       return;
     }
 
-    (req as WidgetAuthenticatedRequest).widgetSession = {
-      publicKey: decoded.publicKey,
-      origin: decoded.origin,
-      sessionId: decoded.sessionId,
-      type: decoded.type
-    };
+ 
 
     console.log(`Authenticated widget session: ${decoded.sessionId} for key: ${decoded.publicKey}`);
     next();

@@ -6,6 +6,8 @@ import { sendResponse, sendError, asyncHandler } from '../utils/response';
 const router = Router();
 
 // Get all conversations for an agent
+// Todo Move this into ConversationController
+
 router.get('/', auth, asyncHandler(async (req: Request, res: Response) => {
   try {
     const { status, limit = 50, offset = 0 } = req.query;
