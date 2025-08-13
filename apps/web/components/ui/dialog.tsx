@@ -10,10 +10,7 @@ interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
-const Dialog: React.FC<DialogProps> = ({
-  open = false,
-  children,
-}) => {
+const Dialog: React.FC<DialogProps> = ({ open = false, children }) => {
   if (!open) return null;
 
   return (

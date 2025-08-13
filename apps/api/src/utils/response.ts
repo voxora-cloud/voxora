@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from "express";
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -19,7 +19,7 @@ export const sendResponse = <T>(
   success: boolean,
   message: string,
   data?: T,
-  pagination?: ApiResponse['pagination']
+  pagination?: ApiResponse["pagination"],
 ): Response => {
   const response: ApiResponse<T> = {
     success,
@@ -35,7 +35,7 @@ export const sendError = (
   res: Response,
   statusCode: number,
   message: string,
-  error?: string
+  error?: string,
 ): Response => {
   const response: ApiResponse = {
     success: false,
@@ -49,9 +49,9 @@ export const sendError = (
 export const sendSuccess = <T>(
   res: Response,
   data?: T,
-  message: string = 'Success',
+  message: string = "Success",
   statusCode: number = 200,
-  pagination?: ApiResponse['pagination']
+  pagination?: ApiResponse["pagination"],
 ): Response => {
   const response: ApiResponse<T> = {
     success: true,
@@ -63,10 +63,7 @@ export const sendSuccess = <T>(
   return res.status(statusCode).json(response);
 };
 
-export const asyncHandler = (fn: Function) => (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
+export const asyncHandler =
+  (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };

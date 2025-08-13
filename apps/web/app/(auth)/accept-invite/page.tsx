@@ -18,36 +18,45 @@ const AcceptInvitePage = () => {
   const [success, setSuccess] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAcceptInvite = useCallback(async (inviteToken: string) => {
-    setIsLoading(true);
-    setError(null);
-    console.log("Starting invitation acceptance with token:", inviteToken);
+  const handleAcceptInvite = useCallback(
+    async (inviteToken: string) => {
+      setIsLoading(true);
+      setError(null);
+      console.log("Starting invitation acceptance with token:", inviteToken);
 
-    try {
-      // Even if the API fails, the record might be updated in the database
-      // Force success for testing - will check with the backend later
-      const result = await acceptInvite(inviteToken);
-      console.log("Invitation acceptance result:", result);
-      
-      // Always show success UI for now (since database is updating correctly)
-      setSuccess(true);
-      setIsLoading(false);
-    } catch (err: Error | unknown) {
-      console.error("Error accepting invitation:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to accept invitation. The link may be expired or invalid.";
-      
-      // If the error is likely due to the token being already used (invitation already accepted)
-      // This is a workaround until the API is fixed
-      if (errorMessage.includes("expired") || errorMessage.includes("invalid")) {
-        // Show success UI anyway if the database record was likely updated
+      try {
+        // Even if the API fails, the record might be updated in the database
+        // Force success for testing - will check with the backend later
+        const result = await acceptInvite(inviteToken);
+        console.log("Invitation acceptance result:", result);
+
+        // Always show success UI for now (since database is updating correctly)
         setSuccess(true);
-      } else {
-        setError(errorMessage);
-        setSuccess(false);
+        setIsLoading(false);
+      } catch (err: Error | unknown) {
+        console.error("Error accepting invitation:", err);
+        const errorMessage =
+          err instanceof Error
+            ? err.message
+            : "Failed to accept invitation. The link may be expired or invalid.";
+
+        // If the error is likely due to the token being already used (invitation already accepted)
+        // This is a workaround until the API is fixed
+        if (
+          errorMessage.includes("expired") ||
+          errorMessage.includes("invalid")
+        ) {
+          // Show success UI anyway if the database record was likely updated
+          setSuccess(true);
+        } else {
+          setError(errorMessage);
+          setSuccess(false);
+        }
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    }
-  }, [acceptInvite]);
+    },
+    [acceptInvite],
+  );
 
   useEffect(() => {
     if (token) {
@@ -65,7 +74,9 @@ const AcceptInvitePage = () => {
           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-lg">V</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Voxora Invitation</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            Voxora Invitation
+          </h1>
         </div>
 
         {isLoading ? (
@@ -76,9 +87,12 @@ const AcceptInvitePage = () => {
         ) : success === true ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
             <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Invitation Accepted!</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Invitation Accepted!
+            </h2>
             <p className="text-gray-600 mb-6">
-              Your account has been successfully activated. You can now log in to access your dashboard.
+              Your account has been successfully activated. You can now log in
+              to access your dashboard.
             </p>
             <div className="flex flex-col gap-3 w-full">
               <Link href="/login" className="w-full">
@@ -86,7 +100,11 @@ const AcceptInvitePage = () => {
                   Go to Login
                 </Button>
               </Link>
-              <Button variant="outline" className="w-full" onClick={() => router.push("/")}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push("/")}
+              >
                 Return to Homepage
               </Button>
             </div>
@@ -94,7 +112,9 @@ const AcceptInvitePage = () => {
         ) : success === false ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
             <XCircle className="h-16 w-16 text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Something went wrong
+            </h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <div className="flex flex-col gap-3 w-full">
               <Link href="/login" className="w-full">
@@ -102,7 +122,11 @@ const AcceptInvitePage = () => {
                   Go to Login
                 </Button>
               </Link>
-              <Button variant="outline" className="w-full" onClick={() => router.push("/")}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push("/")}
+              >
                 Return to Homepage
               </Button>
             </div>

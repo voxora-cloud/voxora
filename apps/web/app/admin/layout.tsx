@@ -16,7 +16,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
     return "overview";
   });
-  
+
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [teams, setTeams] = React.useState<Team[]>([]);
   const [agents, setAgents] = React.useState<Agent[]>([]);
@@ -27,21 +27,23 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       window.location.href = "/login";
     }
   }, [isAuthenticated, isLoading]);
-  
+
   useEffect(() => {
     // Only fetch data if authenticated and admin
     if (isAuthenticated && user?.role === "admin") {
       // Load teams and agents for counts
       const fetchData = async () => {
         try {
-          const apiService = await import("@/lib/api").then(m => m.apiService);
-          
+          const apiService = await import("@/lib/api").then(
+            (m) => m.apiService,
+          );
+
           // Get teams
           const teamsResponse = await apiService.getTeams();
           if (teamsResponse.success) {
             setTeams(teamsResponse.data.teams);
           }
-          
+
           // Get agents
           const agentsResponse = await apiService.getAgents();
           if (agentsResponse.success) {
@@ -51,7 +53,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           console.error("Error loading admin sidebar data:", error);
         }
       };
-      
+
       fetchData();
     }
   }, [isAuthenticated, user?.role]);
@@ -101,7 +103,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             >
               <BarChart3 className="h-5 w-5 mr-3" />
               <span className="flex-1 text-left">Dashboard</span>
-            
             </Button>
 
             <Button

@@ -1,14 +1,14 @@
-import { Request, Response, NextFunction } from 'express';
-import rateLimit from 'express-rate-limit';
-import config from '../config';
-import logger from '../utils/logger';
+import { Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
+import config from "../config";
+import logger from "../utils/logger";
 
 export const globalRateLimit = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.maxRequests,
   message: {
     success: false,
-    message: 'Too many requests, please try again later.',
+    message: "Too many requests, please try again later.",
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -19,7 +19,7 @@ export const authRateLimit = rateLimit({
   max: 5, // 5 attempts per window
   message: {
     success: false,
-    message: 'Too many authentication attempts, please try again later.',
+    message: "Too many authentication attempts, please try again later.",
   },
   skipSuccessfulRequests: true,
 });
@@ -28,9 +28,9 @@ export const errorHandler = (
   error: Error,
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void => {
-  logger.error('Error occurred:', {
+  logger.error("Error occurred:", {
     error: error.message,
     stack: error.stack,
     url: req.url,
@@ -39,14 +39,13 @@ export const errorHandler = (
   });
 
   const statusCode = (error as any).statusCode || 500;
-  const message = config.app.env === 'production' 
-    ? 'Something went wrong!' 
-    : error.message;
+  const message =
+    config.app.env === "production" ? "Something went wrong!" : error.message;
 
   res.status(statusCode).json({
     success: false,
     message,
-    ...(config.app.env !== 'production' && { stack: error.stack }),
+    ...(config.app.env !== "production" && { stack: error.stack }),
   });
 };
 

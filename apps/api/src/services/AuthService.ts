@@ -1,6 +1,6 @@
-import { User, IUser } from '../models';
-import { generateTokens } from '../utils/auth';
-import { redisClient } from '../config/redis';
+import { User, IUser } from "../models";
+import { generateTokens } from "../utils/auth";
+import { redisClient } from "../config/redis";
 
 export class AuthService {
   static async register(userData: {
@@ -8,11 +8,14 @@ export class AuthService {
     email: string;
     password: string;
     role?: string;
-  }): Promise<{ user: IUser; tokens: { accessToken: string; refreshToken: string } }> {
+  }): Promise<{
+    user: IUser;
+    tokens: { accessToken: string; refreshToken: string };
+  }> {
     // Check if user already exists
     const existingUser = await User.findOne({ email: userData.email });
     if (existingUser) {
-      throw new Error('User already exists with this email');
+      throw new Error("User already exists with this email");
     }
 
     // Create new user
@@ -30,30 +33,35 @@ export class AuthService {
     await redisClient.setEx(
       `refresh_token:${user._id}`,
       30 * 24 * 60 * 60, // 30 days
-      tokens.refreshToken
+      tokens.refreshToken,
     );
 
     return { user, tokens };
   }
 
-  static async login(email: string, password: string): Promise<{
+  static async login(
+    email: string,
+    password: string,
+  ): Promise<{
     user: IUser;
     tokens: { accessToken: string; refreshToken: string };
   }> {
     // Find user by email
-    const user = await User.findOne({ email, isActive: true }).select('+password');
+    const user = await User.findOne({ email, isActive: true }).select(
+      "+password",
+    );
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw new Error("Invalid credentials");
     }
 
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
+      throw new Error("Invalid credentials");
     }
 
     // Update user status and last seen
-    user.status = 'online';
+    user.status = "online";
     user.lastSeen = new Date();
     await user.save();
 
@@ -68,7 +76,7 @@ export class AuthService {
     await redisClient.setEx(
       `refresh_token:${user._id}`,
       30 * 24 * 60 * 60, // 30 days
-      tokens.refreshToken
+      tokens.refreshToken,
     );
 
     return { user, tokens };
@@ -77,7 +85,7 @@ export class AuthService {
   static async logout(userId: string): Promise<void> {
     // Update user status
     await User.findByIdAndUpdate(userId, {
-      status: 'offline',
+      status: "offline",
       lastSeen: new Date(),
     });
 
@@ -91,7 +99,7 @@ export class AuthService {
   }> {
     // This would typically involve verifying the refresh token
     // and generating new tokens
-    throw new Error('Refresh token functionality not implemented yet');
+    throw new Error("Refresh token functionality not implemented yet");
   }
 
   // =================
@@ -102,25 +110,26 @@ export class AuthService {
     const { name, email, password, companyName } = userData;
 
     // Check if any admin already exists
-    const existingAdmin = await User.findOne({ 
-      role: 'admin' 
+    const existingAdmin = await User.findOne({
+      role: "admin",
     });
 
     if (existingAdmin) {
-      return { 
-        success: false, 
-        message: 'Admin account already exists. Only one admin per organization.', 
-        statusCode: 400 
+      return {
+        success: false,
+        message:
+          "Admin account already exists. Only one admin per organization.",
+        statusCode: 400,
       };
     }
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return { 
-        success: false, 
-        message: 'Email already registered', 
-        statusCode: 400 
+      return {
+        success: false,
+        message: "Email already registered",
+        statusCode: 400,
       };
     }
 
@@ -129,11 +138,16 @@ export class AuthService {
       name,
       email,
       password,
-      role: 'admin',
+      role: "admin",
       isActive: true,
       emailVerified: true,
       companyName,
-      permissions: ['manage_teams', 'manage_agents', 'view_analytics', 'manage_settings']
+      permissions: [
+        "manage_teams",
+        "manage_agents",
+        "view_analytics",
+        "manage_settings",
+      ],
     });
 
     await admin.save();
@@ -153,10 +167,10 @@ export class AuthService {
           name: admin.name,
           email: admin.email,
           role: admin.role,
-          companyName: admin.companyName
+          companyName: admin.companyName,
         },
-        token: tokens.accessToken
-      }
+        token: tokens.accessToken,
+      },
     };
   }
 
@@ -166,15 +180,15 @@ export class AuthService {
     // Find admin user
     const admin = await User.findOne({
       email,
-      role: { $in: ['admin', 'founder'] },
-      isActive: true
-    }).select('+password');
+      role: { $in: ["admin", "founder"] },
+      isActive: true,
+    }).select("+password");
 
     if (!admin || !(await admin.comparePassword(password))) {
-      return { 
-        success: false, 
-        message: 'Invalid email or password', 
-        statusCode: 401 
+      return {
+        success: false,
+        message: "Invalid email or password",
+        statusCode: 401,
       };
     }
 
@@ -198,10 +212,10 @@ export class AuthService {
           email: admin.email,
           role: admin.role,
           companyName: admin.companyName,
-          permissions: admin.permissions
+          permissions: admin.permissions,
         },
-        token: tokens.accessToken
-      }
+        token: tokens.accessToken,
+      },
     };
   }
 
@@ -211,30 +225,32 @@ export class AuthService {
     // Find agent user
     const agent = await User.findOne({
       email,
-      role: { $in: ['agent', 'admin'] },
-      isActive: true
-    }).select('+password').populate('teams', 'name color');
+      role: { $in: ["agent", "admin"] },
+      isActive: true,
+    })
+      .select("+password")
+      .populate("teams", "name color");
 
     if (!agent || !(await agent.comparePassword(password))) {
-      return { 
-        success: false, 
-        message: 'Invalid email or password', 
-        statusCode: 401 
+      return {
+        success: false,
+        message: "Invalid email or password",
+        statusCode: 401,
       };
     }
 
     // Check if agent invitation is still pending
-    if (agent.inviteStatus === 'pending') {
-      return { 
-        success: false, 
-        message: 'Please accept your invitation first', 
-        statusCode: 403 
+    if (agent.inviteStatus === "pending") {
+      return {
+        success: false,
+        message: "Please accept your invitation first",
+        statusCode: 403,
       };
     }
 
     // Update last login and status
     agent.lastSeen = new Date();
-    agent.status = 'online';
+    agent.status = "online";
     await agent.save();
 
     // Generate JWT token
@@ -254,25 +270,25 @@ export class AuthService {
           role: agent.role,
           teams: agent.teams,
           permissions: agent.permissions,
-          status: agent.status
+          status: agent.status,
         },
-        token: tokens.accessToken
-      }
+        token: tokens.accessToken,
+      },
     };
   }
 
   async forgotPassword(email: string) {
     const user = await User.findOne({ email, isActive: true });
-    
+
     if (user) {
       // Generate reset token
-      const resetToken = require('crypto').randomBytes(32).toString('hex');
+      const resetToken = require("crypto").randomBytes(32).toString("hex");
       user.resetPasswordToken = resetToken;
       user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
       await user.save();
 
       // Send password reset email
-      const emailService = require('./EmailService').default;
+      const emailService = require("./EmailService").default;
       await emailService.sendPasswordResetEmail(email, user.name, resetToken);
     }
 
@@ -282,12 +298,12 @@ export class AuthService {
 
   async resetPassword(userId: string, newPassword: string) {
     const user = await User.findById(userId);
-    
+
     if (!user) {
-      return { 
-        success: false, 
-        message: 'User not found', 
-        statusCode: 404 
+      return {
+        success: false,
+        message: "User not found",
+        statusCode: 404,
       };
     }
 
@@ -307,28 +323,32 @@ export class AuthService {
     return {
       success: true,
       data: {
-        token: tokens.accessToken
-      }
+        token: tokens.accessToken,
+      },
     };
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
-    const user = await User.findById(userId).select('+password');
-    
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await User.findById(userId).select("+password");
+
     if (!user) {
-      return { 
-        success: false, 
-        message: 'User not found', 
-        statusCode: 404 
+      return {
+        success: false,
+        message: "User not found",
+        statusCode: 404,
       };
     }
 
     // Verify current password
     if (!(await user.comparePassword(currentPassword))) {
-      return { 
-        success: false, 
-        message: 'Current password is incorrect', 
-        statusCode: 400 
+      return {
+        success: false,
+        message: "Current password is incorrect",
+        statusCode: 400,
       };
     }
 
@@ -341,20 +361,23 @@ export class AuthService {
 
   async acceptInvite(token: string) {
     // Find user by invite token
-    const user = await User.findOne({ emailVerificationToken: token, inviteStatus: 'pending' });
-    console.log('User found for invite:', user);
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      inviteStatus: "pending",
+    });
+    console.log("User found for invite:", user);
     if (!user) {
-      return { 
-        success: false, 
-        message: 'Invalid or expired invitation token', 
-        statusCode: 400 
+      return {
+        success: false,
+        message: "Invalid or expired invitation token",
+        statusCode: 400,
       };
     }
 
     // Update user status and clear invite token
-    user.inviteStatus = 'active';
+    user.inviteStatus = "active";
     user.emailVerificationToken = undefined;
-    user.status = 'online';
+    user.status = "online";
     await user.save();
 
     // Generate JWT token
@@ -373,10 +396,10 @@ export class AuthService {
           email: user.email,
           role: user.role,
           teams: user.teams,
-          status: user.status
+          status: user.status,
         },
-        token: tokens.accessToken
-      }
+        token: tokens.accessToken,
+      },
     };
   }
 }

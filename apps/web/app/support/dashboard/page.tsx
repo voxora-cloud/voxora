@@ -1,5 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card"
-import { MessageCircle } from "lucide-react"
+import { Card, CardContent } from "@/components/ui/card";
+import { MessageCircle } from "lucide-react";
 
 export default function SupportDashboardPage() {
   return (
@@ -16,5 +16,5 @@ export default function SupportDashboardPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

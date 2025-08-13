@@ -1,33 +1,41 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mail, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react"
-import { apiService } from "@/lib/api"
-import Link from "next/link"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Mail, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
+import { apiService } from "@/lib/api";
+import Link from "next/link";
 
 export function ForgotPasswordForm() {
-  const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
-  const [error, setError] = useState("")
+  const [email, setEmail] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
     try {
-      await apiService.forgotPassword(email)
-      setIsSuccess(true)
+      await apiService.forgotPassword(email);
+      setIsSuccess(true);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to send reset email")
+      setError(
+        error instanceof Error ? error.message : "Failed to send reset email",
+      );
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   if (isSuccess) {
     return (
@@ -48,12 +56,12 @@ export function ForgotPasswordForm() {
             Didn&apos;t receive the email? Check your spam folder or try again.
           </div>
           <div className="space-y-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => {
-                setIsSuccess(false)
-                setEmail("")
+                setIsSuccess(false);
+                setEmail("");
               }}
             >
               Try again
@@ -67,7 +75,7 @@ export function ForgotPasswordForm() {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
   return (
@@ -75,12 +83,17 @@ export function ForgotPasswordForm() {
       <CardHeader className="space-y-1">
         <div className="flex items-center justify-center mb-4">
           <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-2xl font-bold text-primary-foreground">V</span>
+            <span className="text-2xl font-bold text-primary-foreground">
+              V
+            </span>
           </div>
         </div>
-        <CardTitle className="text-2xl text-center">Forgot your password?</CardTitle>
+        <CardTitle className="text-2xl text-center">
+          Forgot your password?
+        </CardTitle>
         <CardDescription className="text-center">
-          Enter your email address and we&apos;ll send you a link to reset your password.
+          Enter your email address and we&apos;ll send you a link to reset your
+          password.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -94,7 +107,10 @@ export function ForgotPasswordForm() {
           )}
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-foreground"
+            >
               Email Address
             </label>
             <div className="relative">
@@ -125,5 +141,5 @@ export function ForgotPasswordForm() {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

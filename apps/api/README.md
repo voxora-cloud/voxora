@@ -5,6 +5,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 ## Features
 
 ### Core Features
+
 - ✅ Real-time messaging with Socket.IO
 - ✅ Redis adapter for horizontal scaling
 - ✅ MongoDB for data persistence
@@ -23,6 +24,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 ### API Endpoints
 
 #### Authentication
+
 - `POST /api/v1/auth/register` - Register new user
 - `POST /api/v1/auth/login` - User login
 - `POST /api/v1/auth/logout` - User logout
@@ -30,6 +32,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 - `GET /api/v1/auth/profile` - Get user profile
 
 #### Conversations
+
 - `POST /api/v1/conversations` - Create conversation
 - `GET /api/v1/conversations` - Get user conversations
 - `GET /api/v1/conversations/:id` - Get conversation by ID
@@ -38,6 +41,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 - `POST /api/v1/conversations/:id/close` - Close conversation
 
 #### Messages
+
 - `POST /api/v1/messages` - Send message
 - `GET /api/v1/messages/conversation/:id` - Get conversation messages
 - `PUT /api/v1/messages/:id` - Edit message
@@ -48,6 +52,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 ### Socket.IO Events
 
 #### Connection Events
+
 - `connect` - User connected
 - `disconnect` - User disconnected
 - `join_conversation` - Join conversation room
@@ -55,6 +60,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 - `update_status` - Update user status
 
 #### Message Events
+
 - `send_message` - Send new message
 - `new_message` - Receive new message
 - `edit_message` - Edit existing message
@@ -65,6 +71,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 - `message_read` - Message read receipt
 
 #### Conversation Events
+
 - `create_conversation` - Create new conversation
 - `conversation_created` - Conversation was created
 - `update_conversation` - Update conversation
@@ -75,6 +82,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 - `conversation_closed` - Conversation was closed
 
 #### Typing Events
+
 - `typing_start` - User started typing
 - `user_typing_start` - Someone started typing
 - `typing_stop` - User stopped typing
@@ -85,6 +93,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
 ## Setup Instructions
 
 ### Prerequisites
+
 - Node.js (v18 or higher)
 - MongoDB (v6 or higher)
 - Redis (v6 or higher)
@@ -92,12 +101,14 @@ A real-time chat support application backend built with Node.js, Express, Socket
 ### Installation
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 2. **Environment setup:**
    Copy `.env.example` to `.env` and configure:
+
    ```env
    NODE_ENV=development
    PORT=3001
@@ -108,6 +119,7 @@ A real-time chat support application backend built with Node.js, Express, Socket
    ```
 
 3. **Start services:**
+
    ```bash
    # Start MongoDB (if not running as service)
    mongod
@@ -180,29 +192,34 @@ src/
 ### Database Design
 
 #### Users Collection
+
 - User authentication and profile information
 - Roles: user, agent, admin
 - Status tracking (online, away, busy, offline)
 
 #### Conversations Collection
+
 - Chat conversations between users and agents
 - Status tracking (open, pending, resolved, closed)
 - Assignment to agents
 - Priority levels and tags
 
 #### Messages Collection
+
 - Individual messages within conversations
 - Support for text, files, images, and system messages
 - Read receipts and edit history
 - Soft delete functionality
 
 ### Redis Usage
+
 - Socket.IO adapter for horizontal scaling
 - Session storage for refresh tokens
 - Caching for frequently accessed data
 - Pub/sub for real-time notifications
 
 ### Security Features
+
 - JWT authentication with refresh tokens
 - Password hashing with bcrypt
 - Rate limiting on API endpoints

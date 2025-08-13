@@ -10,12 +10,16 @@ import { apiService } from "@/lib/api";
 import { AgentFormData } from "@/lib/interfaces/admin";
 import { Input } from "@/components/ui/input";
 
-function AgentDetailModal({ agent, isOpen, onClose }: {
-  agent: Agent | null
-  isOpen: boolean
-  onClose: () => void
+function AgentDetailModal({
+  agent,
+  isOpen,
+  onClose,
+}: {
+  agent: Agent | null;
+  isOpen: boolean;
+  onClose: () => void;
 }) {
-  if (!isOpen || !agent) return null
+  if (!isOpen || !agent) return null;
 
   return (
     <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
@@ -26,7 +30,7 @@ function AgentDetailModal({ agent, isOpen, onClose }: {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-6">
           {/* Agent Header */}
           <div className="flex items-center space-x-4">
@@ -34,21 +38,27 @@ function AgentDetailModal({ agent, isOpen, onClose }: {
               {agent.name?.charAt(0) || agent.email.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h3 className="text-xl font-semibold">{agent.name || agent.email}</h3>
+              <h3 className="text-xl font-semibold">
+                {agent.name || agent.email}
+              </h3>
               <p className="text-gray-600">{agent.email}</p>
               <div className="flex items-center space-x-2 mt-2">
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  agent.role === 'admin' 
-                    ? 'bg-purple-100 text-purple-800' 
-                    : 'bg-blue-100 text-blue-800'
-                }`}>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    agent.role === "admin"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
                   {agent.role}
                 </span>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  agent.status === 'online' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    agent.status === "online"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
                   {agent.status}
                 </span>
               </div>
@@ -59,14 +69,18 @@ function AgentDetailModal({ agent, isOpen, onClose }: {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">Account Status</h4>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  agent.inviteStatus === 'active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : agent.inviteStatus === 'pending'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
+                <h4 className="font-medium text-gray-900 mb-2">
+                  Account Status
+                </h4>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    agent.inviteStatus === "active"
+                      ? "bg-green-100 text-green-800"
+                      : agent.inviteStatus === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-gray-100 text-gray-800"
+                  }`}
+                >
                   {agent.inviteStatus}
                 </span>
               </div>
@@ -83,22 +97,29 @@ function AgentDetailModal({ agent, isOpen, onClose }: {
                 </p>
               </div>
             </div>
-            
+
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Teams ({agent.teams?.length || 0})</h4>
+              <h4 className="font-medium text-gray-900 mb-2">
+                Teams ({agent.teams?.length || 0})
+              </h4>
               <div className="space-y-2">
                 {agent.teams && agent.teams.length > 0 ? (
                   agent.teams.map((team) => (
-                    <div key={team._id} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                      <div 
+                    <div
+                      key={team._id}
+                      className="flex items-center space-x-2 p-2 bg-gray-50 rounded"
+                    >
+                      <div
                         className="w-4 h-4 rounded"
-                        style={{ backgroundColor: team.color || '#3b82f6' }}
+                        style={{ backgroundColor: team.color || "#3b82f6" }}
                       ></div>
                       <span className="text-sm">{team.name}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-gray-500">Not assigned to any teams</p>
+                  <p className="text-sm text-gray-500">
+                    Not assigned to any teams
+                  </p>
                 )}
               </div>
             </div>
@@ -120,7 +141,7 @@ export default function AgentPage() {
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all"); // "all", "online", "offline", "busy"
@@ -130,7 +151,7 @@ export default function AgentPage() {
     fetchAgents();
     fetchTeams();
   }, []);
-  
+
   // Apply filters to agents
   useEffect(() => {
     if (!agents.length) {
@@ -139,25 +160,27 @@ export default function AgentPage() {
     }
 
     let result = [...agents];
-    
+
     // Apply search filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter(agent => 
-        agent.name.toLowerCase().includes(query) || 
-        agent.email.toLowerCase().includes(query)
+      result = result.filter(
+        (agent) =>
+          agent.name.toLowerCase().includes(query) ||
+          agent.email.toLowerCase().includes(query),
       );
     }
 
     // Apply status filter
     if (statusFilter !== "all") {
-      result = result.filter(agent => agent.status === statusFilter);
+      result = result.filter((agent) => agent.status === statusFilter);
     }
 
     // Apply team filter
     if (teamFilter !== "all") {
-      result = result.filter(agent => 
-        agent.teams && agent.teams.some(team => team._id === teamFilter)
+      result = result.filter(
+        (agent) =>
+          agent.teams && agent.teams.some((team) => team._id === teamFilter),
       );
     }
 
@@ -198,9 +221,9 @@ export default function AgentPage() {
       const response = await apiService.inviteAgent({
         name: data.name,
         email: data.email,
-        role: 'agent',
+        role: "agent",
         teamIds: data.teamIds,
-        password: data.password
+        password: data.password,
       });
       if (response.success) {
         setShowCreateModal(false);
@@ -222,7 +245,7 @@ export default function AgentPage() {
     try {
       const response = await apiService.updateAgent(selectedAgent._id, {
         name: data.name,
-        teamIds: data.teamIds
+        teamIds: data.teamIds,
       });
       if (response.success) {
         setShowEditModal(false);
@@ -240,7 +263,7 @@ export default function AgentPage() {
 
   const handleDeleteAgent = async (agentId: string) => {
     if (!confirm("Are you sure you want to delete this agent?")) return;
-    
+
     try {
       const response = await apiService.deleteAgent(agentId);
       if (response.success) {
@@ -311,32 +334,32 @@ export default function AgentPage() {
             <span className="text-sm font-medium mr-2">Status:</span>
             <div className="flex gap-1">
               <Button
-                variant={statusFilter === 'all' ? 'default' : 'outline'}
+                variant={statusFilter === "all" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatusFilter('all')}
+                onClick={() => setStatusFilter("all")}
               >
                 All
               </Button>
               <Button
-                variant={statusFilter === 'online' ? 'default' : 'outline'}
+                variant={statusFilter === "online" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatusFilter('online')}
+                onClick={() => setStatusFilter("online")}
                 className="text-green-600 border-green-200"
               >
                 Online
               </Button>
               <Button
-                variant={statusFilter === 'busy' ? 'default' : 'outline'}
+                variant={statusFilter === "busy" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatusFilter('busy')}
+                onClick={() => setStatusFilter("busy")}
                 className="text-amber-600 border-amber-200"
               >
                 Busy
               </Button>
               <Button
-                variant={statusFilter === 'offline' ? 'default' : 'outline'}
+                variant={statusFilter === "offline" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatusFilter('offline')}
+                onClick={() => setStatusFilter("offline")}
                 className="text-gray-600 border-gray-200"
               >
                 Offline
@@ -350,23 +373,23 @@ export default function AgentPage() {
               <span className="text-sm font-medium mr-2">Team:</span>
               <div className="flex gap-1">
                 <Button
-                  variant={teamFilter === 'all' ? 'default' : 'outline'}
+                  variant={teamFilter === "all" ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setTeamFilter('all')}
+                  onClick={() => setTeamFilter("all")}
                 >
                   All Teams
                 </Button>
-                {teams.map(team => (
+                {teams.map((team) => (
                   <Button
                     key={team._id}
-                    variant={teamFilter === team._id ? 'default' : 'outline'}
+                    variant={teamFilter === team._id ? "default" : "outline"}
                     size="sm"
                     onClick={() => setTeamFilter(team._id)}
                     className="flex items-center gap-1"
                   >
                     <div
                       className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: team.color || '#3b82f6' }}
+                      style={{ backgroundColor: team.color || "#3b82f6" }}
                     ></div>
                     {team.name}
                   </Button>
@@ -379,11 +402,13 @@ export default function AgentPage() {
 
       {loading ? (
         <div className="grid grid-cols-1 gap-6">
-          {Array(3).fill(0).map((_, i) => (
-            <Card key={i} className="p-6">
-              <div className="animate-pulse h-24"></div>
-            </Card>
-          ))}
+          {Array(3)
+            .fill(0)
+            .map((_, i) => (
+              <Card key={i} className="p-6">
+                <div className="animate-pulse h-24"></div>
+              </Card>
+            ))}
         </div>
       ) : filteredAgents.length > 0 ? (
         <Card>
@@ -400,14 +425,20 @@ export default function AgentPage() {
               </thead>
               <tbody>
                 {filteredAgents.map((agent) => (
-                  <tr key={agent._id} className="border-t border-gray-200 hover:bg-gray-50">
+                  <tr
+                    key={agent._id}
+                    className="border-t border-gray-200 hover:bg-gray-50"
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
-                          {agent.name?.charAt(0) || agent.email.charAt(0).toUpperCase()}
+                          {agent.name?.charAt(0) ||
+                            agent.email.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p className="font-medium">{agent.name || "No name"}</p>
+                          <p className="font-medium">
+                            {agent.name || "No name"}
+                          </p>
                           <p className="text-xs text-gray-500">{agent.email}</p>
                         </div>
                       </div>
@@ -418,8 +449,8 @@ export default function AgentPage() {
                           agent.inviteStatus === "active"
                             ? "bg-green-100 text-green-800"
                             : agent.inviteStatus === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-gray-100 text-gray-800"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
                         }`}
                       >
                         {agent.inviteStatus}
@@ -430,31 +461,39 @@ export default function AgentPage() {
                         {agent.teams && agent.teams.length > 0 ? (
                           <>
                             {agent.teams.slice(0, 3).map((team) => (
-                              <div 
+                              <div
                                 key={team._id}
                                 className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: team.color || '#3b82f6' }}
+                                style={{
+                                  backgroundColor: team.color || "#3b82f6",
+                                }}
                                 title={team.name}
                               ></div>
                             ))}
                             {agent.teams.length > 3 && (
-                              <span className="text-xs text-gray-500">+{agent.teams.length - 3} more</span>
+                              <span className="text-xs text-gray-500">
+                                +{agent.teams.length - 3} more
+                              </span>
                             )}
                           </>
                         ) : (
-                          <span className="text-xs text-gray-500">No teams</span>
+                          <span className="text-xs text-gray-500">
+                            No teams
+                          </span>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-sm">
-                      {agent.lastActive ? new Date(agent.lastActive).toLocaleString() : 'Never'}
+                      {agent.lastActive
+                        ? new Date(agent.lastActive).toLocaleString()
+                        : "Never"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end space-x-2">
                         {agent.inviteStatus === "pending" && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
+                          <Button
+                            variant="outline"
+                            size="sm"
                             className="text-yellow-600 hover:text-yellow-700"
                             onClick={() => handleResendInvite(agent._id)}
                           >
@@ -462,22 +501,22 @@ export default function AgentPage() {
                             Resend
                           </Button>
                         )}
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => openDetailModal(agent)}
                         >
                           <User className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => openEditModal(agent)}
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="text-red-600 hover:text-red-700"
                           onClick={() => handleDeleteAgent(agent._id)}
@@ -497,11 +536,15 @@ export default function AgentPage() {
           <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
             <User className="h-6 w-6 text-gray-500" />
           </div>
-          
+
           {agents.length === 0 ? (
             <>
-              <h3 className="text-lg font-medium text-gray-900">No agents added yet</h3>
-              <p className="text-gray-500 mt-1">Invite agents to start managing your support team</p>
+              <h3 className="text-lg font-medium text-gray-900">
+                No agents added yet
+              </h3>
+              <p className="text-gray-500 mt-1">
+                Invite agents to start managing your support team
+              </p>
               <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Invite Agent
@@ -509,11 +552,15 @@ export default function AgentPage() {
             </>
           ) : (
             <>
-              <h3 className="text-lg font-medium text-gray-900">No matching agents found</h3>
-              <p className="text-gray-500 mt-1">Try changing your search criteria or filters</p>
-              <Button 
-                variant="outline" 
-                className="mt-4" 
+              <h3 className="text-lg font-medium text-gray-900">
+                No matching agents found
+              </h3>
+              <p className="text-gray-500 mt-1">
+                Try changing your search criteria or filters
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4"
                 onClick={() => {
                   setSearchQuery("");
                   setStatusFilter("all");
@@ -532,7 +579,11 @@ export default function AgentPage() {
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Invite New Agent</h2>
-            <Button variant="ghost" size="sm" onClick={() => setShowCreateModal(false)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCreateModal(false)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -550,7 +601,11 @@ export default function AgentPage() {
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Edit Agent</h2>
-            <Button variant="ghost" size="sm" onClick={() => setShowEditModal(false)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditModal(false)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -573,4 +628,3 @@ export default function AgentPage() {
     </div>
   );
 }
- 

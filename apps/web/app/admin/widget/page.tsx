@@ -31,7 +31,7 @@ export default function CreateWidgetPage() {
       "http://localhost:3002/widget-loader.js";
     script.setAttribute(
       "data-voxora-public-key",
-      formData._id ? formData._id : "will-be-generated"
+      formData._id ? formData._id : "will-be-generated",
     );
     document.body.appendChild(script);
   }, [formData._id]);

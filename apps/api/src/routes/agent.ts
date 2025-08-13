@@ -1,7 +1,7 @@
-import { Router } from 'express';
+import { Router } from "express";
 
-import { authenticate, authorize, validateRequest } from '../middleware';
-import { userValidation } from '../utils/validation';
+import { authenticate, authorize, validateRequest } from "../middleware";
+import { userValidation } from "../utils/validation";
 import {
   getProfile,
   updateProfile,
@@ -9,35 +9,34 @@ import {
   getTeams,
   getTeamMembers,
   getStats,
-} from '../controllers/agentController';
+} from "../controllers/agentController";
 
 const router = Router();
 
-
 router.use(authenticate);
-router.use(authorize(['agent']));
-
+router.use(authorize(["agent"]));
 
 // ** AGENT PROFILE **
 
 // Get agent profile
-router.get('/profile', getProfile);
+router.get("/profile", getProfile);
 
 // Update agent profile
-router.put('/profile', 
-  validateRequest(userValidation.updateProfile), 
-  updateProfile
+router.put(
+  "/profile",
+  validateRequest(userValidation.updateProfile),
+  updateProfile,
 );
 
 // Update agent status
-router.patch('/status', 
-  validateRequest(userValidation.updateStatus), 
-  updateStatus
+router.patch(
+  "/status",
+  validateRequest(userValidation.updateStatus),
+  updateStatus,
 );
 
-
-router.get('/teams', getTeams);
-router.get('/teams/:id/members', getTeamMembers);
-router.get('/stats', getStats);
+router.get("/teams", getTeams);
+router.get("/teams/:id/members", getTeamMembers);
+router.get("/stats", getStats);
 
 export default router;

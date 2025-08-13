@@ -1,6 +1,6 @@
-import nodemailer from 'nodemailer';
-import config from '../config';
-import logger from '../utils/logger';
+import nodemailer from "nodemailer";
+import config from "../config";
+import logger from "../utils/logger";
 
 export interface EmailOptions {
   to: string;
@@ -17,10 +17,12 @@ class EmailService {
       host: config.email.host,
       port: config.email.port,
       secure: config.email.secure,
-      auth: config.email.auth.user ? {
-        user: config.email.auth.user,
-        pass: config.email.auth.pass,
-      } : undefined,
+      auth: config.email.auth.user
+        ? {
+            user: config.email.auth.user,
+            pass: config.email.auth.pass,
+          }
+        : undefined,
     });
   }
 
@@ -35,8 +37,8 @@ class EmailService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      
-      logger.info('Email sent successfully', {
+
+      logger.info("Email sent successfully", {
         to: options.to,
         subject: options.subject,
         messageId: info.messageId,
@@ -44,18 +46,24 @@ class EmailService {
 
       return true;
     } catch (error) {
-      logger.error('Failed to send email', {
+      logger.error("Failed to send email", {
         to: options.to,
         subject: options.subject,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       });
       return false;
     }
   }
 
-  async sendInviteEmail(to: string, inviterName: string, role: string, token: string, teamNames: string): Promise<boolean> {
+  async sendInviteEmail(
+    to: string,
+    inviterName: string,
+    role: string,
+    token: string,
+    teamNames: string,
+  ): Promise<boolean> {
     const inviteUrl = `${config.app.frontendUrl}/accept-invite?token=${token}`;
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -76,11 +84,17 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>🎉 You're Invited!</h1>
-            <p>Join the Voxora ${teamNames.split(', ').map(name => `<b>${name}</b>`).join(', ')} Teams</p>
+            <p>Join the Voxora ${teamNames
+              .split(", ")
+              .map((name) => `<b>${name}</b>`)
+              .join(", ")} Teams</p>
           </div>
           <div class="content">
             <h2>Hello!</h2>
-            <p><strong>${inviterName}</strong> has invited you to join their <b>${teamNames.split(', ').map(name => `<b>${name}</b>`).join(', ')}</b> Teams as a <strong>${role}</strong>.</p>
+            <p><strong>${inviterName}</strong> has invited you to join their <b>${teamNames
+              .split(", ")
+              .map((name) => `<b>${name}</b>`)
+              .join(", ")}</b> Teams as a <strong>${role}</strong>.</p>
 
             <p>Voxora is a powerful real-time chat support platform that helps teams provide exceptional customer service.</p>
             
@@ -109,9 +123,13 @@ class EmailService {
     });
   }
 
-  async sendPasswordResetEmail(to: string, name: string, token: string): Promise<boolean> {
+  async sendPasswordResetEmail(
+    to: string,
+    name: string,
+    token: string,
+  ): Promise<boolean> {
     const resetUrl = `${config.app.frontendUrl}/auth/reset-password?token=${token}`;
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -159,14 +177,18 @@ class EmailService {
 
     return this.sendEmail({
       to,
-      subject: 'Reset your Voxora password',
+      subject: "Reset your Voxora password",
       html,
     });
   }
 
-  async sendWelcomeEmail(to: string, name: string, role: string): Promise<boolean> {
+  async sendWelcomeEmail(
+    to: string,
+    name: string,
+    role: string,
+  ): Promise<boolean> {
     const loginUrl = `${config.app.frontendUrl}/auth/login`;
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -217,13 +239,13 @@ class EmailService {
 
     return this.sendEmail({
       to,
-      subject: 'Welcome to Voxora - Your account is ready!',
+      subject: "Welcome to Voxora - Your account is ready!",
       html,
     });
   }
 
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '');
+    return html.replace(/<[^>]*>/g, "");
   }
 }
 

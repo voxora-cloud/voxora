@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
   register,
   login,
@@ -8,56 +8,62 @@ import {
   adminSignup,
   adminLogin,
   agentLogin,
-  acceptInvite
-} from '../controllers/authController';
-import { authenticate, validateRequest, authRateLimit } from '../middleware';
-import { userValidation } from '../utils/validation';
+  acceptInvite,
+} from "../controllers/authController";
+import { authenticate, validateRequest, authRateLimit } from "../middleware";
+import { userValidation } from "../utils/validation";
 
 const router = Router();
 
 // Public routes with rate limiting
-router.post('/register', 
+router.post(
+  "/register",
   authRateLimit,
   validateRequest(userValidation.register),
-  register
+  register,
 );
 
-router.post('/login',
+router.post(
+  "/login",
   authRateLimit,
   validateRequest(userValidation.login),
-  login
+  login,
 );
 
 // Admin/Agent specific auth routes
-router.post('/admin/signup',
+router.post(
+  "/admin/signup",
   authRateLimit,
   validateRequest(userValidation.adminSignup),
-  adminSignup
+  adminSignup,
 );
 
-router.post('/admin/login',
+router.post(
+  "/admin/login",
   authRateLimit,
   validateRequest(userValidation.login),
-  adminLogin
+  adminLogin,
 );
 
-router.post('/agent/login',
+router.post(
+  "/agent/login",
   authRateLimit,
   validateRequest(userValidation.login),
-  agentLogin
+  agentLogin,
 );
 
-router.post("/accept-invite",
+router.post(
+  "/accept-invite",
   validateRequest(userValidation.acceptInvite),
-  acceptInvite
+  acceptInvite,
 );
 
-router.post('/refresh-token', refreshToken);
+router.post("/refresh-token", refreshToken);
 
 // Protected routes. - below routes are authenticated
 router.use(authenticate);
 
-router.post('/logout', logout);
-router.get('/profile', getProfile);
+router.post("/logout", logout);
+router.get("/profile", getProfile);
 
 export default router;

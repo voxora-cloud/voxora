@@ -1,18 +1,12 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { useAuth } from "@/components/auth/auth-context"
-import { 
-  MoreVertical,
-  Send,
-  Paperclip,
-  ArrowLeft,
-  Clock
-} from "lucide-react"
-import { useRouter } from 'next/navigation'
-import io, { Socket } from 'socket.io-client'
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/components/auth/auth-context";
+import { MoreVertical, Send, Paperclip, ArrowLeft, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
+import io, { Socket } from "socket.io-client";
 
 // Define types
 interface Message {
@@ -51,193 +45,229 @@ interface ConversationViewProps {
 }
 
 export function ConversationView({ conversationId }: ConversationViewProps) {
-  const [conversation, setConversation] = useState<ConversationData | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [socket, setSocket] = useState<Socket | null>(null)
-  const [isCustomerTyping, setIsCustomerTyping] = useState(false)
-  const typingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const customerTypingHideRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isAgentTypingRef = React.useRef(false)
-  const { user } = useAuth()
-  const router = useRouter()
+  const [conversation, setConversation] = useState<ConversationData | null>(
+    null,
+  );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [isCustomerTyping, setIsCustomerTyping] = useState(false);
+  const typingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const customerTypingHideRef = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+  const isAgentTypingRef = React.useRef(false);
+  const { user } = useAuth();
+  const router = useRouter();
 
   // Initialize socket and fetch conversation
   useEffect(() => {
-    if (!conversationId) return
-  let sock: Socket | null = null
+    if (!conversationId) return;
+    let sock: Socket | null = null;
 
     const fetchConversation = async () => {
       try {
-        setLoading(true)
-        
-        // Initialize socket connection
-        const token = localStorage.getItem('token')
-  const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3002', {
-          auth: { token },
-          transports: ['websocket', 'polling']
-        })
+        setLoading(true);
 
-    sock = socketInstance
-        socketInstance.on('connect', () => {
-          console.log('Connected to conversation socket')
+        // Initialize socket connection
+        const token = localStorage.getItem("token");
+        const socketInstance = io(
+          process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3002",
+          {
+            auth: { token },
+            transports: ["websocket", "polling"],
+          },
+        );
+
+        sock = socketInstance;
+        socketInstance.on("connect", () => {
+          console.log("Connected to conversation socket");
           // Join the conversation room
-          socketInstance.emit('join_conversation', conversationId)
-        })
+          socketInstance.emit("join_conversation", conversationId);
+        });
 
         // Listen for new messages
-        socketInstance.on('new_message', (data: { conversationId: string; message: Message }) => {
-          if (data.conversationId !== conversationId) return
-          // Skip echo of our own agent message, since we do optimistic update
-          if (data.message?.metadata?.source === 'web') return
-          setMessages(prev => {
-            if (prev.some(m => m._id === data.message._id)) return prev
-            return [...prev, data.message]
-          })
-        })
+        socketInstance.on(
+          "new_message",
+          (data: { conversationId: string; message: Message }) => {
+            if (data.conversationId !== conversationId) return;
+            // Skip echo of our own agent message, since we do optimistic update
+            if (data.message?.metadata?.source === "web") return;
+            setMessages((prev) => {
+              if (prev.some((m) => m._id === data.message._id)) return prev;
+              return [...prev, data.message];
+            });
+          },
+        );
 
         // Typing indicators from customer
-        socketInstance.on('customer_typing', (data: { conversationId: string }) => {
-          if (data.conversationId !== conversationId) return
-          setIsCustomerTyping(true)
-          if (customerTypingHideRef.current) clearTimeout(customerTypingHideRef.current)
-          customerTypingHideRef.current = setTimeout(() => setIsCustomerTyping(false), 3000)
-        })
+        socketInstance.on(
+          "customer_typing",
+          (data: { conversationId: string }) => {
+            if (data.conversationId !== conversationId) return;
+            setIsCustomerTyping(true);
+            if (customerTypingHideRef.current)
+              clearTimeout(customerTypingHideRef.current);
+            customerTypingHideRef.current = setTimeout(
+              () => setIsCustomerTyping(false),
+              3000,
+            );
+          },
+        );
 
-        socketInstance.on('customer_stopped_typing', (data: { conversationId: string }) => {
-          if (data.conversationId !== conversationId) return
-          setIsCustomerTyping(false)
-          if (customerTypingHideRef.current) {
-            clearTimeout(customerTypingHideRef.current)
-            customerTypingHideRef.current = null
-          }
-        })
+        socketInstance.on(
+          "customer_stopped_typing",
+          (data: { conversationId: string }) => {
+            if (data.conversationId !== conversationId) return;
+            setIsCustomerTyping(false);
+            if (customerTypingHideRef.current) {
+              clearTimeout(customerTypingHideRef.current);
+              customerTypingHideRef.current = null;
+            }
+          },
+        );
 
-        setSocket(socketInstance)
+        setSocket(socketInstance);
 
         // Fetch conversation data and messages
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api/v1'}/conversations/${conversationId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1"}/conversations/${conversationId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
 
         if (response.ok) {
-          const data = await response.json()
+          const data = await response.json();
           if (data.success) {
-            setConversation(data.data.conversation)
-            setMessages(data.data.messages || [])
+            setConversation(data.data.conversation);
+            setMessages(data.data.messages || []);
           }
         } else {
           // Handle case where conversation doesn't exist yet or failed to fetch
-          console.log('Could not fetch conversation, it might be new')
+          console.log("Could not fetch conversation, it might be new");
         }
       } catch (error) {
-        console.error('Error fetching conversation:', error)
+        console.error("Error fetching conversation:", error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchConversation()
+    fetchConversation();
 
     return () => {
       try {
         if (sock) {
-          sock.emit('leave_conversation', conversationId)
-          sock.off('new_message')
-          sock.off('customer_typing')
-          sock.off('customer_stopped_typing')
-          sock.disconnect()
+          sock.emit("leave_conversation", conversationId);
+          sock.off("new_message");
+          sock.off("customer_typing");
+          sock.off("customer_stopped_typing");
+          sock.disconnect();
         }
         // ensure typing is stopped
         if (isAgentTypingRef.current && sock) {
-          try { sock.emit('typing_stop', { conversationId }) } catch { void 0 }
-          isAgentTypingRef.current = false
+          try {
+            sock.emit("typing_stop", { conversationId });
+          } catch {
+            void 0;
+          }
+          isAgentTypingRef.current = false;
         }
-        if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
-        if (customerTypingHideRef.current) clearTimeout(customerTypingHideRef.current)
-  } catch {
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        if (customerTypingHideRef.current)
+          clearTimeout(customerTypingHideRef.current);
+      } catch {
         // no-op
       }
-    }
-  }, [conversationId]) // socket is intentionally omitted to avoid recreating connection
+    };
+  }, [conversationId]); // socket is intentionally omitted to avoid recreating connection
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !socket) return
+    if (!newMessage.trim() || !socket) return;
 
     const messageData = {
       conversationId,
       content: newMessage,
-      type: 'text',
+      type: "text",
       metadata: {
-        senderName: user?.name || 'Agent',
-        senderEmail: user?.email || '',
-        source: 'web'
-      }
-    }
+        senderName: user?.name || "Agent",
+        senderEmail: user?.email || "",
+        source: "web",
+      },
+    };
 
     // stop typing when sending
     if (isAgentTypingRef.current) {
-      try { socket.emit('typing_stop', { conversationId }) } catch { void 0 }
-      isAgentTypingRef.current = false
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+      try {
+        socket.emit("typing_stop", { conversationId });
+      } catch {
+        void 0;
+      }
+      isAgentTypingRef.current = false;
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     }
 
     // Send via socket
-    socket.emit('send_message', messageData)
+    socket.emit("send_message", messageData);
 
     // Add optimistic update
     const tempMessage: Message = {
       _id: `temp-${Date.now()}`,
-      senderId: user?.id || 'agent',
+      senderId: user?.id || "agent",
       content: newMessage,
-      type: 'text',
+      type: "text",
       metadata: messageData.metadata,
-      createdAt: new Date().toISOString()
-    }
+      createdAt: new Date().toISOString(),
+    };
 
-    setMessages(prev => [...prev, tempMessage])
-    setNewMessage("")
-  }
+    setMessages((prev) => [...prev, tempMessage]);
+    setNewMessage("");
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
-  }
+  };
 
   // Emit agent typing events with debounce
-  const handleInputChange: React.ChangeEventHandler<HTMLTextAreaElement> = (e) => {
-    const val = e.target.value
-    setNewMessage(val)
-    if (!socket) return
+  const handleInputChange: React.ChangeEventHandler<HTMLTextAreaElement> = (
+    e,
+  ) => {
+    const val = e.target.value;
+    setNewMessage(val);
+    if (!socket) return;
     if (conversationId && !isAgentTypingRef.current && val.trim().length > 0) {
-      socket.emit('typing_start', { conversationId })
-      isAgentTypingRef.current = true
+      socket.emit("typing_start", { conversationId });
+      isAgentTypingRef.current = true;
     }
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(() => {
       if (isAgentTypingRef.current) {
-        socket.emit('typing_stop', { conversationId })
-        isAgentTypingRef.current = false
+        socket.emit("typing_stop", { conversationId });
+        isAgentTypingRef.current = false;
       }
-    }, 1500)
-  }
+    }, 1500);
+  };
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
-  }
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const isAgentMessage = (message: Message) => {
-    return message.metadata?.source === 'web' || message.senderId === user?.id
-  }
+    return message.metadata?.source === "web" || message.senderId === user?.id;
+  };
 
   if (loading) {
     return (
@@ -247,30 +277,35 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           <p className="text-muted-foreground">Loading conversation...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  const customerName = conversation?.metadata?.customer?.name || 'Unknown Customer'
-  const customerEmail = conversation?.metadata?.customer?.email || ''
+  const customerName =
+    conversation?.metadata?.customer?.name || "Unknown Customer";
+  const customerEmail = conversation?.metadata?.customer?.email || "";
 
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border bg-card">
         <div className="flex items-center space-x-3">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
-            onClick={() => router.push('/support/dashboard')}
+            onClick={() => router.push("/support/dashboard")}
             className="md:hidden"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          
+
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <span className="text-blue-700 font-semibold">
-                {customerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {customerName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()}
               </span>
             </div>
             <div>
@@ -281,12 +316,16 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         </div>
 
         <div className="flex items-center space-x-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-            conversation?.status === 'open' ? 'bg-green-100 text-green-700' :
-            conversation?.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-            'bg-blue-100 text-blue-700'
-          }`}>
-            {conversation?.status || 'active'}
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-medium ${
+              conversation?.status === "open"
+                ? "bg-green-100 text-green-700"
+                : conversation?.status === "pending"
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-blue-100 text-blue-700"
+            }`}
+          >
+            {conversation?.status || "active"}
           </span>
           <Button variant="ghost" size="icon">
             <MoreVertical className="h-4 w-4" />
@@ -303,20 +342,24 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           </div>
         ) : (
           messages.map((message) => (
-            <div 
+            <div
               key={message._id}
-              className={`flex ${isAgentMessage(message) ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${isAgentMessage(message) ? "justify-end" : "justify-start"}`}
             >
-              <div className={`
+              <div
+                className={`
                 max-w-[70%] px-4 py-3 rounded-lg
-                ${isAgentMessage(message) 
-                  ? 'bg-blue-500 text-white' 
-                  : 'bg-white border border-border'
+                ${
+                  isAgentMessage(message)
+                    ? "bg-blue-500 text-white"
+                    : "bg-white border border-border"
                 }
-              `}>
+              `}
+              >
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-medium opacity-75">
-                    {message.metadata?.senderName || (isAgentMessage(message) ? 'You' : 'Customer')}
+                    {message.metadata?.senderName ||
+                      (isAgentMessage(message) ? "You" : "Customer")}
                   </span>
                   <span className="text-xs opacity-50 ml-2">
                     {formatTime(message.createdAt)}
@@ -330,7 +373,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       </div>
 
       {isCustomerTyping && (
-        <div className="px-4 pb-2 text-sm text-muted-foreground italic">Customer is typing…</div>
+        <div className="px-4 pb-2 text-sm text-muted-foreground italic">
+          Customer is typing…
+        </div>
       )}
 
       {/* Message Input */}
@@ -348,7 +393,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <Button variant="outline" size="icon">
               <Paperclip className="h-4 w-4" />
             </Button>
-            <Button 
+            <Button
               onClick={sendMessage}
               disabled={!newMessage.trim() || loading}
               size="icon"
@@ -359,5 +404,5 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

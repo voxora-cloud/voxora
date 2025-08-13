@@ -5,11 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Users, UserCheck, AlertCircle } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { Alert, AlertDescription } from "../ui/alert";
-import { 
-  DashboardStats, 
-  TeamStat, 
-  RecentAgent 
-} from "@/lib/interfaces/admin";
+import { DashboardStats, TeamStat, RecentAgent } from "@/lib/interfaces/admin";
 
 function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -120,7 +116,11 @@ function AdminDashboard() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Team Performance</h2>
-          <Button variant="outline" size="sm" onClick={() => window.location.href = "/admin/team"}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => (window.location.href = "/admin/team")}
+          >
             View All Teams
           </Button>
         </div>
@@ -152,7 +152,9 @@ function AdminDashboard() {
                   </div>
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="text-xs text-gray-500">Online</p>
-                    <p className="font-semibold text-green-600">{team.onlineAgents}</p>
+                    <p className="font-semibold text-green-600">
+                      {team.onlineAgents}
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -163,7 +165,7 @@ function AdminDashboard() {
               <Button
                 size="sm"
                 className="mt-2"
-                onClick={() => window.location.href = "/admin/team"}
+                onClick={() => (window.location.href = "/admin/team")}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Create Team
@@ -177,7 +179,11 @@ function AdminDashboard() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Recent Agents</h2>
-          <Button variant="outline" size="sm" onClick={() => window.location.href = "/admin/agent"}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => (window.location.href = "/admin/agent")}
+          >
             View All Agents
           </Button>
         </div>
@@ -213,8 +219,8 @@ function AdminDashboard() {
                             agent.inviteStatus === "active"
                               ? "bg-green-100 text-green-800"
                               : agent.inviteStatus === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-800"
                           }`}
                         >
                           {agent.inviteStatus || "Unknown"}
@@ -235,7 +241,7 @@ function AdminDashboard() {
             <Button
               size="sm"
               className="mt-2"
-              onClick={() => window.location.href = "/admin/agent"}
+              onClick={() => (window.location.href = "/admin/agent")}
             >
               <Plus className="h-4 w-4 mr-1" />
               Invite Agent

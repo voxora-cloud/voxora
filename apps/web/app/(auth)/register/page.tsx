@@ -1,5 +1,5 @@
-import { AdminOnboarding } from "@/components/auth/founder-onboarding"
+import { AdminOnboarding } from "@/components/auth/founder-onboarding";
 
 export default function RegisterPage() {
-  return <AdminOnboarding />
+  return <AdminOnboarding />;
 }

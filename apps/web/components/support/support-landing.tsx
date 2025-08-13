@@ -1,33 +1,39 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { 
-  MessageSquare, 
-  HeadphonesIcon, 
-  Users, 
-  Clock, 
-  Star, 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  MessageSquare,
+  HeadphonesIcon,
+  Users,
+  Clock,
+  Star,
   ArrowRight,
   Shield,
   Zap,
-  Globe
-} from "lucide-react"
-import { useRouter } from "next/navigation"
+  Globe,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export function SupportLandingPage() {
-  const [loginData, setLoginData] = useState({ email: "", password: "" })
-  const router = useRouter()
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const router = useRouter();
 
   const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (loginData.email && loginData.password) {
       // Simulate login - in real app, validate credentials
-      router.push("/support/dashboard")
+      router.push("/support/dashboard");
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
@@ -36,19 +42,32 @@ export function SupportLandingPage() {
         <div className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-lg font-bold text-primary-foreground">V</span>
+              <span className="text-lg font-bold text-primary-foreground">
+                V
+              </span>
             </div>
-            <span className="text-xl font-bold text-foreground">Voxora Support</span>
+            <span className="text-xl font-bold text-foreground">
+              Voxora Support
+            </span>
           </div>
-          
+
           <nav className="hidden md:flex items-center space-x-6">
-            <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a
+              href="#features"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               Features
             </a>
-            <a href="#benefits" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a
+              href="#benefits"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               Benefits
             </a>
-            <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a
+              href="#contact"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               Contact
             </a>
           </nav>
@@ -57,7 +76,6 @@ export function SupportLandingPage() {
 
       <div className="container mx-auto px-6 py-12">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          
           {/* Left Side - Hero Content */}
           <div className="space-y-8">
             <div className="space-y-4">
@@ -66,8 +84,9 @@ export function SupportLandingPage() {
                 <span className="text-primary"> Support Portal</span>
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                Join our support team and help customers succeed. Access advanced tools, 
-                real-time communication, and comprehensive agent resources.
+                Join our support team and help customers succeed. Access
+                advanced tools, real-time communication, and comprehensive agent
+                resources.
               </p>
             </div>
 
@@ -78,8 +97,12 @@ export function SupportLandingPage() {
                   <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Real-time Chat</h3>
-                  <p className="text-sm text-muted-foreground">Instant customer support</p>
+                  <h3 className="font-semibold text-foreground">
+                    Real-time Chat
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Instant customer support
+                  </p>
                 </div>
               </div>
 
@@ -88,8 +111,12 @@ export function SupportLandingPage() {
                   <Users className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Team Collaboration</h3>
-                  <p className="text-sm text-muted-foreground">Work together seamlessly</p>
+                  <h3 className="font-semibold text-foreground">
+                    Team Collaboration
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Work together seamlessly
+                  </p>
                 </div>
               </div>
 
@@ -98,8 +125,12 @@ export function SupportLandingPage() {
                   <Clock className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">24/7 Support</h3>
-                  <p className="text-sm text-muted-foreground">Round-the-clock assistance</p>
+                  <h3 className="font-semibold text-foreground">
+                    24/7 Support
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Round-the-clock assistance
+                  </p>
                 </div>
               </div>
 
@@ -108,35 +139,53 @@ export function SupportLandingPage() {
                   <Star className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Performance Metrics</h3>
-                  <p className="text-sm text-muted-foreground">Track your success</p>
+                  <h3 className="font-semibold text-foreground">
+                    Performance Metrics
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Track your success
+                  </p>
                 </div>
               </div>
             </div>
 
             {/* Benefits Section */}
             <div id="benefits" className="space-y-4">
-              <h2 className="text-2xl font-bold text-foreground">Why Choose Voxora Support?</h2>
+              <h2 className="text-2xl font-bold text-foreground">
+                Why Choose Voxora Support?
+              </h2>
               <div className="space-y-3">
                 <div className="flex items-start space-x-3">
                   <Shield className="h-5 w-5 text-primary mt-1" />
                   <div>
-                    <h4 className="font-semibold text-foreground">Secure & Reliable</h4>
-                    <p className="text-muted-foreground">Enterprise-grade security with 99.9% uptime</p>
+                    <h4 className="font-semibold text-foreground">
+                      Secure & Reliable
+                    </h4>
+                    <p className="text-muted-foreground">
+                      Enterprise-grade security with 99.9% uptime
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <Zap className="h-5 w-5 text-primary mt-1" />
                   <div>
-                    <h4 className="font-semibold text-foreground">Lightning Fast</h4>
-                    <p className="text-muted-foreground">Instant message delivery and real-time updates</p>
+                    <h4 className="font-semibold text-foreground">
+                      Lightning Fast
+                    </h4>
+                    <p className="text-muted-foreground">
+                      Instant message delivery and real-time updates
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start space-x-3">
                   <Globe className="h-5 w-5 text-primary mt-1" />
                   <div>
-                    <h4 className="font-semibold text-foreground">Global Reach</h4>
-                    <p className="text-muted-foreground">Support customers worldwide with multi-language support</p>
+                    <h4 className="font-semibold text-foreground">
+                      Global Reach
+                    </h4>
+                    <p className="text-muted-foreground">
+                      Support customers worldwide with multi-language support
+                    </p>
                   </div>
                 </div>
               </div>
@@ -155,11 +204,14 @@ export function SupportLandingPage() {
                   Access your support dashboard and start helping customers
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-medium text-foreground">
+                    <label
+                      htmlFor="email"
+                      className="text-sm font-medium text-foreground"
+                    >
                       Email Address
                     </label>
                     <Input
@@ -167,14 +219,22 @@ export function SupportLandingPage() {
                       type="email"
                       placeholder="agent@company.com"
                       value={loginData.email}
-                      onChange={(e) => setLoginData(prev => ({ ...prev, email: e.target.value }))}
+                      onChange={(e) =>
+                        setLoginData((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
                       required
                       className="bg-background/50"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-medium text-foreground">
+                    <label
+                      htmlFor="password"
+                      className="text-sm font-medium text-foreground"
+                    >
                       Password
                     </label>
                     <Input
@@ -182,28 +242,39 @@ export function SupportLandingPage() {
                       type="password"
                       placeholder="Enter your password"
                       value={loginData.password}
-                      onChange={(e) => setLoginData(prev => ({ ...prev, password: e.target.value }))}
+                      onChange={(e) =>
+                        setLoginData((prev) => ({
+                          ...prev,
+                          password: e.target.value,
+                        }))
+                      }
                       required
                       className="bg-background/50"
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded border-border" />
+                      <input
+                        type="checkbox"
+                        className="rounded border-border"
+                      />
                       <span className="text-muted-foreground">Remember me</span>
                     </label>
                     <a href="#" className="text-primary hover:underline">
                       Forgot password?
                     </a>
                   </div>
-                  
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+
+                  <Button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary/90"
+                  >
                     Sign In to Dashboard
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </form>
-                
+
                 <div className="mt-6 pt-4 border-t border-border text-center">
                   <p className="text-sm text-muted-foreground">
                     Need access?{" "}
@@ -219,38 +290,58 @@ export function SupportLandingPage() {
       </div>
 
       {/* Footer */}
-      <footer id="contact" className="border-t border-border/40 bg-background/60 backdrop-blur-sm mt-16">
+      <footer
+        id="contact"
+        className="border-t border-border/40 bg-background/60 backdrop-blur-sm mt-16"
+      >
         <div className="container mx-auto px-6 py-8">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                  <span className="text-sm font-bold text-primary-foreground">V</span>
+                  <span className="text-sm font-bold text-primary-foreground">
+                    V
+                  </span>
                 </div>
-                <span className="font-bold text-foreground">Voxora Support</span>
+                <span className="font-bold text-foreground">
+                  Voxora Support
+                </span>
               </div>
               <p className="text-muted-foreground text-sm">
                 Empowering support teams with professional communication tools.
               </p>
             </div>
-            
+
             <div>
-              <h4 className="font-semibold text-foreground mb-3">Quick Links</h4>
+              <h4 className="font-semibold text-foreground mb-3">
+                Quick Links
+              </h4>
               <div className="space-y-2 text-sm">
-                <a href="#" className="text-muted-foreground hover:text-foreground block">
+                <a
+                  href="#"
+                  className="text-muted-foreground hover:text-foreground block"
+                >
                   Documentation
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground block">
+                <a
+                  href="#"
+                  className="text-muted-foreground hover:text-foreground block"
+                >
                   Training Resources
                 </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground block">
+                <a
+                  href="#"
+                  className="text-muted-foreground hover:text-foreground block"
+                >
                   Support Guidelines
                 </a>
               </div>
             </div>
-            
+
             <div>
-              <h4 className="font-semibold text-foreground mb-3">Contact Admin</h4>
+              <h4 className="font-semibold text-foreground mb-3">
+                Contact Admin
+              </h4>
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>Email: admin@company.com</p>
                 <p>Phone: +1 (555) 123-4567</p>
@@ -258,7 +349,7 @@ export function SupportLandingPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="border-t border-border/40 mt-8 pt-6 text-center">
             <p className="text-muted-foreground text-sm">
               © 2024 Voxora Support. All rights reserved.
@@ -267,5 +358,5 @@ export function SupportLandingPage() {
         </div>
       </footer>
     </div>
-  )
+  );
 }

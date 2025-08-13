@@ -10,12 +10,16 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { TeamFormData } from "@/lib/interfaces/admin";
 import { Input } from "@/components/ui/input";
 
-function TeamDetailModal({ team, isOpen, onClose }: {
-  team: Team | null
-  isOpen: boolean
-  onClose: () => void
+function TeamDetailModal({
+  team,
+  isOpen,
+  onClose,
+}: {
+  team: Team | null;
+  isOpen: boolean;
+  onClose: () => void;
 }) {
-  if (!isOpen || !team) return null
+  if (!isOpen || !team) return null;
 
   return (
     <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
@@ -26,19 +30,21 @@ function TeamDetailModal({ team, isOpen, onClose }: {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        
+
         <div className="space-y-6">
           {/* Team Header */}
           <div className="flex items-center space-x-4">
-            <div 
+            <div
               className="w-16 h-16 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: team.color || '#3b82f6' }}
+              style={{ backgroundColor: team.color || "#3b82f6" }}
             >
               <Users className="h-8 w-8 text-white" />
             </div>
             <div>
               <h3 className="text-xl font-semibold">{team.name}</h3>
-              <p className="text-gray-600">{team.description || 'No description provided'}</p>
+              <p className="text-gray-600">
+                {team.description || "No description provided"}
+              </p>
             </div>
           </div>
 
@@ -50,27 +56,31 @@ function TeamDetailModal({ team, isOpen, onClose }: {
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">Online Agents</p>
-              <p className="text-2xl font-bold text-green-600">{team.onlineAgents || 0}</p>
+              <p className="text-2xl font-bold text-green-600">
+                {team.onlineAgents || 0}
+              </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">Team Color</p>
               <div className="flex items-center space-x-2 mt-2">
-                <div 
+                <div
                   className="w-6 h-6 rounded border"
-                  style={{ backgroundColor: team.color || '#3b82f6' }}
+                  style={{ backgroundColor: team.color || "#3b82f6" }}
                 ></div>
-                <span className="text-sm">{team.color || '#3b82f6'}</span>
+                <span className="text-sm">{team.color || "#3b82f6"}</span>
               </div>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm text-gray-600">Created</p>
-              <p className="text-sm font-medium">{new Date(team.createdAt).toLocaleDateString()}</p>
+              <p className="text-sm font-medium">
+                {new Date(team.createdAt).toLocaleDateString()}
+              </p>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function TeamPage() {
@@ -98,21 +108,24 @@ export default function TeamPage() {
     }
 
     let result = [...teams];
-    
+
     // Apply search filter
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
-      result = result.filter(team => 
-        team.name.toLowerCase().includes(query) || 
-        (team.description && team.description.toLowerCase().includes(query))
+      result = result.filter(
+        (team) =>
+          team.name.toLowerCase().includes(query) ||
+          (team.description && team.description.toLowerCase().includes(query)),
       );
     }
 
     // Apply agent count filter
     if (agentCountFilter === "with-agents") {
-      result = result.filter(team => (team.agentCount || 0) > 0);
+      result = result.filter((team) => (team.agentCount || 0) > 0);
     } else if (agentCountFilter === "no-agents") {
-      result = result.filter(team => !team.agentCount || team.agentCount === 0);
+      result = result.filter(
+        (team) => !team.agentCount || team.agentCount === 0,
+      );
     }
 
     setFilteredTeams(result);
@@ -175,7 +188,7 @@ export default function TeamPage() {
 
   const handleDeleteTeam = async (teamId: string) => {
     if (!confirm("Are you sure you want to delete this team?")) return;
-    
+
     try {
       const response = await apiService.deleteTeam(teamId);
       if (response.success) {
@@ -214,7 +227,7 @@ export default function TeamPage() {
           {error}
         </div>
       )}
-      
+
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -228,23 +241,23 @@ export default function TeamPage() {
         </div>
         <div className="flex gap-2">
           <Button
-            variant={agentCountFilter === 'all' ? 'default' : 'outline'}
+            variant={agentCountFilter === "all" ? "default" : "outline"}
             size="sm"
-            onClick={() => setAgentCountFilter('all')}
+            onClick={() => setAgentCountFilter("all")}
           >
             All
           </Button>
           <Button
-            variant={agentCountFilter === 'with-agents' ? 'default' : 'outline'}
+            variant={agentCountFilter === "with-agents" ? "default" : "outline"}
             size="sm"
-            onClick={() => setAgentCountFilter('with-agents')}
+            onClick={() => setAgentCountFilter("with-agents")}
           >
             With Agents
           </Button>
           <Button
-            variant={agentCountFilter === 'no-agents' ? 'default' : 'outline'}
+            variant={agentCountFilter === "no-agents" ? "default" : "outline"}
             size="sm"
-            onClick={() => setAgentCountFilter('no-agents')}
+            onClick={() => setAgentCountFilter("no-agents")}
           >
             No Agents
           </Button>
@@ -253,30 +266,34 @@ export default function TeamPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          Array(3).fill(0).map((_, i) => (
-            <Card key={i} className="p-6">
-              <div className="animate-pulse h-32"></div>
-            </Card>
-          ))
+          Array(3)
+            .fill(0)
+            .map((_, i) => (
+              <Card key={i} className="p-6">
+                <div className="animate-pulse h-32"></div>
+              </Card>
+            ))
         ) : filteredTeams.length > 0 ? (
           filteredTeams.map((team) => (
             <Card key={team._id} className="overflow-hidden">
-              <div 
-                className="h-2" 
-                style={{ backgroundColor: team.color || '#3b82f6' }}
+              <div
+                className="h-2"
+                style={{ backgroundColor: team.color || "#3b82f6" }}
               ></div>
               <div className="p-6">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center">
-                    <div 
+                    <div
                       className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
-                      style={{ backgroundColor: team.color || '#3b82f6' }}
+                      style={{ backgroundColor: team.color || "#3b82f6" }}
                     >
                       <Users className="h-5 w-5 text-white" />
                     </div>
                     <div>
                       <h3 className="font-medium">{team.name}</h3>
-                      <p className="text-sm text-gray-500 line-clamp-1">{team.description || "No description"}</p>
+                      <p className="text-sm text-gray-500 line-clamp-1">
+                        {team.description || "No description"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -288,29 +305,31 @@ export default function TeamPage() {
                   </div>
                   <div className="bg-gray-50 p-2 rounded">
                     <p className="text-xs text-gray-500">Online</p>
-                    <p className="font-semibold text-green-600">{team.onlineAgents || 0}</p>
+                    <p className="font-semibold text-green-600">
+                      {team.onlineAgents || 0}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="flex-1"
                     onClick={() => openDetailModal(team)}
                   >
                     Details
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="w-9 px-0"
                     onClick={() => openEditModal(team)}
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
                     onClick={() => handleDeleteTeam(team._id)}
@@ -326,25 +345,39 @@ export default function TeamPage() {
             <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <Users className="h-6 w-6 text-gray-500" />
             </div>
-            
+
             {teams.length === 0 ? (
               <>
-                <h3 className="text-lg font-medium text-gray-900">No teams created yet</h3>
-                <p className="text-gray-500 mt-1">Create a new team to organize your agents</p>
-                <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+                <h3 className="text-lg font-medium text-gray-900">
+                  No teams created yet
+                </h3>
+                <p className="text-gray-500 mt-1">
+                  Create a new team to organize your agents
+                </p>
+                <Button
+                  className="mt-4"
+                  onClick={() => setShowCreateModal(true)}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   New Team
                 </Button>
               </>
             ) : (
               <>
-                <h3 className="text-lg font-medium text-gray-900">No matching teams found</h3>
-                <p className="text-gray-500 mt-1">Try changing your search query or filters</p>
+                <h3 className="text-lg font-medium text-gray-900">
+                  No matching teams found
+                </h3>
+                <p className="text-gray-500 mt-1">
+                  Try changing your search query or filters
+                </p>
                 <div className="flex justify-center gap-2 mt-4">
-                  <Button variant="outline" onClick={() => {
-                    setSearchQuery("");
-                    setAgentCountFilter("all");
-                  }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setAgentCountFilter("all");
+                    }}
+                  >
                     Clear Filters
                   </Button>
                 </div>
@@ -359,7 +392,11 @@ export default function TeamPage() {
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Create New Team</h2>
-            <Button variant="ghost" size="sm" onClick={() => setShowCreateModal(false)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCreateModal(false)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -376,7 +413,11 @@ export default function TeamPage() {
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Edit Team</h2>
-            <Button variant="ghost" size="sm" onClick={() => setShowEditModal(false)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditModal(false)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>

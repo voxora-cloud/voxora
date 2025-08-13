@@ -1,42 +1,44 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { 
-  MessageCircle, 
-  Users, 
-  Settings, 
-  Bell, 
-  Search, 
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  MessageCircle,
+  Users,
+  Settings,
+  Bell,
+  Search,
   Plus,
   MoreVertical,
   Circle,
   LogOut,
   Menu,
-  X
-} from "lucide-react"
-import { ChatInterface } from "@/components/chat/chat-interface"
+  X,
+} from "lucide-react";
+import { ChatInterface } from "@/components/chat/chat-interface";
 
 interface Conversation {
-  id: string
-  customerName: string
-  lastMessage: string
-  timestamp: Date
-  isUnread: boolean
-  status: "waiting" | "active" | "resolved"
-  customerAvatar?: string
+  id: string;
+  customerName: string;
+  lastMessage: string;
+  timestamp: Date;
+  isUnread: boolean;
+  status: "waiting" | "active" | "resolved";
+  customerAvatar?: string;
 }
 
 interface DashboardLayoutProps {
-  isSupport?: boolean
+  isSupport?: boolean;
 }
 
 export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
-  const [selectedConversation, setSelectedConversation] = useState<string | null>("1")
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  
+  const [selectedConversation, setSelectedConversation] = useState<
+    string | null
+  >("1");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const conversations: Conversation[] = [
     {
       id: "1",
@@ -44,15 +46,15 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
       lastMessage: "I need help with my account login",
       timestamp: new Date(Date.now() - 300000),
       isUnread: true,
-      status: "active"
+      status: "active",
     },
     {
-      id: "2", 
+      id: "2",
       customerName: "Sarah Johnson",
       lastMessage: "Thank you for your help!",
       timestamp: new Date(Date.now() - 900000),
       isUnread: false,
-      status: "resolved"
+      status: "resolved",
     },
     {
       id: "3",
@@ -60,45 +62,57 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
       lastMessage: "Is anyone available to help?",
       timestamp: new Date(Date.now() - 1800000),
       isUnread: true,
-      status: "waiting"
-    }
-  ]
+      status: "waiting",
+    },
+  ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "waiting": return "text-yellow-500"
-      case "active": return "text-green-500"
-      case "resolved": return "text-gray-500"
-      default: return "text-gray-500"
+      case "waiting":
+        return "text-yellow-500";
+      case "active":
+        return "text-green-500";
+      case "resolved":
+        return "text-gray-500";
+      default:
+        return "text-gray-500";
     }
-  }
+  };
 
   const formatTime = (date: Date) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).format(date)
-  }
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+  };
 
   return (
     <div className="h-screen bg-background flex">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-0'} transition-all duration-300 border-r border-border bg-card flex flex-col overflow-hidden`}>
+      <div
+        className={`${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 border-r border-border bg-card flex flex-col overflow-hidden`}
+      >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-lg font-bold text-primary-foreground">V</span>
+                <span className="text-lg font-bold text-primary-foreground">
+                  V
+                </span>
               </div>
               <span className="text-lg font-bold text-foreground">Voxora</span>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(false)}
+            >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search conversations..." className="pl-10" />
@@ -112,7 +126,7 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
               <MessageCircle className="mr-2 h-4 w-4" />
               Conversations
               <span className="ml-auto bg-primary text-primary-foreground text-xs rounded-full px-2 py-1">
-                {conversations.filter(c => c.isUnread).length}
+                {conversations.filter((c) => c.isUnread).length}
               </span>
             </Button>
             {isSupport && (
@@ -134,18 +148,20 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
         <div className="flex-1 overflow-y-auto">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-foreground">Recent Conversations</h3>
+              <h3 className="font-medium text-foreground">
+                Recent Conversations
+              </h3>
               <Button size="icon" variant="ghost">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
-            
+
             <div className="space-y-2">
               {conversations.map((conversation) => (
-                <Card 
+                <Card
                   key={conversation.id}
                   className={`cursor-pointer transition-colors hover:bg-accent ${
-                    selectedConversation === conversation.id ? 'bg-accent' : ''
+                    selectedConversation === conversation.id ? "bg-accent" : ""
                   }`}
                   onClick={() => setSelectedConversation(conversation.id)}
                 >
@@ -156,7 +172,9 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
                           <h4 className="font-medium text-sm text-foreground truncate">
                             {conversation.customerName}
                           </h4>
-                          <Circle className={`h-2 w-2 fill-current ${getStatusColor(conversation.status)}`} />
+                          <Circle
+                            className={`h-2 w-2 fill-current ${getStatusColor(conversation.status)}`}
+                          />
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {conversation.lastMessage}
@@ -165,7 +183,7 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
                           {formatTime(conversation.timestamp)}
                         </p>
                       </div>
-                      
+
                       <div className="flex flex-col items-end space-y-1">
                         {conversation.isUnread && (
                           <div className="w-2 h-2 bg-primary rounded-full"></div>
@@ -210,11 +228,15 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
         {/* Top Bar */}
         <div className="h-16 border-b border-border bg-background flex items-center justify-between px-4">
           {!sidebarOpen && (
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+            >
               <Menu className="h-4 w-4" />
             </Button>
           )}
-          
+
           <div className="flex items-center space-x-4 ml-auto">
             <Button variant="ghost" size="icon">
               <Bell className="h-4 w-4" />
@@ -228,8 +250,8 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
         {/* Chat Area */}
         <div className="flex-1 p-4">
           {selectedConversation ? (
-            <ChatInterface 
-              conversationId={selectedConversation} 
+            <ChatInterface
+              conversationId={selectedConversation}
               isSupport={isSupport}
             />
           ) : (
@@ -248,5 +270,5 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
         </div>
       </div>
     </div>
-  )
+  );
 }

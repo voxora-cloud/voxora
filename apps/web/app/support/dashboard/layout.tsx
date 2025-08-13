@@ -1,10 +1,10 @@
-import React from "react"
-import { ConversationSidebar } from "@/components/agent/conversation-sidebar"
+import React from "react";
+import { ConversationSidebar } from "@/components/agent/conversation-sidebar";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <div className="h-full flex w-full">
@@ -14,9 +14,7 @@ export default function DashboardLayout({
       </div>
 
       {/* Nested route content (empty state or chat) */}
-      <div className="flex-1 w-full">
-        {children}
-      </div>
+      <div className="flex-1 w-full">{children}</div>
     </div>
-  )
+  );
 }

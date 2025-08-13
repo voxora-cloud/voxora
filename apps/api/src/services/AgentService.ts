@@ -1,18 +1,17 @@
-import mongoose from 'mongoose';
-import { User } from '../models/User';
-import { Conversation } from '../models/Conversation';
-import logger from '../utils/logger';
+import mongoose from "mongoose";
+import { User } from "../models/User";
+import { Conversation } from "../models/Conversation";
+import logger from "../utils/logger";
 
 export class AgentService {
-  
   // =================
   // AGENT PROFILE
   // =================
 
   async getAgentProfile(userId: string) {
     return await User.findById(userId)
-      .populate('teams', 'name color description')
-      .select('-password');
+      .populate("teams", "name color description")
+      .select("-password");
   }
 
   async updateAgentProfile(userId: string, updateData: any) {
@@ -22,16 +21,17 @@ export class AgentService {
     if (updateData.phoneNumber) updates.phoneNumber = updateData.phoneNumber;
     if (updateData.avatar) updates.avatar = updateData.avatar;
 
-    const agent = await User.findByIdAndUpdate(
-      userId,
-      updates,
-      { new: true, runValidators: true }
-    ).populate('teams', 'name color description').select('-password');
+    const agent = await User.findByIdAndUpdate(userId, updates, {
+      new: true,
+      runValidators: true,
+    })
+      .populate("teams", "name color description")
+      .select("-password");
 
     if (agent) {
-      logger.info('Agent profile updated', {
+      logger.info("Agent profile updated", {
         agentId: agent._id,
-        updates
+        updates,
       });
     }
 
@@ -41,26 +41,27 @@ export class AgentService {
   async updateAgentStatus(userId: string, status: string) {
     const agent = await User.findByIdAndUpdate(
       userId,
-      { 
+      {
         status,
-        lastSeen: new Date()
+        lastSeen: new Date(),
       },
-      { new: true }
-    ).select('name email status lastSeen');
+      { new: true },
+    ).select("name email status lastSeen");
 
     if (agent) {
-      logger.info('Agent status updated', {
+      logger.info("Agent status updated", {
         agentId: agent._id,
-        status
+        status,
       });
     }
 
-    return agent ? {
-      status: agent.status,
-      lastSeen: agent.lastSeen
-    } : null;
+    return agent
+      ? {
+          status: agent.status,
+          lastSeen: agent.lastSeen,
+        }
+      : null;
   }
-
 
   // =================
   // TEAM INFORMATION
@@ -68,27 +69,27 @@ export class AgentService {
 
   async getAgentTeams(userId: string) {
     const agent = await User.findById(userId)
-      .populate('teams', 'name description color agentCount onlineAgents')
-      .select('teams');
+      .populate("teams", "name description color agentCount onlineAgents")
+      .select("teams");
 
     return agent?.teams || null;
   }
 
   async getTeamMembers(userId: string, teamId: string) {
     if (!mongoose.Types.ObjectId.isValid(teamId)) {
-      throw new Error('Invalid team ID');
+      throw new Error("Invalid team ID");
     }
 
     // Check if agent is part of this team
-    const agent = await User.findById(userId).select('teams');
-    if (!agent || !agent.teams.some(team => team.toString() === teamId)) {
+    const agent = await User.findById(userId).select("teams");
+    if (!agent || !agent.teams.some((team) => team.toString() === teamId)) {
       return null;
     }
 
     const members = await User.find({
       teams: teamId,
-      isActive: true
-    }).select('name email role status lastSeen totalChats rating');
+      isActive: true,
+    }).select("name email role status lastSeen totalChats rating");
 
     return members;
   }
@@ -105,29 +106,29 @@ export class AgentService {
 
     // Get conversation stats
     const totalConversations = await Conversation.countDocuments({
-      assignedTo: userId
+      assignedTo: userId,
     });
 
     const activeConversations = await Conversation.countDocuments({
       assignedTo: userId,
-      status: { $in: ['open', 'pending'] }
+      status: { $in: ["open", "pending"] },
     });
 
     const resolvedToday = await Conversation.countDocuments({
       assignedTo: userId,
-      status: 'resolved',
+      status: "resolved",
       updatedAt: {
-        $gte: new Date(new Date().setHours(0, 0, 0, 0))
-      }
+        $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+      },
     });
 
     // Get recent conversations
     const recentConversations = await Conversation.find({
-      assignedTo: userId
+      assignedTo: userId,
     })
-    .select('subject status priority updatedAt')
-    .sort({ updatedAt: -1 })
-    .limit(5);
+      .select("subject status priority updatedAt")
+      .sort({ updatedAt: -1 })
+      .limit(5);
 
     return {
       overview: {
@@ -135,9 +136,9 @@ export class AgentService {
         activeConversations,
         resolvedToday,
         rating: agent.rating,
-        totalChats: agent.totalChats
+        totalChats: agent.totalChats,
       },
-      recentConversations
+      recentConversations,
     };
   }
 }

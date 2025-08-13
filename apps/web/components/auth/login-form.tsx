@@ -1,54 +1,64 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react"
-import { useAuth } from "./auth-context"
-import Link from "next/link"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
+import { useAuth } from "./auth-context";
+import Link from "next/link";
 
 export function LoginForm() {
-  const { login } = useAuth()
-  const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [loginType, setLoginType] = useState<'admin' | 'agent'>('admin')
+  const { login } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [loginType, setLoginType] = useState<"admin" | "agent">("admin");
   const [formData, setFormData] = useState({
     email: "",
-    password: ""
-  })
+    password: "",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
     try {
-      await login(formData.email, formData.password, loginType)
+      await login(formData.email, formData.password, loginType);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Login failed")
+      setError(error instanceof Error ? error.message : "Login failed");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
-    }))
-  }
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
         <div className="flex items-center justify-center mb-4">
           <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-2xl font-bold text-primary-foreground">V</span>
+            <span className="text-2xl font-bold text-primary-foreground">
+              V
+            </span>
           </div>
         </div>
-        <CardTitle className="text-2xl text-center">Welcome to Voxora</CardTitle>
+        <CardTitle className="text-2xl text-center">
+          Welcome to Voxora
+        </CardTitle>
         <CardDescription className="text-center">
           Sign in to your account to continue
         </CardDescription>
@@ -57,22 +67,24 @@ export function LoginForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Login Type Selector */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Login as</label>
+            <label className="text-sm font-medium text-foreground">
+              Login as
+            </label>
             <div className="flex space-x-2">
               <Button
                 type="button"
-                variant={loginType === 'admin' ? 'default' : 'outline'}
+                variant={loginType === "admin" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setLoginType('admin')}
+                onClick={() => setLoginType("admin")}
                 className="flex-1"
               >
                 Admin
               </Button>
               <Button
                 type="button"
-                variant={loginType === 'agent' ? 'default' : 'outline'}
+                variant={loginType === "agent" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setLoginType('agent')}
+                onClick={() => setLoginType("agent")}
                 className="flex-1"
               >
                 Agent
@@ -89,7 +101,10 @@ export function LoginForm() {
           )}
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="email"
+              className="text-sm font-medium text-foreground"
+            >
               Email
             </label>
             <div className="relative">
@@ -106,9 +121,12 @@ export function LoginForm() {
               />
             </div>
           </div>
-          
+
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-foreground">
+            <label
+              htmlFor="password"
+              className="text-sm font-medium text-foreground"
+            >
               Password
             </label>
             <div className="relative">
@@ -138,7 +156,10 @@ export function LoginForm() {
               <input type="checkbox" className="rounded border-border" />
               <span className="text-muted-foreground">Remember me</span>
             </label>
-            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-primary hover:underline"
+            >
               Forgot password?
             </Link>
           </div>
@@ -156,5 +177,5 @@ export function LoginForm() {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

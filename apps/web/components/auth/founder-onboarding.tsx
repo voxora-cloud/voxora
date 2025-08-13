@@ -1,33 +1,49 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Eye, EyeOff, Mail, Lock, User, Building, Globe, Briefcase, AlertCircle } from "lucide-react"
-import { useAuth } from "./auth-context"
-import Link from "next/link"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  Building,
+  Globe,
+  Briefcase,
+  AlertCircle,
+} from "lucide-react";
+import { useAuth } from "./auth-context";
+import Link from "next/link";
 
 interface AdminData {
   // Step 1: Account
-  name: string
-  email: string
-  password: string
-  confirmPassword: string
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
   // Step 2: Company
-  companyName: string
-  companyWebsite: string
-  industry: string
+  companyName: string;
+  companyWebsite: string;
+  industry: string;
 }
 
 export function AdminOnboarding() {
-  const { signup } = useAuth()
-  const [currentStep, setCurrentStep] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  
+  const { signup } = useAuth();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [formData, setFormData] = useState<AdminData>({
     name: "",
     email: "",
@@ -35,8 +51,8 @@ export function AdminOnboarding() {
     confirmPassword: "",
     companyName: "",
     companyWebsite: "",
-    industry: ""
-  })
+    industry: "",
+  });
 
   const industries = [
     "Technology",
@@ -48,64 +64,73 @@ export function AdminOnboarding() {
     "Manufacturing",
     "Consulting",
     "Marketing",
-    "Other"
-  ]
+    "Other",
+  ];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData(prev => ({
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
-    }))
-  }
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   const handleNext = async () => {
-    setError("")
-    
+    setError("");
+
     if (currentStep === 1) {
       // Validate step 1
-      if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
-        setError("Please fill in all fields")
-        return
+      if (
+        !formData.name ||
+        !formData.email ||
+        !formData.password ||
+        !formData.confirmPassword
+      ) {
+        setError("Please fill in all fields");
+        return;
       }
-      
+
       if (formData.password !== formData.confirmPassword) {
-        setError("Passwords don't match!")
-        return
+        setError("Passwords don't match!");
+        return;
       }
-      
+
       if (formData.password.length < 6) {
-        setError("Password must be at least 6 characters long")
-        return
+        setError("Password must be at least 6 characters long");
+        return;
       }
-      
-      setCurrentStep(2)
+
+      setCurrentStep(2);
     } else {
       // Validate step 2 and submit
       if (!formData.companyName) {
-        setError("Company name is required")
-        return
+        setError("Company name is required");
+        return;
       }
-      
-      setIsLoading(true)
+
+      setIsLoading(true);
       try {
         await signup({
           name: formData.name,
           email: formData.email,
           password: formData.password,
-          companyName: formData.companyName
-        })
+          companyName: formData.companyName,
+        });
       } catch (error) {
-        setError(error instanceof Error ? error.message : "Registration failed")
+        setError(
+          error instanceof Error ? error.message : "Registration failed",
+        );
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }
-  }
+  };
 
   const handleBack = () => {
-    setCurrentStep(1)
-    setError("")
-  }
+    setCurrentStep(1);
+    setError("");
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -113,26 +138,31 @@ export function AdminOnboarding() {
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-2xl font-bold text-primary-foreground">V</span>
+              <span className="text-2xl font-bold text-primary-foreground">
+                V
+              </span>
             </div>
           </div>
           <CardTitle className="text-2xl text-center">
             {currentStep === 1 ? "Create Admin Account" : "Company Information"}
           </CardTitle>
           <CardDescription className="text-center">
-            {currentStep === 1 
-              ? "Start your Voxora journey as an admin" 
-              : "Tell us about your company"
-            }
+            {currentStep === 1
+              ? "Start your Voxora journey as an admin"
+              : "Tell us about your company"}
           </CardDescription>
-          
+
           {/* Progress Indicator */}
           <div className="flex space-x-2 pt-4">
-            <div className={`flex-1 h-2 rounded-full ${currentStep >= 1 ? 'bg-primary' : 'bg-muted'}`} />
-            <div className={`flex-1 h-2 rounded-full ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+            <div
+              className={`flex-1 h-2 rounded-full ${currentStep >= 1 ? "bg-primary" : "bg-muted"}`}
+            />
+            <div
+              className={`flex-1 h-2 rounded-full ${currentStep >= 2 ? "bg-primary" : "bg-muted"}`}
+            />
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {/* Error Message */}
           {error && (
@@ -146,7 +176,10 @@ export function AdminOnboarding() {
             // Step 1: Account Information
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="name"
+                  className="text-sm font-medium text-foreground"
+                >
                   Full Name
                 </label>
                 <div className="relative">
@@ -165,7 +198,10 @@ export function AdminOnboarding() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-medium text-foreground"
+                >
                   Email Address
                 </label>
                 <div className="relative">
@@ -182,9 +218,12 @@ export function AdminOnboarding() {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-medium text-foreground"
+                >
                   Password
                 </label>
                 <div className="relative">
@@ -210,7 +249,10 @@ export function AdminOnboarding() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="confirmPassword"
+                  className="text-sm font-medium text-foreground"
+                >
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -239,7 +281,10 @@ export function AdminOnboarding() {
             // Step 2: Company Information
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="companyName" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="companyName"
+                  className="text-sm font-medium text-foreground"
+                >
                   Company Name
                 </label>
                 <div className="relative">
@@ -258,7 +303,10 @@ export function AdminOnboarding() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="companyWebsite" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="companyWebsite"
+                  className="text-sm font-medium text-foreground"
+                >
                   Company Website
                 </label>
                 <div className="relative">
@@ -276,7 +324,10 @@ export function AdminOnboarding() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="industry" className="text-sm font-medium text-foreground">
+                <label
+                  htmlFor="industry"
+                  className="text-sm font-medium text-foreground"
+                >
                   Industry
                 </label>
                 <div className="relative">
@@ -307,12 +358,16 @@ export function AdminOnboarding() {
                 Back
               </Button>
             )}
-            <Button 
-              onClick={handleNext} 
+            <Button
+              onClick={handleNext}
               disabled={isLoading}
               className={currentStep === 1 ? "w-full" : "flex-1"}
             >
-              {isLoading ? "Creating Account..." : currentStep === 1 ? "Continue" : "Complete Setup"}
+              {isLoading
+                ? "Creating Account..."
+                : currentStep === 1
+                  ? "Continue"
+                  : "Complete Setup"}
             </Button>
           </div>
 
@@ -327,5 +382,5 @@ export function AdminOnboarding() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
-import { AuthService } from '../services';
-import { sendResponse, sendError, asyncHandler } from '../utils/response';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { Request, Response } from "express";
+import { AuthService } from "../services";
+import { sendResponse, sendError, asyncHandler } from "../utils/response";
+import { AuthenticatedRequest } from "../middleware/auth";
 
 const authService = new AuthService();
 
@@ -16,7 +16,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
       role,
     });
 
-    sendResponse(res, 201, true, 'User registered successfully', {
+    sendResponse(res, 201, true, "User registered successfully", {
       user,
       tokens,
     });
@@ -31,7 +31,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   try {
     const { user, tokens } = await AuthService.login(email, password);
 
-    sendResponse(res, 200, true, 'Login successful', {
+    sendResponse(res, 200, true, "Login successful", {
       user,
       tokens,
     });
@@ -45,34 +45,36 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
 
   try {
     await AuthService.logout(userId);
-    sendResponse(res, 200, true, 'Logout successful');
+    sendResponse(res, 200, true, "Logout successful");
   } catch (error: any) {
-    sendError(res, 500, 'Logout failed');
+    sendError(res, 500, "Logout failed");
   }
 });
 
-export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
-  const { refreshToken } = req.body;
+export const refreshToken = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
 
-  try {
-    const tokens = await AuthService.refreshToken(refreshToken);
-    sendResponse(res, 200, true, 'Token refreshed successfully', { tokens });
-  } catch (error: any) {
-    sendError(res, 401, 'Invalid refresh token');
-  }
-});
+    try {
+      const tokens = await AuthService.refreshToken(refreshToken);
+      sendResponse(res, 200, true, "Token refreshed successfully", { tokens });
+    } catch (error: any) {
+      sendError(res, 401, "Invalid refresh token");
+    }
+  },
+);
 
 export const getProfile = asyncHandler(async (req: Request, res: Response) => {
   const userId = (req as AuthenticatedRequest).user.userId;
-  
+
   try {
     // In a real implementation, you'd fetch the user profile
     // For now, return the user data from the token
-    sendResponse(res, 200, true, 'Profile retrieved successfully', {
+    sendResponse(res, 200, true, "Profile retrieved successfully", {
       user: (req as AuthenticatedRequest).user,
     });
   } catch (error: any) {
-    sendError(res, 500, 'Failed to retrieve profile');
+    sendError(res, 500, "Failed to retrieve profile");
   }
 });
 
@@ -92,10 +94,20 @@ export const adminSignup = asyncHandler(async (req: Request, res: Response) => {
     });
 
     if (!result.success) {
-      return sendError(res, result.statusCode || 400, result.message || 'Signup failed');
+      return sendError(
+        res,
+        result.statusCode || 400,
+        result.message || "Signup failed",
+      );
     }
 
-    sendResponse(res, 201, true, 'Admin account created successfully', result.data);
+    sendResponse(
+      res,
+      201,
+      true,
+      "Admin account created successfully",
+      result.data,
+    );
   } catch (error: any) {
     sendError(res, 400, error.message);
   }
@@ -108,10 +120,14 @@ export const adminLogin = asyncHandler(async (req: Request, res: Response) => {
     const result = await authService.adminLogin({ email, password });
 
     if (!result.success) {
-      return sendError(res, result.statusCode || 401, result.message || 'Login failed');
+      return sendError(
+        res,
+        result.statusCode || 401,
+        result.message || "Login failed",
+      );
     }
 
-    sendResponse(res, 200, true, 'Login successful', result.data);
+    sendResponse(res, 200, true, "Login successful", result.data);
   } catch (error: any) {
     sendError(res, 401, error.message);
   }
@@ -124,28 +140,43 @@ export const agentLogin = asyncHandler(async (req: Request, res: Response) => {
     const result = await authService.agentLogin({ email, password });
 
     if (!result.success) {
-      return sendError(res, result.statusCode || 401, result.message || 'Login failed');
+      return sendError(
+        res,
+        result.statusCode || 401,
+        result.message || "Login failed",
+      );
     }
 
-    sendResponse(res, 200, true, 'Login successful', result.data);
+    sendResponse(res, 200, true, "Login successful", result.data);
   } catch (error: any) {
     sendError(res, 401, error.message);
   }
 });
 
+export const acceptInvite = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { token } = req.body;
+    console.log("Accepting invite with token:", token);
+    try {
+      const result = await authService.acceptInvite(token);
 
-export const acceptInvite = asyncHandler(async (req: Request, res: Response) => {
-  const { token } = req.body;
-  console.log('Accepting invite with token:', token);
-  try {
-    const result = await authService.acceptInvite(token);
+      if (!result.success) {
+        return sendError(
+          res,
+          result.statusCode || 400,
+          result.message || "Failed to accept invitation",
+        );
+      }
 
-    if (!result.success) {
-      return sendError(res, result.statusCode || 400, result.message || 'Failed to accept invitation');
+      sendResponse(
+        res,
+        200,
+        true,
+        "Invitation accepted successfully",
+        result.data,
+      );
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Internal server error");
     }
-
-    sendResponse(res, 200, true, 'Invitation accepted successfully', result.data);
-  } catch (error: any) {
-    sendError(res, 500, error.message || 'Internal server error');
-  }
-});
+  },
+);

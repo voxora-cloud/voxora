@@ -49,10 +49,10 @@ export interface TeamFormData {
 export interface AgentFormData {
   name: string;
   email: string;
-  role: 'agent';
+  role: "agent";
   teamIds: string[];
   permissions?: string[];
-    password?: string; // Optional for existing agents
+  password?: string; // Optional for existing agents
 }
 
 // Response interfaces for admin API calls
