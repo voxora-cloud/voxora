@@ -123,6 +123,10 @@ npm run format
 - For MongoDB auth locally, credentials are seeded in the .env files and docker-compose; see apps/api/.env.\* and docker/docker-compose.dev.yml.
 - The web app uses Next.js with Turbopack in dev; if you hit issues, you can switch to the classic dev server by adjusting the script.
 
+## Contributing
+
+Before contributing, please read our contribution guidelines: CONTRIBUTION.md
+
 ## License
 
-TBD
+This project is licensed under the Voxora Custom License v1.0. See LICENSE for details.
