@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
 import Image from "next/image";
 import { Save, Loader2, X, MessageCircle } from "lucide-react";
+import { Copy } from "lucide-react";
 
 export default function CreateWidgetPage() {
   const router = useRouter();
@@ -354,16 +355,35 @@ export default function CreateWidgetPage() {
           {/* Integration Instructions */}
           <div className="mt-10 pt-8 border-t border-gray-200">
             <div className="bg-gray-50 rounded-lg p-6">
-              <h3 className="font-medium text-gray-900 mb-3">
-                Integration Code
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-gray-900">
+                  Integration Code
+                </h3>
+              </div>
               <p className="text-sm text-gray-600 mb-4">
                 Add this code to your website to enable the chat widget:
               </p>
-              <code className="block text-sm bg-gray-800 text-green-400 p-4 rounded-lg font-mono overflow-x-auto">
-                {`<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
+              <div className="relative">
+                <code className="block text-sm bg-gray-800 text-green-400 p-4 rounded-lg font-mono overflow-x-auto">
+                  {`<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
         data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"></script>`}
-              </code>
+                </code>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-8 w-8 p-0 hover:bg-gray-700 text-gray-400 hover:text-white"
+                  onClick={() => {
+                    const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
+        data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"></script>`;
+                    navigator.clipboard.writeText(code);
+                    setMessage({ type: "success", text: "Integration code copied to clipboard!" });
+                    setTimeout(() => setMessage(null), 2000);
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
