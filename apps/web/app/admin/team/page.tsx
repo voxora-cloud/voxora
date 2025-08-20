@@ -115,7 +115,7 @@ export default function TeamPage() {
       result = result.filter(
         (team) =>
           team.name.toLowerCase().includes(query) ||
-          (team.description && team.description.toLowerCase().includes(query)),
+          (team.description && team.description.toLowerCase().includes(query))
       );
     }
 
@@ -124,7 +124,7 @@ export default function TeamPage() {
       result = result.filter((team) => (team.agentCount || 0) > 0);
     } else if (agentCountFilter === "no-agents") {
       result = result.filter(
-        (team) => !team.agentCount || team.agentCount === 0,
+        (team) => !team.agentCount || team.agentCount === 0
       );
     }
 

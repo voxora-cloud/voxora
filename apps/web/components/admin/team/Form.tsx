@@ -5,6 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Team } from "@/lib/api";
 import { TeamFormData } from "@/lib/interfaces/admin";
 import { useState } from "react";
+import {
+  validateTeamColor,
+  validateTeamDescription,
+  validateTeamName,
+} from "@/lib/validation";
 
 // Team Form Component
 function TeamForm({
@@ -18,6 +23,10 @@ function TeamForm({
   onCancel: () => void;
   isLoading?: boolean;
 }) {
+  const [teamCreatingError, setTeamCreatingError] = useState({
+    errorField: "",
+    errorMessage: "",
+  });
   const [formData, setFormData] = useState<TeamFormData>({
     name: team?.name || "",
     description: team?.description || "",
@@ -26,6 +35,39 @@ function TeamForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate Name
+    const nameError = validateTeamName(formData.name.trim());
+    if (nameError) {
+      setTeamCreatingError({ errorField: "name", errorMessage: nameError });
+      return;
+    }
+
+    // Validate Description
+    const descriptionError = validateTeamDescription(
+      formData.description.trim()
+    );
+    if (descriptionError) {
+      setTeamCreatingError({
+        errorField: "description",
+        errorMessage: descriptionError,
+      });
+      return;
+    }
+
+    // Validate Color
+    const colorError = validateTeamColor(formData?.color.trim());
+    if (colorError) {
+      setTeamCreatingError({ errorField: "color", errorMessage: colorError });
+      return;
+    }
+
+    setFormData({
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      color: formData.color.trim(),
+    });
+
     onSubmit(formData);
   };
 
@@ -37,10 +79,17 @@ function TeamForm({
           id="name"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onClick={() =>
+            setTeamCreatingError({ errorField: "", errorMessage: "" })
+          }
           placeholder="Enter team name"
           disabled={!!team} // Disable name editing for existing teams
-          required
         />
+        {teamCreatingError?.errorField == "name" && (
+          <p className="p-2 text-sm text-red-500">
+            {teamCreatingError?.errorMessage}
+          </p>
+        )}
       </div>
       <div>
         <Label htmlFor="description">Description</Label>
@@ -50,10 +99,17 @@ function TeamForm({
           onChange={(e) =>
             setFormData({ ...formData, description: e.target.value })
           }
+          onClick={() =>
+            setTeamCreatingError({ errorField: "", errorMessage: "" })
+          }
           placeholder="Enter team description"
           rows={3}
-          required
         />
+        {teamCreatingError?.errorField == "description" && (
+          <p className="p-2 text-sm text-red-500">
+            {teamCreatingError?.errorMessage}
+          </p>
+        )}
       </div>
 
       <Label htmlFor="color">Team Color</Label>
@@ -63,7 +119,6 @@ function TeamForm({
           type="color"
           value={formData.color}
           onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-          required
         />
       </div>
       <div>
@@ -87,6 +142,11 @@ function TeamForm({
             className="flex-1"
           />
         </div>
+        {teamCreatingError?.errorField == "color" && (
+          <p className="p-2 text-sm text-red-500">
+            {teamCreatingError?.errorMessage}
+          </p>
+        )}
       </div>
 
       <div className="flex gap-2 pt-4">
