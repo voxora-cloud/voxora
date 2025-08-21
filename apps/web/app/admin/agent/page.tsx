@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -9,6 +9,28 @@ import AgentForm from "@/components/admin/agent/Form";
 import { apiService } from "@/lib/api";
 import { AgentFormData } from "@/lib/interfaces/admin";
 import { Input } from "@/components/ui/input";
+
+function getContrastColor(hex: string | undefined | null): string {
+  if (!hex) return "#ffffff";
+
+  let c = hex.replace("#", "");
+  if (c.length === 3) {
+    c = c
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+
+  if (c.length !== 6) return "#ffffff";
+
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+  return luminance > 0.6 ? "#000000" : "#ffffff";
+}
 
 function AgentDetailModal({
   agent,
@@ -167,7 +189,7 @@ export default function AgentPage() {
       result = result.filter(
         (agent) =>
           agent.name.toLowerCase().includes(query) ||
-          agent.email.toLowerCase().includes(query),
+          agent.email.toLowerCase().includes(query)
       );
     }
 
@@ -180,7 +202,7 @@ export default function AgentPage() {
     if (teamFilter !== "all") {
       result = result.filter(
         (agent) =>
-          agent.teams && agent.teams.some((team) => team._id === teamFilter),
+          agent.teams && agent.teams.some((team) => team._id === teamFilter)
       );
     }
 
@@ -460,16 +482,37 @@ export default function AgentPage() {
                       <div className="flex items-center space-x-1">
                         {agent.teams && agent.teams.length > 0 ? (
                           <>
-                            {agent.teams.slice(0, 3).map((team) => (
-                              <div
-                                key={team._id}
-                                className="w-2 h-2 rounded-full"
-                                style={{
-                                  backgroundColor: team.color || "#3b82f6",
-                                }}
-                                title={team.name}
-                              ></div>
-                            ))}
+                            {agent.teams.slice(0, 3).map((team) => {
+                              const bg = team.color || "#3b82f6";
+                              const textColor = getContrastColor(bg);
+
+                              return (
+                                <div key={team._id} className="relative group">
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full cursor-pointer border border-gray-300"
+                                    style={{ backgroundColor: bg }}
+                                  ></div>
+
+                                  <div
+                                    className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100
+                             text-xs px-2 py-1 rounded-md shadow-lg
+                             transition-all duration-200 whitespace-nowrap z-10"
+                                    style={{
+                                      backgroundColor: bg,
+                                      color: textColor,
+                                    }}
+                                  >
+                                    {team.name}
+
+                                    <div
+                                      className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 rotate-45"
+                                      style={{ backgroundColor: bg }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
                             {agent.teams.length > 3 && (
                               <span className="text-xs text-gray-500">
                                 +{agent.teams.length - 3} more
