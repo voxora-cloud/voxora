@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # API Service
   api:
-    image: ${DOCKER_USERNAME}/voxora-api:latest
+    image: ompharate/voxora-api:latest
     container_name: voxora-api
     restart: unless-stopped
     ports:
@@ -11,7 +11,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3002
-      - MONGODB_URI=mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongodb:27017/voxora-chat?authSource=admin
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/voxora-chat?authSource=admin
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
@@ -35,8 +35,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: voxora-chat
     volumes:
       - mongodb_data:/data/db
