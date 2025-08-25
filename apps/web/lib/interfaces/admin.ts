@@ -43,7 +43,7 @@ export interface TeamStats {
 export interface TeamFormData {
   name: string;
   description: string;
-  color?: string;
+  color: string;
 }
 
 export interface AgentFormData {
