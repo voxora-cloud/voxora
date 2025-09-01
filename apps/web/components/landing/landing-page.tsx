@@ -7,50 +7,54 @@ import {
   CardTitle
 } from '@/components/ui/card'
 import {
-  MessageCircle,
-  Users,
-  Shield,
-  Zap,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Bot,
+  PhoneCall,
+  BarChart3,
+  Code2
 } from 'lucide-react'
 import Link from 'next/link'
 
 export function LandingPage () {
   const features = [
     {
-      icon: MessageCircle,
-      title: 'Real-time Chat',
+      icon: Bot,
+      title: "AI-Powered Support",
       description:
-        'Instant messaging with real-time updates for seamless communication'
-    },
-    {
-      icon: Users,
-      title: 'Team Collaboration',
-      description:
-        'Connect multiple support agents to handle customer queries efficiently'
-    },
-    {
-      icon: Shield,
-      title: 'Secure & Private',
-      description:
-        'End-to-end encryption ensures your conversations remain private'
-    },
-    {
-      icon: Zap,
-      title: 'Lightning Fast',
-      description: 'Built with modern technology for ultra-fast performance'
-    }
-  ]
+      "Smart chat and voice agents powered by AI to handle customer queries instantly"
+  },
+  {
+    icon: PhoneCall,
+    title: "Voice & Chat Integration",
+    description:
+      "Seamlessly switch between live chat and voice support with WebRTC"
+  },
+  {
+    icon: BarChart3,
+    title: "Advanced Analytics",
+    description:
+      "Track customer interactions, agent performance, and conversation insights in real-time"
+  },
+  {
+    icon: Code2,
+    title: "Open Source & Customizable",
+    description:
+      "Developer-friendly, fully customizable, and open-source at its core"
+  }
+];
 
-  const benefits = [
-    '24/7 Customer Support',
-    'Multi-channel Communication',
-    'Advanced Analytics',
-    'Custom Integrations',
-    'Mobile Responsive',
-    'Open Source'
-  ]
+const benefits = [
+  "Real-time AI-powered Chat & Voice Support",
+  "Seamless Integration with Modern Web Apps",
+  "Scalable WebSocket & WebRTC Infrastructure",
+  "Customizable & Developer-Friendly Open Source Core",
+  "Built-in Support for Multi-channel Communication",
+  "Advanced Analytics & Conversation Insights",
+  "Secure & Privacy-Focused Architecture",
+  "Mobile & Cross-Platform Ready"
+];
+
 
   return (
     <div className='min-h-screen bg-background'>
@@ -68,28 +72,34 @@ export function LandingPage () {
 
           <nav className='hidden md:flex items-center space-x-8'>
             <Link
-              href='#features'
+              href='/Features'
               className='text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 hover:after:w-full after:bg-primary after:transition-all'
             >
               Features
             </Link>
             <Link
-              href='#pricing'
+              href='/Pricing'
               className='text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 hover:after:w-full after:bg-primary after:transition-all'
             >
               Pricing
             </Link>
             <Link
-              href='#about'
+              href='/About'
               className='text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 hover:after:w-full after:bg-primary after:transition-all'
             >
               About
             </Link>
             <Link
-              href='#docs'
+              href='/Documentation'
               className='text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 hover:after:w-full after:bg-primary after:transition-all'
             >
               Documentation
+            </Link>
+            <Link
+              href='/Community'
+              className='text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 hover:after:w-full after:bg-primary after:transition-all'
+            >
+              Community
             </Link>
           </nav>
 
@@ -123,7 +133,7 @@ export function LandingPage () {
                 </span>
               </div>
               <h1 className='text-4xl sm:text-5xl md:text-6xl font-bold text-foreground leading-tight'>
-                Real-time Chat Support
+                Real-time Chat & Voice Support
                 <span className='block text-primary'>Made Simple</span>
               </h1>
               <p className='text-xl text-muted-foreground mt-6 mb-8 max-w-lg'>
@@ -137,7 +147,7 @@ export function LandingPage () {
                     href='/register'
                     className='inline-flex items-center gap-2'
                   >
-                    <span>Start Free Trial</span>
+                    <span>Start Free</span>
                     <ArrowRight className='h-4 w-4' />
                   </Link>
                 </Button>
@@ -146,7 +156,7 @@ export function LandingPage () {
                 </Button>
               </div>
 
-              <div className='mt-8 flex items-center'>
+              {/* <div className='mt-8 flex items-center'>
                 <div className='flex -space-x-2'>
                   {[...Array(4)].map((_, i) => (
                     <div
@@ -169,7 +179,7 @@ export function LandingPage () {
                     From startups to enterprises
                   </div>
                 </div>
-              </div>
+              </div> */}
             </div>
 
             <div className='relative hidden lg:block'>
@@ -262,12 +272,11 @@ export function LandingPage () {
           <div className='mt-16 text-center'>
             <Button
               variant='outline'
-              size='lg'
-              className='rounded-full'
+              className='rounded-full px-8 py-3'
               asChild
             >
-              <Link href='/features'>
-                Explore All Features
+              <Link href='/Features' className='inline-flex items-center justify-center'>
+                <span>Explore All Features</span>
                 <ArrowRight className='ml-2 h-4 w-4' />
               </Link>
             </Button>
@@ -308,7 +317,7 @@ export function LandingPage () {
                 ))}
               </div>
               <Button className='mt-4' asChild>
-                <Link href='/features'>Learn More</Link>
+                <Link href='/Features'>Learn More</Link>
               </Button>
             </div>
 
@@ -439,8 +448,7 @@ export function LandingPage () {
               </h2>
               <p className='text-xl text-muted-foreground mb-8 max-w-2xl mx-auto'>
                 Join thousands of teams already using Voxora to provide
-                exceptional customer support. Start your 14-day free trial
-                today.
+                exceptional customer support. Start using Voxora today.
               </p>
               <div className='flex flex-col sm:flex-row gap-4 justify-center'>
                 <Button size='lg' className='shadow-xl' asChild>
@@ -448,7 +456,7 @@ export function LandingPage () {
                     href='/register'
                     className='inline-flex items-center gap-2'
                   >
-                    <span>Start Free Trial</span>
+                    <span>Start Free</span>
                     <ArrowRight className='h-4 w-4' />
                   </Link>
                 </Button>
@@ -458,11 +466,11 @@ export function LandingPage () {
                   className='shadow-xl'
                   asChild
                 >
-                  <Link href='/contact'>Schedule Demo</Link>
+                  <Link href='/contact'>View Demo</Link>
                 </Button>
               </div>
               <p className='text-sm text-muted-foreground mt-6'>
-                No credit card required. 14-day free trial.
+                Start your journey with Voxora today.
               </p>
             </div>
           </div>
@@ -490,25 +498,7 @@ export function LandingPage () {
               </p>
               <div className='flex space-x-4'>
                 <Link
-                  href='https://twitter.com'
-                  className='text-muted-foreground hover:text-foreground'
-                >
-                  <svg
-                    xmlns='http://www.w3.org/2000/svg'
-                    width='20'
-                    height='20'
-                    viewBox='0 0 24 24'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeWidth='2'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                  >
-                    <path d='M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z'></path>
-                  </svg>
-                </Link>
-                <Link
-                  href='https://github.com'
+                  href='https://github.com/voxora-cloud'
                   className='text-muted-foreground hover:text-foreground'
                 >
                   <svg
@@ -527,7 +517,7 @@ export function LandingPage () {
                   </svg>
                 </Link>
                 <Link
-                  href='https://linkedin.com'
+                  href='https://www.linkedin.com/company/voxora-io'
                   className='text-muted-foreground hover:text-foreground'
                 >
                   <svg
@@ -554,7 +544,7 @@ export function LandingPage () {
               <ul className='space-y-3'>
                 <li>
                   <Link
-                    href='/features'
+                    href='/Features'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     Features
@@ -562,7 +552,7 @@ export function LandingPage () {
                 </li>
                 <li>
                   <Link
-                    href='/pricing'
+                    href='/Pricing'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     Pricing
@@ -570,20 +560,13 @@ export function LandingPage () {
                 </li>
                 <li>
                   <Link
-                    href='/integrations'
+                    href='/Documentation'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     Integrations
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href='/changelog'
-                    className='text-sm text-muted-foreground hover:text-foreground'
-                  >
-                    Changelog
-                  </Link>
-                </li>
+                
               </ul>
             </div>
 
@@ -592,7 +575,7 @@ export function LandingPage () {
               <ul className='space-y-3'>
                 <li>
                   <Link
-                    href='/docs'
+                    href='/Documentation'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     Documentation
@@ -600,7 +583,7 @@ export function LandingPage () {
                 </li>
                 <li>
                   <Link
-                    href='/api'
+                    href='/Documentation'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     API Reference
@@ -608,7 +591,7 @@ export function LandingPage () {
                 </li>
                 <li>
                   <Link
-                    href='/guides'
+                    href='/Documentation'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     Guides
@@ -616,7 +599,7 @@ export function LandingPage () {
                 </li>
                 <li>
                   <Link
-                    href='/community'
+                    href='/Community'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     Community
@@ -630,7 +613,7 @@ export function LandingPage () {
               <ul className='space-y-3'>
                 <li>
                   <Link
-                    href='/about'
+                    href='/About'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
                     About Us
@@ -638,28 +621,13 @@ export function LandingPage () {
                 </li>
                 <li>
                   <Link
-                    href='/careers'
+                    href='/Community'
                     className='text-sm text-muted-foreground hover:text-foreground'
                   >
-                    Careers
+                    Team
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href='/privacy'
-                    className='text-sm text-muted-foreground hover:text-foreground'
-                  >
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href='/terms'
-                    className='text-sm text-muted-foreground hover:text-foreground'
-                  >
-                    Terms of Service
-                  </Link>
-                </li>
+           
               </ul>
             </div>
           </div>
@@ -670,7 +638,7 @@ export function LandingPage () {
               source community.
             </p>
 
-            <div className='flex space-x-6'>
+            {/* <div className='flex space-x-6'>
               <Link
                 href='/privacy'
                 className='text-xs text-muted-foreground hover:text-foreground'
@@ -695,7 +663,7 @@ export function LandingPage () {
               >
                 Contact
               </Link>
-            </div>
+            </div> */}
           </div>
         </div>
       </footer>
