@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # API Service
   api:
-    image: ompharate/voxora-api:latest
+    image: voxora-cloud/voxora-api:latest
     container_name: voxora-api
     restart: unless-stopped
     ports:
