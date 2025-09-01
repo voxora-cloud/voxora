@@ -34,6 +34,7 @@ export default function CreateWidgetPage() {
       "data-voxora-public-key",
       formData._id ? formData._id : "will-be-generated",
     );
+    script.setAttribute("data-voxora-env", process.env.NEXT_PUBLIC_ENV || "dev");
     document.body.appendChild(script);
   }, [formData._id]);
   // Handle input changes
