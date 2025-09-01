@@ -10,7 +10,7 @@
   var unreadBadge;
   var unreadCount = 0;
   var widgetToken = null;
-  var apiBaseUrl = env === "dev" ? "http://localhost:3002" : "https://api.voxora.com";
+  var apiBaseUrl = env === "dev" ? "http://localhost:3002" : "https://api.voxora.cloud";
   var widgetConfig = null;
 
   // JWT Authentication functions
