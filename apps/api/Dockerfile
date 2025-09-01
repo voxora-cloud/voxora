@@ -14,6 +14,10 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
+# ✅ Copy public folder into dist/public
+COPY src/public dist/public
+
+
 # Expose port
 EXPOSE 3002
 

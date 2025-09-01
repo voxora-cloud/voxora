@@ -2,14 +2,15 @@
   // Widget state
   const currentScript = document.currentScript;
   const voxoraPublicKey = currentScript.getAttribute("data-voxora-public-key");
-  
+  const env = currentScript.getAttribute("data-voxora-env") || "dev";
+
   var isWidgetOpen = false;
   var iframe;
   var chatButton;
   var unreadBadge;
   var unreadCount = 0;
   var widgetToken = null;
-  var apiBaseUrl = "http://localhost:3002";
+  var apiBaseUrl = env === "dev" ? "http://localhost:3002" : "https://api.voxora.com";
   var widgetConfig = null;
 
   // JWT Authentication functions
