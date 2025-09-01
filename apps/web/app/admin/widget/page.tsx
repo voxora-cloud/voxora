@@ -366,7 +366,8 @@ export default function CreateWidgetPage() {
               <div className="relative">
                 <code className="block text-sm bg-gray-800 text-green-400 p-4 rounded-lg font-mono overflow-x-auto">
                   {`<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
-        data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"></script>`}
+        data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
+        data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"></script>`}
                 </code>
                 <Button
                   type="button"
