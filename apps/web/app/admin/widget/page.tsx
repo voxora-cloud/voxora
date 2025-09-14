@@ -249,50 +249,6 @@ export default function CreateWidgetPage() {
 
               {/* Right Column - Preview */}
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Widget Preview
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    This is how your widget button will appear on your website
-                  </p>
-                </div>
-
-                {/* Chat Button Preview */}
-                <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-8 border-2 border-dashed border-gray-300">
-                  <div className="text-center mb-4">
-                    <p className="text-xs text-gray-500">
-                      Your website content
-                    </p>
-                  </div>
-
-                  <div className="absolute bottom-4 left-4">
-                    <button
-                      className="w-14 h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center group"
-                      style={{ backgroundColor: formData.backgroundColor }}
-                    >
-                      {formData.logoUrl ? (
-                        <Image
-                          unoptimized
-                          src={formData.logoUrl}
-                          alt="Logo"
-                          width={24}
-                          height={24}
-                          className="object-contain"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <MessageCircle className="w-6 h-6 text-white" />
-                      )}
-
-                      {/* Online Badge */}
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
-                    </button>
-                  </div>
-                </div>
-
                 {/* Widget Info */}
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h4 className="font-medium text-blue-900 mb-2">
