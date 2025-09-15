@@ -162,7 +162,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </nav>
 
         {/* User Profile & Logout */}
-        <div className="absolute bottom-0 w-64 p-4 border-t border-gray-200">
+        <div className="absolute bottom-0 w-full p-4 border-t border-gray-200">
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
               <Crown className="h-4 w-4 text-white" />
