@@ -55,7 +55,7 @@ export interface Agent {
   teams: Array<{ _id: string; name: string; color?: string }>;
   status: "online" | "offline" | "busy";
   avatar?: string;
-  lastActive: Date;
+  lastSeen: Date;
   inviteStatus: "pending" | "active" | "inactive";
   permissions?: string[];
   createdAt: Date;

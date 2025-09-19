@@ -32,6 +32,37 @@ function getContrastColor(hex: string | undefined | null): string {
   return luminance > 0.6 ? "#000000" : "#ffffff";
 }
 
+function formatDate(dateValue: string | Date | null | undefined): string {
+  if (!dateValue) return "Never";
+  
+  // Handle different date formats
+  let date: Date;
+  
+  if (dateValue instanceof Date) {
+    date = dateValue;
+  } else if (typeof dateValue === 'string') {
+    // Try parsing the string - handle ISO strings, timestamps, etc.
+    date = new Date(dateValue);
+    
+    // If that fails, try parsing as a number (timestamp)
+    if (isNaN(date.getTime())) {
+      const timestamp = parseInt(dateValue, 10);
+      if (!isNaN(timestamp)) {
+        date = new Date(timestamp);
+      }
+    }
+  } else {
+    date = new Date(dateValue);
+  }
+  
+  // Final validation
+  if (isNaN(date.getTime())) {
+    return "Never";
+  }
+  
+  return date.toLocaleString();
+}
+
 function AgentDetailModal({
   agent,
   isOpen,
@@ -109,13 +140,13 @@ function AgentDetailModal({
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Last Active</h4>
                 <p className="text-sm text-gray-600">
-                  {new Date(agent.lastActive).toLocaleString()}
+                  {formatDate(agent.lastSeen)}
                 </p>
               </div>
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">Member Since</h4>
                 <p className="text-sm text-gray-600">
-                  {new Date(agent.createdAt).toLocaleDateString()}
+                  {formatDate(agent.createdAt)}
                 </p>
               </div>
             </div>
@@ -527,9 +558,7 @@ export default function AgentPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-sm">
-                      {agent.lastActive
-                        ? new Date(agent.lastActive).toLocaleString()
-                        : "Never"}
+                      {formatDate(agent.lastSeen)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end space-x-2">
