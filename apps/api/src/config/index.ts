@@ -1,7 +1,8 @@
 import dotenv from "dotenv";
-
-dotenv.config();
-
+import path from "path";
+// Load environment-specific .env file
+const envFile = process.env.NODE_ENV === "production" ? ".env" : ".env.development";
+dotenv.config({ path: path.resolve(__dirname, "../../", envFile) });
 interface Config {
   app: {
     port: number;

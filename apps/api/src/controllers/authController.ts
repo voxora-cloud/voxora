@@ -84,8 +84,7 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 
 export const adminSignup = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password, companyName } = req.body;
-
-  try {
+    try {
     const result = await authService.adminSignup({
       name,
       email,

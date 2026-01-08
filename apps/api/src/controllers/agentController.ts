@@ -117,7 +117,7 @@ export const getStats = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const stats = await agentService.getAgentStats(req.user.userId);
-
+       
       if (!stats) {
         return sendError(res, 404, "Agent not found");
       }

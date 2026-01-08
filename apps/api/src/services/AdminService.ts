@@ -24,11 +24,58 @@ export class AdminService {
       ];
     }
 
-    const teams = await Team.find(query)
-      .populate("createdBy", "name email")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+    const teams = await Team.aggregate([
+      { $match: query },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "teams",
+          as: "agents",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "creator",
+        },
+      },
+      {
+        $unwind: {
+          path: "$creator",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          agentCount: { $size: "$agents" },
+          onlineAgents: {
+            $size: {
+              $filter: {
+                input: "$agents",
+                cond: { $eq: ["$$this.status", "online"] },
+              },
+            },
+          },
+          createdBy: {
+            _id: "$creator._id",
+            name: "$creator.name",
+            email: "$creator.email",
+          },
+        },
+      },
+      {
+        $project: {
+          agents: 0,
+          creator: 0,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ]);
 
     const total = await Team.countDocuments(query);
 
