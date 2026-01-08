@@ -11,6 +11,10 @@ export interface IMessage extends Document {
     senderEmail: string;
     source: string;
   };
+  readBy: {
+    userId: string;
+    readAt: Date;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +44,12 @@ const messageSchema = new Schema<IMessage>(
       senderEmail: String,
       source: String,
     },
+    readBy: [
+      {
+        userId: String,
+        readAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { auth } from "../middleware/auth";
+import { auth, AuthenticatedRequest } from "../middleware/auth";
 import { Conversation, Message } from "../models";
 import { sendResponse, sendError, asyncHandler } from "../utils/response";
 
@@ -12,6 +12,7 @@ router.get(
   "/",
   auth,
   asyncHandler(async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
     try {
       const { status, limit = 50, offset = 0 } = req.query;
 
@@ -25,6 +26,8 @@ router.get(
         .limit(Number(limit))
         .skip(Number(offset))
         .lean();
+      
+      const userId = authReq.user?.userId;
 
       // Get message counts and last messages for each conversation
       const conversationsWithMeta = await Promise.all(
@@ -35,9 +38,11 @@ router.get(
             .sort({ createdAt: -1 })
             .lean();
 
+          // Count messages that are from "widget" (customer) AND NOT read by this user
           const unreadCount = await Message.countDocuments({
             conversationId: conv._id,
             "metadata.source": "widget",
+            "readBy.userId": { $ne: userId }
           });
 
           return {
@@ -110,6 +115,44 @@ router.patch(
       });
     } catch (error: any) {
       sendError(res, 500, "Failed to update conversation: " + error.message);
+    }
+  }),
+);
+
+// Mark all messages in a conversation as read
+router.post(
+  "/:conversationId/read",
+  auth,
+  asyncHandler(async (req: Request, res: Response) => {
+    try {
+      const { conversationId } = req.params;
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user?.userId;
+
+      if (!userId) {
+        return sendError(res, 401, "User not authenticated");
+      }
+
+      // Update all messages in this conversation that don't have this user in readBy
+      await Message.updateMany(
+        {
+          conversationId,
+          "metadata.source": "widget",
+          "readBy.userId": { $ne: userId },
+        },
+        {
+          $push: {
+            readBy: {
+              userId,
+              readAt: new Date(),
+            },
+          },
+        },
+      );
+
+      sendResponse(res, 200, true, "Messages marked as read");
+    } catch (error: any) {
+      sendError(res, 500, "Failed to mark messages as read: " + error.message);
     }
   }),
 );
