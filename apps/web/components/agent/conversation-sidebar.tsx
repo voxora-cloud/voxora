@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import { Search, Bell } from "lucide-react";
 import io from "socket.io-client";
 
@@ -46,7 +46,31 @@ interface Conversation {
 
 export function ConversationSidebar() {
   const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
   const { user } = useAuth();
+  
+  // Use ref to track current conversation ID for socket callbacks without dependencies
+  const activeConversationIdRef = useRef<string | null>(null);
+  // Track processed message IDs to prevent double counting
+  const processedMessageIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    // Extract conversation ID from pathname if params are empty (which happens in Layout sometimes)
+    // Path format: .../chat/[id]
+    if (params?.conversationId) {
+      activeConversationIdRef.current = params.conversationId as string;
+    } else if (pathname && pathname.includes('/chat/')) {
+      const parts = pathname.split('/chat/');
+      if (parts.length > 1 && parts[1]) {
+        activeConversationIdRef.current = parts[1].split('/')[0] || null;
+      } else {
+        activeConversationIdRef.current = null;
+      }
+    } else {
+      activeConversationIdRef.current = null;
+    }
+  }, [params, pathname]);
 
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -104,21 +128,40 @@ export function ConversationSidebar() {
         fetchConversations();
       });
 
-      socketInstance.on("new_message", (data) => {
-        if (data?.message?.metadata?.source === "widget") {
-          // Update the conversation in the list
-          setConversations((prev) =>
-            prev.map((conv) =>
-              conv._id === data.conversationId
-                ? {
-                    ...conv,
-                    lastMessage: data.message,
-                    unreadCount: (conv.unreadCount || 0) + 1,
-                  }
-                : conv,
-            ),
-          );
+      socketInstance.on("customer_message", (data) => {
+        console.log("Received customer_message:", data); // Debug logging
+        // Prevent duplicate processing
+        if (data.messageId && processedMessageIdsRef.current.has(data.messageId)) {
+          return;
         }
+        if (data.messageId) {
+          processedMessageIdsRef.current.add(data.messageId);
+        }
+
+        setConversations((prev) =>
+          prev.map((conv) => {
+            if (conv._id === data.conversationId) {
+              const isCurrentChat = activeConversationIdRef.current === data.conversationId;
+              
+              // Only increment unread count if we are NOT in this chat
+              const newUnreadCount = isCurrentChat 
+                ? 0 // explicitly keep it 0 if we are watching it
+                : (conv.unreadCount || 0) + 1;
+
+              return {
+                ...conv,
+                lastMessage: {
+                  content: data.message,
+                  createdAt: data.timestamp,
+                  senderId: { name: data.customerName }
+                },
+                unreadCount: newUnreadCount,
+                lastMessageAt: data.timestamp,
+              };
+            }
+            return conv;
+          })
+        );
       });
 
       setSocket(socketInstance);
@@ -274,11 +317,39 @@ export function ConversationSidebar() {
             <div
               key={conversation._id}
               className="p-4 border-b border-border hover:bg-muted cursor-pointer transition-colors"
-              onClick={() => {
+              onClick={async () => {
                 // Join conversation via socket when clicking
                 if (socket) {
                   socket.emit("join_conversation", conversation._id);
                 }
+                
+                // Mark conversation as read
+                if (conversation.unreadCount > 0) {
+                  try {
+                    const token = localStorage.getItem("token");
+                    await fetch(
+                      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1"}/conversations/${conversation._id}/read`,
+                      {
+                        method: "POST",
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      }
+                    );
+                    
+                    // Update local state to clear unread count
+                    setConversations(prev => 
+                      prev.map(c => 
+                        c._id === conversation._id 
+                          ? { ...c, unreadCount: 0 } 
+                          : c
+                      )
+                    );
+                  } catch (err) {
+                    console.error("Failed to mark conversation as read", err);
+                  }
+                }
+
                 router.push(`/support/dashboard/chat/${conversation._id}`);
               }}
             >

@@ -50,6 +50,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           // Broadcast to all agents that a new customer message has arrived
           io.emit("customer_message", {
             conversationId,
+            messageId: message._id, // Add ID for dedup
             customerName: metadata.senderName,
             message: content,
             timestamp: new Date(),

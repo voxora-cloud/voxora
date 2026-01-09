@@ -265,6 +265,25 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     });
   };
 
+  const getFormattedDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    }
+  };
+
   const isAgentMessage = (message: Message) => {
     return message.metadata?.source === "web" || message.senderId === user?.id;
   };
@@ -341,13 +360,31 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message._id}
-              className={`flex ${isAgentMessage(message) ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`
+          messages.map((message, index) => {
+            const currentDate = getFormattedDate(message.createdAt);
+            const prevMessage = messages[index - 1];
+            const prevDate =
+              index > 0 && prevMessage
+                ? getFormattedDate(prevMessage.createdAt)
+                : null;
+            const showSeparator = currentDate !== prevDate;
+
+            return (
+              <React.Fragment key={message._id}>
+                {showSeparator && (
+                  <div className="flex items-center justify-center my-4">
+                    <span className="bg-muted text-muted-foreground text-xs px-3 py-1 rounded-full border border-border">
+                      {currentDate}
+                    </span>
+                  </div>
+                )}
+                <div
+                  className={`flex ${
+                    isAgentMessage(message) ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`
                 max-w-[70%] px-4 py-3 rounded-lg
                 ${
                   isAgentMessage(message)
@@ -355,20 +392,24 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     : "bg-white border border-border"
                 }
               `}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-medium opacity-75">
-                    {message.metadata?.senderName ||
-                      (isAgentMessage(message) ? "You" : "Customer")}
-                  </span>
-                  <span className="text-xs opacity-50 ml-2">
-                    {formatTime(message.createdAt)}
-                  </span>
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium opacity-75">
+                        {message.metadata?.senderName ||
+                          (isAgentMessage(message) ? "You" : "Customer")}
+                      </span>
+                      <span className="text-xs opacity-50 ml-2">
+                        {formatTime(message.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              </div>
-            </div>
-          ))
+              </React.Fragment>
+            );
+          })
         )}
       </div>
 
