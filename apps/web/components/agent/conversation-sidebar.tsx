@@ -164,35 +164,6 @@ export function ConversationSidebar() {
         );
       });
 
-      // Removed redundant new_message listener to prevent double counting
-      // customer_message listener above handles widget message notifications globally
-      /*
-      socketInstance.on("new_message", (data) => {
-        if (data?.message?.metadata?.source === "widget") {
-          // Update the conversation in the list
-          setConversations((prev) =>
-            prev.map((conv) => {
-              if (conv._id === data.conversationId) {
-                const isCurrentChat = activeConversationIdRef.current === data.conversationId;
-                
-                // Only increment unread count if we are NOT in this chat
-                const newUnreadCount = isCurrentChat 
-                  ? 0 
-                  : (conv.unreadCount || 0) + 1;
-
-                return {
-                  ...conv,
-                  lastMessage: data.message,
-                  unreadCount: newUnreadCount,
-                };
-              }
-              return conv;
-            }),
-          );
-        }
-      });
-      */
-
       setSocket(socketInstance);
 
       return () => {

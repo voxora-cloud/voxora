@@ -269,6 +269,25 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     return message.metadata?.source === "web" || message.senderId === user?.id;
   };
 
+  const getDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -341,34 +360,55 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message) => (
-            <div
-              key={message._id}
-              className={`flex ${isAgentMessage(message) ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`
-                max-w-[70%] px-4 py-3 rounded-lg
-                ${
-                  isAgentMessage(message)
-                    ? "bg-blue-500 text-white"
-                    : "bg-white border border-border"
-                }
-              `}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-medium opacity-75">
-                    {message.metadata?.senderName ||
-                      (isAgentMessage(message) ? "You" : "Customer")}
-                  </span>
-                  <span className="text-xs opacity-50 ml-2">
-                    {formatTime(message.createdAt)}
-                  </span>
+          messages.map((message, index) => {
+            const currentDate = new Date(message.createdAt);
+            const previousDate =
+              index > 0 ? new Date(messages[index - 1]!.createdAt) : null;
+            const showDateSeparator =
+              !previousDate ||
+              currentDate.toDateString() !== previousDate.toDateString();
+
+            return (
+              <React.Fragment key={message._id}>
+                {showDateSeparator && (
+                  <div className="flex justify-center my-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+                      {getDateLabel(message.createdAt)}
+                    </span>
+                  </div>
+                )}
+                <div
+                  className={`flex ${
+                    isAgentMessage(message) ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`
+                  max-w-[70%] px-4 py-3 rounded-lg
+                  ${
+                    isAgentMessage(message)
+                      ? "bg-blue-500 text-white"
+                      : "bg-white border border-border"
+                  }
+                `}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-medium opacity-75">
+                        {message.metadata?.senderName ||
+                          (isAgentMessage(message) ? "You" : "Customer")}
+                      </span>
+                      <span className="text-xs opacity-50 ml-2">
+                        {formatTime(message.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              </div>
-            </div>
-          ))
+              </React.Fragment>
+            );
+          })
         )}
       </div>
 
