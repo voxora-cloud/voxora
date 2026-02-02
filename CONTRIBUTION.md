@@ -53,6 +53,14 @@ npm run dev:full
 
 By contributing, you agree that your contributions will be licensed under the repository’s license (see `LICENSE`).
 
+## Contributor Agreement
+
+By submitting a pull request (PR) to this repository, you agree that:
+1. Your contributions will be licensed under the Voxora Custom License v1.0.
+2. You do not gain any ownership, equity, or legal rights in Voxora the company.
+3. The copyright for your contributions is granted to Voxora under the terms of the license.
+
+
 ## PR checklist
 
 - [ ] Small, focused changes with a clear description

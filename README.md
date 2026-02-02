@@ -125,7 +125,7 @@ npm run format
 
 ## Contributing
 
-Before contributing, please read our contribution guidelines: CONTRIBUTION.md
+Before contributing, please read our contribution guidelines: `CONTRIBUTION.md`
 
 ## License
 

@@ -45,6 +45,13 @@ export const authenticate = async (
       return;
     }
 
+    // Update lastSeen timestamp for activity tracking
+    await User.findByIdAndUpdate(
+      decoded.userId,
+      { lastSeen: new Date() },
+      { timestamps: false } // Don't update updatedAt for this operation
+    );
+
     (req as AuthenticatedRequest).user = {
       userId: decoded.userId,
       email: decoded.email,

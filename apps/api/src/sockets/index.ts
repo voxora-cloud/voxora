@@ -71,6 +71,13 @@ export class SocketManager {
           avatar: user.avatar,
         };
 
+        // Update lastSeen on socket connection
+        await User.findByIdAndUpdate(
+          user._id,
+          { lastSeen: new Date() },
+          { timestamps: false }
+        );
+
         next();
       } catch (error) {
         next(new Error("Authentication error: Invalid token"));
