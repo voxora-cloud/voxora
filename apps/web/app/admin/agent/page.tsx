@@ -78,7 +78,7 @@ function AgentDetailModal({
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
                     agent.status === "online"
                       ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
+                      : "text-gray-800"
                   }`}
                 >
                   {agent.status}
@@ -129,7 +129,7 @@ function AgentDetailModal({
                   agent.teams.map((team) => (
                     <div
                       key={team._id}
-                      className="flex items-center space-x-2 p-2 bg-gray-50 rounded"
+                      className="flex items-center space-x-2 p-2  rounded"
                     >
                       <div
                         className="w-4 h-4 rounded"
@@ -437,7 +437,7 @@ export default function AgentPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left">
+                <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Agent</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Teams</th>
@@ -449,7 +449,7 @@ export default function AgentPage() {
                 {filteredAgents.map((agent) => (
                   <tr
                     key={agent._id}
-                    className="border-t border-gray-200 hover:bg-gray-50"
+                    className="border-t border-gray-200 hover:bg-muted/50"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-3">

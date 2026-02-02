@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Users, UserCheck, AlertCircle } from "lucide-react";
 import { apiService } from "@/lib/api";
 import { Alert, AlertDescription } from "../ui/alert";
+import { Loader } from "../ui/loader";
 import { DashboardStats, TeamStat, RecentAgent } from "@/lib/interfaces/admin";
 
 function AdminDashboard() {
@@ -126,9 +127,9 @@ function AdminDashboard() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {isLoading ? (
-            <Card className="p-6">
-              <div className="animate-pulse h-20"></div>
-            </Card>
+            <div className="col-span-full flex justify-center py-12">
+              <Loader size="md" />
+            </div>
           ) : stats.teamStats.length > 0 ? (
             stats.teamStats.map((team: TeamStat) => (
               <Card key={team._id} className="p-4">
@@ -188,9 +189,9 @@ function AdminDashboard() {
           </Button>
         </div>
         {isLoading ? (
-          <Card className="p-6">
-            <div className="animate-pulse h-20"></div>
-          </Card>
+          <div className="flex justify-center py-12">
+            <Loader size="md" />
+          </div>
         ) : stats.recentAgents.length > 0 ? (
           <Card>
             <div className="overflow-x-auto">

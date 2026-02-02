@@ -50,17 +50,17 @@ function TeamDetailModal({
 
           {/* Team Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className=" p-4 rounded-lg">
               <p className="text-sm text-gray-600">Total Agents</p>
               <p className="text-2xl font-bold">{team.agentCount || 0}</p>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className=" p-4 rounded-lg">
               <p className="text-sm text-gray-600">Online Agents</p>
               <p className="text-2xl font-bold text-green-600">
                 {team.onlineAgents || 0}
               </p>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="p-4 rounded-lg">
               <p className="text-sm text-gray-600">Team Color</p>
               <div className="flex items-center space-x-2 mt-2">
                 <div
@@ -70,7 +70,7 @@ function TeamDetailModal({
                 <span className="text-sm">{team.color || "#3b82f6"}</span>
               </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="p-4 rounded-lg">
               <p className="text-sm text-gray-600">Created</p>
               <p className="text-sm font-medium">
                 {new Date(team.createdAt).toLocaleDateString()}
@@ -299,11 +299,11 @@ export default function TeamPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-gray-50 p-2 rounded">
+                  <div className="`p-2 rounded">
                     <p className="text-xs text-gray-500">Agents</p>
                     <p className="font-semibold">{team.agentCount || 0}</p>
                   </div>
-                  <div className="bg-gray-50 p-2 rounded">
+                  <div className="p-2 rounded">
                     <p className="text-xs text-gray-500">Online</p>
                     <p className="font-semibold text-green-600">
                       {team.onlineAgents || 0}

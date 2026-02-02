@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
+import { Loader } from "@/components/ui/loader";
 
 export default function AcceptInvitePageClient() {
   const { acceptInvite } = useAuth();
@@ -70,7 +71,9 @@ export default function AcceptInvitePageClient() {
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+            <div className="mb-4">
+              <Loader size="md" />
+            </div>
             <p className="text-gray-600">Processing your invitation...</p>
           </div>
         ) : success === true ? (

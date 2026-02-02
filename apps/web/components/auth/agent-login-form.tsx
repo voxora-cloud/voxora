@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
+import { Loader } from "../ui/loader";
 import {
   Card,
   CardContent,
@@ -214,7 +215,16 @@ export function AgentLoginForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in as Agent"}
+            {isLoading ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4">
+                  <Loader size="sm" />
+                </div>
+                <span>Signing in...</span>
+              </div>
+            ) : (
+              "Sign in as Agent"
+            )}
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
