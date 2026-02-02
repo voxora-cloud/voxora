@@ -98,7 +98,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Button
                 onClick={() => setActiveTab("overview")}
                 variant="ghost"
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors ${
                   activeTab === "overview"
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -113,7 +113,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Button
                 onClick={() => setActiveTab("teams")}
                 variant="ghost"
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors ${
                   activeTab === "teams"
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -131,7 +131,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Button
                 onClick={() => setActiveTab("agents")}
                 variant="ghost"
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors ${
                   activeTab === "agents"
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -149,7 +149,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Button
                 onClick={() => setActiveTab("widgets")}
                 variant="ghost"
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                className={`w-full flex items-center px-3 py-2 text-sm font-medium cursor-pointer rounded-lg transition-colors ${
                   activeTab === "widgets"
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"

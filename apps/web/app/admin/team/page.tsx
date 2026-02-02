@@ -217,7 +217,7 @@ export default function TeamPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Teams</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => setShowCreateModal(true)} className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
           New Team
         </Button>
@@ -235,7 +235,7 @@ export default function TeamPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search teams by name or description..."
-            className="pl-9"
+            className="pl-9 cursor-text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -245,6 +245,7 @@ export default function TeamPage() {
             variant={agentCountFilter === "all" ? "default" : "outline"}
             size="sm"
             onClick={() => setAgentCountFilter("all")}
+            className="cursor-pointer"
           >
             All
           </Button>
@@ -252,6 +253,7 @@ export default function TeamPage() {
             variant={agentCountFilter === "with-agents" ? "default" : "outline"}
             size="sm"
             onClick={() => setAgentCountFilter("with-agents")}
+            className="cursor-pointer"
           >
             With Agents
           </Button>
@@ -259,6 +261,7 @@ export default function TeamPage() {
             variant={agentCountFilter === "no-agents" ? "default" : "outline"}
             size="sm"
             onClick={() => setAgentCountFilter("no-agents")}
+            className="cursor-pointer"
           >
             No Agents
           </Button>
@@ -276,7 +279,7 @@ export default function TeamPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTeams.length > 0 ? (
           filteredTeams.map((team) => (
-            <Card key={team._id} className="overflow-hidden">
+            <Card key={team._id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
               <div
                 className="h-2"
                 style={{ backgroundColor: team.color || "#3b82f6" }}
@@ -316,7 +319,7 @@ export default function TeamPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 cursor-pointer"
                     onClick={() => openDetailModal(team)}
                   >
                     Details
@@ -324,7 +327,7 @@ export default function TeamPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-9 px-0"
+                    className="w-9 px-0 cursor-pointer"
                     onClick={() => openEditModal(team)}
                   >
                     <Edit className="h-4 w-4" />
@@ -332,7 +335,7 @@ export default function TeamPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                    className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 cursor-pointer"
                     onClick={() => handleDeleteTeam(team._id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -356,7 +359,7 @@ export default function TeamPage() {
                   Create a new team to organize your agents
                 </p>
                 <Button
-                  className="mt-4"
+                  className="mt-4 cursor-pointer"
                   onClick={() => setShowCreateModal(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -374,6 +377,7 @@ export default function TeamPage() {
                 <div className="flex justify-center gap-2 mt-4">
                   <Button
                     variant="outline"
+                    className="cursor-pointer"
                     onClick={() => {
                       setSearchQuery("");
                       setAgentCountFilter("all");
