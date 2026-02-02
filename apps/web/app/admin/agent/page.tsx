@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Loader } from "@/components/ui/loader";
 import { Agent, Team } from "@/lib/api";
 import { Edit, Mail, Plus, Search, Trash2, User, X } from "lucide-react";
 import AgentForm from "@/components/admin/agent/Form";
@@ -423,14 +424,11 @@ export default function AgentPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-6">
-          {Array(3)
-            .fill(0)
-            .map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="animate-pulse h-24"></div>
-              </Card>
-            ))}
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader size="lg" className="mb-4" />
+            <p className="text-muted-foreground">Loading agents...</p>
+          </div>
         </div>
       ) : filteredAgents.length > 0 ? (
         <Card>

@@ -6,6 +6,7 @@ import { BarChart3, Crown, LogOut, UserCheck, Users } from "lucide-react";
 import React, { useEffect } from "react";
 import { Team, Agent } from "@/lib/api";
 import Image from "next/image";
+import Link from "next/link";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const [activeTab, setActiveTab] = React.useState(() => {
@@ -93,77 +94,71 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
         {/* Navigation */}
         <nav className="mt-6 px-3">
-          <div className="space-y-1">
-            <Button
-              onClick={() => {
-                setActiveTab("overview");
-                window.location.href = "/admin";
-              }}
-              variant="ghost"
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === "overview"
-                  ? "bg-primary/10 text-primary border-r-2 border-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <BarChart3 className="h-5 w-5 mr-3" />
-              <span className="flex-1 text-left">Dashboard</span>
-            </Button>
+          <Link href="/admin">
+              <Button
+                onClick={() => setActiveTab("overview")}
+                variant="ghost"
+                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === "overview"
+                    ? "bg-primary/10 text-primary border-r-2 border-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <BarChart3 className="h-5 w-5 mr-3" />
+                <span className="flex-1 text-left">Dashboard</span>
+              </Button>
+            </Link>
 
-            <Button
-              onClick={() => {
-                setActiveTab("teams");
-                window.location.href = "/admin/team";
-              }}
-              variant="ghost"
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === "teams"
-                  ? "bg-primary/10 text-primary border-r-2 border-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <Users className="h-5 w-5 mr-3" />
-              <span className="flex-1 text-left">Teams</span>
-              <span className="bg-muted text-muted-foreground text-xs rounded-full px-2 py-1">
-                {teams?.length || 0}
-              </span>
-            </Button>
+            <Link href="/admin/team">
+              <Button
+                onClick={() => setActiveTab("teams")}
+                variant="ghost"
+                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === "teams"
+                    ? "bg-primary/10 text-primary border-r-2 border-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <Users className="h-5 w-5 mr-3" />
+                <span className="flex-1 text-left">Teams</span>
+                <span className="bg-muted text-muted-foreground text-xs rounded-full px-2 py-1">
+                  {teams?.length || 0}
+                </span>
+              </Button>
+            </Link>
 
-            <Button
-              onClick={() => {
-                setActiveTab("agents");
-                window.location.href = "/admin/agent";
-              }}
-              variant="ghost"
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === "agents"
-                  ? "bg-primary/10 text-primary border-r-2 border-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <UserCheck className="h-5 w-5 mr-3" />
-              <span className="flex-1 text-left">Agents</span>
-              <span className="bg-muted text-muted-foreground text-xs rounded-full px-2 py-1">
-                {agents?.length || 0}
-              </span>
-            </Button>
+            <Link href="/admin/agent">
+              <Button
+                onClick={() => setActiveTab("agents")}
+                variant="ghost"
+                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === "agents"
+                    ? "bg-primary/10 text-primary border-r-2 border-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <UserCheck className="h-5 w-5 mr-3" />
+                <span className="flex-1 text-left">Agents</span>
+                <span className="bg-muted text-muted-foreground text-xs rounded-full px-2 py-1">
+                  {agents?.length || 0}
+                </span>
+              </Button>
+            </Link>
 
-            <Button
-              onClick={() => {
-                setActiveTab("widgets");
-                window.location.href = "/admin/widget";
-              }}
-              variant="ghost"
-              className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeTab === "widgets"
-                  ? "bg-primary/10 text-primary border-r-2 border-primary"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              <Crown className="h-5 w-5 mr-3" />
-              <span className="flex-1 text-left">Widgets</span>
-            </Button>
-          </div>
+            <Link href="/admin/widget">
+              <Button
+                onClick={() => setActiveTab("widgets")}
+                variant="ghost"
+                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeTab === "widgets"
+                    ? "bg-primary/10 text-primary border-r-2 border-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <Crown className="h-5 w-5 mr-3" />
+                <span className="flex-1 text-left">Widgets</span>
+              </Button>
+            </Link>
         </nav>
 
         {/* User Profile & Logout */}

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Loader } from "@/components/ui/loader";
 import { Team } from "@/lib/api";
 import { Edit, Plus, Search, Trash2, Users, X } from "lucide-react";
 import TeamForm from "@/components/admin/team/Form";
@@ -264,16 +265,16 @@ export default function TeamPage() {
         </div>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader size="lg" className="mb-4" />
+            <p className="text-muted-foreground">Loading teams...</p>
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          Array(3)
-            .fill(0)
-            .map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="animate-pulse h-32"></div>
-              </Card>
-            ))
-        ) : filteredTeams.length > 0 ? (
+        {filteredTeams.length > 0 ? (
           filteredTeams.map((team) => (
             <Card key={team._id} className="overflow-hidden">
               <div
@@ -341,7 +342,7 @@ export default function TeamPage() {
             </Card>
           ))
         ) : (
-          <div className="col-span-3 p-12 text-center border rounded-lg border-dashed">
+          <div className="col-span-full p-12 text-center border rounded-lg border-dashed">
             <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <Users className="h-6 w-6 text-gray-500" />
             </div>
@@ -386,6 +387,7 @@ export default function TeamPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Create Team Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
