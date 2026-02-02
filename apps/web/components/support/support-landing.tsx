@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -51,24 +52,24 @@ export function SupportLandingPage() {
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center space-x-6">
-            <a
+          <naLink
               href="#features"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Features
-            </a>
-            <a
+            </Link>
+            <Link
               href="#benefits"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Benefits
-            </a>
-            <a
+            </Link>
+            <Link
               href="#contact"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Contact
+            </Linkontact
             </a>
           </nav>
         </div>
@@ -254,16 +255,9 @@ export function SupportLandingPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        className="rounded border-border"
-                      />
-                      <span className="text-muted-foreground">Remember me</span>
-                    </label>
-                    <a href="#" className="text-primary hover:underline">
+                    <Link href="#" className="text-primary hover:underline">
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
 
                   <Button
@@ -278,9 +272,9 @@ export function SupportLandingPage() {
                 <div className="mt-6 pt-4 border-t border-border text-center">
                   <p className="text-sm text-muted-foreground">
                     Need access?{" "}
-                    <a href="#contact" className="text-primary hover:underline">
+                    <Link href="#contact" className="text-primary hover:underline">
                       Contact your administrator
-                    </a>
+                    </Link>
                   </p>
                 </div>
               </CardContent>
@@ -317,24 +311,24 @@ export function SupportLandingPage() {
                 Quick Links
               </h4>
               <div className="space-y-2 text-sm">
-                <a
+                <Link
                   href="#"
                   className="text-muted-foreground hover:text-foreground block"
                 >
                   Documentation
-                </a>
-                <a
+                </Link>
+                <Link
                   href="#"
                   className="text-muted-foreground hover:text-foreground block"
                 >
                   Training Resources
-                </a>
-                <a
+                </Link>
+                <Link
                   href="#"
                   className="text-muted-foreground hover:text-foreground block"
                 >
                   Support Guidelines
-                </a>
+                </Link>
               </div>
             </div>
 

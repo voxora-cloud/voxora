@@ -248,7 +248,7 @@ export function ConversationSidebar() {
           {notifications.slice(0, 3).map((notification) => (
             <div
               key={notification.id}
-              className="p-2 bg-white rounded border text-sm mb-1"
+              className="p-2 bg-background rounded border border-border text-sm mb-1"
             >
               <div className="font-medium">{notification.title}</div>
               <div className="text-gray-600 text-xs">

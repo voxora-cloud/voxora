@@ -121,11 +121,11 @@ export default function CreateWidgetPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen ">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-8">
+      <div className="bg-card border-b border-border px-6 py-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold ">
             Widget Configuration
           </h1>
           <p className="mt-2 text-lg text-gray-600">
@@ -137,9 +137,9 @@ export default function CreateWidgetPage() {
 
       {/* Full Width Configuration Panel */}
       <div className="max-w-4xl mx-auto p-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <div className="bg-card rounded-lg shadow-sm border border-border p-8">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+            <h2 className="text-2xl font-semibold mb-3">
               Widget Settings
             </h2>
             <p className="text-gray-600">
@@ -311,9 +311,9 @@ export default function CreateWidgetPage() {
 
           {/* Integration Instructions */}
           <div className="mt-10 pt-8 border-t border-gray-200">
-            <div className="bg-gray-50 rounded-lg p-6">
+            <div className="rounded-lg p-6">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-gray-900">
+                <h3 className="font-medium ">
                   Integration Code
                 </h3>
               </div>

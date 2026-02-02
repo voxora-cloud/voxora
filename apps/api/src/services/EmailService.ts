@@ -23,7 +23,11 @@ class EmailService {
             pass: config.email.auth.pass,
           }
         : undefined,
-    });
+    } as any);
+
+    // Set connection options
+    this.transporter.set("logger", false);
+    this.transporter.set("debug", false);
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {

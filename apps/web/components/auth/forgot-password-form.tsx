@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -13,17 +14,36 @@ import {
 import { Mail, ArrowLeft, CheckCircle, AlertCircle } from "lucide-react";
 import { apiService } from "@/lib/api";
 import Link from "next/link";
+import { Alert } from "@/components/ui/alert";
+import { validateEmail } from "@/lib/validation";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState<string | undefined>();
+  const [touched, setTouched] = useState(false);
+
+  const handleBlur = () => {
+    setTouched(true);
+    const error = validateEmail(email);
+    setEmailError(error || undefined);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setTouched(true);
+
+    // Validate email
+    const emailValidationError = validateEmail(email);
+    if (emailValidationError) {
+      setEmailError(emailValidationError);
+      setIsLoading(false);
+      return;
+    }
 
     try {
       await apiService.forgotPassword(email);
@@ -37,13 +57,20 @@ export function ForgotPasswordForm() {
     }
   };
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (touched) {
+      setEmailError(undefined);
+    }
+  };
+
   if (isSuccess) {
     return (
       <Card className="w-full max-w-md mx-auto">
         <CardHeader className="space-y-1 text-center">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+              <CheckCircle className="h-6 w-6 text-success" />
             </div>
           </div>
           <CardTitle className="text-2xl">Check your email</CardTitle>
@@ -67,7 +94,7 @@ export function ForgotPasswordForm() {
               Try again
             </Button>
             <Button variant="ghost" asChild className="w-full">
-              <Link href="/login">
+              <Link href="/admin-login">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to login
               </Link>
@@ -82,11 +109,13 @@ export function ForgotPasswordForm() {
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="space-y-1">
         <div className="flex items-center justify-center mb-4">
-          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-2xl font-bold text-primary-foreground">
-              V
-            </span>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Voxora Logo"
+            width={48}
+            height={48}
+            className="object-contain"
+          />
         </div>
         <CardTitle className="text-2xl text-center">
           Forgot your password?
@@ -100,10 +129,10 @@ export function ForgotPasswordForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Error Message */}
           {error && (
-            <div className="flex items-center space-x-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+            <Alert variant="destructive" className="flex items-center space-x-2">
               <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </div>
+              <span className="text-sm">{error}</span>
+            </Alert>
           )}
 
           <div className="space-y-2">
@@ -121,11 +150,22 @@ export function ForgotPasswordForm() {
                 type="email"
                 placeholder="Enter your email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
+                onChange={handleEmailChange}
+                onBlur={handleBlur}
+                className={`pl-10 ${
+                  touched && emailError
+                    ? "border-destructive focus-visible:ring-destructive"
+                    : ""
+                }`}
                 required
               />
             </div>
+            {touched && emailError && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {emailError}
+              </p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
@@ -133,7 +173,7 @@ export function ForgotPasswordForm() {
           </Button>
 
           <Button variant="ghost" asChild className="w-full">
-            <Link href="/login">
+            <Link href="/admin-login">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to login
             </Link>

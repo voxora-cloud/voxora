@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Loader } from "@/components/ui/loader";
 import { Agent, Team } from "@/lib/api";
 import { Edit, Mail, Plus, Search, Trash2, User, X } from "lucide-react";
 import AgentForm from "@/components/admin/agent/Form";
@@ -75,8 +76,8 @@ function AgentDetailModal({
   if (!isOpen || !agent) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Agent Details</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -87,7 +88,7 @@ function AgentDetailModal({
         <div className="space-y-6">
           {/* Agent Header */}
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
               {agent.name?.charAt(0) || agent.email.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -109,7 +110,7 @@ function AgentDetailModal({
                   className={`px-3 py-1 rounded-full text-sm font-medium ${
                     agent.status === "online"
                       ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
+                      : "text-gray-800"
                   }`}
                 >
                   {agent.status}
@@ -160,7 +161,7 @@ function AgentDetailModal({
                   agent.teams.map((team) => (
                     <div
                       key={team._id}
-                      className="flex items-center space-x-2 p-2 bg-gray-50 rounded"
+                      className="flex items-center space-x-2 p-2  rounded"
                     >
                       <div
                         className="w-4 h-4 rounded"
@@ -454,21 +455,18 @@ export default function AgentPage() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-6">
-          {Array(3)
-            .fill(0)
-            .map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="animate-pulse h-24"></div>
-              </Card>
-            ))}
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader size="lg" className="mb-4" />
+            <p className="text-muted-foreground">Loading agents...</p>
+          </div>
         </div>
       ) : filteredAgents.length > 0 ? (
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left">
+                <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Agent</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Teams</th>
@@ -480,7 +478,7 @@ export default function AgentPage() {
                 {filteredAgents.map((agent) => (
                   <tr
                     key={agent._id}
-                    className="border-t border-gray-200 hover:bg-gray-50"
+                    className="border-t border-gray-200 hover:bg-muted/50"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-3">

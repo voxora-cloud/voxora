@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
+import { Loader } from "@/components/ui/loader";
 
 export default function AcceptInvitePageClient() {
   const { acceptInvite } = useAuth();
@@ -57,26 +58,28 @@ export default function AcceptInvitePageClient() {
   }, [token, handleAcceptInvite]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br p-4">
       <Card className="w-full max-w-md p-8 shadow-xl">
         <div className="text-center mb-6">
           <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
             <span className="text-white font-bold text-lg">V</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          <h1 className="text-2xl font-bold mb-1">
             Voxora Invitation
           </h1>
         </div>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
+            <div className="mb-4">
+              <Loader size="md" />
+            </div>
             <p className="text-gray-600">Processing your invitation...</p>
           </div>
         ) : success === true ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <CheckCircle2 className="h-16 w-16 text-success mb-4" />
+            <h2 className="text-xl font-semibold mb-2">
               Invitation Accepted!
             </h2>
             <p className="text-gray-600 mb-6">
@@ -84,7 +87,7 @@ export default function AcceptInvitePageClient() {
               to access your dashboard.
             </p>
             <div className="flex flex-col gap-3 w-full">
-              <Link href="/login" className="w-full">
+              <Link href="/agent-login" className="w-full">
                 <Button variant="default" className="w-full">
                   Go to Login
                 </Button>
@@ -100,13 +103,13 @@ export default function AcceptInvitePageClient() {
           </div>
         ) : success === false ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
-            <XCircle className="h-16 w-16 text-red-500 mb-4" />
+            <XCircle className="h-16 w-16 text-destructive mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               Something went wrong
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <div className="flex flex-col gap-3 w-full">
-              <Link href="/login" className="w-full">
+              <Link href="/agent-login" className="w-full">
                 <Button variant="default" className="w-full">
                   Go to Login
                 </Button>

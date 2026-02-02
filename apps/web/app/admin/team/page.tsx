@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Loader } from "@/components/ui/loader";
 import { Team } from "@/lib/api";
 import { Edit, Plus, Search, Trash2, Users, X } from "lucide-react";
 import TeamForm from "@/components/admin/team/Form";
@@ -22,8 +23,8 @@ function TeamDetailModal({
   if (!isOpen || !team) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Team Details</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -36,9 +37,9 @@ function TeamDetailModal({
           <div className="flex items-center space-x-4">
             <div
               className="w-16 h-16 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: team.color || "#3b82f6" }}
+              style={{ backgroundColor: team.color || "#10b981" }}
             >
-              <Users className="h-8 w-8 text-white" />
+              <Users className="h-8 w-8 text-primary-foreground" />
             </div>
             <div>
               <h3 className="text-xl font-semibold">{team.name}</h3>
@@ -50,17 +51,17 @@ function TeamDetailModal({
 
           {/* Team Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className=" p-4 rounded-lg">
               <p className="text-sm text-gray-600">Total Agents</p>
               <p className="text-2xl font-bold">{team.agentCount || 0}</p>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className=" p-4 rounded-lg">
               <p className="text-sm text-gray-600">Online Agents</p>
               <p className="text-2xl font-bold text-green-600">
                 {team.onlineAgents || 0}
               </p>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="p-4 rounded-lg">
               <p className="text-sm text-gray-600">Team Color</p>
               <div className="flex items-center space-x-2 mt-2">
                 <div
@@ -70,7 +71,7 @@ function TeamDetailModal({
                 <span className="text-sm">{team.color || "#3b82f6"}</span>
               </div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="p-4 rounded-lg">
               <p className="text-sm text-gray-600">Created</p>
               <p className="text-sm font-medium">
                 {new Date(team.createdAt).toLocaleDateString()}
@@ -216,7 +217,7 @@ export default function TeamPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Teams</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => setShowCreateModal(true)} className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
           New Team
         </Button>
@@ -234,7 +235,7 @@ export default function TeamPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search teams by name or description..."
-            className="pl-9"
+            className="pl-9 cursor-text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -244,6 +245,7 @@ export default function TeamPage() {
             variant={agentCountFilter === "all" ? "default" : "outline"}
             size="sm"
             onClick={() => setAgentCountFilter("all")}
+            className="cursor-pointer"
           >
             All
           </Button>
@@ -251,6 +253,7 @@ export default function TeamPage() {
             variant={agentCountFilter === "with-agents" ? "default" : "outline"}
             size="sm"
             onClick={() => setAgentCountFilter("with-agents")}
+            className="cursor-pointer"
           >
             With Agents
           </Button>
@@ -258,24 +261,25 @@ export default function TeamPage() {
             variant={agentCountFilter === "no-agents" ? "default" : "outline"}
             size="sm"
             onClick={() => setAgentCountFilter("no-agents")}
+            className="cursor-pointer"
           >
             No Agents
           </Button>
         </div>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader size="lg" className="mb-4" />
+            <p className="text-muted-foreground">Loading teams...</p>
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          Array(3)
-            .fill(0)
-            .map((_, i) => (
-              <Card key={i} className="p-6">
-                <div className="animate-pulse h-32"></div>
-              </Card>
-            ))
-        ) : filteredTeams.length > 0 ? (
+        {filteredTeams.length > 0 ? (
           filteredTeams.map((team) => (
-            <Card key={team._id} className="overflow-hidden">
+            <Card key={team._id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
               <div
                 className="h-2"
                 style={{ backgroundColor: team.color || "#3b82f6" }}
@@ -299,11 +303,11 @@ export default function TeamPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="bg-gray-50 p-2 rounded">
+                  <div className="`p-2 rounded">
                     <p className="text-xs text-gray-500">Agents</p>
                     <p className="font-semibold">{team.agentCount || 0}</p>
                   </div>
-                  <div className="bg-gray-50 p-2 rounded">
+                  <div className="p-2 rounded">
                     <p className="text-xs text-gray-500">Online</p>
                     <p className="font-semibold text-green-600">
                       {team.onlineAgents || 0}
@@ -315,7 +319,7 @@ export default function TeamPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="flex-1 cursor-pointer"
                     onClick={() => openDetailModal(team)}
                   >
                     Details
@@ -323,7 +327,7 @@ export default function TeamPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-9 px-0"
+                    className="w-9 px-0 cursor-pointer"
                     onClick={() => openEditModal(team)}
                   >
                     <Edit className="h-4 w-4" />
@@ -331,7 +335,7 @@ export default function TeamPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                    className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 cursor-pointer"
                     onClick={() => handleDeleteTeam(team._id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -341,7 +345,7 @@ export default function TeamPage() {
             </Card>
           ))
         ) : (
-          <div className="col-span-3 p-12 text-center border rounded-lg border-dashed">
+          <div className="col-span-full p-12 text-center border rounded-lg border-dashed">
             <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
               <Users className="h-6 w-6 text-gray-500" />
             </div>
@@ -355,7 +359,7 @@ export default function TeamPage() {
                   Create a new team to organize your agents
                 </p>
                 <Button
-                  className="mt-4"
+                  className="mt-4 cursor-pointer"
                   onClick={() => setShowCreateModal(true)}
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -373,6 +377,7 @@ export default function TeamPage() {
                 <div className="flex justify-center gap-2 mt-4">
                   <Button
                     variant="outline"
+                    className="cursor-pointer"
                     onClick={() => {
                       setSearchQuery("");
                       setAgentCountFilter("all");
@@ -386,6 +391,7 @@ export default function TeamPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Create Team Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
