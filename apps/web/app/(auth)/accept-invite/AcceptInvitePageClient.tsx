@@ -70,12 +70,12 @@ export default function AcceptInvitePageClient() {
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-12 w-12 text-blue-600 animate-spin mb-4" />
+            <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
             <p className="text-gray-600">Processing your invitation...</p>
           </div>
         ) : success === true ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
-            <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
+            <CheckCircle2 className="h-16 w-16 text-success mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               Invitation Accepted!
             </h2>
@@ -84,7 +84,7 @@ export default function AcceptInvitePageClient() {
               to access your dashboard.
             </p>
             <div className="flex flex-col gap-3 w-full">
-              <Link href="/login" className="w-full">
+              <Link href="/agent-login" className="w-full">
                 <Button variant="default" className="w-full">
                   Go to Login
                 </Button>
@@ -100,13 +100,13 @@ export default function AcceptInvitePageClient() {
           </div>
         ) : success === false ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
-            <XCircle className="h-16 w-16 text-red-500 mb-4" />
+            <XCircle className="h-16 w-16 text-destructive mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
               Something went wrong
             </h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <div className="flex flex-col gap-3 w-full">
-              <Link href="/login" className="w-full">
+              <Link href="/agent-login" className="w-full">
                 <Button variant="default" className="w-full">
                   Go to Login
                 </Button>

@@ -60,11 +60,11 @@ function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="p-6">
           <div className="flex items-center space-x-4">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="h-6 w-6 text-blue-700" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Users className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Teams</p>
+              <p className="text-sm text-muted-foreground">Total Teams</p>
               <h2 className="text-2xl font-bold">
                 {isLoading ? "-" : stats.overview.totalTeams}
               </h2>
@@ -73,11 +73,11 @@ function AdminDashboard() {
         </Card>
         <Card className="p-6">
           <div className="flex items-center space-x-4">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <UserCheck className="h-6 w-6 text-purple-700" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <UserCheck className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Agents</p>
+              <p className="text-sm text-muted-foreground">Total Agents</p>
               <h2 className="text-2xl font-bold">
                 {isLoading ? "-" : stats.overview.totalAgents}
               </h2>
@@ -86,11 +86,11 @@ function AdminDashboard() {
         </Card>
         <Card className="p-6">
           <div className="flex items-center space-x-4">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <UserCheck className="h-6 w-6 text-green-700" />
+            <div className="p-2 bg-success/10 rounded-lg">
+              <UserCheck className="h-6 w-6 text-success" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Online Agents</p>
+              <p className="text-sm text-muted-foreground">Online Agents</p>
               <h2 className="text-2xl font-bold">
                 {isLoading ? "-" : stats.overview.onlineAgents}
               </h2>
@@ -99,11 +99,11 @@ function AdminDashboard() {
         </Card>
         <Card className="p-6">
           <div className="flex items-center space-x-4">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <AlertCircle className="h-6 w-6 text-yellow-700" />
+            <div className="p-2 bg-warning/10 rounded-lg">
+              <AlertCircle className="h-6 w-6 text-warning" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pending Invites</p>
+              <p className="text-sm text-muted-foreground">Pending Invites</p>
               <h2 className="text-2xl font-bold">
                 {isLoading ? "-" : stats.overview.pendingInvites}
               </h2>
@@ -146,13 +146,13 @@ function AdminDashboard() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-gray-50 p-2 rounded">
-                    <p className="text-xs text-gray-500">Agents</p>
+                  <div className="bg-muted p-2 rounded">
+                    <p className="text-xs text-muted-foreground">Agents</p>
                     <p className="font-semibold">{team.agentCount}</p>
                   </div>
-                  <div className="bg-gray-50 p-2 rounded">
-                    <p className="text-xs text-gray-500">Online</p>
-                    <p className="font-semibold text-green-600">
+                  <div className="bg-muted p-2 rounded">
+                    <p className="text-xs text-muted-foreground">Online</p>
+                    <p className="font-semibold text-success">
                       {team.onlineAgents}
                     </p>
                   </div>
@@ -160,8 +160,8 @@ function AdminDashboard() {
               </Card>
             ))
           ) : (
-            <div className="col-span-3 p-6 text-center border rounded-lg border-dashed border-gray-300">
-              <p className="text-gray-500">No teams created yet</p>
+            <div className="col-span-3 p-6 text-center border rounded-lg border-dashed border-border">
+              <p className="text-muted-foreground">No teams created yet</p>
               <Button
                 size="sm"
                 className="mt-2"
@@ -196,19 +196,19 @@ function AdminDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-left">
-                    <th className="px-4 py-3 font-medium">Name</th>
-                    <th className="px-4 py-3 font-medium">Email</th>
-                    <th className="px-4 py-3 font-medium">Role</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Created At</th>
+                  <tr className="bg-muted text-left">
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Email</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Role</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Created At</th>
                   </tr>
                 </thead>
                 <tbody>
                   {stats.recentAgents.map((agent: RecentAgent) => (
                     <tr
                       key={agent._id}
-                      className="border-t border-gray-200 hover:bg-gray-50"
+                      className="border-t border-border hover:bg-muted/50"
                     >
                       <td className="px-4 py-3">{agent.name || "No name"}</td>
                       <td className="px-4 py-3">{agent.email}</td>
@@ -217,10 +217,10 @@ function AdminDashboard() {
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             agent.inviteStatus === "active"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-success/10 text-success"
                               : agent.inviteStatus === "pending"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-gray-100 text-gray-800"
+                                ? "bg-warning/10 text-warning"
+                                : "bg-muted text-muted-foreground"
                           }`}
                         >
                           {agent.inviteStatus || "Unknown"}
@@ -236,8 +236,8 @@ function AdminDashboard() {
             </div>
           </Card>
         ) : (
-          <div className="p-6 text-center border rounded-lg border-dashed border-gray-300">
-            <p className="text-gray-500">No agents added yet</p>
+          <div className="p-6 text-center border rounded-lg border-dashed border-border">
+            <p className="text-muted-foreground">No agents added yet</p>
             <Button
               size="sm"
               className="mt-2"

@@ -62,12 +62,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (
     email: string,
     password: string,
-    loginType: "admin" | "agent" = "admin",
+    loginType?: "admin" | "agent",
   ) => {
     try {
       let response;
 
-      if (loginType === "admin") {
+      // If loginType is not specified, try admin first, then agent
+      if (!loginType) {
+        try {
+          response = await apiService.adminLogin({ email, password });
+        } catch (adminError) {
+          // If admin login fails, try agent login
+          try {
+            response = await apiService.agentLogin({ email, password });
+          } catch (agentError) {
+            throw new Error("Invalid email or password");
+          }
+        }
+      } else if (loginType === "admin") {
         response = await apiService.adminLogin({ email, password });
       } else {
         response = await apiService.agentLogin({ email, password });

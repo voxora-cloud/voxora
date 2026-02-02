@@ -44,8 +44,8 @@ function AgentDetailModal({
   if (!isOpen || !agent) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Agent Details</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -56,7 +56,7 @@ function AgentDetailModal({
         <div className="space-y-6">
           {/* Agent Header */}
           <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+            <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
               {agent.name?.charAt(0) || agent.email.charAt(0).toUpperCase()}
             </div>
             <div>

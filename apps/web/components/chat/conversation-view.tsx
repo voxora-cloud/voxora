@@ -351,8 +351,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                 max-w-[70%] px-4 py-3 rounded-lg
                 ${
                   isAgentMessage(message)
-                    ? "bg-blue-500 text-white"
-                    : "bg-white border border-border"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card border border-border"
                 }
               `}
               >

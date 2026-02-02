@@ -17,7 +17,7 @@ import Link from "next/link";
 import { Alert } from "@/components/ui/alert";
 import { validateLoginForm, validateEmail } from "@/lib/validation";
 
-export function LoginForm() {
+export function AgentLoginForm() {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,8 +80,8 @@ export function LoginForm() {
     }
 
     try {
-      // Try to login - backend will determine if user is admin or agent
-      await login(formData.email, formData.password);
+      // Login as agent
+      await login(formData.email, formData.password, "agent");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -115,10 +115,10 @@ export function LoginForm() {
           />
         </div>
         <CardTitle className="text-2xl text-center">
-          Welcome to Voxora
+          Agent Login
         </CardTitle>
         <CardDescription className="text-center">
-          Admin login - Sign in to manage your organization
+          Sign in to access your support dashboard
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -214,25 +214,14 @@ export function LoginForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in as Admin"}
+            {isLoading ? "Signing in..." : "Sign in as Agent"}
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/admin-signup" className="text-primary hover:underline">
-              Sign up as Admin
+            Need an invitation?{" "}
+            <Link href="/agent-signup" className="text-primary hover:underline">
+              Learn more
             </Link>
-          </div>
-
-          <div className="text-center text-sm text-muted-foreground">
-            Are you an agent?{" "}
-            <Link href="/agent-login" className="text-primary hover:underline">
-              Agent Login
-            </Link>
-          </div>
-
-          <div className="text-center text-xs text-muted-foreground mt-2">
-            Agents: Please contact your admin for an invitation
           </div>
         </form>
       </CardContent>

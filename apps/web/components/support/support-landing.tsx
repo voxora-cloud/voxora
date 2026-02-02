@@ -254,13 +254,6 @@ export function SupportLandingPage() {
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        className="rounded border-border"
-                      />
-                      <span className="text-muted-foreground">Remember me</span>
-                    </label>
                     <a href="#" className="text-primary hover:underline">
                       Forgot password?
                     </a>

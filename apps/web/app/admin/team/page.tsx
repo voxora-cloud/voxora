@@ -22,8 +22,8 @@ function TeamDetailModal({
   if (!isOpen || !team) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-500/20 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Team Details</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
@@ -36,9 +36,9 @@ function TeamDetailModal({
           <div className="flex items-center space-x-4">
             <div
               className="w-16 h-16 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: team.color || "#3b82f6" }}
+              style={{ backgroundColor: team.color || "#10b981" }}
             >
-              <Users className="h-8 w-8 text-white" />
+              <Users className="h-8 w-8 text-primary-foreground" />
             </div>
             <div>
               <h3 className="text-xl font-semibold">{team.name}</h3>

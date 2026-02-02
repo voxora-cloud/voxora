@@ -14,7 +14,7 @@ const Dialog: React.FC<DialogProps> = ({ open = false, children }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-500/20 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       {children}
     </div>
   );
@@ -27,7 +27,7 @@ const DialogContent: React.FC<DialogContentProps> = ({
 }) => {
   return (
     <div
-      className={`bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto p-6 w-full max-w-md mx-4 ${className || ""}`}
+      className={`bg-card rounded-lg shadow-xl max-h-[90vh] overflow-y-auto p-6 w-full max-w-md mx-4 border border-border ${className || ""}`}
       {...props}
     >
       {children}
