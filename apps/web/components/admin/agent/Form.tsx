@@ -29,9 +29,18 @@ function AgentForm({
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [teamError, setTeamError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate that at least one team is selected
+    if (formData.teamIds.length === 0) {
+      setTeamError("Please select at least one team");
+      return;
+    }
+    
+    setTeamError("");
     onSubmit(formData);
   };
 
@@ -97,27 +106,62 @@ function AgentForm({
         </div>
       </div>
       <div>
-        <Label>Teams</Label>
-        <div className="space-y-2 mt-2 max-h-32 overflow-y-auto">
-          {teams.map((team) => (
-            <label
-              key={team._id}
-              className="flex items-center space-x-2 cursor-pointer"
+        <Label>Teams *</Label>
+        {teams.length === 0 ? (
+          <p className="text-sm text-muted-foreground mt-2">
+            Please create a team first before inviting agents
+          </p>
+        ) : (
+          <div className="space-y-2 mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
+            {teams.map((team) => (
+              <label
+                key={team._id}
+                className="flex items-center space-x-2 cursor-pointer hover:bg-accent/50 p-2 rounded"
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.teamIds.includes(team._id)}
+                  onChange={() => {
+                    toggleTeam(team._id);
+                    setTeamError("");
+                  }}
+                  className="rounded cursor-pointer"
+                />
+                <span className="text-sm">{team.name}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {teamError && (
+          <div className="flex items-center gap-2 p-3 mt-2 bg-destructive/10 border border-destructive rounded-md">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-destructive flex-shrink-0"
+              viewBox="0 0 20 20"
+              fill="currentColor"
             >
-              <input
-                type="checkbox"
-                checked={formData.teamIds.includes(team._id)}
-                onChange={() => toggleTeam(team._id)}
-                className="rounded"
+              <path
+                fillRule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
               />
-              <span className="text-sm">{team.name}</span>
-            </label>
-          ))}
-        </div>
+            </svg>
+            <p className="text-sm text-destructive font-medium">{teamError}</p>
+          </div>
+        )}
+        {formData.teamIds.length === 0 && !teamError && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Select at least one team
+          </p>
+        )}
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1" disabled={isLoading}>
+        <Button 
+          type="submit" 
+          className="flex-1 cursor-pointer" 
+          disabled={isLoading || formData.teamIds.length === 0 || teams.length === 0}
+        >
           {isLoading ? (
             <>
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white mr-2"></div>
@@ -133,7 +177,7 @@ function AgentForm({
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="flex-1"
+          className="flex-1 cursor-pointer"
           disabled={isLoading}
         >
           Cancel
