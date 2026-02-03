@@ -6,83 +6,12 @@ import { Loader } from "@/components/ui/loader";
 import { Team } from "@/lib/api";
 import { Edit, Plus, Search, Trash2, Users, X } from "lucide-react";
 import TeamForm from "@/components/admin/team/Form";
+import TeamDetailModal from "@/components/admin/team/TeamDetailModal";
+import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import { apiService } from "@/lib/api";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { TeamFormData } from "@/lib/interfaces/admin";
 import { Input } from "@/components/ui/input";
-
-function TeamDetailModal({
-  team,
-  isOpen,
-  onClose,
-}: {
-  team: Team | null;
-  isOpen: boolean;
-  onClose: () => void;
-}) {
-  if (!isOpen || !team) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">Team Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="space-y-6">
-          {/* Team Header */}
-          <div className="flex items-center space-x-4">
-            <div
-              className="w-16 h-16 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: team.color || "#10b981" }}
-            >
-              <Users className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold">{team.name}</h3>
-              <p className="text-gray-600">
-                {team.description || "No description provided"}
-              </p>
-            </div>
-          </div>
-
-          {/* Team Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className=" p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Total Agents</p>
-              <p className="text-2xl font-bold">{team.agentCount || 0}</p>
-            </div>
-            <div className=" p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Online Agents</p>
-              <p className="text-2xl font-bold text-green-600">
-                {team.onlineAgents || 0}
-              </p>
-            </div>
-            <div className="p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Team Color</p>
-              <div className="flex items-center space-x-2 mt-2">
-                <div
-                  className="w-6 h-6 rounded border"
-                  style={{ backgroundColor: team.color || "#3b82f6" }}
-                ></div>
-                <span className="text-sm">{team.color || "#3b82f6"}</span>
-              </div>
-            </div>
-            <div className="p-4 rounded-lg">
-              <p className="text-sm text-gray-600">Created</p>
-              <p className="text-sm font-medium">
-                {new Date(team.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function TeamPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -96,6 +25,9 @@ export default function TeamPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [agentCountFilter, setAgentCountFilter] = useState<string>("all"); // "all", "with-agents", "no-agents"
+  const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   useEffect(() => {
     fetchTeams();
@@ -187,19 +119,29 @@ export default function TeamPage() {
     }
   };
 
-  const handleDeleteTeam = async (teamId: string) => {
-    if (!confirm("Are you sure you want to delete this team?")) return;
+  const openDeleteDialog = (team: Team) => {
+    setTeamToDelete(team);
+    setShowDeleteDialog(true);
+  };
 
+  const handleDeleteTeam = async () => {
+    if (!teamToDelete) return;
+
+    setIsDeleting(true);
     try {
-      const response = await apiService.deleteTeam(teamId);
+      const response = await apiService.deleteTeam(teamToDelete._id);
       if (response.success) {
         fetchTeams();
+        setShowDeleteDialog(false);
+        setTeamToDelete(null);
       } else {
         setError("Failed to delete team");
       }
     } catch (err) {
       console.error("Error deleting team:", err);
       setError("An error occurred while deleting the team");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -336,7 +278,7 @@ export default function TeamPage() {
                     variant="outline"
                     size="sm"
                     className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 cursor-pointer"
-                    onClick={() => handleDeleteTeam(team._id)}
+                    onClick={() => openDeleteDialog(team)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -441,6 +383,19 @@ export default function TeamPage() {
         team={selectedTeam}
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setTeamToDelete(null);
+        }}
+        onConfirm={handleDeleteTeam}
+        title="Delete Team"
+        itemName={teamToDelete?.name}
+        isDeleting={isDeleting}
       />
     </div>
   );
