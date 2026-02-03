@@ -132,7 +132,7 @@ class EmailService {
     name: string,
     token: string,
   ): Promise<boolean> {
-    const resetUrl = `${config.app.frontendUrl}/auth/reset-password?token=${token}`;
+    const resetUrl = `${config.app.frontendUrl}/reset-password?token=${token}`;
 
     const html = `
       <!DOCTYPE html>
@@ -165,9 +165,8 @@ class EmailService {
             <a href="${resetUrl}" class="button">Reset Password</a>
             
             <p>Or copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #1d4ed8;">${resetUrl}</p>
             
-            <p><strong>Note:</strong> This link will expire in 1 hour for security reasons.</p>
+            <p><strong>Note:</strong> This link will expire in 10 minutes for security reasons.</p>
             
             <p>If you didn't request this password reset, you can safely ignore this email.</p>
           </div>
