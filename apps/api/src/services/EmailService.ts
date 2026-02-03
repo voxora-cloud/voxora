@@ -107,9 +107,8 @@ class EmailService {
             <a href="${inviteUrl}" class="button">Accept Invitation</a>
             
             <p>Or copy and paste this link into your browser:</p>
-            <a style="word-break: break-all; color: #1d4ed8;">${inviteUrl}</a>
 
-            <p><strong>Note:</strong> This invitation will expire in 7 days.</p>
+            <p><strong>Note:</strong> This invitation will expire in 10 minutes.</p>
           </div>
           <div class="footer">
             <p>© 2025 Voxora. All rights reserved.</p>

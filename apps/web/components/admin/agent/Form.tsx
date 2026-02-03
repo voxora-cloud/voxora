@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Agent, Team } from "@/lib/api";
 import { AgentFormData } from "@/lib/interfaces/admin";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 // Agent Form Component
 function AgentForm({
@@ -26,6 +27,8 @@ function AgentForm({
     teamIds: agent?.teams?.map((t) => t._id) || [],
     password: "",
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,16 +70,31 @@ function AgentForm({
       </div>
       <div>
         <Label htmlFor="password">Password</Label>
-        <Input
-          id="password"
-          type="password"
-          value={formData.password}
-          onChange={(e) =>
-            setFormData({ ...formData, password: e.target.value })
-          }
-          placeholder="Enter agent password"
-          required={!agent} // Require password for new agents
-        />
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+            placeholder="Enter agent password"
+            required={!agent} // Require password for new agents
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors cursor-pointer"
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
       <div>
         <Label>Teams</Label>
