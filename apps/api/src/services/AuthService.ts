@@ -296,14 +296,18 @@ export class AuthService {
     return { success: true };
   }
 
-  async resetPassword(userId: string, newPassword: string) {
-    const user = await User.findById(userId);
+  async resetPassword(token: string, newPassword: string) {
+    // Find user by reset token and check if token is still valid
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() },
+    });
 
     if (!user) {
       return {
         success: false,
-        message: "User not found",
-        statusCode: 404,
+        message: "Invalid or expired reset token",
+        statusCode: 400,
       };
     }
 
@@ -324,6 +328,12 @@ export class AuthService {
       success: true,
       data: {
         token: tokens.accessToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
       },
     };
   }

@@ -180,3 +180,52 @@ export const acceptInvite = asyncHandler(
     }
   },
 );
+
+
+
+export const forgotPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email } = req.body;
+    
+    try {
+      await authService.forgotPassword(email);
+      
+      sendResponse( 
+        res,
+        200,
+        true,
+        "If an account exists with this email, a password reset link has been sent",
+      );
+    } catch (error: any) {
+      return sendError(res, 500, error.message || "Internal server error");
+    }
+  },
+);
+
+export const resetPassword = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+    
+    try {
+      const result = await authService.resetPassword(token, newPassword);
+      
+      if (!result.success) {
+        return sendError(
+          res,
+          result.statusCode || 400,
+          result.message || "Failed to reset password",
+        );
+      }
+      
+      sendResponse(
+        res,
+        200,
+        true,
+        "Password reset successful",
+        result.data,
+      );
+    } catch (error: any) {
+      return sendError(res, 500, error.message || "Internal server error");
+    }
+  },
+);

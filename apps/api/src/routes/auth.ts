@@ -9,6 +9,8 @@ import {
   adminLogin,
   agentLogin,
   acceptInvite,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/authController";
 import { authenticate, validateRequest, authRateLimit } from "../middleware";
 import { userValidation } from "../utils/validation";
@@ -58,6 +60,19 @@ router.post(
   acceptInvite,
 );
 
+
+router.post(
+  "/forgot-password",
+  validateRequest(userValidation.forgotPassword),
+  forgotPassword,
+);
+
+router.post(
+  "/reset-password",
+  validateRequest(userValidation.resetPassword),
+  resetPassword,
+);
+
 router.post("/refresh-token", refreshToken);
 
 // Protected routes. - below routes are authenticated
@@ -65,5 +80,6 @@ router.use(authenticate);
 
 router.post("/logout", logout);
 router.get("/profile", getProfile);
+
 
 export default router;

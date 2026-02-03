@@ -93,12 +93,12 @@ export function ForgotPasswordForm() {
             >
               Try again
             </Button>
-            <Button variant="ghost" asChild className="w-full">
-              <Link href="/admin-login">
+            <Link href="/admin-login" className="w-full">
+              <Button variant="ghost" className="w-full">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to login
-              </Link>
-            </Button>
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
@@ -172,12 +172,12 @@ export function ForgotPasswordForm() {
             {isLoading ? "Sending..." : "Send reset link"}
           </Button>
 
-          <Button variant="ghost" asChild className="w-full">
-            <Link href="/admin-login">
+          <Link href="/admin-login" className="w-full">
+            <Button variant="ghost" className="w-full">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to login
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </form>
       </CardContent>
     </Card>

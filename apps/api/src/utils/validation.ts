@@ -60,6 +60,7 @@ export const userValidation = {
   }),
 
   resetPassword: Joi.object({
+    token: Joi.string().required(),
     newPassword: Joi.string().min(8).required(),
   }),
 
