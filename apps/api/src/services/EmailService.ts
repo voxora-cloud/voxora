@@ -78,9 +78,9 @@ class EmailService {
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-          .button { display: inline-block; background: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
           .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; border-radius: 0 0 8px 8px; }
         </style>
       </head>
@@ -105,8 +105,6 @@ class EmailService {
             <p>Click the button below to accept your invitation and set up your account:</p>
             
             <a href="${inviteUrl}" class="button">Accept Invitation</a>
-            
-            <p>Or copy and paste this link into your browser:</p>
 
             <p><strong>Note:</strong> This invitation will expire in 10 minutes.</p>
           </div>
@@ -143,9 +141,9 @@ class EmailService {
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-          .button { display: inline-block; background: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
           .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; border-radius: 0 0 8px 8px; }
         </style>
       </head>
@@ -162,8 +160,6 @@ class EmailService {
             <p>Click the button below to reset your password:</p>
             
             <a href="${resetUrl}" class="button">Reset Password</a>
-            
-            <p>Or copy and paste this link into your browser:</p>
             
             <p><strong>Note:</strong> This link will expire in 10 minutes for security reasons.</p>
             
@@ -201,9 +197,9 @@ class EmailService {
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+          .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-          .button { display: inline-block; background: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
+          .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
           .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; border-radius: 0 0 8px 8px; }
         </style>
       </head>
