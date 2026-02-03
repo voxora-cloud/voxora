@@ -1,21 +1,19 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Loader } from "@/components/ui/loader";
 import { Team } from "@/lib/api";
-import { Edit, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { Plus, Users, X } from "lucide-react";
 import TeamForm from "@/components/admin/team/Form";
 import TeamDetailModal from "@/components/admin/team/TeamDetailModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
+import FilterableTeamTable from "@/components/admin/FilterableTeamTable";
 import { apiService } from "@/lib/api";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { TeamFormData } from "@/lib/interfaces/admin";
-import { Input } from "@/components/ui/input";
 
 export default function TeamPage() {
   const [teams, setTeams] = useState<Team[]>([]);
-  const [filteredTeams, setFilteredTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -23,8 +21,6 @@ export default function TeamPage() {
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [agentCountFilter, setAgentCountFilter] = useState<string>("all"); // "all", "with-agents", "no-agents"
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -32,37 +28,6 @@ export default function TeamPage() {
   useEffect(() => {
     fetchTeams();
   }, []);
-
-  // Apply filters and search to teams
-  useEffect(() => {
-    if (!teams.length) {
-      setFilteredTeams([]);
-      return;
-    }
-
-    let result = [...teams];
-
-    // Apply search filter
-    if (searchQuery.trim() !== "") {
-      const query = searchQuery.toLowerCase().trim();
-      result = result.filter(
-        (team) =>
-          team.name.toLowerCase().includes(query) ||
-          (team.description && team.description.toLowerCase().includes(query))
-      );
-    }
-
-    // Apply agent count filter
-    if (agentCountFilter === "with-agents") {
-      result = result.filter((team) => (team.agentCount || 0) > 0);
-    } else if (agentCountFilter === "no-agents") {
-      result = result.filter(
-        (team) => !team.agentCount || team.agentCount === 0
-      );
-    }
-
-    setFilteredTeams(result);
-  }, [teams, searchQuery, agentCountFilter]);
 
   const fetchTeams = async () => {
     setLoading(true);
@@ -145,16 +110,6 @@ export default function TeamPage() {
     }
   };
 
-  const openEditModal = (team: Team) => {
-    setSelectedTeam(team);
-    setShowEditModal(true);
-  };
-
-  const openDetailModal = (team: Team) => {
-    setSelectedTeam(team);
-    setShowDetailModal(true);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -171,45 +126,6 @@ export default function TeamPage() {
         </div>
       )}
 
-      {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search teams by name or description..."
-            className="pl-9 cursor-text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant={agentCountFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setAgentCountFilter("all")}
-            className="cursor-pointer"
-          >
-            All
-          </Button>
-          <Button
-            variant={agentCountFilter === "with-agents" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setAgentCountFilter("with-agents")}
-            className="cursor-pointer"
-          >
-            With Agents
-          </Button>
-          <Button
-            variant={agentCountFilter === "no-agents" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setAgentCountFilter("no-agents")}
-            className="cursor-pointer"
-          >
-            No Agents
-          </Button>
-        </div>
-      </div>
-
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -217,122 +133,35 @@ export default function TeamPage() {
             <p className="text-muted-foreground">Loading teams...</p>
           </div>
         </div>
+      ) : teams.length > 0 ? (
+        <FilterableTeamTable
+          teams={teams}
+          onEditTeam={(team) => {
+            setSelectedTeam(team);
+            setShowEditModal(true);
+          }}
+          onDeleteTeam={openDeleteDialog}
+          onViewDetails={(team) => {
+            setSelectedTeam(team);
+            setShowDetailModal(true);
+          }}
+        />
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTeams.length > 0 ? (
-          filteredTeams.map((team) => (
-            <Card key={team._id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
-              <div
-                className="h-2"
-                style={{ backgroundColor: team.color || "#3b82f6" }}
-              ></div>
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
-                      style={{ backgroundColor: team.color || "#3b82f6" }}
-                    >
-                      <Users className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium">{team.name}</h3>
-                      <p className="text-sm text-gray-500 line-clamp-1">
-                        {team.description || "No description"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="`p-2 rounded">
-                    <p className="text-xs text-gray-500">Agents</p>
-                    <p className="font-semibold">{team.agentCount || 0}</p>
-                  </div>
-                  <div className="p-2 rounded">
-                    <p className="text-xs text-gray-500">Online</p>
-                    <p className="font-semibold text-green-600">
-                      {team.onlineAgents || 0}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 cursor-pointer"
-                    onClick={() => openDetailModal(team)}
-                  >
-                    Details
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-9 px-0 cursor-pointer"
-                    onClick={() => openEditModal(team)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-9 px-0 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 cursor-pointer"
-                    onClick={() => openDeleteDialog(team)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
-        ) : (
-          <div className="col-span-full p-12 text-center border rounded-lg border-dashed">
-            <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <Users className="h-6 w-6 text-gray-500" />
-            </div>
-
-            {teams.length === 0 ? (
-              <>
-                <h3 className="text-lg font-medium text-gray-900">
-                  No teams created yet
-                </h3>
-                <p className="text-gray-500 mt-1">
-                  Create a new team to organize your agents
-                </p>
-                <Button
-                  className="mt-4 cursor-pointer"
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Team
-                </Button>
-              </>
-            ) : (
-              <>
-                <h3 className="text-lg font-medium text-gray-900">
-                  No matching teams found
-                </h3>
-                <p className="text-gray-500 mt-1">
-                  Try changing your search query or filters
-                </p>
-                <div className="flex justify-center gap-2 mt-4">
-                  <Button
-                    variant="outline"
-                    className="cursor-pointer"
-                    onClick={() => {
-                      setSearchQuery("");
-                      setAgentCountFilter("all");
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                </div>
-              </>
-            )}
+        <div className="p-12 text-center border rounded-lg border-dashed">
+          <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Users className="h-6 w-6 text-muted-foreground" />
           </div>
-        )}
-      </div>
+          <h3 className="text-lg font-medium text-foreground">
+            No teams created yet
+          </h3>
+          <p className="text-muted-foreground mt-1">
+            Create a new team to organize your agents
+          </p>
+          <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Team
+          </Button>
+        </div>
       )}
 
       {/* Create Team Modal */}
