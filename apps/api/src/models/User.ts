@@ -18,6 +18,7 @@ export interface IUser extends Document {
   inviteStatus: "pending" | "active" | "inactive";
   invitedBy?: string; // User ID who invited this user
   invitedAt?: Date;
+  inviteExpiresAt?: Date;
   activatedAt?: Date;
   emailVerified: boolean;
   emailVerificationToken?: string;
@@ -102,6 +103,9 @@ const userSchema = new Schema<IUser>(
       ref: "User",
     },
     invitedAt: {
+      type: Date,
+    },
+    inviteExpiresAt: {
       type: Date,
     },
     activatedAt: {

@@ -233,6 +233,10 @@ export class AdminService {
       : password;
     const inviteToken = crypto.randomBytes(32).toString("hex");
 
+    // Set invitation expiration to 7 days from now
+    const inviteExpiresAt = new Date();
+    inviteExpiresAt.setDate(inviteExpiresAt.getDate() + 7);
+
     // Create agent user
     const agent = new User({
       name,
@@ -243,6 +247,7 @@ export class AdminService {
       inviteStatus: "pending",
       invitedBy,
       invitedAt: new Date(),
+      inviteExpiresAt,
       emailVerificationToken: inviteToken,
       permissions: ["chat_support"], // Basic agent permissions
     });
@@ -511,6 +516,7 @@ export class AdminService {
     const inviteToken = crypto.randomBytes(32).toString("hex");
     agent.emailVerificationToken = inviteToken;
     agent.invitedAt = new Date();
+    agent.inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
     await agent.save();
 
     // Get resender info

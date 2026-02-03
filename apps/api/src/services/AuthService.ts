@@ -370,12 +370,26 @@ export class AuthService {
   }
 
   async acceptInvite(token: string) {
-    // Find user by invite token
+    // First, check if this token exists for an already accepted invitation
+    const alreadyAccepted = await User.findOne({
+      emailVerificationToken: token,
+      inviteStatus: "active",
+    });
+
+    if (alreadyAccepted) {
+      return {
+        success: false,
+        message: "This invitation has already been accepted. You can log in to your account.",
+        statusCode: 409, // 409 Conflict - already processed
+      };
+    }
+
+    // Find user by invite token with pending status
     const user = await User.findOne({
       emailVerificationToken: token,
       inviteStatus: "pending",
     });
-    console.log("User found for invite:", user);
+    
     if (!user) {
       return {
         success: false,
@@ -384,10 +398,19 @@ export class AuthService {
       };
     }
 
-    // Update user status and clear invite token
+    // Check if invitation has expired (only if inviteExpiresAt is set)
+    if (user.inviteExpiresAt && new Date() > user.inviteExpiresAt) {
+      return {
+        success: false,
+        message: "This invitation has expired. Please contact your administrator for a new invitation.",
+        statusCode: 410, // 410 Gone - resource expired
+      };
+    }
+
+    // Update user status but keep the token for tracking
     user.inviteStatus = "active";
-    user.emailVerificationToken = undefined;
     user.status = "online";
+    user.activatedAt = new Date();
     await user.save();
 
     // Generate JWT token

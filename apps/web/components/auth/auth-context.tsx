@@ -143,24 +143,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const acceptInvite = async (token: string) => {
-    try {
-      console.log("Accepting invite with token:", token);
-      const response = await apiService.acceptInvite(token);
-      console.log("Accept invite API response:", response);
+    console.log("Accepting invite with token:", token);
+    const response = await apiService.acceptInvite(token);
+    console.log("Accept invite API response:", response);
 
-      if (response.success && response.data) {
-        return true;
-      } else {
-        console.error(
-          "Failed to accept invite:",
-          response.message || "Unknown error",
-        );
-        // If we know the database updated correctly, we could force true here
-        return false;
-      }
-    } catch (error) {
-      console.error("Accept invite error:", error);
-      return false;
+    if (response.success && response.data) {
+      return true;
+    } else {
+      // Throw error with the message from the API
+      throw new Error(response.message || "Failed to accept invitation");
     }
   };
 

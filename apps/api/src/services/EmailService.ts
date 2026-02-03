@@ -105,9 +105,6 @@ class EmailService {
             <p>Click the button below to accept your invitation and set up your account:</p>
             
             <a href="${inviteUrl}" class="button">Accept Invitation</a>
-            
-            <p>Or copy and paste this link into your browser:</p>
-            <a style="word-break: break-all; color: #1d4ed8;">${inviteUrl}</a>
 
             <p><strong>Note:</strong> This invitation will expire in 7 days.</p>
           </div>
