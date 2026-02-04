@@ -2,7 +2,7 @@
 import { useAuth } from "@/components/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/Spinner";
-import { BarChart3, Crown, LogOut, UserCheck, Users } from "lucide-react";
+import { BarChart3, Crown, LogOut, UserCheck, Users, BookOpen } from "lucide-react";
 import React, { useEffect } from "react";
 import { Team, Agent, apiService } from "@/lib/api";
 import Image from "next/image";
@@ -18,9 +18,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       const path = window.location.pathname;
       if (path.includes("/admin/team")) return "teams";
       if (path.includes("/admin/agent")) return "agents";
+      if (path.includes("/admin/knowledge")) return "knowledge";
       if (path.includes("/admin/widget")) return "widgets";
     }
     return "overview";
+  });
+  const [showKnowledgeSubmenu, setShowKnowledgeSubmenu] = React.useState(() => {
+    if (typeof window !== "undefined") {
+      return window.location.pathname.includes("/admin/knowledge");
+    }
+    return false;
   });
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
@@ -144,8 +151,76 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </span>
             </Button>
           </Link>
+          {/* Knowledge Base with Submenu */}
+          <div>
+            <Button
+              onClick={() => {
+                setActiveTab("knowledge");
+                setShowKnowledgeSubmenu(!showKnowledgeSubmenu);
+              }}
+              variant="ghost"
+              className={`w-full flex items-center px-3 py-2 text-sm font-medium cursor-pointer rounded-lg transition-colors ${
+                activeTab === "knowledge"
+                  ? "bg-primary/10 text-primary border-r-2 border-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+            >
+              <BookOpen className="h-5 w-5 mr-3" />
+              <span className="flex-1 text-left">Knowledge Base</span>
+              <svg
+                className={`h-4 w-4 transition-transform ${
+                  showKnowledgeSubmenu ? "rotate-90" : ""
+                }`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </Button>
 
-          <Link href="/admin/widget">
+            {/* Submenu */}
+            {showKnowledgeSubmenu && (
+              <div className="ml-8 mt-1 space-y-1">
+                <Link href="/admin/knowledge">
+                  <Button
+                    onClick={() => setActiveTab("knowledge")}
+                    variant="ghost"
+                    className={`w-full flex items-center px-3 py-1.5 text-sm cursor-pointer rounded-lg transition-colors ${
+                      typeof window !== "undefined" &&
+                      window.location.pathname === "/admin/knowledge"
+                        ? "text-primary bg-primary/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    <span className="flex-1 text-left">Static Content</span>
+                  </Button>
+                </Link>
+                <Link href="/admin/knowledge/realtime">
+                  <Button
+                    onClick={() => setActiveTab("knowledge")}
+                    variant="ghost"
+                    className={`w-full flex items-center px-3 py-1.5 text-sm cursor-pointer rounded-lg transition-colors ${
+                      typeof window !== "undefined" &&
+                      window.location.pathname.includes(
+                        "/admin/knowledge/realtime"
+                      )
+                        ? "text-primary bg-primary/5"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    <span className="flex-1 text-left">Realtime Sync</span>
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+              <Link href="/admin/widget">
             <Button
               onClick={() => setActiveTab("widgets")}
               variant="ghost"
