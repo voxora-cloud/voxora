@@ -24,7 +24,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Redirect to login if not authenticated
     if (!isAuthenticated && !isLoading) {
-      window.location.href = "/login";
+      window.location.href = "/agent-login";
     }
   }, [isAuthenticated, isLoading]);
 

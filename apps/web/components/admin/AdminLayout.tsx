@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      window.location.href = "/login";
+      window.location.href = "/admin-login";
     }
   }, [isAuthenticated, isLoading]);
 
