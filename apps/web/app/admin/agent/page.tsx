@@ -22,6 +22,7 @@ export default function AgentPage() {
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
@@ -61,6 +62,7 @@ export default function AgentPage() {
 
   const handleInviteAgent = async (data: AgentFormData) => {
     setIsSubmitting(true);
+    setModalError(null);
     try {
       const response = await apiService.inviteAgent({
         name: data.name,
@@ -71,13 +73,15 @@ export default function AgentPage() {
       });
       if (response.success) {
         setShowCreateModal(false);
+        setModalError(null);
         fetchAgents();
       } else {
-        setError("Failed to invite agent");
+        setModalError("Failed to invite agent");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error inviting agent:", err);
-      setError("An error occurred while inviting the agent");
+      const errorMessage = err.response?.data?.message || err.message || "An error occurred while inviting the agent";
+      setModalError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -202,22 +206,36 @@ export default function AgentPage() {
       )}
 
       {/* Invite Agent Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+      <Dialog open={showCreateModal} onOpenChange={(open) => {
+        setShowCreateModal(open);
+        if (!open) setModalError(null);
+      }}>
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Invite New Agent</h2>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowCreateModal(false)}
+              onClick={() => {
+                setShowCreateModal(false);
+                setModalError(null);
+              }}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
+          {modalError && (
+            <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive">
+              {modalError}
+            </div>
+          )}
           <AgentForm
             teams={teams}
             onSubmit={handleInviteAgent}
-            onCancel={() => setShowCreateModal(false)}
+            onCancel={() => {
+              setShowCreateModal(false);
+              setModalError(null);
+            }}
             isLoading={isSubmitting}
           />
         </DialogContent>
