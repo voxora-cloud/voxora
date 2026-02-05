@@ -5,6 +5,7 @@ export interface KnowledgeBase {
   _id: string;
   title: string;
   description?: string;
+  catalog?: string;
   source: KnowledgeSource;
   sourceUrl?: string;
   fileName?: string;
@@ -20,6 +21,7 @@ export interface KnowledgeBase {
 export interface AddKnowledgeFormData {
   title: string;
   description?: string;
+  catalog?: string;
   source: KnowledgeSource;
   content?: string;
   file?: File;

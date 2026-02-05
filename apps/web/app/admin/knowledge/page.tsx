@@ -221,9 +221,10 @@ export default function KnowledgePage() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <Loader size="lg" className="mb-4" />
+            <Loader size="lg" />
+            <p className="text-muted-foreground mt-4">Loading knowledge base...</p>
           </div>
         </div>
       ) : knowledgeItems.length > 0 ? (
@@ -278,7 +279,11 @@ export default function KnowledgePage() {
 
           {selectedItem && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+              <div className="grid grid-cols-2 gap-4￼
+Source
+￼
+All
+Status p-4 bg-muted rounded-lg">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Source</p>
                   <p className="text-sm font-medium text-foreground uppercase">

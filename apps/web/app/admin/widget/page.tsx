@@ -6,13 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
-import { Save, Loader2, X, MessageCircle, Copy } from "lucide-react";
+import { Save, Loader2, X, MessageCircle, Copy, Check } from "lucide-react";
 
 export default function CreateWidgetPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isExistingWidget, setIsExistingWidget] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [isCopied, setIsCopied] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -48,6 +51,7 @@ export default function CreateWidgetPage() {
       const response = await apiService.getWidget();
       if (response.success) {
         setFormData(response.data);
+        setPreviewUrl(response.data.logoUrl || "");
         setIsExistingWidget(true);
       } else {
         setMessage({ type: "error", text: "Failed to load widget data" });
@@ -65,6 +69,42 @@ export default function CreateWidgetPage() {
   useEffect(() => {
     getWidget();
   }, []);
+
+  // Handle file upload
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setMessage({ type: "error", text: "Please select an image file" });
+        return;
+      }
+
+      // Validate file size (max 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        setMessage({ type: "error", text: "Image size should be less than 2MB" });
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setPreviewUrl(result);
+        handleInputChange("logoUrl", result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Clear logo
+  const clearLogo = () => {
+    setSelectedFile(null);
+    setPreviewUrl("");
+    handleInputChange("logoUrl", "");
+  };
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -243,38 +283,65 @@ export default function CreateWidgetPage() {
                     <Label htmlFor="logoUrl" className="text-sm font-medium text-foreground/90">
                       Brand Logo
                     </Label>
-                    <Input
-                      id="logoUrl"
-                      type="url"
-                      placeholder="https://example.com/logo.png"
-                      value={formData.logoUrl}
-                      onChange={(e) =>
-                        handleInputChange("logoUrl", e.target.value)
-                      }
-                      className="h-12 rounded-xl border-white/10 bg-white/5 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text"
-                    />
-                    {formData.logoUrl && (
-                      <div className="p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden">
-                            <img 
-                              src={formData.logoUrl} 
-                              alt="Logo preview" 
-                              width={32} 
-                              height={32}
-                              className="rounded object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium">Logo Preview</div>
-                            <div className="text-xs text-muted-foreground">64x64px recommended</div>
+                    
+                    <div className="space-y-4">
+                      {/* File Upload */}
+                      <div>
+                        <input
+                          type="file"
+                          id="logo-file-upload"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('logo-file-upload')?.click()}
+                          className="w-full h-12 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-sm cursor-pointer transition-all"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {selectedFile ? selectedFile.name : "Choose from Device"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Upload from your device (PNG, JPG, SVG - Max 2MB)
+                        </p>
+                      </div>
+
+                      {/* Preview */}
+                      {previewUrl && (
+                        <div className="p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-16 h-16 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
+                              <img 
+                                src={previewUrl} 
+                                alt="Logo preview" 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.parentElement?.classList.add('after:content-["❌"]');
+                                }}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium">Logo Preview</div>
+                              <div className="text-xs text-muted-foreground">
+                                {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)` : '64x64px recommended'}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={clearLogo}
+                              className="cursor-pointer hover:bg-white/10"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Square format recommended, minimum 64x64px
                     </p>
@@ -286,37 +353,91 @@ export default function CreateWidgetPage() {
             {/* Integration Code Card */}
             <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-xl overflow-hidden">
               <div className="p-6 lg:p-8">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div>
-                    <h3 className="text-lg font-semibold">Installation</h3>
+                    <h3 className="text-lg font-semibold">Installation Code</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Add this snippet before the closing &lt;/body&gt; tag
+                      Add this snippet before the closing <span className="font-mono text-xs bg-white/5 px-1.5 py-0.5 rounded">&lt;/body&gt;</span> tag
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="cursor-pointer rounded-lg border-white/10 hover:bg-white/5"
+                    className="cursor-pointer rounded-lg border-white/10 hover:bg-white/5 transition-all w-full sm:w-auto"
                     onClick={() => {
                       const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
         data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
         data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"></script>`;
                       navigator.clipboard.writeText(code);
+                      setIsCopied(true);
                       setMessage({ type: "success", text: "Code copied to clipboard!" });
-                      setTimeout(() => setMessage(null), 2000);
+                      setTimeout(() => {
+                        setIsCopied(false);
+                        setMessage(null);
+                      }, 2000);
                     }}
                   >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy
+                    {isCopied ? (
+                      <>
+                        <Check className="h-4 w-4 sm:mr-2 text-primary" />
+                        <span className="hidden sm:inline">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Copy Code</span>
+                      </>
+                    )}
                   </Button>
                 </div>
-                <div className="relative group">
-                  <code className="block text-xs leading-relaxed bg-black/60 text-primary/80 p-6 rounded-xl font-mono border border-white/5">
-                    {`<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
-        data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
-        data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"></script>`}
-                  </code>
+                
+                <div className="relative">
+                  <div className="relative bg-black/60 rounded-xl border border-white/5 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
+                      <span className="text-xs text-muted-foreground font-medium">HTML</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
+                        <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+                        <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
+                      </div>
+                    </div>
+                    <pre className="p-4 overflow-x-auto">
+                      <code className="text-sm leading-relaxed text-primary/90 font-mono">
+{`<script 
+  src="${process.env.NEXT_PUBLIC_CDN_URL}" 
+  data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
+  data-voxora-env="${process.env.NEXT_PUBLIC_ENV}">
+</script>`}
+                      </code>
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/5">
+                  <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <span className="text-primary">📋</span>
+                    Integration Steps
+                  </h4>
+                  <ol className="space-y-2 text-xs text-muted-foreground">
+                    <li className="flex gap-2">
+                      <span className="text-primary font-semibold">1.</span>
+                      <span>Copy the code snippet above</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-primary font-semibold">2.</span>
+                      <span>Paste it into your website's HTML, just before the closing <span className="font-mono bg-white/5 px-1 rounded">&lt;/body&gt;</span> tag</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-primary font-semibold">3.</span>
+                      <span>Save and publish your changes</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-primary font-semibold">4.</span>
+                      <span>The chat widget will appear automatically on your site</span>
+                    </li>
+                  </ol>
                 </div>
               </div>
             </div>
@@ -356,6 +477,8 @@ export default function CreateWidgetPage() {
                         backgroundColor: "#10b981",
                         logoUrl: "",
                       });
+                      setSelectedFile(null);
+                      setPreviewUrl("");
                       setIsExistingWidget(false);
                     }}
                   >
