@@ -41,11 +41,6 @@ export function AgentSignupForm() {
                 Back to Login
               </Link>
             </Button>
-            <Button variant="outline" asChild className="w-full">
-              <Link href="/admin-signup">
-                Sign up as Admin
-              </Link>
-            </Button>
           </div>
         </div>
       </CardContent>

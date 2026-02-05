@@ -76,7 +76,6 @@ export default function FilterableTeamTable({
               {/* Total Agents Column with Filter */}
               <th className="px-4 py-3 text-left">
                 <div className="space-y-2">
-                  <div className="font-medium text-foreground">Total Agents</div>
                   <select
                     className="w-full h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
                     value={agentCountFilter}
@@ -157,7 +156,7 @@ export default function FilterableTeamTable({
                 <td className="px-4 py-3">
                   <span className="font-semibold text-green-600">
                     {team.onlineAgents || 0}
-                  </span>
+                  </span>  <div className="font-medium text-foreground">Total Agents</div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(team.createdAt).toLocaleDateString()}

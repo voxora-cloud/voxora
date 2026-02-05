@@ -107,29 +107,40 @@ export class AdminService {
     }
 
     // Check if team has agents
-    const agentCount = await User.countDocuments({
+    const agentsInTeam = await User.find({
       teams: id,
       isActive: true,
     });
 
-    // console.log("Deleting team with ID:", id, "by user:", deletedBy);
+    // Hard delete the team
+    await Team.findByIdAndDelete(id);
 
-    // Todo - Uncomment this check if you want to prevent deletion of teams with active agents
+    // Handle agents associated with this team
+    if (agentsInTeam.length > 0) {
+      for (const agent of agentsInTeam) {
+        // Remove the deleted team from agent's teams array
+        const remainingTeams = agent.teams.filter(
+          (teamId) => teamId.toString() !== id.toString()
+        );
 
-    // if (agentCount > 0) {
-    //   return {
-    //     success: false,
-    //     message: 'Cannot delete team with active agents. Please reassign or remove agents first.',
-    //     statusCode: 400
-    //   };
-    // }
+        // If agent has other teams, just remove this team from their list
+        if (remainingTeams.length > 0) {
+          await User.findByIdAndUpdate(agent._id, {
+            teams: remainingTeams,
+          });
+        } else {
+          // If this was the agent's only team, delete the agent
+          await User.findByIdAndDelete(agent._id);
+        }
+      }
 
-    // Soft delete
-    await Team.findByIdAndUpdate(id, {
-      isActive: false,
-      deletedAt: new Date(),
-      deletedBy,
-    });
+      logger.info("Updated agents after team deletion", {
+        teamId: id,
+        teamName: team.name,
+        agentCount: agentsInTeam.length,
+        deletedBy,
+      });
+    }
 
     logger.info("Team deleted successfully", {
       teamId: id,
