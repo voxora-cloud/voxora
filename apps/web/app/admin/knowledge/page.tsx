@@ -279,11 +279,7 @@ export default function KnowledgePage() {
 
           {selectedItem && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4￼
-Source
-￼
-All
-Status p-4 bg-muted rounded-lg">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Source</p>
                   <p className="text-sm font-medium text-foreground uppercase">

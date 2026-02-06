@@ -87,7 +87,7 @@ export default function CreateWidgetPage() {
       }
 
       setSelectedFile(file);
-      
+
       // Create preview URL
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -162,7 +162,7 @@ export default function CreateWidgetPage() {
     <div className="min-h-screen bg-[#0a0a0a]">
       {/* Gradient Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
-      
+
       {/* Header Section */}
       <div className="relative border-b border-white/5 bg-black/40 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -186,16 +186,14 @@ export default function CreateWidgetPage() {
         {/* Message Display */}
         {message && (
           <div
-            className={`mb-6 p-4 rounded-xl border backdrop-blur-sm ${
-              message.type === "success"
+            className={`mb-6 p-4 rounded-xl border backdrop-blur-sm ${message.type === "success"
                 ? "bg-primary/10 border-primary/30 text-primary"
                 : "bg-red-500/10 border-red-500/30 text-red-400"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-3">
-              <div className={`w-1.5 h-1.5 rounded-full ${
-                message.type === "success" ? "bg-primary" : "bg-red-500"
-              }`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${message.type === "success" ? "bg-primary" : "bg-red-500"
+                }`} />
               {message.text}
             </div>
           </div>
@@ -236,7 +234,7 @@ export default function CreateWidgetPage() {
                     <Label htmlFor="backgroundColor" className="text-sm font-medium text-foreground/90">
                       Brand Color
                     </Label>
-                    
+
                     <div className="p-6 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm space-y-4">
                       {/* Color Preview */}
                       <div className="flex items-center gap-4">
@@ -251,7 +249,7 @@ export default function CreateWidgetPage() {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Color Inputs */}
                       <div className="flex gap-3 items-center">
                         <Input
@@ -264,7 +262,7 @@ export default function CreateWidgetPage() {
                           className="w-14 h-14 rounded-lg cursor-pointer border-white/20 p-1"
                           required
                         />
-                        
+
                         <Input
                           value={formData.backgroundColor}
                           onChange={(e) =>
@@ -283,7 +281,7 @@ export default function CreateWidgetPage() {
                     <Label htmlFor="logoUrl" className="text-sm font-medium text-foreground/90">
                       Brand Logo
                     </Label>
-                    
+
                     <div className="space-y-4">
                       {/* File Upload */}
                       <div>
@@ -313,9 +311,9 @@ export default function CreateWidgetPage() {
                         <div className="p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
                           <div className="flex items-center gap-3">
                             <div className="w-16 h-16 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
-                              <img 
-                                src={previewUrl} 
-                                alt="Logo preview" 
+                              <img
+                                src={previewUrl}
+                                alt="Logo preview"
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
                                   e.currentTarget.style.display = 'none';
@@ -366,9 +364,7 @@ export default function CreateWidgetPage() {
                     size="sm"
                     className="cursor-pointer rounded-lg border-white/10 hover:bg-white/5 transition-all w-full sm:w-auto"
                     onClick={() => {
-                      const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" 
-        data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
-        data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"></script>`;
+                      const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}" data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"></script>`;
                       navigator.clipboard.writeText(code);
                       setIsCopied(true);
                       setMessage({ type: "success", text: "Code copied to clipboard!" });
@@ -391,7 +387,7 @@ export default function CreateWidgetPage() {
                     )}
                   </Button>
                 </div>
-                
+
                 <div className="relative">
                   <div className="relative bg-black/60 rounded-xl border border-white/5 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
@@ -404,7 +400,7 @@ export default function CreateWidgetPage() {
                     </div>
                     <pre className="p-4 overflow-x-auto">
                       <code className="text-sm leading-relaxed text-primary/90 font-mono">
-{`<script 
+                        {`<script 
   src="${process.env.NEXT_PUBLIC_CDN_URL}" 
   data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
   data-voxora-env="${process.env.NEXT_PUBLIC_ENV}">
