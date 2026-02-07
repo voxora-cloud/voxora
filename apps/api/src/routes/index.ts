@@ -4,6 +4,7 @@ import adminRoutes from "./admin";
 import agentRoutes from "./agent";
 import widgetRoutes from "./widget";
 import conversationRoutes from "./conversations";
+import storageRoutes from "./storage";
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use("/admin", adminRoutes);
 router.use("/agent", agentRoutes);
 router.use("/widget", widgetRoutes);
 router.use("/conversations", conversationRoutes);
+router.use("/storage", storageRoutes);
 
 // Health check
 router.get("/health", (req, res) => {

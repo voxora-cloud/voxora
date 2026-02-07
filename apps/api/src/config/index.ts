@@ -49,6 +49,13 @@ interface Config {
   cors: {
     allowedOrigins: string[];
   };
+  minio: {
+    endpoint: string;
+    port: number;
+    useSSL: boolean;
+    accessKey: string;
+    secretKey: string;
+  };
 }
 
 const config: Config = {
@@ -99,6 +106,14 @@ const config: Config = {
   cors: {
     allowedOrigins: ["*"],
   },
+  minio: {
+    endpoint: process.env.MINIO_ENDPOINT || "localhost",
+    port: parseInt(process.env.MINIO_PORT || "9001", 10),
+    useSSL: process.env.MINIO_USE_SSL === "true",
+    accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
+    secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
+  },
 };
 
+export { config };
 export default config;

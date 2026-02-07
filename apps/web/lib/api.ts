@@ -496,6 +496,85 @@ class ApiService {
       window.location.href = "/login";
     }
   }
+
+  // Storage/MinIO APIs
+  async generatePresignedUploadUrl(
+    fileName: string,
+    mimeType: string,
+    expiresIn?: number
+  ): Promise<{
+    success: boolean;
+    data: {
+      uploadUrl: string;
+      fileKey: string;
+      fileName: string;
+      expiresIn: number;
+    };
+  }> {
+    return this.makeRequest<{
+      success: boolean;
+      data: {
+        uploadUrl: string;
+        fileKey: string;
+        fileName: string;
+        expiresIn: number;
+      };
+    }>("/storage/presigned-upload", {
+      method: "POST",
+      body: JSON.stringify({ fileName, mimeType, expiresIn }),
+    });
+  }
+
+  async generatePresignedDownloadUrl(
+    fileKey: string,
+    expiresIn?: number
+  ): Promise<{
+    success: boolean;
+    data: {
+      downloadUrl: string;
+      fileKey: string;
+    };
+  }> {
+    return this.makeRequest<{
+      success: boolean;
+      data: {
+        downloadUrl: string;
+        fileKey: string;
+      };
+    }>("/storage/presigned-download", {
+      method: "POST",
+      body: JSON.stringify({ fileKey, expiresIn }),
+    });
+  }
+
+  async deleteStorageFile(fileKey: string): Promise<{
+    success: boolean;
+    data: { fileKey: string };
+  }> {
+    return this.makeRequest<{
+      success: boolean;
+      data: { fileKey: string };
+    }>(`/storage/${encodeURIComponent(fileKey)}`, {
+      method: "DELETE",
+    });
+  }
+
+  async uploadFileWithPresignedUrl(
+    presignedUrl: string,
+    file: File
+  ): Promise<void> {
+    const response = await fetch(presignedUrl, {
+      method: "PUT",
+      body: file,
+      headers: {
+        "Content-Type": file.type,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to upload file to storage");
+    }
+  }
 }
 
 export const apiService = new ApiService();
