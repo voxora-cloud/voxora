@@ -62,10 +62,29 @@ services:
     networks:
       - voxora-dev-network
 
+
+  minio:
+    image: minio/minio:latest
+    container_name: voxora-minio-dev
+    restart: unless-stopped
+    ports:
+      - "9001:9001"  # API port
+      - "9002:9002"  # Console (Web UI) port
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9002"
+    volumes:
+      - minio_data_dev:/data
+    networks:
+      - voxora-dev-network
+
 volumes:
   mongodb_data_dev:
     driver: local
   redis_data_dev:
+    driver: local
+  minio_data_dev:
     driver: local
 
 networks:

@@ -5,7 +5,7 @@
     "build": "turbo run build",
     "dev:full": "npm run docker:start && turbo run dev",
     "dev": "turbo run dev",
-    "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog",
+    "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio",
     "docker:stop": "cd docker && docker-compose -f docker-compose.dev.yml down",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
