@@ -221,9 +221,10 @@ export default function KnowledgePage() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <Loader size="lg" className="mb-4" />
+            <Loader size="lg" />
+            <p className="text-muted-foreground mt-4">Loading knowledge base...</p>
           </div>
         </div>
       ) : knowledgeItems.length > 0 ? (

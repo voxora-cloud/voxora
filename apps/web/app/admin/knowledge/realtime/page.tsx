@@ -269,10 +269,10 @@ export default function RealtimePage() {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <Loader size="lg" className="mb-4" />
-            <p className="text-muted-foreground">Loading live sources...</p>
+            <Loader size="lg" />
+            <p className="text-muted-foreground mt-4">Loading live sources...</p>
           </div>
         </div>
       ) : sources.length > 0 ? (

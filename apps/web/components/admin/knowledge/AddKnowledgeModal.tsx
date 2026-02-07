@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertCircle,
+  FolderOpen,
 } from "lucide-react";
 import { AddKnowledgeFormData, KnowledgeSource } from "@/lib/interfaces/knowledge";
 
@@ -32,20 +33,36 @@ export default function AddKnowledgeModal({
   const [formData, setFormData] = useState<Partial<AddKnowledgeFormData>>({
     title: "",
     description: "",
+    catalog: "",
     content: "",
     url: "",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showUrlPreview, setShowUrlPreview] = useState(false);
+  const [showCustomCatalog, setShowCustomCatalog] = useState(false);
+
+  // Predefined catalog categories
+  const catalogCategories = [
+    "Product Information",
+    "Pricing & Billing",
+    "Support & FAQs",
+    "Technical Documentation",
+    "Policies & Terms",
+    "Troubleshooting",
+    "Getting Started",
+    "API Documentation",
+    "Custom",
+  ];
 
   const handleClose = () => {
     setStep(1);
     setSelectedSource(null);
-    setFormData({ title: "", description: "", content: "", url: "" });
+    setFormData({ title: "", description: "", catalog: "", content: "", url: "" });
     setSelectedFile(null);
     setErrors({});
     setShowUrlPreview(false);
+    setShowCustomCatalog(false);
     onClose();
   };
 
@@ -385,12 +402,77 @@ export default function AddKnowledgeModal({
               </p>
             </div>
 
+            {/* Catalog/Category */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4" />
+                  Catalog/Category
+                </div>
+              </label>
+              <div className="space-y-3">
+                {/* Predefined Categories */}
+                <div className="grid grid-cols-2 gap-2">
+                  {catalogCategories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => {
+                        if (category === "Custom") {
+                          setShowCustomCatalog(true);
+                          setFormData((prev) => ({ ...prev, catalog: "" }));
+                        } else {
+                          setShowCustomCatalog(false);
+                          setFormData((prev) => ({ ...prev, catalog: category }));
+                        }
+                      }}
+                      className={`p-3 rounded-lg border text-left text-sm transition-all cursor-pointer ${
+                        formData.catalog === category && !showCustomCatalog
+                          ? "border-primary bg-primary/10 text-primary"
+                          : category === "Custom" && showCustomCatalog
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border hover:bg-muted/50 text-foreground"
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom Catalog Input */}
+                {showCustomCatalog && (
+                  <div className="space-y-2">
+                    <Input
+                      value={formData.catalog || ""}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, catalog: e.target.value }))
+                      }
+                      placeholder="Enter custom catalog name..."
+                      className="cursor-text"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Create a custom catalog name for organizing your knowledge
+                    </p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Organize knowledge into catalogs for easier navigation
+              </p>
+            </div>
+
             {/* Summary */}
             <div className="p-4 bg-muted rounded-lg space-y-2">
               <h4 className="text-sm font-medium text-foreground">Summary</h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="text-muted-foreground">Source:</div>
                 <div className="text-foreground uppercase">{selectedSource}</div>
+                {formData.catalog && (
+                  <>
+                    <div className="text-muted-foreground">Catalog:</div>
+                    <div className="text-foreground">{formData.catalog}</div>
+                  </>
+                )}
                 {selectedSource === "text" && wordCount > 0 && (
                   <>
                     <div className="text-muted-foreground">Word Count:</div>
