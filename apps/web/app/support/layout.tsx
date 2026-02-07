@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/auth-context";
+import LogoutConfirmDialog from "@/components/auth/LogoutConfirmDialog";
 import {
   MessageCircle,
   Bell,
@@ -14,12 +15,7 @@ import Link from "next/link";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout, isAuthenticated, isLoading } = useAuth();
-
-  const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
-      logout();
-    }
-  };
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false);
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -74,7 +70,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               title="Logout"
-              onClick={handleLogout}
+              onClick={() => setShowLogoutDialog(true)}
             >
               <LogOut className="h-5 w-5" />
             </Button>
@@ -108,6 +104,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area - Full Width */}
       <main className="flex-1 overflow-auto bg-muted/20">{children}</main>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmDialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={() => {
+          setShowLogoutDialog(false);
+          logout();
+        }}
+      />
     </div>
   );
 }

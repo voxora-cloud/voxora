@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Loader } from "@/components/ui/loader";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Agent, Team } from "@/lib/api";
-import { Plus, User, X } from "lucide-react";
+import { Plus, User, X, CheckCircle2 } from "lucide-react";
 import AgentForm from "@/components/admin/agent/Form";
 import AgentDetailModal from "@/components/admin/agent/AgentDetailModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
@@ -26,6 +27,7 @@ export default function AgentPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAgents();
@@ -139,7 +141,8 @@ export default function AgentPage() {
     try {
       const response = await apiService.resendInvite(agentId);
       if (response.success) {
-        alert("Invitation resent successfully!");
+        setSuccessMessage("Invitation resent successfully!");
+        setTimeout(() => setSuccessMessage(null), 5000);
       } else {
         setError("Failed to resend invitation");
       }
@@ -163,6 +166,13 @@ export default function AgentPage() {
         <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
           {error}
         </div>
+      )}
+
+      {successMessage && (
+        <Alert variant="success" className="mb-4 flex items-center">
+          <CheckCircle2 className="h-4 w-4" />
+          <AlertDescription className="ml-1">{successMessage}</AlertDescription>
+        </Alert>
       )}
 
       {loading ? (

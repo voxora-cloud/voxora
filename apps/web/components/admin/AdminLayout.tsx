@@ -2,6 +2,7 @@
 import { useAuth } from "@/components/auth/auth-context";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/ui/Spinner";
+import LogoutConfirmDialog from "@/components/auth/LogoutConfirmDialog";
 import { BarChart3, Crown, LogOut, UserCheck, Users, BookOpen } from "lucide-react";
 import React, { useEffect } from "react";
 import { Team, Agent, apiService } from "@/lib/api";
@@ -29,6 +30,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
     return false;
   });
+  const [showLogoutDialog, setShowLogoutDialog] = React.useState(false);
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [teams, setTeams] = React.useState<Team[]>([]);
@@ -152,7 +154,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </Button>
           </Link>
           {/* Knowledge Base with Submenu */}
-          <div>
+          {/* it will be implemented in version 2 of voxora */}
+          {/* <div>
             <Button
               onClick={() => {
                 setActiveTab("knowledge");
@@ -185,7 +188,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </Button>
 
             {/* Submenu */}
-            {showKnowledgeSubmenu && (
+            {/* {showKnowledgeSubmenu && (
               <div className="ml-8 mt-1 space-y-1">
                 <Link href="/admin/knowledge">
                   <Button
@@ -218,8 +221,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   </Button>
                 </Link>
               </div>
-            )}
-          </div>
+            )} */}
+          {/* </div>*/} 
+          
               <Link href="/admin/widget">
             <Button
               onClick={() => setActiveTab("widgets")}
@@ -252,7 +256,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           </div>
           <Button
-            onClick={logout}
+            onClick={() => setShowLogoutDialog(true)}
             variant="outline"
             size="sm"
             className="w-full"
@@ -265,6 +269,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Main Content */}
       <div className="flex-1 p-6 bg-background">{children}</div>
+
+      {/* Logout Confirmation Dialog */}
+      <LogoutConfirmDialog
+        isOpen={showLogoutDialog}
+        onClose={() => setShowLogoutDialog(false)}
+        onConfirm={() => {
+          setShowLogoutDialog(false);
+          logout();
+        }}
+      />
     </div>
   );
 }
