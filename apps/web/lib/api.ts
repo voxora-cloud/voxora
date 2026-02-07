@@ -96,6 +96,7 @@ export interface CreateWidgetData {
   displayName: string;
   backgroundColor: string;
   logoUrl: string;
+  logoFileKey?: string; // MinIO file key for logo
 }
 
 export interface UpdateWidgetData {
@@ -109,6 +110,7 @@ export interface Widget {
   displayName: string;
   backgroundColor: string;
   logoUrl: string;
+  logoFileKey?: string; // MinIO file key for logo
   createdAt: Date;
   updatedAt?: Date;
 }

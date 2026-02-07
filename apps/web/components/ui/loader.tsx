@@ -5,7 +5,7 @@ interface LoaderProps {
 
 export function Loader({ size = 'md', className = '' }: LoaderProps) {
   const sizeClasses = {
-    sm: 'w-6 h-6',
+    sm: 'w-4 h-4',
     md: 'w-12 h-12',
     lg: 'w-16 h-16',
   };

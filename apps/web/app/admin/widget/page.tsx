@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FileUpload } from "@/components/ui/file-upload";
 import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
 import { Save, Loader2, X, MessageCircle, Copy, Check } from "lucide-react";
@@ -12,10 +13,10 @@ export default function CreateWidgetPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isExistingWidget, setIsExistingWidget] = useState(false);
+  const [existingWidget, setExistingWidget] = useState<CreateWidgetData | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isCopied, setIsCopied] = useState(false);
+  const [uploadedFileKey, setUploadedFileKey] = useState<string>("");
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -51,7 +52,8 @@ export default function CreateWidgetPage() {
       const response = await apiService.getWidget();
       if (response.success) {
         setFormData(response.data);
-        setPreviewUrl(response.data.logoUrl || "");
+        setExistingWidget(response.data); // Store existing widget data
+        setUploadedFileKey(response.data.logoFileKey || ""); // Store existing file key
         setIsExistingWidget(true);
       } else {
         setMessage({ type: "error", text: "Failed to load widget data" });
@@ -70,39 +72,26 @@ export default function CreateWidgetPage() {
     getWidget();
   }, []);
 
-  // Handle file upload
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setMessage({ type: "error", text: "Please select an image file" });
-        return;
-      }
-
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        setMessage({ type: "error", text: "Image size should be less than 2MB" });
-        return;
-      }
-
-      setSelectedFile(file);
-
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setPreviewUrl(result);
-        handleInputChange("logoUrl", result);
-      };
-      reader.readAsDataURL(file);
-    }
+  // Handle file upload success
+  const handleUploadSuccess = (data: {
+    fileKey: string;
+    downloadUrl: string;
+    fileName: string;
+  }) => {
+    setUploadedFileKey(data.fileKey);
+    handleInputChange("logoUrl", data.downloadUrl);
+    setMessage({ type: "success", text: "Logo uploaded successfully!" });
+    setTimeout(() => setMessage(null), 3000);
   };
 
-  // Clear logo
-  const clearLogo = () => {
-    setSelectedFile(null);
-    setPreviewUrl("");
+  // Handle file upload error
+  const handleUploadError = (error: string) => {
+    setMessage({ type: "error", text: error });
+  };
+
+  // Handle file removal
+  const handleFileRemove = () => {
+    setUploadedFileKey("");
     handleInputChange("logoUrl", "");
   };
 
@@ -124,11 +113,26 @@ export default function CreateWidgetPage() {
     setMessage(null);
 
     try {
+      // Prepare widget data with file key
+      const widgetData = {
+        ...formData,
+        logoFileKey: uploadedFileKey || undefined, // Store file key in backend
+      };
+
       const response = isExistingWidget
-        ? await apiService.updateWidget(formData)
-        : await apiService.createWidget(formData);
+        ? await apiService.updateWidget(widgetData)
+        : await apiService.createWidget(widgetData);
 
       if (response.success) {
+        // If updating and there was an old logo, delete it
+        if (isExistingWidget && existingWidget?.logoFileKey && uploadedFileKey && existingWidget.logoFileKey !== uploadedFileKey) {
+          try {
+            await apiService.deleteStorageFile(existingWidget.logoFileKey);
+          } catch (error) {
+            console.error("Error deleting old logo:", error);
+          }
+        }
+
         setMessage({
           type: "success",
           text: isExistingWidget
@@ -276,70 +280,32 @@ export default function CreateWidgetPage() {
                     </div>
                   </div>
 
-                  {/* Logo URL */}
+                  {/* Logo Upload */}
                   <div className="space-y-3">
                     <Label htmlFor="logoUrl" className="text-sm font-medium text-foreground/90">
                       Brand Logo
                     </Label>
 
-                    <div className="space-y-4">
-                      {/* File Upload */}
-                      <div>
-                        <input
-                          type="file"
-                          id="logo-file-upload"
-                          accept="image/*"
-                          onChange={handleFileSelect}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById('logo-file-upload')?.click()}
-                          className="w-full h-12 rounded-xl border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-sm cursor-pointer transition-all"
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          {selectedFile ? selectedFile.name : "Choose from Device"}
-                        </Button>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Upload from your device (PNG, JPG, SVG - Max 2MB)
-                        </p>
-                      </div>
+                    <FileUpload
+                      accept="image/*"
+                      maxSize={2 * 1024 * 1024} // 2MB
+                      validate={(file) => {
+                        if (!file.type.startsWith('image/')) {
+                          return "Please select an image file";
+                        }
+                        return null;
+                      }}
+                      onUploadSuccess={handleUploadSuccess}
+                      onUploadError={handleUploadError}
+                      onRemove={handleFileRemove}
+                      initialPreview={formData.logoUrl}
+                      initialFileName={existingWidget?.logoUrl ? "Current Logo" : undefined}
+                      showPreview={true}
+                      buttonText="Choose from Device"
+                      buttonVariant="outline"
+                      helperText="Upload from your device (PNG, JPG, SVG - Max 2MB)"
+                    />
 
-                      {/* Preview */}
-                      {previewUrl && (
-                        <div className="p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-lg bg-white/10 flex items-center justify-center overflow-hidden border border-white/10">
-                              <img
-                                src={previewUrl}
-                                alt="Logo preview"
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.parentElement?.classList.add('after:content-["❌"]');
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium">Logo Preview</div>
-                              <div className="text-xs text-muted-foreground">
-                                {selectedFile ? `${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)` : '64x64px recommended'}
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={clearLogo}
-                              className="cursor-pointer hover:bg-white/10"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
                     <p className="text-xs text-muted-foreground">
                       Square format recommended, minimum 64x64px
                     </p>
@@ -473,8 +439,7 @@ export default function CreateWidgetPage() {
                         backgroundColor: "#10b981",
                         logoUrl: "",
                       });
-                      setSelectedFile(null);
-                      setPreviewUrl("");
+                      setUploadedFileKey("");
                       setIsExistingWidget(false);
                     }}
                   >
