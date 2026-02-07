@@ -21,10 +21,12 @@ export const storageController = {
         'application/pdf',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/msword',
+        "image/jpeg",
+        "image/png",
       ];
 
       if (!allowedMimeTypes.includes(mimeType)) {
-        res.status(400).json({ error: 'Only PDF and DOCX files are allowed' });
+        res.status(400).json({ error: 'Only PDF, DOCX, JPEG, and PNG files are allowed' });
         return;
       }
 
@@ -67,6 +69,7 @@ export const storageController = {
       );
 
       res.status(200).json({
+        success: true,
         message: 'Presigned download URL generated',
         data: {
           downloadUrl,
@@ -93,6 +96,7 @@ export const storageController = {
       await StorageService.deleteFile(decodedKey);
 
       res.status(200).json({
+        success: true,
         message: 'File deleted successfully',
         data: {
           fileKey: decodedKey,
