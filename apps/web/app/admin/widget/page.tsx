@@ -8,6 +8,7 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
 import { Save, Loader2, X, MessageCircle, Copy, Check } from "lucide-react";
+import { validateWidgetForm } from "@/lib/validation";
 
 export default function CreateWidgetPage() {
   const router = useRouter();
@@ -21,6 +22,10 @@ export default function CreateWidgetPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    displayName?: string;
+    backgroundColor?: string;
+  }>({});
   const [formData, setFormData] = useState<CreateWidgetData>({
     displayName: "",
     backgroundColor: "#ffffff",
@@ -45,6 +50,14 @@ export default function CreateWidgetPage() {
       ...prev,
       [field]: value,
     }));
+    
+    // Clear validation error for this field
+    if (validationErrors[field as keyof typeof validationErrors]) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [field]: undefined,
+      }));
+    }
   };
 
   const getWidget = async () => {
@@ -99,24 +112,34 @@ export default function CreateWidgetPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.displayName.trim()) {
-      setMessage({ type: "error", text: "Display name is required" });
-      return;
-    }
+    // Validate form
+    const validation = validateWidgetForm(
+      formData.displayName,
+      formData.backgroundColor
+    );
 
-    if (!formData.backgroundColor.trim()) {
-      setMessage({ type: "error", text: "Background color is required" });
+    if (!validation.isValid) {
+      const errors: { displayName?: string; backgroundColor?: string } = {};
+      validation.errors.forEach((error) => {
+        if (error.field === "displayName" || error.field === "backgroundColor") {
+          errors[error.field] = error.message;
+        }
+      });
+      setValidationErrors(errors);
+      setMessage({ type: "error", text: "Please fix the validation errors" });
       return;
     }
 
     setIsLoading(true);
     setMessage(null);
+    setValidationErrors({});
 
     try {
-      // Prepare widget data with file key
+      // Prepare widget data
       const widgetData = {
-        ...formData,
-        logoFileKey: uploadedFileKey || undefined, // Store file key in backend
+        displayName: formData.displayName,
+        backgroundColor: formData.backgroundColor,
+        logoUrl: formData.logoUrl || "",
       };
 
       const response = isExistingWidget
@@ -139,8 +162,10 @@ export default function CreateWidgetPage() {
             ? "Widget updated successfully!"
             : "Widget created successfully!",
         });
+        
+        // Reload to see the updated widget
         setTimeout(() => {
-          router.push("/admin/widget"); // Redirect to widgets list page
+          window.location.reload();
         }, 1500);
       } else {
         setMessage({
@@ -158,7 +183,6 @@ export default function CreateWidgetPage() {
       });
     } finally {
       setIsLoading(false);
-      window.location.reload();
     }
   };
 
@@ -168,7 +192,7 @@ export default function CreateWidgetPage() {
       <div className="fixed inset-0 bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
 
       {/* Header Section */}
-      <div className="relative border-b border-white/5 bg-black/40 backdrop-blur-xl">
+      <div className="relative border-white/5 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
             <div>
@@ -225,9 +249,16 @@ export default function CreateWidgetPage() {
                       onChange={(e) =>
                         handleInputChange("displayName", e.target.value)
                       }
-                      className="h-12 rounded-xl border-white/10 bg-white/5 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text"
+                      className={`h-12 rounded-xl border-white/10 bg-white/5 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text ${
+                        validationErrors.displayName ? "border-red-500/50" : ""
+                      }`}
                       required
                     />
+                    {validationErrors.displayName && (
+                      <p className="text-xs text-red-500">
+                        {validationErrors.displayName}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       Shown in the widget header
                     </p>
@@ -273,10 +304,18 @@ export default function CreateWidgetPage() {
                             handleInputChange("backgroundColor", e.target.value)
                           }
                           placeholder="#10b981"
-                          className="flex-1 h-14 rounded-xl font-mono uppercase border-white/10 bg-black/40 backdrop-blur-sm cursor-text"
+                          className={`flex-1 h-14 rounded-xl font-mono uppercase border-white/10 bg-black/40 backdrop-blur-sm cursor-text ${
+                            validationErrors.backgroundColor ? "border-red-500/50" : ""
+                          }`}
                           pattern="^#[0-9A-Fa-f]{6}$"
                         />
                       </div>
+
+                      {validationErrors.backgroundColor && (
+                        <p className="text-xs text-red-500">
+                          {validationErrors.backgroundColor}
+                        </p>
+                      )}
                     </div>
                   </div>
 

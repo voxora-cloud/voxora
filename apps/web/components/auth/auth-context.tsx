@@ -133,8 +133,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    const userRole = user?.role;
     apiService.logout();
     setUser(null);
+    
+    // Redirect based on user role
+    if (userRole === "admin") {
+      window.location.href = "/admin-login";
+    } else if (userRole === "agent") {
+      window.location.href = "/agent-login";
+    } else {
+      // Default fallback
+      window.location.href = "/";
+    }
   };
 
   const updateUser = (updatedUser: User) => {

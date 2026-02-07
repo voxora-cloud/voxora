@@ -2,13 +2,13 @@
 
 // Name Validation
 export const validateTeamName = (name: string): string | null => {
-    if (name.length < 5 || name.length > 10) {
-      return "Team name must be between 5 and 10 characters long.";
+    if (name.length < 5) {
+      return "Team name minimum 5 characters.";
     }
 
-    const nameRegex = /^[A-Za-z][A-Za-z0-9_-]*$/;
+    const nameRegex = /^[A-Za-z][A-Za-z0-9_\s-]*$/;
     if (!nameRegex.test(name)) {
-      return "Team name must start with a letter and contain only letters, digits, underscores, or hyphens.";
+      return "Team name must start with a letter and contain only letters, digits, spaces, underscores, or hyphens.";
     }
 
     return null;
@@ -200,6 +200,72 @@ export const validateRegisterForm = (
   );
   if (confirmPasswordError) {
     errors.push({ field: "confirmPassword", message: confirmPasswordError });
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};
+
+// Widget Validation
+
+// Display Name Validation for Widget
+export const validateWidgetDisplayName = (displayName: string): string | null => {
+  if (!displayName || !displayName.trim()) {
+    return "Display name is required";
+  }
+
+  if (displayName.trim().length < 2) {
+    return "Display name must be at least 2 characters long";
+  }
+
+  if (displayName.length > 50) {
+    return "Display name is too long (max 50 characters)";
+  }
+
+  const startsWithLetter = /^[A-Za-z]/;
+  if (!startsWithLetter.test(displayName.trim())) {
+    return "Display name must start with a letter";
+  }
+
+  const validChars = /^[A-Za-z0-9\s'-]+$/;
+  if (!validChars.test(displayName)) {
+    return "Display name can only contain letters, numbers, spaces, hyphens, and apostrophes";
+  }
+
+  return null;
+};
+
+// Background Color Validation for Widget
+export const validateWidgetBackgroundColor = (color: string): string | null => {
+  if (!color || !color.trim()) {
+    return "Background color is required";
+  }
+
+  const colorRegex = /^#[A-Fa-f0-9]{6}$/;
+  if (!colorRegex.test(color)) {
+    return "Please enter a valid hex color code (e.g., #10b981)";
+  }
+
+  return null;
+};
+
+// Widget Form Validation
+export const validateWidgetForm = (
+  displayName: string,
+  backgroundColor: string
+): ValidationResult => {
+  const errors: ValidationError[] = [];
+
+  const displayNameError = validateWidgetDisplayName(displayName);
+  if (displayNameError) {
+    errors.push({ field: "displayName", message: displayNameError });
+  }
+
+  const backgroundColorError = validateWidgetBackgroundColor(backgroundColor);
+  if (backgroundColorError) {
+    errors.push({ field: "backgroundColor", message: backgroundColorError });
   }
 
   return {

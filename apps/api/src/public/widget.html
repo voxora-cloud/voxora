@@ -56,6 +56,16 @@
         justify-content: center;
         font-weight: bold;
         font-size: 14px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
       }
 
       .header-info h3 {
@@ -311,7 +321,7 @@
         font-size: 11px;
         opacity: 0.6;
         margin-top: 4px;
-        text-align: center;
+        text-align: right;
       }
 
       .typing-indicator {
@@ -327,30 +337,46 @@
         padding: 16px 20px;
         background: #f8f9fa;
         border-top: 1px solid #e9ecef;
+        flex-shrink: 0;
       }
 
       .input-container {
         display: flex;
-        align-items: flex-end;
-        gap: 12px;
+        align-items: center;
+        gap: 8px;
         background: white;
         border-radius: 24px;
-        padding: 8px;
+        padding: 6px 6px 6px 16px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         border: 1px solid #e9ecef;
+        min-height: 48px;
       }
 
       .message-input {
         flex: 1;
         border: none;
         outline: none;
-        padding: 8px 12px;
+        padding: 8px 0;
         font-size: 14px;
-        line-height: 1.4;
+        line-height: 1.5;
         resize: none;
         max-height: 100px;
         overflow-y: auto;
         background: transparent;
+        font-family: inherit;
+      }
+
+      .message-input::-webkit-scrollbar {
+        display: none;
+      }
+
+      .message-input {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      .message-input::placeholder {
+        color: #9ca3af;
       }
 
       .send-btn {
@@ -537,14 +563,6 @@
         }
       }
 
-      .avatar img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
-        display: block;
-      }
-
       /* Scrollbar */
       .messages-container::-webkit-scrollbar {
         width: 4px;
@@ -639,61 +657,10 @@
       <!-- Home Tab Content -->
       <div class="tab-content active" id="homeTab">
         <!-- Welcome Screen -->
-        <div class="welcome-screen" id="welcomeScreen">
-          <div class="welcome-header">
-            <div class="welcome-icon" id="vx-welcome-icon">V</div>
-            <h2>Let's chat!</h2>
-            <p>Questions? Chat with us</p>
-          </div>
-
-          <form class="start-chat-form" id="startChatForm">
-            <div class="form-section">
-              <div class="form-group required">
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  required
-                  placeholder="Your name"
-                />
-              </div>
-              <div class="form-group required">
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  required
-                  placeholder="Your email address"
-                />
-              </div>
-              <div class="form-group">
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  placeholder="Phone number (optional)"
-                />
-              </div>
-              <div class="form-group textarea">
-                <textarea
-                  id="initialMessage"
-                  name="message"
-                  placeholder="How can we help you?"
-                  required
-                ></textarea>
-              </div>
-            </div>
-            
-            <div class="form-footer">
-              <button type="submit" class="start-btn" id="startBtn">
-                Send message
-              </button>
-            </div>
-          </form>
-        </div>
+       
 
         <!-- Chat Interface -->
-        <div class="chat-interface" id="chatInterface">
+        <div class="chat-interface" id="chatInterface" style="display: flex;">
           <div class="messages-container" id="messagesContainer">
             <!-- Messages will be added here -->
           </div>
@@ -708,7 +675,7 @@
                 placeholder="Type your message..."
                 rows="1"
               ></textarea>
-              <button class="send-btn" id="sendBtn" disabled>
+              <button class="send-btn" id="sendBtn">
                 <svg
                   width="18"
                   height="18"
@@ -761,14 +728,11 @@
   let isTyping = false;
 
       // DOM elements
-      const welcomeScreen = document.getElementById("welcomeScreen");
       const chatInterface = document.getElementById("chatInterface");
-      const startChatForm = document.getElementById("startChatForm");
       const messagesContainer = document.getElementById("messagesContainer");
       const messageInput = document.getElementById("messageInput");
       const sendBtn = document.getElementById("sendBtn");
       const typingIndicator = document.getElementById("typingIndicator");
-      const startBtn = document.getElementById("startBtn");
 
       // Tab elements
       const tabBtns = document.querySelectorAll('.tab-btn');
@@ -1124,13 +1088,28 @@
         }
         adjustTextareaHeight();
         
+        // Show chat interface directly (it's already visible in HTML)
+        chatInterface.style.display = 'flex';
+        
+        // Add welcome messages with slight delays for natural feel
+        setTimeout(function() {
+          addMessage('Hi there! 👋', 'agent', 'Support Team');
+        }, 300);
+        
+        setTimeout(function() {
+          addMessage('Welcome to our support chat. How can we help you today?', 'agent', 'Support Team');
+        }, 800);
+        
+        setTimeout(function() {
+          addMessage('Feel free to ask us anything - we\'re here to assist you!', 'agent', 'Support Team');
+          // Focus on input after all welcome messages
+          messageInput.focus();
+        }, 1300);
+        
         initializeSocket();
       });
 
       function setupEventListeners() {
-        // Start chat form
-        startChatForm.addEventListener("submit", handleStartChat);
-
         // Message input
         messageInput.addEventListener("input", function () {
           adjustTextareaHeight();
@@ -1343,21 +1322,96 @@
         }
       }
 
-      function sendMessage() {
+      async function sendMessage() {
         const text = messageInput.value.trim();
-        console.log('Send message called:', { text, isConnected, chatId, socket: !!socket });
+        console.log('Send message called:', { text, chatId, socket: !!socket });
         
-        if (!text || !isConnected) {
-          console.log('Cannot send message: missing text or not connected');
+        if (!text) {
+          console.log('Cannot send message: missing text');
           return;
         }
 
-        addMessage(text, "user", userName);
+        addMessage(text, "user", userName || "You");
         messageInput.value = "";
         adjustTextareaHeight();
         sendBtn.disabled = true;
 
-        // Send message via socket
+        // Create conversation if this is the first message
+        if (!chatId) {
+          try {
+            const data = {
+              name: userName || "Anonymous",
+              email: userEmail || "anonymous@widget.user",
+              subject: "Chat Support",
+              message: text,
+              voxoraPublicKey: voxoraPublicKey
+            };
+
+            const response = await makeAuthenticatedRequest("/api/v1/widget/conversations", {
+              method: "POST",
+              body: JSON.stringify(data),
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              chatId = result.data.conversationId;
+              userName = data.name;
+              userEmail = data.email;
+              isConnected = true;
+
+              // Save new conversation to localStorage
+              const newConversation = {
+                id: chatId,
+                title: `Chat with ${userName}`,
+                userName: userName,
+                userEmail: userEmail,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                lastMessage: text,
+                messages: []
+              };
+              saveConversationToStorage(newConversation);
+
+              // Initialize socket if not already done
+              if (!socket && widgetToken) {
+                initializeSocket();
+              }
+
+              // Join the conversation room via socket
+              if (socket) {
+                socket.emit('join_conversation', chatId);
+              }
+
+              // Send the message via socket
+              if (socket && chatId) {
+                socket.emit('send_message', {
+                  conversationId: chatId,
+                  content: text,
+                  type: 'text',
+                  metadata: {
+                    senderName: userName,
+                    senderEmail: userEmail,
+                    source: 'widget'
+                  }
+                });
+                typingStop();
+              }
+
+              // Re-enable send button after a short delay
+              setTimeout(() => {
+                sendBtn.disabled = false;
+              }, 1000);
+            } else {
+              throw new Error("Failed to create conversation");
+            }
+          } catch (error) {
+            console.error("Error creating conversation:", error);
+            sendBtn.disabled = false;
+          }
+          return;
+        }
+
+        // Send message via socket for existing conversation
         if (socket && chatId) {
           socket.emit('send_message', {
             conversationId: chatId,
@@ -1466,6 +1520,7 @@
     (function applyConfig(){
       var cfg = window.__VOXORA_WIDGET_CONFIG__;
       if (!cfg) return;
+      console.log('Applying widget config:', cfg);
       var header = document.getElementById('vx-header');
       var title = document.getElementById('vx-title');
       var avatar = document.getElementById('vx-avatar');
@@ -1499,21 +1554,32 @@
           document.documentElement.style.setProperty('--vx-accent-25', rgba25);
         } catch(e) {}
       }
+      
+      // Apply display name first
       if (cfg.displayName && title) {
         title.textContent = cfg.displayName;
-        if (avatar) {
-          var initials = cfg.displayName.split(' ').map(function(s){return s[0]}).join('').slice(0,2).toUpperCase();
-          avatar.textContent = initials;
-        }
-        if (welcomeIcon) welcomeIcon.textContent = (cfg.displayName[0]||'V').toUpperCase();
       }
-      // If logoUrl provided, render logos in header avatar and welcome icon
+      
+      // Apply logo if available (priority over initials)
       if (cfg.logoUrl) {
+        console.log('Applying logo URL:', cfg.logoUrl);
         if (avatar) {
           avatar.innerHTML = '';
           var img = document.createElement('img');
           img.src = cfg.logoUrl;
           img.alt = (cfg.displayName || 'Logo') + ' logo';
+          img.onerror = function() {
+            console.error('Failed to load logo:', cfg.logoUrl);
+            // Fallback to initials on error
+            if (cfg.displayName) {
+              avatar.textContent = cfg.displayName.split(' ').map(function(s){return s[0]}).join('').slice(0,2).toUpperCase();
+            } else {
+              avatar.textContent = 'V';
+            }
+          };
+          img.onload = function() {
+            console.log('Logo loaded successfully');
+          };
           avatar.appendChild(img);
         }
         if (welcomeIcon) {
@@ -1521,7 +1587,23 @@
           var wimg = document.createElement('img');
           wimg.src = cfg.logoUrl;
           wimg.alt = (cfg.displayName || 'Logo') + ' logo';
+          wimg.onerror = function() {
+            if (cfg.displayName) {
+              welcomeIcon.textContent = (cfg.displayName[0]||'V').toUpperCase();
+            } else {
+              welcomeIcon.textContent = 'V';
+            }
+          };
           welcomeIcon.appendChild(wimg);
+        }
+      } else if (cfg.displayName) {
+        // No logo, use initials
+        if (avatar) {
+          var initials = cfg.displayName.split(' ').map(function(s){return s[0]}).join('').slice(0,2).toUpperCase();
+          avatar.textContent = initials;
+        }
+        if (welcomeIcon) {
+          welcomeIcon.textContent = (cfg.displayName[0]||'V').toUpperCase();
         }
       }
     })();

@@ -98,23 +98,18 @@
   // Create unread badge
   function createUnreadBadge() {
     unreadBadge = document.createElement("div");
-    unreadBadge.textContent = unreadCount;
     
     Object.assign(unreadBadge.style, {
       position: "absolute",
-      top: "-8px",
-      right: "-8px",
-      width: "20px",
-      height: "20px",
+      top: "-4px",
+      right: "-4px",
+      width: "12px",
+      height: "12px",
       borderRadius: "50%",
       background: "#ff4757",
-      color: "white",
-      fontSize: "12px",
-      fontWeight: "bold",
       display: "none",
-      alignItems: "center",
-      justifyContent: "center",
-      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      border: "2px solid white",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)"
     });
     
     chatButton.appendChild(unreadBadge);
@@ -283,8 +278,7 @@
   // Update unread badge
   function updateUnreadBadge() {
     if (unreadCount > 0) {
-      unreadBadge.textContent = unreadCount > 99 ? "99+" : unreadCount;
-      unreadBadge.style.display = "flex";
+      unreadBadge.style.display = "block";
     } else {
       unreadBadge.style.display = "none";
     }
