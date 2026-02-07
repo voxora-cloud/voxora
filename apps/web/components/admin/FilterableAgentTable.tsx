@@ -5,7 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Agent, Team } from "@/lib/api";
 import { Edit, Mail, Search, Trash2, User, X } from "lucide-react";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FilterableAgentTableProps {
   agents: Agent[];
@@ -131,16 +137,20 @@ export default function FilterableAgentTable({
               <th className="px-4 py-3 text-left">
                 <div className="space-y-2">
                   <div className="font-medium text-foreground">Status</div>
-                  <select
-                    className="w-full h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
+                  <Select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                    onValueChange={(value) => setStatusFilter(value)}
                   >
-                    <option value="all">All</option>
-                    <option value="active">Active</option>
-                    <option value="pending">Pending</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </th>
 
@@ -148,18 +158,22 @@ export default function FilterableAgentTable({
               <th className="px-4 py-3 text-left">
                 <div className="space-y-2">
                   <div className="font-medium text-foreground">Teams</div>
-                  <select
-                    className="w-full h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
+                  <Select
                     value={teamFilter}
-                    onChange={(e) => setTeamFilter(e.target.value)}
+                    onValueChange={(value) => setTeamFilter(value)}
                   >
-                    <option value="all">All Teams</option>
-                    {teams.map((team) => (
-                      <option key={team._id} value={team._id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder="All Teams" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Teams</SelectItem>
+                      {teams.map((team) => (
+                        <SelectItem key={team._id} value={team._id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </th>
 

@@ -3,6 +3,13 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Eye,
   RefreshCw,
   Pause,
@@ -156,17 +163,21 @@ export default function LiveSourceTable({
             <th className="px-4 py-3 text-left">
               <div className="space-y-2">
                 <div className="font-medium text-foreground">Type</div>
-                <select
+                <Select
                   value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="h-8 text-xs bg-background border border-border rounded-md px-2 cursor-pointer"
+                  onValueChange={(value) => setTypeFilter(value)}
                 >
-                  <option value="all">All</option>
-                  <option value="website">Website</option>
-                  <option value="page">Page</option>
-                  <option value="blog">Blog</option>
-                  <option value="docs">Docs</option>
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="website">Website</SelectItem>
+                    <SelectItem value="page">Page</SelectItem>
+                    <SelectItem value="blog">Blog</SelectItem>
+                    <SelectItem value="docs">Docs</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </th>
             <th className="px-4 py-3 text-left">
@@ -175,17 +186,21 @@ export default function LiveSourceTable({
             <th className="px-4 py-3 text-left">
               <div className="space-y-2">
                 <div className="font-medium text-foreground">Status</div>
-                <select
+                <Select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 text-xs bg-background border border-border rounded-md px-2 cursor-pointer"
+                  onValueChange={(value) => setStatusFilter(value)}
                 >
-                  <option value="all">All</option>
-                  <option value="synced">Synced</option>
-                  <option value="fetching">Fetching</option>
-                  <option value="failed">Failed</option>
-                  <option value="pending">Pending</option>
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="synced">Synced</SelectItem>
+                    <SelectItem value="fetching">Fetching</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </th>
             <th className="px-4 py-3 text-left">

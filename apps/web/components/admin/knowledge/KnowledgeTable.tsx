@@ -3,6 +3,13 @@ import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Eye,
   RefreshCw,
   Trash2,
@@ -152,33 +159,41 @@ export default function KnowledgeTable({
             <th className="px-4 py-3 text-left">
               <div className="space-y-2">
                 <div className="font-medium text-foreground">Source</div>
-                <select
+                <Select
                   value={sourceFilter}
-                  onChange={(e) => setSourceFilter(e.target.value)}
-                  className="h-8 text-xs bg-background border border-border rounded-md px-2 cursor-pointer"
+                  onValueChange={(value) => setSourceFilter(value)}
                 >
-                  <option value="all">All</option>
-                  <option value="text">Text</option>
-                  <option value="pdf">PDF</option>
-                  <option value="docx">DOCX</option>
-                  <option value="url">URL</option>
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="docx">DOCX</SelectItem>
+                    <SelectItem value="url">URL</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </th>
             <th className="px-4 py-3 text-left">
               <div className="space-y-2">
                 <div className="font-medium text-foreground">Status</div>
-                <select
+                <Select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 text-xs bg-background border border-border rounded-md px-2 cursor-pointer"
+                  onValueChange={(value) => setStatusFilter(value)}
                 >
-                  <option value="all">All</option>
-                  <option value="indexed">Indexed</option>
-                  <option value="indexing">Indexing</option>
-                  <option value="failed">Failed</option>
-                  <option value="pending">Pending</option>
-                </select>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="All" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="indexed">Indexed</SelectItem>
+                    <SelectItem value="indexing">Indexing</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </th>
             <th className="px-4 py-3 text-left">
