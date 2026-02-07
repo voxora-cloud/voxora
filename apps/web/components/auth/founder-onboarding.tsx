@@ -12,6 +12,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Eye,
   EyeOff,
   Mail,
@@ -506,22 +513,24 @@ export function AdminOnboarding() {
                   Industry
                 </label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <select
-                    id="industry"
-                    name="industry"
+                  <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10" />
+                  <Select
                     value={formData.industry}
-                    onChange={handleInputChange}
-                    className="flex h-10 w-full rounded-lg border border-border bg-background pl-10 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    required
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, industry: value }))
+                    }
                   >
-                    <option value="">Select your industry</option>
-                    {industries.map((industry) => (
-                      <option key={industry} value={industry}>
-                        {industry}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="pl-10">
+                      <SelectValue placeholder="Select your industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {industries.map((industry) => (
+                        <SelectItem key={industry} value={industry}>
+                          {industry}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

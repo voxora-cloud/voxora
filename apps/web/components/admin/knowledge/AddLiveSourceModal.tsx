@@ -4,6 +4,13 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   X,
   ChevronRight,
   ChevronLeft,
@@ -244,20 +251,24 @@ export default function AddLiveSourceModal({
                       <label className="text-xs font-medium text-foreground">
                         Crawl Depth
                       </label>
-                      <select
-                        value={formData.crawlDepth || 2}
-                        onChange={(e) =>
+                      <Select
+                        value={String(formData.crawlDepth || 2)}
+                        onValueChange={(value) =>
                           setFormData((prev) => ({
                             ...prev,
-                            crawlDepth: parseInt(e.target.value),
+                            crawlDepth: parseInt(value),
                           }))
                         }
-                        className="mt-1 w-full h-9 text-sm bg-background border border-border rounded-md px-3 cursor-pointer"
                       >
-                        <option value={1}>1 level (immediate links)</option>
-                        <option value={2}>2 levels (recommended)</option>
-                        <option value={3}>3 levels (extensive)</option>
-                      </select>
+                        <SelectTrigger className="mt-1 w-full h-9 text-sm">
+                          <SelectValue placeholder="Select crawl depth" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1 level (immediate links)</SelectItem>
+                          <SelectItem value="2">2 levels (recommended)</SelectItem>
+                          <SelectItem value="3">3 levels (extensive)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>

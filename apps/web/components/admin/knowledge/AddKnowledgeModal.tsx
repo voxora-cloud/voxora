@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   X,
   FileText,
@@ -238,13 +239,13 @@ export default function AddKnowledgeModal({
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Content
                 </label>
-                <textarea
+                <Textarea
                   value={formData.content || ""}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, content: e.target.value }))
                   }
                   placeholder="Enter your content here... (Markdown supported)"
-                  className="w-full h-64 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground cursor-text resize-none"
+                  className="w-full h-64 cursor-text resize-none"
                 />
                 {errors.content && (
                   <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
@@ -389,13 +390,13 @@ export default function AddKnowledgeModal({
               <label className="block text-sm font-medium text-foreground mb-2">
                 Description
               </label>
-              <textarea
+              <Textarea
                 value={formData.description || ""}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, description: e.target.value }))
                 }
                 placeholder="Used for support answers..."
-                className="w-full h-20 px-3 py-2 bg-background border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground cursor-text resize-none"
+                className="w-full h-20 cursor-text resize-none"
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Help agents understand when to use this knowledge

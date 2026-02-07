@@ -54,7 +54,7 @@ apps/web/
 │   ├── support/           # Agent support dashboard
 │   └── globals.css        # Global styles + CSS variables
 ├── components/
-│   ├── ui/                # Reusable UI components (button, card, input, loader)
+│   ├── ui/                # Reusable Shadcn UI components (button, card, input, loader)
 │   ├── admin/             # Admin-specific components
 │   ├── agent/             # Agent dashboard components
 │   ├── auth/              # Authentication forms
