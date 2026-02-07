@@ -1,0 +1,54 @@
+import * as Minio from 'minio';
+import { config } from './index';
+import logger from '../utils/logger';
+
+// MinIO Client Configuration
+export const minioClient = new Minio.Client({
+  endPoint: config.minio.endpoint,
+  port: config.minio.port,
+  useSSL: config.minio.useSSL,
+  accessKey: config.minio.accessKey,
+  secretKey: config.minio.secretKey,
+});
+
+// Default bucket name for knowledge base files
+export const KNOWLEDGE_BUCKET = 'knowledge-base';
+
+// Initialize MinIO buckets
+export const initializeMinIO = async (): Promise<void> => {
+  try {
+    // Check if bucket exists, if not create it
+    const bucketExists = await minioClient.bucketExists(KNOWLEDGE_BUCKET);
+    
+    if (!bucketExists) {
+      await minioClient.makeBucket(KNOWLEDGE_BUCKET, 'us-east-1');
+      logger.info(`MinIO bucket created: ${KNOWLEDGE_BUCKET}`);
+      
+      // Set bucket policy to allow presigned URLs
+      const policy = {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: { AWS: ['*'] },
+            Action: ['s3:GetObject'],
+            Resource: [`arn:aws:s3:::${KNOWLEDGE_BUCKET}/*`],
+          },
+        ],
+      };
+      
+      await minioClient.setBucketPolicy(
+        KNOWLEDGE_BUCKET,
+        JSON.stringify(policy)
+      );
+      logger.info(`MinIO bucket policy set for: ${KNOWLEDGE_BUCKET}`);
+    } else {
+      logger.info(`MinIO bucket already exists: ${KNOWLEDGE_BUCKET}`);
+    }
+  } catch (error) {
+    logger.error('Error initializing MinIO:', error);
+    throw error;
+  }
+};
+
+export default minioClient;

@@ -5,6 +5,7 @@ import helmet from "helmet";
 import config from "./config";
 import { connectDatabase } from "./config/database";
 import { connectRedis } from "./config/redis";
+import { initializeMinIO } from "./config/minio";
 import routes from "./routes";
 import { globalRateLimit, errorHandler, notFound } from "./middleware";
 import SocketManager from "./sockets";
@@ -133,6 +134,11 @@ class Application {
       // Connect to databases
       await connectDatabase();
       await connectRedis();
+      
+      // Initialize MinIO (non-blocking - log error but don't crash)
+      initializeMinIO().catch((error) => {
+        logger.error('MinIO initialization failed (will retry on first use):', error);
+      });
 
       // Start server
       this.server.listen(config.app.port, () => {
@@ -141,6 +147,7 @@ class Application {
         logger.info(`🔗 API URL: ${config.app.apiUrl}`);
         logger.info(`💾 MongoDB: Connected`);
         logger.info(`📮 Redis: Connected`);
+        logger.info(`📦 MinIO: Initializing...`);
         logger.info(`🔌 Socket.IO: Ready`);
       });
 
