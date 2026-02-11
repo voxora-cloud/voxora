@@ -1,4 +1,4 @@
-import { minioClient, KNOWLEDGE_BUCKET } from '../config/minio';
+import { minioClient, VOXORA_BUCKET } from '../config/minio';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
 
@@ -36,7 +36,7 @@ class StorageService {
 
       // Generate presigned PUT URL
       const uploadUrl = await minioClient.presignedPutObject(
-        KNOWLEDGE_BUCKET,
+        VOXORA_BUCKET,
         fileKey,
         expiresIn
       );
@@ -67,7 +67,7 @@ class StorageService {
   ): Promise<string> {
     try {
       const downloadUrl = await minioClient.presignedGetObject(
-        KNOWLEDGE_BUCKET,
+        VOXORA_BUCKET,
         fileKey,
         expiresIn
       );
@@ -86,7 +86,7 @@ class StorageService {
    */
   async deleteFile(fileKey: string): Promise<void> {
     try {
-      await minioClient.removeObject(KNOWLEDGE_BUCKET, fileKey);
+      await minioClient.removeObject(VOXORA_BUCKET, fileKey);
       logger.info(`Deleted file from storage: ${fileKey}`);
     } catch (error) {
       logger.error('Error deleting file:', error);
@@ -101,7 +101,7 @@ class StorageService {
    */
   async getFileMetadata(fileKey: string): Promise<any> {
     try {
-      const stat = await minioClient.statObject(KNOWLEDGE_BUCKET, fileKey);
+      const stat = await minioClient.statObject(VOXORA_BUCKET, fileKey);
       return {
         size: stat.size,
         etag: stat.etag,
@@ -121,7 +121,7 @@ class StorageService {
    */
   async fileExists(fileKey: string): Promise<boolean> {
     try {
-      await minioClient.statObject(KNOWLEDGE_BUCKET, fileKey);
+      await minioClient.statObject(VOXORA_BUCKET, fileKey);
       return true;
     } catch (error) {
       return false;
@@ -136,7 +136,7 @@ class StorageService {
   async listFiles(prefix: string = 'knowledge/'): Promise<string[]> {
     try {
       const objectsList: string[] = [];
-      const stream = minioClient.listObjects(KNOWLEDGE_BUCKET, prefix, true);
+      const stream = minioClient.listObjects(VOXORA_BUCKET, prefix, true);
 
       return new Promise((resolve, reject) => {
         stream.on('data', (obj) => {

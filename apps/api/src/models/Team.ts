@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface ITeam extends Document {
-  _id: string;
+  _id: Types.ObjectId;
   name: string;
   description: string;
   color?: string;

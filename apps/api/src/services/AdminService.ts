@@ -120,7 +120,7 @@ export class AdminService {
       for (const agent of agentsInTeam) {
         // Remove the deleted team from agent's teams array
         const remainingTeams = agent.teams.filter(
-          (teamId) => teamId.toString() !== id.toString()
+          (teamId: any) => teamId.toString() !== id.toString()
         );
 
         // If agent has other teams, just remove this team from their list
@@ -284,7 +284,7 @@ export class AdminService {
 
     // Get inviter info
     const inviter = await User.findById(invitedBy);
-    const teamNames = teamObjects.map((team) => team.name).join(", ");
+    const teamNames = teamObjects.map((team: any) => team.name).join(", ");
     // Send invite email
     await emailService.sendInviteEmail(
       email,
@@ -370,7 +370,7 @@ export class AdminService {
     const updateFields = { ...updateData };
     if (updateData.teamIds) {
       // Get the current teams to calculate differences
-      const currentTeamIds = currentAgent.teams.map((team) => team.toString());
+      const currentTeamIds = currentAgent.teams.map((team: any) => team.toString());
       const newTeamIds = updateData.teamIds;
 
       // Find teams to remove agent from
@@ -533,7 +533,7 @@ export class AdminService {
     // Get resender info
     const resender = await User.findById(resentBy);
     const teamNames = (agent.teams as any[])
-      .map((team) => team.name)
+      .map((team: any) => team.name)
       .join(", ");
     // Send invite email
     await emailService.sendInviteEmail(

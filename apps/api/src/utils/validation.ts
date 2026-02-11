@@ -104,7 +104,6 @@ export const conversationValidation = {
     name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
     message: Joi.string().max(1000).required(),
-    phone: Joi.string().max(20).optional(),
     subject: Joi.string().max(200).optional(),
   }),
 

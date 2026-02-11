@@ -40,7 +40,6 @@ interface Config {
   };
   upload: {
     maxFileSize: number;
-    uploadPath: string;
   };
   rateLimit: {
     windowMs: number;
@@ -50,6 +49,7 @@ interface Config {
     allowedOrigins: string[];
   };
   minio: {
+    bucketName: string;
     endpoint: string;
     port: number;
     useSSL: boolean;
@@ -97,16 +97,16 @@ const config: Config = {
   },
   upload: {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "10485760", 10), // 10MB
-    uploadPath: process.env.UPLOAD_PATH || "uploads/",
   },
   rateLimit: {
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000", 1000), // 15 minutes
-    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "10000", 1000),
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || "900000", 10), // 15 minutes
+    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || "10000", 10),
   },
   cors: {
     allowedOrigins: ["*"],
   },
   minio: {
+    bucketName: process.env.VOXORA_BUCKET_NAME || "voxora-chat-dev",
     endpoint: process.env.MINIO_ENDPOINT || "localhost",
     port: parseInt(process.env.MINIO_PORT || "9001", 10),
     useSSL: process.env.MINIO_USE_SSL === "true",

@@ -11,18 +11,18 @@ export const minioClient = new Minio.Client({
   secretKey: config.minio.secretKey,
 });
 
-// Default bucket name for knowledge base files
-export const KNOWLEDGE_BUCKET = 'knowledge-base';
+// Default bucket name for Voxora files
+export const VOXORA_BUCKET = config.minio.bucketName;
 
 // Initialize MinIO buckets
 export const initializeMinIO = async (): Promise<void> => {
   try {
     // Check if bucket exists, if not create it
-    const bucketExists = await minioClient.bucketExists(KNOWLEDGE_BUCKET);
+    const bucketExists = await minioClient.bucketExists(VOXORA_BUCKET);
     
     if (!bucketExists) {
-      await minioClient.makeBucket(KNOWLEDGE_BUCKET, 'us-east-1');
-      logger.info(`MinIO bucket created: ${KNOWLEDGE_BUCKET}`);
+      await minioClient.makeBucket(VOXORA_BUCKET, 'us-east-1');
+      logger.info(`MinIO bucket created: ${VOXORA_BUCKET}`);
       
       // Set bucket policy to allow presigned URLs
       const policy = {
@@ -32,18 +32,18 @@ export const initializeMinIO = async (): Promise<void> => {
             Effect: 'Allow',
             Principal: { AWS: ['*'] },
             Action: ['s3:GetObject'],
-            Resource: [`arn:aws:s3:::${KNOWLEDGE_BUCKET}/*`],
+            Resource: [`arn:aws:s3:::${VOXORA_BUCKET}/*`],
           },
         ],
       };
       
       await minioClient.setBucketPolicy(
-        KNOWLEDGE_BUCKET,
+        VOXORA_BUCKET,
         JSON.stringify(policy)
       );
-      logger.info(`MinIO bucket policy set for: ${KNOWLEDGE_BUCKET}`);
+      logger.info(`MinIO bucket policy set for: ${VOXORA_BUCKET}`);
     } else {
-      logger.info(`MinIO bucket already exists: ${KNOWLEDGE_BUCKET}`);
+      logger.info(`MinIO bucket already exists: ${VOXORA_BUCKET}`);
     }
   } catch (error) {
     logger.error('Error initializing MinIO:', error);

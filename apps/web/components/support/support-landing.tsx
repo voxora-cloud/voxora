@@ -52,7 +52,8 @@ export function SupportLandingPage() {
             </span>
           </div>
 
-          <naLink
+          <nav className="flex items-center space-x-6">
+            <Link
               href="#features"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -69,8 +70,7 @@ export function SupportLandingPage() {
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Contact
-            </Linkontact
-            </a>
+            </Link>
           </nav>
         </div>
       </header>
