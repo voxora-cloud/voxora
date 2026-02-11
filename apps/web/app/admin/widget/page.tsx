@@ -33,16 +33,24 @@ export default function CreateWidgetPage() {
   });
 
   useEffect(() => {
+    // Only load widget if we have a valid widget ID
+    if (!formData._id) return;
+
     const script = document.createElement("script");
     script.src =
-      process.env.NEXT_PUBLIC_CDN_URL ||
-      "http://localhost:3002/widget-loader.js";
+    process.env.NEXT_PUBLIC_CDN_URL ||
+      "http://localhost:9001/voxora-widget/v1/voxora.js";
     script.setAttribute(
       "data-voxora-public-key",
-      formData._id ? formData._id : "will-be-generated",
+      formData._id,
     );
     script.setAttribute("data-voxora-env", process.env.NEXT_PUBLIC_ENV || "dev");
     document.body.appendChild(script);
+
+    // Cleanup: remove script when component unmounts or _id changes
+    return () => {
+      document.body.removeChild(script);
+    };
   }, [formData._id]);
   // Handle input changes
   const handleInputChange = (field: keyof CreateWidgetData, value: string) => {
