@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface IConversation extends Document {
-  _id: string;
+  _id: Types.ObjectId;
   participants: Types.ObjectId[]; // User IDs
   subject?: string;
   status: "open" | "pending" | "resolved" | "closed";

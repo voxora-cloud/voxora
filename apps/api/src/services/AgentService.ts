@@ -82,7 +82,7 @@ export class AgentService {
 
     // Check if agent is part of this team
     const agent = await User.findById(userId).select("teams");
-    if (!agent || !agent.teams.some((team) => team.toString() === teamId)) {
+    if (!agent || !agent.teams.some((team: any) => team.toString() === teamId)) {
       return null;
     }
 

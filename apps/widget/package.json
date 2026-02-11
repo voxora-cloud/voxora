@@ -1,0 +1,24 @@
+{
+  "name": "@voxora/widget",
+  "version": "1.0.0",
+  "description": "Voxora embeddable chat widget",
+  "type": "module",
+  "main": "dist/voxora.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "deploy": "npm run build && node deploy-to-minio.js",
+    "deploy:prod": "NODE_ENV=production npm run deploy"
+  },
+  "dependencies": {
+    "minio": "^8.0.0",
+    "socket.io-client": "^4.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.8.3",
+    "vite": "^5.0.12"
+  }
+}

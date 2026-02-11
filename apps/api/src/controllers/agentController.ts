@@ -5,6 +5,12 @@ import { AuthenticatedRequest } from "../middleware/auth";
 
 const agentService = new AgentService();
 
+// Helper to ensure param is string (not string array)
+const getParamAsString = (param: string | string[] | undefined): string => {
+  if (Array.isArray(param)) return param[0];
+  return param || '';
+};
+
 // =================
 // AGENT PROFILE
 // =================
@@ -87,7 +93,7 @@ export const getTeams = asyncHandler(
 
 export const getTeamMembers = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
+    const id = getParamAsString(req.params.id);
 
     try {
       const members = await agentService.getTeamMembers(req.user.userId, id);

@@ -11,7 +11,6 @@ import { globalRateLimit, errorHandler, notFound } from "./middleware";
 import SocketManager from "./sockets";
 import { setSocketManager } from "./controllers/conversationController";
 import logger from "./utils/logger";
-import path from "path";
 
 class Application {
   private app: express.Application;
@@ -32,18 +31,21 @@ class Application {
 
   private setupMiddleware(): void {
     // Security middleware
-    // Todo: Implement security best practices
     this.app.use(
       helmet({
         crossOriginEmbedderPolicy: false,
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
-            frameAncestors: ["*"],
             scriptSrc: ["'self'", "'unsafe-inline'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["*", "data:", "blob:"],
-            connectSrc: ["*"],
+            connectSrc: [
+              "'self'",
+              "ws://localhost:3002", // WebSocket dev
+              "wss://api.voxora.ai",
+              "wss://api.voxora.cloud"
+            ],
             fontSrc: ["*", "data:"],
             mediaSrc: ["*"],
             objectSrc: ["'none'"],
@@ -52,11 +54,22 @@ class Application {
       }),
     );
 
-    // CORS configuration
-    // Todo: Implement CORS best practices
+
     this.app.use(
       cors({
-        origin: "*",
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, curl, etc.)
+          if (!origin) return callback(null, true);
+          
+          // Allow all origins for widget embedding (checked at auth layer)
+          // Widget can be embedded anywhere, but auth validates the public key
+          callback(null, true);
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+        exposedHeaders: ['Content-Range', 'X-Content-Range'],
+        maxAge: 86400 // 24 hours
       }),
     );
 
@@ -67,18 +80,7 @@ class Application {
     this.app.use(express.json({ limit: "10mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-    // Serve uploads statically (for logos and assets)
-    const uploadsDir = path.resolve(process.cwd(), config.upload.uploadPath);
-    this.app.use(
-      "/uploads",
-      express.static(uploadsDir, {
-        maxAge: "1d",
-        setHeaders: (res) => {
-          res.setHeader("Access-Control-Allow-Origin", "*");
-          res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-        },
-      }),
-    );
+ 
 
     // Request logging
     this.app.use((req, res, next) => {
@@ -93,22 +95,6 @@ class Application {
   private setupRoutes(): void {
     // API routes
     this.app.use("/api/v1", routes);
-
-    // Serve HTML at /widget
-    // ** NOTE: temporary hosting cdn from this api server later cdn will seprately hosted
-    this.app.get("/widget", (req, res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.type("text/html"); // correct MIME type for HTML
-      res.sendFile(path.join(__dirname, "public", "widget.html"));
-    });
-
-    this.app.get("/widget-loader.js", (req, res) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      res.type("application/javascript");
-      res.sendFile(path.join(__dirname, "public", "widget-loader.js"));
-    });
 
     // Root endpoint
     this.app.get("/", (req, res) => {

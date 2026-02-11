@@ -714,8 +714,13 @@
       Powered by <a href="https://github.com/voxora-cloud" target="_blank">Voxora</a>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Load Socket.IO from CDN since widget is now served from CDN -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
     <script>
+      // Extract API URL from query params (passed from widget loader)
+      const params = new URLSearchParams(window.location.search);
+      const API_BASE_URL = params.get('apiUrl') || 'http://localhost:3002';
+      
       // State management
       let chatId = null;
       let userName = "";
@@ -953,7 +958,7 @@
           return;
         }
         
-        socket = io({
+        socket = io(API_BASE_URL, {
           auth: {
             token: widgetToken
           },
@@ -966,7 +971,7 @@
           // Auto refresh token on authentication errors
           if (err.message.includes('Authentication error') && voxoraPublicKey) {
             // Attempt to get a fresh token
-            fetch(`/api/v1/widget/auth/token`, {
+            fetch(`${API_BASE_URL}/api/v1/widget/auth/token`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -980,7 +985,7 @@
                 widgetToken = data.data.token;
                 socket.disconnect();
                 setTimeout(() => {
-                  socket = io({
+                  socket = io(API_BASE_URL, {
                     auth: { token: widgetToken },
                     transports: ['websocket', 'polling']
                   });
@@ -1151,7 +1156,7 @@
 
         try {
           // Create conversation via API with authentication
-          const response = await makeAuthenticatedRequest("/api/v1/widget/conversations", {
+          const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/widget/conversations`, {
             method: "POST",
             body: JSON.stringify(data),
           });
@@ -1347,7 +1352,7 @@
               voxoraPublicKey: voxoraPublicKey
             };
 
-            const response = await makeAuthenticatedRequest("/api/v1/widget/conversations", {
+            const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/widget/conversations`, {
               method: "POST",
               body: JSON.stringify(data),
             });

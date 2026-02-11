@@ -24,7 +24,7 @@ export class AuthService {
 
     // Generate tokens
     const tokens = generateTokens({
-      userId: user._id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
     });
@@ -67,7 +67,7 @@ export class AuthService {
 
     // Generate tokens
     const tokens = generateTokens({
-      userId: user._id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
     });
@@ -154,7 +154,7 @@ export class AuthService {
 
     // Generate JWT token
     const tokens = generateTokens({
-      userId: admin._id,
+      userId: admin._id.toString(),
       email: admin.email,
       role: admin.role,
     });
@@ -198,7 +198,7 @@ export class AuthService {
 
     // Generate JWT token
     const tokens = generateTokens({
-      userId: admin._id,
+      userId: admin._id.toString(),
       email: admin.email,
       role: admin.role,
     });
@@ -255,7 +255,7 @@ export class AuthService {
 
     // Generate JWT token
     const tokens = generateTokens({
-      userId: agent._id,
+      userId: agent._id.toString(),
       email: agent.email,
       role: agent.role,
     });
@@ -319,7 +319,7 @@ export class AuthService {
 
     // Generate new JWT token
     const tokens = generateTokens({
-      userId: user._id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
     });
@@ -415,7 +415,7 @@ export class AuthService {
 
     // Generate JWT token
     const tokens = generateTokens({
-      userId: user._id,
+      userId: user._id.toString(),
       email: user.email,
       role: user.role,
     });

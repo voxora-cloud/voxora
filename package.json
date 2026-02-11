@@ -7,6 +7,8 @@
     "dev": "turbo run dev",
     "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio",
     "docker:stop": "cd docker && docker-compose -f docker-compose.dev.yml down",
+    "widget:deploy": "cd apps/widget && npm run deploy",
+    "widget:deploy:prod": "cd apps/widget && npm run deploy:prod",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"

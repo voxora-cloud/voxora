@@ -9,32 +9,6 @@ Voxora is a monorepo for a modern, realtime customer support platform. It includ
 - packages/\*: shared ESLint and TypeScript config
 - docker/: local dev services (MongoDB, Redis, Mongo Express, MailHog)
 
-## Current implementation
-
-- Realtime chat
-  - Socket.IO with Redis adapter for horizontal scalability
-  - Conversations and messages stored in MongoDB (Mongoose models)
-  - Chat widget served from API at /widget and /widget-loader.js
-- Auth and teams
-  - JWT auth flows, registration, login, invite acceptance, forgot password UI
-  - Admin and Agent dashboards/pages in the web app
-- API foundation
-  - Express 5, validation (express-validator/Joi), Helmet, CORS, rate limiting
-  - Centralized error handling and structured logging (winston)
-  - REST routes under /api/v1, plus a simple root health at /
-- Email and assets
-  - MailHog for local email testing (SMTP: 1025, UI: 8025)
-  - Static uploads served from /uploads
-
-## Future implementation (roadmap)
-
-1. AI agent will talk
-   - LLM-powered automated replies with intent detection and context memory
-   - Escalation handoff to human agent with full conversation context
-2. AI voice
-   - Text-to-speech for agent responses and speech-to-text for user input
-   - Realtime voice calls in the widget with streaming transcription
-
 ## Quick start (developer)
 
 Prerequisites

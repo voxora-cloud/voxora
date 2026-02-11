@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import StorageService from '../services/StorageService';
 import logger from '../utils/logger';
 
+// Helper to ensure param is string (not string array)
+const getParamAsString = (param: string | string[] | undefined): string => {
+  if (Array.isArray(param)) return param[0];
+  return param || '';
+};
+
 export const storageController = {
   /**
    * Generate presigned upload URL
@@ -84,7 +90,7 @@ export const storageController = {
 
   async deleteFile(req: Request, res: Response): Promise<void> {
     try {
-      const { fileKey } = req.params;
+      const fileKey = getParamAsString(req.params.fileKey);
 
       if (!fileKey) {
         res.status(400).json({ error: 'fileKey is required' });
@@ -110,7 +116,7 @@ export const storageController = {
 
   async getFileMetadata(req: Request, res: Response): Promise<void> {
     try {
-      const { fileKey } = req.params;
+      const fileKey = getParamAsString(req.params.fileKey);
 
       if (!fileKey) {
         res.status(400).json({ error: 'fileKey is required' });

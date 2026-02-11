@@ -5,6 +5,12 @@ import { AuthenticatedRequest } from "../middleware/auth";
 
 const adminService = new AdminService();
 
+// Helper to ensure param is string (not string array)
+const getParamAsString = (param: string | string[] | undefined): string => {
+  if (Array.isArray(param)) return param[0];
+  return param || '';
+};
+
 // =================
 // TEAM MANAGEMENT
 // =================
@@ -28,7 +34,7 @@ export const getTeams = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getTeamById = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getParamAsString(req.params.id);
 
   try {
     const team = await adminService.getTeamById(id);
@@ -61,7 +67,7 @@ export const createTeam = asyncHandler(
 
 export const updateTeam = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
+    const id = getParamAsString(req.params.id);
 
     try {
       const updateData = {
@@ -84,7 +90,7 @@ export const updateTeam = asyncHandler(
 
 export const deleteTeam = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
+    const id = getParamAsString(req.params.id);
 
     try {
       const result = await adminService.deleteTeam(id, req.user.userId);
@@ -125,7 +131,7 @@ export const getAgents = asyncHandler(async (req: Request, res: Response) => {
 
 export const getAgentById = asyncHandler(
   async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const id = getParamAsString(req.params.id);
 
     try {
       const agent = await adminService.getAgentById(id);
@@ -167,7 +173,7 @@ export const inviteAgent = asyncHandler(
 );
 
 export const updateAgent = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = getParamAsString(req.params.id);
 
   try {
     const result = await adminService.updateAgent(id, req.body);
@@ -188,7 +194,7 @@ export const updateAgent = asyncHandler(async (req: Request, res: Response) => {
 
 export const deleteAgent = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
+    const id = getParamAsString(req.params.id);
 
     try {
       const result = await adminService.deleteAgent(id, req.user.userId);
@@ -210,7 +216,7 @@ export const deleteAgent = asyncHandler(
 
 export const resendInvite = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const { id } = req.params;
+    const id = getParamAsString(req.params.id);
 
     try {
       const result = await adminService.resendAgentInvite(id, req.user.userId);

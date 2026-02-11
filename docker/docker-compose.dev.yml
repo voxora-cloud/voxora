@@ -29,7 +29,6 @@ services:
       MONGO_INITDB_DATABASE: voxora-chat-dev
     volumes:
       - mongodb_data_dev:/data/db
-      - ../apps/api/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     networks:
       - voxora-dev-network
 
@@ -68,16 +67,23 @@ services:
     container_name: voxora-minio-dev
     restart: unless-stopped
     ports:
-      - "9001:9001"  # API port
+      - "9001:9001"  # API port (widget CDN)
       - "9002:9002"  # Console (Web UI) port
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      # Enable CORS for widget serving
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     command: server /data --console-address ":9002" --address ":9001"
     volumes:
       - minio_data_dev:/data
     networks:
       - voxora-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   mongodb_data_dev:
