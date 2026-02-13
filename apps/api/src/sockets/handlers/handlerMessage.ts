@@ -8,21 +8,41 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       conversationId: string;
       content: string;
       type: string;
-      metadata: {
-        senderName: string;
-        senderEmail: string;
+      metadata?: {
+        senderName?: string;
+        senderEmail?: string;
         source: string;
       };
     }) => {
       const { conversationId, content, type, metadata } = data;
 
       try {
+        // Fetch conversation to get visitor info
+        const conversation = await Conversation.findById(conversationId);
+        
+        if (!conversation) {
+          logger.error(`Conversation ${conversationId} not found`);
+          return;
+        }
+
+        // Determine sender metadata
+        let messageMetadata = metadata || { source: "widget" };
+        
+        // If source is widget and no metadata provided, use conversation visitor info
+        if (metadata?.source === "widget") {
+          messageMetadata = {
+            senderName: metadata?.senderName || conversation.visitor?.name || "Anonymous User",
+            senderEmail: metadata?.senderEmail || conversation.visitor?.email || "anonymous@temp.local",
+            source: "widget",
+          };
+        }
+
         const message = new Message({
           conversationId,
           senderId: socket.id,
           content,
           type,
-          metadata,
+          metadata: messageMetadata,
         });
 
         await message.save();
@@ -46,11 +66,13 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         });
 
         // If this is from a widget user, notify all support agents
-        if (metadata.source === "widget") {
+        if (messageMetadata.source === "widget") {
           // Broadcast to all agents that a new customer message has arrived
           io.emit("customer_message", {
             conversationId,
-            customerName: metadata.senderName,
+            customerName: messageMetadata.senderName,
+            customerEmail: messageMetadata.senderEmail,
+            isAnonymous: conversation.visitor?.isAnonymous || false,
             message: content,
             timestamp: new Date(),
           });

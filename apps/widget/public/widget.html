@@ -490,6 +490,10 @@
         border: 1px solid #e5e7eb;
         transition: all 0.2s ease;
         background: white;
+        position: relative;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
       }
 
       .conversation-item:hover {
@@ -497,16 +501,32 @@
         background: rgba(102, 126, 234, 0.02);
       }
 
+      .conversation-item:hover .conversation-delete {
+        opacity: 1;
+      }
+
       .conversation-item.active {
         border-color: var(--vx-accent-color, #667eea);
         background: rgba(102, 126, 234, 0.05);
+      }
+
+      .conversation-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .conversation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
       }
 
       .conversation-title {
         font-size: 14px;
         font-weight: 500;
         color: #1f2937;
-        margin-bottom: 4px;
+        flex: 1;
         display: -webkit-box;
         -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
@@ -529,6 +549,40 @@
         color: #9ca3af;
       }
 
+      .conversation-delete {
+        background: none;
+        border: none;
+        color: #ef4444;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 16px;
+        font-weight: bold;
+        opacity: 0;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+
+      .conversation-delete:hover {
+        background: #fee2e2;
+        color: #dc2626;
+      }
+
+      .conversation-agent-info {
+        font-size: 11px;
+        color: #10b981;
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .conversation-agent-info::before {
+        content: "●";
+        font-size: 8px;
+      }
+
       .no-conversations {
         text-align: center;
         padding: 40px 20px;
@@ -545,6 +599,26 @@
         justify-content: center;
         margin: 0 auto 16px;
         color: #9ca3af;
+      }
+
+      /* Storage warning banner */
+      .storage-warning {
+        background: #fef3c7;
+        border-bottom: 1px solid #f59e0b;
+        padding: 8px 12px;
+        font-size: 11px;
+        color: #92400e;
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .storage-warning.show {
+        display: flex;
+      }
+
+      .storage-warning-icon {
+        font-size: 14px;
       }
 
       /* Responsive adjustments */
@@ -632,6 +706,12 @@
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
       </button>
+    </div>
+
+    <!-- Storage Warning Banner (shown when localStorage unavailable) -->
+    <div class="storage-warning" id="storageWarning">
+      <span class="storage-warning-icon">⚠️</span>
+      <span>Conversations won't persist after closing</span>
     </div>
 
     <!-- Tab Navigation -->
@@ -746,24 +826,188 @@
       const recentConversations = document.getElementById('recentConversations');
       const noConversations = document.getElementById('noConversations');
 
-      // Local Storage Management
+      // Storage Management - localStorage with in-memory fallback for sandboxed iframes
       const STORAGE_KEYS = {
         CONVERSATIONS: 'voxora_conversations',
         CURRENT_USER: 'voxora_current_user'
       };
 
-      // Get conversations from localStorage
-      function getStoredConversations() {
+      // Check if localStorage is available (fails in sandboxed iframes)
+      let isLocalStorageAvailable = false;
+      let inMemoryStorage = {
+        conversations: [],
+        currentUser: null
+      };
+
+      try {
+        const test = '__storage_test__';
+        localStorage.setItem(test, test);
+        localStorage.removeItem(test);
+        isLocalStorageAvailable = true;
+        console.log('✓ localStorage available - conversations will persist');
+      } catch (e) {
+        console.warn('localStorage not available (sandboxed iframe), using in-memory storage. Conversations will not persist across page reloads.');
+        isLocalStorageAvailable = false;
+      }
+
+      // Cookie helpers for sessionId (works in sandboxed iframes)
+      function setCookie(name, value, days) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`;
+      }
+
+      function getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+          let c = ca[i];
+          while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+          if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+      }
+
+      // Get sessionId from localStorage or generate new one
+      function getOrCreateSessionId() {
         try {
-          const stored = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
-          return stored ? JSON.parse(stored) : [];
+          // Try to get from cookie first (works in iframes)
+          let sessionId = getCookie('voxora_session_id');
+          if (sessionId) {
+            console.log('📱 Session ID from cookie:', sessionId);
+            return sessionId;
+          }
+
+          // Try localStorage as backup
+          if (isLocalStorageAvailable) {
+            sessionId = localStorage.getItem('voxora_session_id');
+            if (sessionId) {
+              // Migrate to cookie
+              setCookie('voxora_session_id', sessionId, 365);
+              console.log('📱 Session ID from localStorage (migrated to cookie):', sessionId);
+              return sessionId;
+            }
+          }
+
+          // Generate new sessionId
+          sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Store in cookie (primary)
+          setCookie('voxora_session_id', sessionId, 365);
+          
+          // Store in localStorage as backup (if available)
+          if (isLocalStorageAvailable) {
+            localStorage.setItem('voxora_session_id', sessionId);
+          }
+          
+          console.log('📱 New Session ID created:', sessionId);
+          return sessionId;
         } catch (error) {
-          console.error('Error reading conversations from localStorage:', error);
+          console.error('Error managing sessionId:', error);
+          // Generate temporary sessionId if all else fails
+          return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+      }
+
+      // SessionId will be set in DOMContentLoaded from URL params
+      let currentSessionId = null;
+
+      // Fetch conversations from backend
+      async function fetchConversationsFromBackend() {
+        if (!widgetToken || !currentSessionId) {
+          console.warn('Cannot fetch conversations: missing token or sessionId');
+          return [];
+        }
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/v1/widget/conversations?sessionId=${encodeURIComponent(currentSessionId)}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${widgetToken}`
+              }
+            }
+          );
+
+          if (!response.ok) {
+            console.error('Failed to fetch conversations:', response.status);
+            return [];
+          }
+
+          const data = await response.json();
+          const conversations = data.data?.conversations || [];
+          
+          console.log('✓ Fetched conversations from backend:', conversations.length);
+          
+          // Cache in localStorage
+          try {
+            if (isLocalStorageAvailable) {
+              localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+            } else {
+              inMemoryStorage.conversations = conversations;
+            }
+          } catch (e) {
+            console.warn('Failed to cache conversations:', e);
+          }
+          
+          return conversations;
+        } catch (error) {
+          console.error('Error fetching conversations from backend:', error);
+          // Fallback to cached data
+          return getStoredConversations();
+        }
+      }
+
+      // Fetch messages for a conversation from backend
+      async function fetchMessagesFromBackend(conversationId) {
+        if (!widgetToken || !currentSessionId) {
+          console.warn('Cannot fetch messages: missing token or sessionId');
+          return [];
+        }
+
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/v1/widget/conversations/${conversationId}/messages?sessionId=${encodeURIComponent(currentSessionId)}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${widgetToken}`
+              }
+            }
+          );
+
+          if (!response.ok) {
+            console.error('Failed to fetch messages:', response.status);
+            return [];
+          }
+
+          const data = await response.json();
+          return data.data?.messages || [];
+        } catch (error) {
+          console.error('Error fetching messages from backend:', error);
           return [];
         }
       }
 
-      // Save conversation to localStorage
+      // Get conversations from storage (localStorage cache only)
+      function getStoredConversations() {
+        try {
+          if (isLocalStorageAvailable) {
+            const stored = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
+            return stored ? JSON.parse(stored) : [];
+          } else {
+            return inMemoryStorage.conversations || [];
+          }
+        } catch (error) {
+          console.error('Error reading conversations from storage:', error);
+          return [];
+        }
+      }
+
+      // Save conversation to storage (localStorage or in-memory fallback)
       function saveConversationToStorage(conversation) {
         try {
           const conversations = getStoredConversations();
@@ -780,10 +1024,53 @@
             conversations.splice(50);
           }
           
-          localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+          if (isLocalStorageAvailable) {
+            localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+            console.log('✓ Conversation saved to localStorage:', conversation.id);
+          } else {
+            inMemoryStorage.conversations = conversations;
+            console.log('✓ Conversation saved to memory:', conversation.id);
+          }
+          
           updateRecentConversations();
         } catch (error) {
-          console.error('Error saving conversation to localStorage:', error);
+          console.error('Error saving conversation to storage:', error);
+        }
+      }
+
+      // Delete conversation from storage
+      function deleteConversation(conversationId) {
+        if (!confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
+          return;
+        }
+
+        try {
+          const conversations = getStoredConversations();
+          const filteredConversations = conversations.filter(c => c.id !== conversationId);
+          
+          if (isLocalStorageAvailable) {
+            localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(filteredConversations));
+          } else {
+            inMemoryStorage.conversations = filteredConversations;
+          }
+          
+          // If we're deleting the current conversation, reset the chat
+          if (chatId === conversationId) {
+            chatId = null;
+            userName = '';
+            userEmail = '';
+            isConnected = false;
+            messagesContainer.innerHTML = '';
+            welcomeScreen.style.display = 'flex';
+            chatInterface.style.display = 'none';
+            switchTab('home');
+          }
+          
+          updateRecentConversations();
+          console.log('Conversation deleted:', conversationId);
+        } catch (error) {
+          console.error('Error deleting conversation:', error);
+          alert('Failed to delete conversation. Please try again.');
         }
       }
 
@@ -794,11 +1081,15 @@
           const conversation = conversations.find(c => c.id === conversationId);
           if (conversation) {
             Object.assign(conversation, updates);
-            localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+            if (isLocalStorageAvailable) {
+              localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
+            } else {
+              inMemoryStorage.conversations = conversations;
+            }
             updateRecentConversations();
           }
         } catch (error) {
-          console.error('Error updating conversation in localStorage:', error);
+          console.error('Error updating conversation in storage:', error);
         }
       }
 
@@ -820,44 +1111,78 @@
       }
 
       // Update recent conversations display
-      function updateRecentConversations() {
-        const conversations = getStoredConversations();
+      async function updateRecentConversations() {
+        // Show loading state
+        noConversations.textContent = 'Loading conversations...';
+        noConversations.style.display = 'block';
         
-        if (conversations.length === 0) {
-          noConversations.style.display = 'block';
-          return;
-        }
-
-        noConversations.style.display = 'none';
-        
-        // Clear existing conversation items (except no-conversations div)
+        // Clear existing conversation items
         const existingItems = recentConversations.querySelectorAll('.conversation-item');
         existingItems.forEach(item => item.remove());
 
-        // Add conversation items
-        conversations.forEach(conversation => {
-          const item = createConversationItem(conversation);
-          recentConversations.insertBefore(item, noConversations);
-        });
+        try {
+          // Fetch from backend
+          const conversations = await fetchConversationsFromBackend();
+          
+          if (conversations.length === 0) {
+            noConversations.textContent = 'No recent conversations';
+            noConversations.style.display = 'block';
+            return;
+          }
+
+          noConversations.style.display = 'none';
+
+          // Add conversation items
+          conversations.forEach(conversation => {
+            const item = createConversationItem(conversation);
+            recentConversations.insertBefore(item, noConversations);
+          });
+        } catch (error) {
+          console.error('Error updating recent conversations:', error);
+          noConversations.textContent = 'Failed to load conversations';
+          noConversations.style.display = 'block';
+        }
       }
 
       // Create conversation item element
       function createConversationItem(conversation) {
         const item = document.createElement('div');
         item.className = 'conversation-item';
-        item.dataset.conversationId = conversation.id;
+        // Backend returns _id, not id
+        const conversationId = conversation._id || conversation.id;
+        item.dataset.conversationId = conversationId;
         
-        const lastMessage = conversation.lastMessage || 'No messages yet';
+        const lastMessage = conversation.lastMessage?.content || conversation.lastMessage || 'No messages yet';
         const truncatedMessage = lastMessage.length > 60 ? lastMessage.substring(0, 60) + '...' : lastMessage;
         const timeAgo = formatTimeAgo(new Date(conversation.updatedAt || conversation.createdAt));
+        const agentInfo = conversation.assignedAgent ? `<div class="conversation-agent-info">Agent: ${conversation.assignedAgent}</div>` : '';
         
         item.innerHTML = `
-          <div class="conversation-title">${conversation.title || 'Chat conversation'}</div>
-          <div class="conversation-preview">${truncatedMessage}</div>
-          <div class="conversation-time">${timeAgo}</div>
+          <div class="conversation-content">
+            <div class="conversation-header">
+              <div class="conversation-title">${conversation.title || 'Chat conversation'}</div>
+              <button class="conversation-delete" title="Delete conversation">×</button>
+            </div>
+            <div class="conversation-preview">${truncatedMessage}</div>
+            ${agentInfo}
+            <div class="conversation-time">${timeAgo}</div>
+          </div>
         `;
         
-        item.addEventListener('click', () => loadConversation(conversation.id));
+        // Handle conversation click (not on delete button)
+        const content = item.querySelector('.conversation-content');
+        content.addEventListener('click', (e) => {
+          if (!e.target.classList.contains('conversation-delete')) {
+            loadConversation(conversationId);
+          }
+        });
+        
+        // Handle delete button
+        const deleteBtn = item.querySelector('.conversation-delete');
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteConversation(conversation.id);
+        });
         
         return item;
       }
@@ -878,53 +1203,98 @@
       }
 
       // Load conversation from storage
-      function loadConversation(conversationId) {
-        const conversations = getStoredConversations();
-        const conversation = conversations.find(c => c.id === conversationId);
-        
-        if (!conversation) {
-          console.error('Conversation not found:', conversationId);
-          return;
-        }
+      async function loadConversation(conversationId) {
+        try {
+          // Show loading state
+          messagesContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Loading conversation...</div>';
+          
+          // Fetch conversation from backend
+          const conversations = await fetchConversationsFromBackend();
+          const conversation = conversations.find(c => c._id === conversationId || c.id === conversationId);
+          
+          if (!conversation) {
+            console.error('Conversation not found:', conversationId);
+            messagesContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #e74c3c;">Conversation not found</div>';
+            return;
+          }
 
-        // Set current chat ID and user info
-        chatId = conversation.id;
-        userName = conversation.userName || '';
-        userEmail = conversation.userEmail || '';
-        
-        // Switch to home tab and show chat interface
-        switchTab('home');
-        welcomeScreen.style.display = 'none';
-        chatInterface.style.display = 'flex';
-        isConnected = true; // Set connection state
-        
-        // Focus on message input
-        messageInput.focus();
-        
-        // Load messages
-        loadMessagesFromStorage(conversationId);
-        
-        // Reconnect socket for this conversation
-        if (socket) {
-          socket.emit('join_conversation', chatId);
-        } else if (widgetToken) {
-          // Initialize socket if it doesn't exist but we have a token
-          initializeSocket();
-          // Join conversation after socket is initialized
-          setTimeout(() => {
-            if (socket) {
-              socket.emit('join_conversation', chatId);
-            }
-          }, 1000);
+          // Set current chat ID and user info
+          chatId = conversation._id || conversation.id;
+          userName = conversation.visitor?.name || '';
+          userEmail = conversation.visitor?.email || '';
+          
+          console.log('Loading conversation:', {
+            id: chatId,
+            userName,
+            userEmail,
+            assignedAgent: conversation.assignedAgent,
+          });
+          
+          // Switch to home tab and show chat interface
+          switchTab('home');
+          welcomeScreen.style.display = 'none';
+          chatInterface.style.display = 'flex';
+          isConnected = true; // Set connection state
+          
+          // Focus on message input
+          messageInput.focus();
+          
+          // Load messages from backend
+          await loadMessagesFromBackend(chatId);
+          
+          // Reconnect socket for this conversation
+          if (socket) {
+            console.log('Rejoining conversation via socket:', chatId);
+            socket.emit('join_conversation', chatId);
+          } else if (widgetToken) {
+            // Initialize socket if it doesn't exist but we have a token
+            console.log('Initializing socket for resumed conversation');
+            initializeSocket();
+            // Join conversation after socket is initialized
+            setTimeout(() => {
+              if (socket) {
+                console.log('Joining conversation after socket init:', chatId);
+                socket.emit('join_conversation', chatId);
+              }
+            }, 1000);
+          }
+          
+          // Update active conversation styling
+          document.querySelectorAll('.conversation-item').forEach(item => {
+            item.classList.toggle('active', item.dataset.conversationId === conversationId);
+          });
+        } catch (error) {
+          console.error('Error loading conversation:', error);
+          messagesContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #e74c3c;">Failed to load conversation</div>';
         }
-        
-        // Update active conversation styling
-        document.querySelectorAll('.conversation-item').forEach(item => {
-          item.classList.toggle('active', item.dataset.conversationId === conversationId);
-        });
       }
 
-      // Load messages from storage
+      // Load messages from backend
+      async function loadMessagesFromBackend(conversationId) {
+        try {
+          messagesContainer.innerHTML = '';
+          
+          const messages = await fetchMessagesFromBackend(conversationId);
+          
+          if (messages.length === 0) {
+            console.log('No messages found for conversation:', conversationId);
+            return;
+          }
+
+          messages.forEach(message => {
+            const sender = message.sender === 'visitor' ? 'user' : 'agent';
+            addMessageToUI(message.content, sender, message.createdAt);
+          });
+          
+          scrollToBottom();
+          console.log(`✓ Loaded ${messages.length} messages from backend`);
+        } catch (error) {
+          console.error('Error loading messages:', error);
+          messagesContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #e74c3c;">Failed to load messages</div>';
+        }
+      }
+
+      // Load messages from storage (fallback/cache)
       function loadMessagesFromStorage(conversationId) {
         const conversations = getStoredConversations();
         const conversation = conversations.find(c => c.id === conversationId);
@@ -943,11 +1313,6 @@
         btn.addEventListener('click', () => {
           switchTab(btn.dataset.tab);
         });
-      });
-
-      // Initialize recent conversations on load
-      document.addEventListener('DOMContentLoaded', () => {
-        updateRecentConversations();
       });
 
       // Initialize socket connection for widget users
@@ -1083,7 +1448,26 @@
         const params = new URLSearchParams(window.location.search);
         voxoraPublicKey = params.get("voxoraPublicKey");
         widgetToken = params.get("token");
+        
+        // Get sessionId from URL params (passed from parent window)
+        const urlSessionId = params.get("sessionId");
+        if (urlSessionId) {
+          // Use sessionId from parent window
+          currentSessionId = urlSessionId;
+          console.log('📱 Using sessionId from parent window:', currentSessionId);
+        } else {
+          // Fallback: generate new sessionId (shouldn't happen)
+          currentSessionId = getOrCreateSessionId();
+          console.warn('⚠️ No sessionId from parent, generated new one:', currentSessionId);
+        }
 
+        // Show storage warning if localStorage is not available
+        if (!isLocalStorageAvailable) {
+          const warningBanner = document.getElementById('storageWarning');
+          if (warningBanner) {
+            warningBanner.classList.add('show');
+          }
+        }
         
         setupEventListeners();
         // Bind minimize button without inline handler (CSP-friendly)
@@ -1110,6 +1494,11 @@
           // Focus on input after all welcome messages
           messageInput.focus();
         }, 1300);
+        
+        // Load recent conversations after token is available
+        if (widgetToken && currentSessionId) {
+          updateRecentConversations();
+        }
         
         initializeSocket();
       });
@@ -1143,10 +1532,6 @@
 
         const formData = new FormData(e.target);
         const data = {
-          name: formData.get("name"),
-          email: formData.get("email"),
-          phone: formData.get("phone"),
-          subject: formData.get("subject") || "General Inquiry",
           message: formData.get("message"),
           voxoraPublicKey: voxoraPublicKey
         };
@@ -1164,15 +1549,15 @@
           if (response.ok) {
             const result = await response.json();
             chatId = result.data.conversationId
-            userName = data.name;
-            userEmail = data.email;
 
-            // Save new conversation to localStorage
+            // Save new conversation to localStorage with agent info
             const newConversation = {
               id: chatId,
-              title: `Chat with ${userName}`,
-              userName: userName,
-              userEmail: userEmail,
+              title: `Chat with ${userName || 'Guest'}`,
+              userName: userName || 'Guest',
+              userEmail: userEmail || '',
+              assignedAgent: result.data?.assignedAgent || null,
+              assignedTeam: result.data?.metadata?.teamId || null,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               lastMessage: data.message || 'New conversation started',
@@ -1204,8 +1589,6 @@
                   content: data.message,
                   type: 'text',
                   metadata: {
-                    senderName: userName,
-                    senderEmail: userEmail,
                     source: 'widget'
                   }
                 });
@@ -1349,7 +1732,8 @@
               email: userEmail || "anonymous@widget.user",
               subject: "Chat Support",
               message: text,
-              voxoraPublicKey: voxoraPublicKey
+              voxoraPublicKey: voxoraPublicKey,
+              sessionId: currentSessionId  // Include sessionId for persistence
             };
 
             const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/widget/conversations`, {
@@ -1364,12 +1748,14 @@
               userEmail = data.email;
               isConnected = true;
 
-              // Save new conversation to localStorage
+              // Save new conversation to localStorage with agent info
               const newConversation = {
                 id: chatId,
                 title: `Chat with ${userName}`,
                 userName: userName,
                 userEmail: userEmail,
+                assignedAgent: result.data.assignedAgent || null,
+                assignedTeam: result.data.metadata?.teamId || null,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 lastMessage: text,

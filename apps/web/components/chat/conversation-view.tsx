@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-context";
-import { MoreVertical, Send, Paperclip, ArrowLeft, Clock } from "lucide-react";
+import { MoreVertical, Send, Paperclip, ArrowLeft, Clock, Edit, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import io, { Socket } from "socket.io-client";
 
@@ -33,6 +35,12 @@ interface ConversationData {
   subject: string;
   status: string;
   priority: string;
+  visitor?: {
+    sessionId: string;
+    name: string;
+    email: string;
+    isAnonymous: boolean;
+  };
   metadata: {
     customer: Customer;
     source?: string;
@@ -53,6 +61,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [updateForm, setUpdateForm] = useState({ name: "", email: "" });
+  const [isUpdating, setIsUpdating] = useState(false);
   const typingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -130,6 +141,26 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           },
         );
 
+        // Listen for visitor info updates
+        socketInstance.on(
+          "visitor_info_updated",
+          (data: { conversationId: string; visitorName: string; visitorEmail: string }) => {
+            if (data.conversationId !== conversationId) return;
+            setConversation((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                visitor: {
+                  ...prev.visitor!,
+                  name: data.visitorName,
+                  email: data.visitorEmail,
+                  isAnonymous: false,
+                },
+              };
+            });
+          },
+        );
+
         setSocket(socketInstance);
 
         // Fetch conversation data and messages
@@ -169,6 +200,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           sock.off("new_message");
           sock.off("customer_typing");
           sock.off("customer_stopped_typing");
+          sock.off("visitor_info_updated");
           sock.disconnect();
         }
         // ensure typing is stopped
@@ -269,6 +301,76 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     return message.metadata?.source === "web" || message.senderId === user?.id;
   };
 
+  const handleUpdateCustomerInfo = async () => {
+    if (!updateForm.name.trim() && !updateForm.email.trim()) {
+      alert("Please provide at least a name or email");
+      return;
+    }
+
+    if (!conversation?.visitor?.sessionId) {
+      alert("Cannot update visitor info: session ID not found");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1"}/conversations/${conversationId}/visitor`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: updateForm.name.trim() || undefined,
+            email: updateForm.email.trim() || undefined,
+            sessionId: conversation.visitor.sessionId,
+          }),
+        },
+      );
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update local state
+        setConversation((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            visitor: {
+              ...prev.visitor!,
+              name: updateForm.name || prev.visitor!.name,
+              email: updateForm.email || prev.visitor!.email,
+              isAnonymous: !(updateForm.name && updateForm.email),
+            },
+          };
+        });
+        
+        setIsUpdateDialogOpen(false);
+        setUpdateForm({ name: "", email: "" });
+        alert("Customer information updated successfully!");
+      } else {
+        alert(`Failed to update: ${data.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      console.error("Error updating customer info:", error);
+      alert("Failed to update customer information");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const openUpdateDialog = () => {
+    // Pre-fill form with current data
+    setUpdateForm({
+      name: conversation?.visitor?.name || "",
+      email: conversation?.visitor?.email || "",
+    });
+    setIsUpdateDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -281,8 +383,14 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   }
 
   const customerName =
-    conversation?.metadata?.customer?.name || "Unknown Customer";
-  const customerEmail = conversation?.metadata?.customer?.email || "";
+    conversation?.visitor?.name || 
+    conversation?.metadata?.customer?.name || 
+    "Anonymous User";
+  const customerEmail = 
+    conversation?.visitor?.email !== "anonymous@temp.local"
+      ? conversation?.visitor?.email
+      : conversation?.metadata?.customer?.email || "No email provided";
+  const isAnonymous = conversation?.visitor?.isAnonymous ?? true;
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -299,7 +407,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           </Button>
 
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center relative">
               <span className="text-blue-700 font-semibold">
                 {customerName
                   .split(" ")
@@ -307,15 +415,82 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                   .join("")
                   .toUpperCase()}
               </span>
+              {isAnonymous && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-white" title="Anonymous user"></span>
+              )}
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">{customerName}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-foreground">{customerName}</h2>
+                {isAnonymous && (
+                  <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded-full">
+                    Anonymous
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">{customerEmail}</p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center space-x-2">
+          <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={openUpdateDialog}
+                className="cursor-pointer"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Update Info
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Update Customer Information</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Name</label>
+                  <Input
+                    value={updateForm.name}
+                    onChange={(e) => setUpdateForm({ ...updateForm, name: e.target.value })}
+                    placeholder="Customer name"
+                    className="cursor-text"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Email</label>
+                  <Input
+                    type="email"
+                    value={updateForm.email}
+                    onChange={(e) => setUpdateForm({ ...updateForm, email: e.target.value })}
+                    placeholder="customer@example.com"
+                    className="cursor-text"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsUpdateDialogOpen(false)}
+                    disabled={isUpdating}
+                    className="cursor-pointer"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleUpdateCustomerInfo}
+                    disabled={isUpdating}
+                    className="cursor-pointer"
+                  >
+                    {isUpdating ? "Updating..." : "Update"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
           <span
             className={`px-3 py-1 rounded-full text-xs font-medium ${
               conversation?.status === "open"

@@ -63,6 +63,32 @@ class VoxoraWidget {
   }
 
   /**
+   * Get or create sessionId in parent window (persists across refreshes)
+   */
+  private getOrCreateSessionId(): string {
+    const STORAGE_KEY = 'voxora_session_id';
+    
+    try {
+      // Try localStorage first (works in parent window)
+      let sessionId = localStorage.getItem(STORAGE_KEY);
+      if (sessionId) {
+        console.log('[VoxoraWidget] Using existing sessionId from localStorage');
+        return sessionId;
+      }
+
+      // Generate new sessionId
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem(STORAGE_KEY, sessionId);
+      console.log('[VoxoraWidget] Created new sessionId:', sessionId);
+      return sessionId;
+    } catch (error) {
+      console.error('[VoxoraWidget] localStorage not available, using temporary sessionId');
+      // Fallback to memory (won't persist)
+      return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+  }
+
+  /**
    * Initialize widget
    */
   private async init(): Promise<void> {
@@ -92,12 +118,15 @@ class VoxoraWidget {
 
       this.state.token = token;
 
+      // Get or create sessionId in parent window
+      const sessionId = this.getOrCreateSessionId();
+
       // Create UI elements
       console.log('[VoxoraWidget] Creating UI...');
       this.ui.createButton();
       
-      // Create iframe with authenticated URL
-      const iframeUrl = this.api.getWidgetUrl(token, widgetConfig);
+      // Create iframe with authenticated URL and sessionId
+      const iframeUrl = this.api.getWidgetUrl(token, sessionId, widgetConfig);
       this.ui.createIframe(iframeUrl);
 
       // Setup message handlers

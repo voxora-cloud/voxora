@@ -26,6 +26,12 @@ interface Conversation {
   status: "open" | "pending" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
   tags: string[];
+  visitor?: {
+    sessionId: string;
+    name: string;
+    email: string;
+    isAnonymous: boolean;
+  };
   metadata?: {
     source?: string;
     customer?: {
@@ -95,7 +101,7 @@ export function ConversationSidebar() {
             id: data.conversationId,
             type: "new_conversation",
             title: "New Customer Message",
-            message: `${data.customer.name} started a conversation: ${data.subject}`,
+            message: `New conversation: ${data.subject || "Customer inquiry"}`,
             timestamp: new Date(data.timestamp),
           },
         ]);
@@ -119,6 +125,26 @@ export function ConversationSidebar() {
             ),
           );
         }
+      });
+
+      // Listen for visitor info updates
+      socketInstance.on("visitor_info_updated", (data) => {
+        console.log("Visitor info updated:", data);
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv._id === data.conversationId
+              ? {
+                  ...conv,
+                  visitor: {
+                    ...conv.visitor!,
+                    name: data.visitorName,
+                    email: data.visitorEmail,
+                    isAnonymous: false,
+                  },
+                }
+              : conv,
+          ),
+        );
       });
 
       setSocket(socketInstance);
@@ -156,11 +182,23 @@ export function ConversationSidebar() {
 
   const getCustomerName = (conversation: Conversation) => {
     return (
+      conversation.visitor?.name ||
       conversation.metadata?.customer?.name ||
       conversation.metadata?.customerName ||
       conversation.participants[0]?.name ||
-      "Unknown Customer"
+      "Anonymous User"
     );
+  };
+
+  const getCustomerEmail = (conversation: Conversation) => {
+    const email = conversation.visitor?.email ||
+      conversation.metadata?.customer?.email ||
+      "";
+    return email === "anonymous@temp.local" ? "" : email;
+  };
+
+  const isAnonymous = (conversation: Conversation) => {
+    return conversation.visitor?.isAnonymous ?? false;
   };
 
   const formatTime = (dateString: string) => {
@@ -184,6 +222,12 @@ export function ConversationSidebar() {
       filterStatus === "all" || conversation.status === filterStatus;
     const searchMatch =
       !searchQuery ||
+      conversation.visitor?.name
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
+      conversation.visitor?.email
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase()) ||
       conversation.metadata?.customer?.name
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
@@ -284,36 +328,48 @@ export function ConversationSidebar() {
             >
               <div className="flex items-start space-x-3">
                 {/* Avatar */}
-                <div
-                  className={`
-                  w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium
-                  ${
-                    conversation.status === "open"
-                      ? "bg-green-500"
-                      : conversation.status === "pending"
-                        ? "bg-yellow-500"
-                        : conversation.status === "resolved"
-                          ? "bg-blue-500"
-                          : "bg-gray-500"
-                  }
-                `}
-                >
-                  {getCustomerName(conversation)
-                    .split(" ")
-                    .map((n: string) => n[0])
-                    .join("")
-                    .toUpperCase()}
+                <div className="relative">
+                  <div
+                    className={`
+                    w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium
+                    ${
+                      conversation.status === "open"
+                        ? "bg-green-500"
+                        : conversation.status === "pending"
+                          ? "bg-yellow-500"
+                          : conversation.status === "resolved"
+                            ? "bg-blue-500"
+                            : "bg-gray-500"
+                    }
+                  `}
+                  >
+                    {getCustomerName(conversation)
+                      .split(" ")
+                      .map((n: string) => n[0])
+                      .join("")
+                      .toUpperCase()}
+                  </div>
+                  {isAnonymous(conversation) && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-white" title="Anonymous user"></span>
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   {/* Customer Name & Status */}
                   <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-sm font-medium text-foreground truncate">
-                      {getCustomerName(conversation)}
-                    </h4>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h4 className="text-sm font-medium text-foreground truncate">
+                        {getCustomerName(conversation)}
+                      </h4>
+                      {isAnonymous(conversation) && (
+                        <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full flex-shrink-0">
+                          Anon
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`
-                      text-xs px-2 py-1 rounded-full
+                      text-xs px-2 py-1 rounded-full flex-shrink-0
                       ${
                         conversation.status === "open"
                           ? "text-green-600 bg-green-100"
@@ -328,6 +384,13 @@ export function ConversationSidebar() {
                       {conversation.status}
                     </span>
                   </div>
+
+                  {/* Email if available */}
+                  {getCustomerEmail(conversation) && (
+                    <p className="text-xs text-muted-foreground truncate mb-1">
+                      {getCustomerEmail(conversation)}
+                    </p>
+                  )}
 
                   {/* Subject */}
                   <p className="text-sm font-medium text-foreground mb-1 truncate">

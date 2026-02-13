@@ -74,7 +74,7 @@ export class WidgetAPI {
   /**
    * Get widget iframe URL with authentication
    */
-  getWidgetUrl(token: string, widgetConfig: any): string {
+  getWidgetUrl(token: string, sessionId: string, widgetConfig: any): string {
     // Determine MinIO URL based on API URL
     // In production, use your CDN domain
     const minioUrl = this.config.apiUrl?.includes('localhost')
@@ -84,7 +84,9 @@ export class WidgetAPI {
     const params = new URLSearchParams({
       voxoraPublicKey: this.config.publicKey,
       token,
-      apiUrl: this.config.apiUrl! // Pass API URL to widget
+      sessionId,  // Pass sessionId from parent window
+      apiUrl: this.config.apiUrl!, // Pass API URL to widget
+      _t: Date.now().toString() // Cache-busting timestamp
     });
 
     if (widgetConfig) {
@@ -97,6 +99,100 @@ export class WidgetAPI {
     }
 
     return `${minioUrl}/widget.html?${params.toString()}`;
+  }
+
+  /**
+   * Update visitor information for a conversation
+   */
+  async updateVisitorInfo(conversationId: string, sessionId: string, name: string, email: string): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `${this.config.apiUrl}/api/v1/conversations/${conversationId}/visitor`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            email,
+            sessionId
+          }),
+          credentials: 'omit'
+        }
+      );
+
+      if (!response.ok) {
+        console.error('[VoxoraWidget] Failed to update visitor info:', response.status);
+        return false;
+      }
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      console.error('[VoxoraWidget] Error updating visitor info:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get conversations for current sessionId
+   */
+  async getConversations(sessionId: string, token: string): Promise<any[]> {
+    try {
+      const response = await fetch(
+        `${this.config.apiUrl}/api/v1/widget/conversations?sessionId=${encodeURIComponent(sessionId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'omit'
+        }
+      );
+
+      if (!response.ok) {
+        console.error('[VoxoraWidget] Failed to fetch conversations:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.data?.conversations || [];
+    } catch (error) {
+      console.error('[VoxoraWidget] Error fetching conversations:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get messages for a specific conversation
+   */
+  async getMessages(conversationId: string, sessionId: string, token: string): Promise<any[]> {
+    try {
+      const response = await fetch(
+        `${this.config.apiUrl}/api/v1/widget/conversations/${conversationId}/messages?sessionId=${encodeURIComponent(sessionId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'omit'
+        }
+      );
+
+      if (!response.ok) {
+        console.error('[VoxoraWidget] Failed to fetch messages:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.data?.messages || [];
+    } catch (error) {
+      console.error('[VoxoraWidget] Error fetching messages:', error);
+      return [];
+    }
   }
 
   getToken(): string | null {

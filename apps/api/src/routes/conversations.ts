@@ -1,7 +1,10 @@
 import { Router, Request, Response } from "express";
 import { auth } from "../middleware/auth";
+import { validateRequest } from "../middleware/validation";
 import { Conversation, Message } from "../models";
 import { sendResponse, sendError, asyncHandler } from "../utils/response";
+import { conversationValidation } from "../utils/validation";
+import { updateVisitorInfo } from "../controllers/conversationController";
 
 const router = Router();
 
@@ -112,6 +115,13 @@ router.patch(
       sendError(res, 500, "Failed to update conversation: " + error.message);
     }
   }),
+);
+
+// Update visitor information (public endpoint - no auth required for widget users)
+router.patch(
+  "/:conversationId/visitor",
+  validateRequest(conversationValidation.updateVisitor),
+  updateVisitorInfo
 );
 
 export default router;
