@@ -1,4 +1,5 @@
 # Voxora
+<img width="1895" height="969" alt="Screenshot 2026-02-13 at 11 03 21 PM" src="https://github.com/user-attachments/assets/9f1fbeeb-3b7f-4b4d-8a5f-1fe835b6ddca" />
 
 Voxora is a monorepo for a modern, realtime customer support platform. It includes a Next.js web app and an Express + Socket.IO API with MongoDB and Redis. Teams can manage agents, converse with users in realtime, and embed a lightweight chat widget.
 
