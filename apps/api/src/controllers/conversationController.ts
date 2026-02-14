@@ -472,3 +472,172 @@ export const getConversationMessages = asyncHandler(
   }
 );
 
+/**
+ * Route conversation to team or agent
+ * Reusable routing logic
+ */
+export const routeConversation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { conversationId } = req.params;
+    const { teamId, agentId, reason } = req.body;
+
+    try {
+      if (!conversationId) {
+        return sendError(res, 400, "Conversation ID is required");
+      }
+
+      if (!teamId && !agentId) {
+        return sendError(res, 400, "Either teamId or agentId must be provided");
+      }
+
+      // Find the conversation
+      const conversation = await Conversation.findById(conversationId);
+      if (!conversation) {
+        return sendError(res, 404, "Conversation not found");
+      }
+
+      let selectedAgentId = agentId;
+      let selectedTeamId = teamId;
+
+      // If only teamId provided, find available agent from that team
+      if (teamId && !agentId) {
+        selectedAgentId = await findAvailableAgent(teamId);
+        selectedTeamId = teamId;
+        
+        if (!selectedAgentId) {
+          return sendError(res, 404, `No available agents found in team ${teamId}`);
+        }
+      } 
+      // If only agentId provided, get agent's team
+      else if (agentId && !teamId) {
+        const agent = await User.findById(agentId).select('teams');
+        if (!agent) {
+          return sendError(res, 404, "Agent not found");
+        }
+        selectedTeamId = agent.teams?.[0]?.toString() || null;
+      }
+
+      // Get agent and team details
+      const agent = await User.findById(selectedAgentId).select('name email');
+      const team = selectedTeamId ? await Team.findById(selectedTeamId).select('name') : null;
+
+      // Update conversation
+      const updatedConversation = await Conversation.findByIdAndUpdate(
+        conversationId,
+        {
+          $set: {
+            assignedTo: selectedAgentId,
+            'metadata.teamId': selectedTeamId,
+            'metadata.routedBy': (req as any).user?.id || 'system',
+            'metadata.routedAt': new Date(),
+            'metadata.routeReason': reason || 'Manual routing',
+          },
+          $addToSet: {
+            participants: selectedAgentId
+          }
+        },
+        { new: true }
+      ).populate('assignedTo', 'name email');
+
+      logger.info(`Conversation ${conversationId} routed to agent ${selectedAgentId} in team ${selectedTeamId}`);
+
+      // Emit socket event to notify the new agent
+      if (socketManagerInstance && selectedAgentId) {
+        try {
+          const payload = {
+            conversationId: conversation._id,
+            subject: conversation.subject,
+            routedFrom: conversation.assignedTo,
+            routedTo: selectedAgentId,
+            teamName: team?.name,
+            agentName: agent?.name,
+            reason: reason || 'Manual routing',
+            timestamp: new Date(),
+          };
+
+          if (typeof socketManagerInstance.emitToUser === 'function') {
+            socketManagerInstance.emitToUser(selectedAgentId.toString(), 'conversation_routed', payload);
+          }
+        } catch (emitErr: any) {
+          logger.error(`Failed to emit routing notification: ${emitErr?.message || emitErr}`);
+        }
+      }
+
+      sendResponse(res, 200, true, "Conversation routed successfully", {
+        conversationId: updatedConversation?._id,
+        assignedTo: updatedConversation?.assignedTo,
+        teamId: selectedTeamId,
+        teamName: team?.name,
+        agentName: agent?.name,
+      });
+    } catch (error: any) {
+      logger.error(`Error routing conversation: ${error.message}`);
+      sendError(res, 500, "Failed to route conversation");
+    }
+  }
+);
+
+/**
+ * Update conversation status
+ */
+export const updateConversationStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { conversationId } = req.params;
+    const { status } = req.body;
+
+    try {
+      if (!conversationId) {
+        return sendError(res, 400, "Conversation ID is required");
+      }
+
+      const validStatuses = ['open', 'pending', 'closed', 'resolved'];
+      if (!status || !validStatuses.includes(status)) {
+        return sendError(res, 400, `Status must be one of: ${validStatuses.join(', ')}`);
+      }
+
+      const conversation = await Conversation.findByIdAndUpdate(
+        conversationId,
+        {
+          $set: {
+            status,
+            'metadata.statusUpdatedBy': (req as any).user?.id || 'system',
+            'metadata.statusUpdatedAt': new Date(),
+          }
+        },
+        { new: true }
+      );
+
+      if (!conversation) {
+        return sendError(res, 404, "Conversation not found");
+      }
+
+      logger.info(`Conversation ${conversationId} status updated to ${status}`);
+
+      // Emit socket event
+      if (socketManagerInstance) {
+        try {
+          const payload = {
+            conversationId: conversation._id,
+            status,
+            updatedBy: (req as any).user?.name || 'Agent',
+            timestamp: new Date(),
+          };
+
+          if (socketManagerInstance.ioInstance) {
+            socketManagerInstance.ioInstance.to(`conversation:${conversationId}`).emit('status_updated', payload);
+          }
+        } catch (emitErr: any) {
+          logger.error(`Failed to emit status update: ${emitErr?.message || emitErr}`);
+        }
+      }
+
+      sendResponse(res, 200, true, "Status updated successfully", {
+        conversationId: conversation._id,
+        status: conversation.status,
+      });
+    } catch (error: any) {
+      logger.error(`Error updating conversation status: ${error.message}`);
+      sendError(res, 500, "Failed to update status");
+    }
+  }
+);

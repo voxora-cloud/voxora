@@ -95,18 +95,7 @@ export function ConversationSidebar() {
 
       socketInstance.on("new_widget_conversation", (data) => {
         console.log("New widget conversation:", data);
-        setNotifications((prev) => [
-          ...prev,
-          {
-            id: data.conversationId,
-            type: "new_conversation",
-            title: "New Customer Message",
-            message: `New conversation: ${data.subject || "Customer inquiry"}`,
-            timestamp: new Date(data.timestamp),
-          },
-        ]);
-
-        // Refresh conversations list
+        // Just refresh conversations list without notification
         fetchConversations();
       });
 
@@ -319,6 +308,11 @@ export function ConversationSidebar() {
               key={conversation._id}
               className="p-4 border-b border-border hover:bg-muted cursor-pointer transition-colors"
               onClick={() => {
+                // Clear notifications for this conversation
+                setNotifications((prev) =>
+                  prev.filter((notif) => notif.id !== conversation._id)
+                );
+                
                 // Join conversation via socket when clicking
                 if (socket) {
                   socket.emit("join_conversation", conversation._id);

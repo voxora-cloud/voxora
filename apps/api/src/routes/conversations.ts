@@ -4,7 +4,11 @@ import { validateRequest } from "../middleware/validation";
 import { Conversation, Message } from "../models";
 import { sendResponse, sendError, asyncHandler } from "../utils/response";
 import { conversationValidation } from "../utils/validation";
-import { updateVisitorInfo } from "../controllers/conversationController";
+import { 
+  updateVisitorInfo, 
+  routeConversation, 
+  updateConversationStatus 
+} from "../controllers/conversationController";
 
 const router = Router();
 
@@ -122,6 +126,20 @@ router.patch(
   "/:conversationId/visitor",
   validateRequest(conversationValidation.updateVisitor),
   updateVisitorInfo
+);
+
+// Route conversation to team or agent
+router.post(
+  "/:conversationId/route",
+  auth,
+  routeConversation
+);
+
+// Update conversation status
+router.patch(
+  "/:conversationId/status",
+  auth,
+  updateConversationStatus
 );
 
 export default router;
