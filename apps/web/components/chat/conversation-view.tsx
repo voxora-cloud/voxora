@@ -9,6 +9,8 @@ import { useAuth } from "@/components/auth/auth-context";
 import { MoreVertical, Send, Paperclip, ArrowLeft, Clock, Edit, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import io, { Socket } from "socket.io-client";
+import { RouteConversationDialog } from "./route-conversation-dialog";
+import { StatusSelector } from "./status-selector";
 
 // Define types
 interface Message {
@@ -491,17 +493,35 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             </DialogContent>
           </Dialog>
           
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              conversation?.status === "open"
-                ? "bg-green-100 text-green-700"
-                : conversation?.status === "pending"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-blue-100 text-blue-700"
-            }`}
-          >
-            {conversation?.status || "active"}
-          </span>
+          <RouteConversationDialog 
+            conversationId={conversationId}
+            onRouted={() => {
+              // Refresh conversation data
+              const fetchUpdated = async () => {
+                const token = localStorage.getItem("token");
+                const response = await fetch(
+                  `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/conversations/${conversationId}`,
+                  { headers: { Authorization: `Bearer ${token}` } }
+                );
+                if (response.ok) {
+                  const data = await response.json();
+                  setConversation(data.data.conversation);
+                }
+              };
+              fetchUpdated();
+            }}
+          />
+
+          <StatusSelector
+            conversationId={conversationId}
+            currentStatus={conversation?.status || "open"}
+            onStatusChange={(newStatus) => {
+              if (conversation) {
+                setConversation({ ...conversation, status: newStatus });
+              }
+            }}
+          />
+          
           <Button variant="ghost" size="icon">
             <MoreVertical className="h-4 w-4" />
           </Button>

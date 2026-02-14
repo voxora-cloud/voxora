@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ export default function CreateWidgetPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [uploadedFileKey, setUploadedFileKey] = useState<string>("");
+  const widgetInitialized = useRef(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -35,21 +36,46 @@ export default function CreateWidgetPage() {
   useEffect(() => {
     // Only load widget if we have a valid widget ID
     if (!formData._id) return;
+    
+    // Prevent double initialization in React Strict Mode
+    if (widgetInitialized.current) {
+      console.log('Widget already initialized, skipping');
+      return;
+    }
+
+    // Clean up any existing widget elements first
+    const existingScript = document.querySelector('script[data-voxora-public-key]');
+    const existingButton = document.getElementById('voxora-widget-button');
+    const existingIframe = document.getElementById('voxora-widget-iframe');
+    
+    existingScript?.remove();
+    existingButton?.remove();
+    existingIframe?.remove();
+
+    widgetInitialized.current = true;
 
     const script = document.createElement("script");
     script.src =
-    process.env.NEXT_PUBLIC_CDN_URL ||
+      process.env.NEXT_PUBLIC_CDN_URL ||
       "http://localhost:9001/voxora-widget/v1/voxora.js?v=2";
-    script.setAttribute(
-      "data-voxora-public-key",
-      formData._id,
-    );
+    script.setAttribute("data-voxora-public-key", formData._id);
     script.setAttribute("data-voxora-env", process.env.NEXT_PUBLIC_ENV || "dev");
+    script.id = "voxora-widget-script";
     document.body.appendChild(script);
 
-    // Cleanup: remove script when component unmounts or _id changes
+    // Cleanup: remove script and widget elements when component unmounts
     return () => {
-      document.body.removeChild(script);
+      widgetInitialized.current = false;
+      
+      const scriptEl = document.getElementById('voxora-widget-script');
+      const widgetBtn = document.getElementById('voxora-widget-button');
+      const widgetIframe = document.getElementById('voxora-widget-iframe');
+      
+      scriptEl?.remove();
+      widgetBtn?.remove();
+      widgetIframe?.remove();
+      
+      console.log('Widget cleanup completed');
     };
   }, [formData._id]);
   // Handle input changes
@@ -402,9 +428,9 @@ export default function CreateWidgetPage() {
                 </div>
 
                 <div className="relative">
-                  <div className="relative bg-black/60 rounded-xl border border-white/5 overflow-hidden">
+                  <div className="relative bg-white rounded-xl border border-white/5 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
-                      <span className="text-xs text-muted-foreground font-medium">HTML</span>
+                      <span className="text-xs text-muted-foreground font-bold">HTML</span>
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
                         <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
@@ -412,7 +438,7 @@ export default function CreateWidgetPage() {
                       </div>
                     </div>
                     <pre className="p-4 overflow-x-auto">
-                      <code className="text-sm leading-relaxed text-primary/90 font-mono">
+                      <code className="text-sm leading-relaxed text-black font-bold font-mono">
                         {`<script 
   src="${process.env.NEXT_PUBLIC_CDN_URL}" 
   data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"

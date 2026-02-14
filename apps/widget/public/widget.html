@@ -601,26 +601,6 @@
         color: #9ca3af;
       }
 
-      /* Storage warning banner */
-      .storage-warning {
-        background: #fef3c7;
-        border-bottom: 1px solid #f59e0b;
-        padding: 8px 12px;
-        font-size: 11px;
-        color: #92400e;
-        display: none;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .storage-warning.show {
-        display: flex;
-      }
-
-      .storage-warning-icon {
-        font-size: 14px;
-      }
-
       /* Responsive adjustments */
       @media (max-width: 480px) {
         .tab-btn {
@@ -706,12 +686,6 @@
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
       </button>
-    </div>
-
-    <!-- Storage Warning Banner (shown when localStorage unavailable) -->
-    <div class="storage-warning" id="storageWarning">
-      <span class="storage-warning-icon">⚠️</span>
-      <span>Conversations won't persist after closing</span>
     </div>
 
     <!-- Tab Navigation -->
@@ -826,30 +800,6 @@
       const recentConversations = document.getElementById('recentConversations');
       const noConversations = document.getElementById('noConversations');
 
-      // Storage Management - localStorage with in-memory fallback for sandboxed iframes
-      const STORAGE_KEYS = {
-        CONVERSATIONS: 'voxora_conversations',
-        CURRENT_USER: 'voxora_current_user'
-      };
-
-      // Check if localStorage is available (fails in sandboxed iframes)
-      let isLocalStorageAvailable = false;
-      let inMemoryStorage = {
-        conversations: [],
-        currentUser: null
-      };
-
-      try {
-        const test = '__storage_test__';
-        localStorage.setItem(test, test);
-        localStorage.removeItem(test);
-        isLocalStorageAvailable = true;
-        console.log('✓ localStorage available - conversations will persist');
-      } catch (e) {
-        console.warn('localStorage not available (sandboxed iframe), using in-memory storage. Conversations will not persist across page reloads.');
-        isLocalStorageAvailable = false;
-      }
-
       // Cookie helpers for sessionId (works in sandboxed iframes)
       function setCookie(name, value, days) {
         const expires = new Date();
@@ -868,37 +818,21 @@
         return null;
       }
 
-      // Get sessionId from localStorage or generate new one
+      // Get sessionId from cookie or generate new one
       function getOrCreateSessionId() {
         try {
-          // Try to get from cookie first (works in iframes)
+          // Try to get from cookie
           let sessionId = getCookie('voxora_session_id');
           if (sessionId) {
             console.log('📱 Session ID from cookie:', sessionId);
             return sessionId;
           }
 
-          // Try localStorage as backup
-          if (isLocalStorageAvailable) {
-            sessionId = localStorage.getItem('voxora_session_id');
-            if (sessionId) {
-              // Migrate to cookie
-              setCookie('voxora_session_id', sessionId, 365);
-              console.log('📱 Session ID from localStorage (migrated to cookie):', sessionId);
-              return sessionId;
-            }
-          }
-
           // Generate new sessionId
           sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
           
-          // Store in cookie (primary)
+          // Store in cookie
           setCookie('voxora_session_id', sessionId, 365);
-          
-          // Store in localStorage as backup (if available)
-          if (isLocalStorageAvailable) {
-            localStorage.setItem('voxora_session_id', sessionId);
-          }
           
           console.log('📱 New Session ID created:', sessionId);
           return sessionId;
@@ -941,22 +875,10 @@
           
           console.log('✓ Fetched conversations from backend:', conversations.length);
           
-          // Cache in localStorage
-          try {
-            if (isLocalStorageAvailable) {
-              localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
-            } else {
-              inMemoryStorage.conversations = conversations;
-            }
-          } catch (e) {
-            console.warn('Failed to cache conversations:', e);
-          }
-          
           return conversations;
         } catch (error) {
           console.error('Error fetching conversations from backend:', error);
-          // Fallback to cached data
-          return getStoredConversations();
+          return [];
         }
       }
 
@@ -989,107 +911,6 @@
         } catch (error) {
           console.error('Error fetching messages from backend:', error);
           return [];
-        }
-      }
-
-      // Get conversations from storage (localStorage cache only)
-      function getStoredConversations() {
-        try {
-          if (isLocalStorageAvailable) {
-            const stored = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
-            return stored ? JSON.parse(stored) : [];
-          } else {
-            return inMemoryStorage.conversations || [];
-          }
-        } catch (error) {
-          console.error('Error reading conversations from storage:', error);
-          return [];
-        }
-      }
-
-      // Save conversation to storage (localStorage or in-memory fallback)
-      function saveConversationToStorage(conversation) {
-        try {
-          const conversations = getStoredConversations();
-          const existingIndex = conversations.findIndex(c => c.id === conversation.id);
-          
-          if (existingIndex !== -1) {
-            conversations[existingIndex] = { ...conversations[existingIndex], ...conversation };
-          } else {
-            conversations.unshift(conversation);
-          }
-          
-          // Keep only last 50 conversations
-          if (conversations.length > 50) {
-            conversations.splice(50);
-          }
-          
-          if (isLocalStorageAvailable) {
-            localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
-            console.log('✓ Conversation saved to localStorage:', conversation.id);
-          } else {
-            inMemoryStorage.conversations = conversations;
-            console.log('✓ Conversation saved to memory:', conversation.id);
-          }
-          
-          updateRecentConversations();
-        } catch (error) {
-          console.error('Error saving conversation to storage:', error);
-        }
-      }
-
-      // Delete conversation from storage
-      function deleteConversation(conversationId) {
-        if (!confirm('Are you sure you want to delete this conversation? This cannot be undone.')) {
-          return;
-        }
-
-        try {
-          const conversations = getStoredConversations();
-          const filteredConversations = conversations.filter(c => c.id !== conversationId);
-          
-          if (isLocalStorageAvailable) {
-            localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(filteredConversations));
-          } else {
-            inMemoryStorage.conversations = filteredConversations;
-          }
-          
-          // If we're deleting the current conversation, reset the chat
-          if (chatId === conversationId) {
-            chatId = null;
-            userName = '';
-            userEmail = '';
-            isConnected = false;
-            messagesContainer.innerHTML = '';
-            welcomeScreen.style.display = 'flex';
-            chatInterface.style.display = 'none';
-            switchTab('home');
-          }
-          
-          updateRecentConversations();
-          console.log('Conversation deleted:', conversationId);
-        } catch (error) {
-          console.error('Error deleting conversation:', error);
-          alert('Failed to delete conversation. Please try again.');
-        }
-      }
-
-      // Update conversation in storage
-      function updateConversationInStorage(conversationId, updates) {
-        try {
-          const conversations = getStoredConversations();
-          const conversation = conversations.find(c => c.id === conversationId);
-          if (conversation) {
-            Object.assign(conversation, updates);
-            if (isLocalStorageAvailable) {
-              localStorage.setItem(STORAGE_KEYS.CONVERSATIONS, JSON.stringify(conversations));
-            } else {
-              inMemoryStorage.conversations = conversations;
-            }
-            updateRecentConversations();
-          }
-        } catch (error) {
-          console.error('Error updating conversation in storage:', error);
         }
       }
 
@@ -1181,7 +1002,8 @@
         const deleteBtn = item.querySelector('.conversation-delete');
         deleteBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          deleteConversation(conversation.id);
+          // Delete functionality removed - conversations managed by backend only
+          console.log('Delete conversation feature disabled');
         });
         
         return item;
@@ -1460,14 +1282,6 @@
           currentSessionId = getOrCreateSessionId();
           console.warn('⚠️ No sessionId from parent, generated new one:', currentSessionId);
         }
-
-        // Show storage warning if localStorage is not available
-        if (!isLocalStorageAvailable) {
-          const warningBanner = document.getElementById('storageWarning');
-          if (warningBanner) {
-            warningBanner.classList.add('show');
-          }
-        }
         
         setupEventListeners();
         // Bind minimize button without inline handler (CSP-friendly)
@@ -1550,21 +1364,6 @@
             const result = await response.json();
             chatId = result.data.conversationId
 
-            // Save new conversation to localStorage with agent info
-            const newConversation = {
-              id: chatId,
-              title: `Chat with ${userName || 'Guest'}`,
-              userName: userName || 'Guest',
-              userEmail: userEmail || '',
-              assignedAgent: result.data?.assignedAgent || null,
-              assignedTeam: result.data?.metadata?.teamId || null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              lastMessage: data.message || 'New conversation started',
-              messages: []
-            };
-            saveConversationToStorage(newConversation);
-
             // Initialize socket connection if not already done
             if (!socket && widgetToken) {
               initializeSocket();
@@ -1642,58 +1441,9 @@
         messagesContainer.appendChild(messageDiv);
         scrollToBottom();
 
-        // Save message to localStorage if we have a chat ID
-        if (chatId) {
-          saveMessageToStorage(text, type, senderName);
-        }
-
         // Notify parent window of new message
         if (type === "agent" && window.parent) {
           window.parent.postMessage({ type: "NEW_MESSAGE", text }, "*");
-        }
-      }
-
-      // Save message to localStorage
-      function saveMessageToStorage(content, sender, senderName) {
-        if (!chatId) return;
-
-        try {
-          const conversations = getStoredConversations();
-          let conversation = conversations.find(c => c.id === chatId);
-          
-          if (!conversation) {
-            // Create new conversation
-            conversation = {
-              id: chatId,
-              title: `Chat with ${userName || 'User'}`,
-              userName: userName,
-              userEmail: userEmail,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              messages: []
-            };
-          }
-
-          // Add message to conversation
-          const message = {
-            content: content,
-            sender: sender,
-            senderName: senderName,
-            timestamp: new Date().toISOString()
-          };
-
-          if (!conversation.messages) {
-            conversation.messages = [];
-          }
-          
-          conversation.messages.push(message);
-          conversation.lastMessage = content;
-          conversation.updatedAt = new Date().toISOString();
-
-          // Update or add conversation to storage
-          saveConversationToStorage(conversation);
-        } catch (error) {
-          console.error('Error saving message to localStorage:', error);
         }
       }
 
@@ -1747,21 +1497,6 @@
               userName = data.name;
               userEmail = data.email;
               isConnected = true;
-
-              // Save new conversation to localStorage with agent info
-              const newConversation = {
-                id: chatId,
-                title: `Chat with ${userName}`,
-                userName: userName,
-                userEmail: userEmail,
-                assignedAgent: result.data.assignedAgent || null,
-                assignedTeam: result.data.metadata?.teamId || null,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                lastMessage: text,
-                messages: []
-              };
-              saveConversationToStorage(newConversation);
 
               // Initialize socket if not already done
               if (!socket && widgetToken) {
