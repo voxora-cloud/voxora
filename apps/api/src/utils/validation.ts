@@ -101,11 +101,13 @@ export const conversationValidation = {
   // Widget conversation creation (public, no auth required)
   createWidget: Joi.object({
     voxoraPublicKey: Joi.string().required(),
-    name: Joi.string().min(2).max(50).required(),
-    email: Joi.string().email().required(),
     message: Joi.string().max(1000).required(),
-    subject: Joi.string().max(200).optional(),
-  }),
+    visitorName: Joi.string().min(1).max(100).optional(),
+    visitorEmail: Joi.string().email().optional(),
+    sessionId: Joi.string().optional(),
+    teamId: Joi.string().optional(), // Optional team ID for direct assignment
+    department: Joi.string().max(100).optional(), // e.g., "Sales", "Support", "Technical"
+  }).options({ stripUnknown: true }),
 
   update: Joi.object({
     status: Joi.string().valid("open", "pending", "resolved", "closed"),
@@ -129,6 +131,15 @@ export const conversationValidation = {
     content: Joi.string().min(1).max(1000).required(),
     isInternal: Joi.boolean().default(true),
   }),
+
+  // Update visitor information (for widget users)
+  updateVisitor: Joi.object({
+    name: Joi.string().min(1).max(100),
+    email: Joi.string().email(),
+    sessionId: Joi.string().required(),
+  })
+    .or('name', 'email') // At least one of name or email must be provided
+    .options({ stripUnknown: true }), // Strip any unknown fields instead of rejecting
 };
 
 export const messageValidation = {

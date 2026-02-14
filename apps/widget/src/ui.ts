@@ -119,8 +119,8 @@ export class WidgetUI {
     this.iframe.src = src;
     this.iframe.allow = 'microphone; camera';
     this.iframe.setAttribute('title', 'Voxora Chat Widget');
-    // Use sandbox for security - allow scripts, forms, and popups but NOT same-origin
-    this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
+    // Use sandbox for security - allow scripts, forms, popups, and same-origin (for localStorage)
+    this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-same-origin');
 
     const isLeft = this.config.position === 'bottom-left';
 

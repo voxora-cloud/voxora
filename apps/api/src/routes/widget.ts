@@ -6,7 +6,11 @@ import {
 } from "../controllers/widgetController";
 import { validateRequest, authenticateWidget } from "../middleware";
 import { conversationValidation, messageValidation } from "../utils/validation";
-import { initConversation } from "../controllers/conversationController";
+import { 
+  initConversation,
+  getWidgetConversations,
+  getConversationMessages 
+} from "../controllers/conversationController";
 
 const router = Router();
 
@@ -23,6 +27,20 @@ router.post(
   authenticateWidget,
   validateRequest(conversationValidation.createWidget),
   initConversation,
+);
+
+// Get conversations by sessionId for widget history
+router.get(
+  "/conversations",
+  authenticateWidget,
+  getWidgetConversations,
+);
+
+// Get messages for a specific conversation
+router.get(
+  "/conversations/:conversationId/messages",
+  authenticateWidget,
+  getConversationMessages,
 );
 
 export default router;

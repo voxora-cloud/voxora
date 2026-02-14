@@ -1,5 +1,15 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
+export interface IVisitor {
+  sessionId: string; // Unique session identifier for widget users
+  name: string; // Can be "Anonymous User" initially
+  email: string; // Can be "anonymous@temp.local" initially
+  isAnonymous: boolean; // Track if user is still anonymous
+  ipAddress?: string;
+  userAgent?: string;
+  providedInfoAt?: Date; // When user provided real info
+}
+
 export interface IConversation extends Document {
   _id: Types.ObjectId;
   participants: Types.ObjectId[]; // User IDs
@@ -12,6 +22,7 @@ export interface IConversation extends Document {
   closedAt?: Date;
   closedBy?: Types.ObjectId | null; // User ID
   metadata: Record<string, any>;
+  visitor?: IVisitor; // Visitor information for widget conversations
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +78,15 @@ const conversationSchema = new Schema<IConversation>(
     metadata: {
       type: Schema.Types.Mixed,
       default: {},
+    },
+    visitor: {
+      sessionId: { type: String, index: true },
+      name: { type: String, default: "Anonymous User" },
+      email: { type: String, default: "anonymous@temp.local" },
+      isAnonymous: { type: Boolean, default: true },
+      ipAddress: String,
+      userAgent: String,
+      providedInfoAt: Date,
     },
   },
   {

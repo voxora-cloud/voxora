@@ -6,7 +6,7 @@ import { WidgetConfig } from './types';
 
 const DEFAULT_CONFIG: Partial<WidgetConfig> = {
   position: 'bottom-right',
-  primaryColor: '#667eea',
+  primaryColor: '#667eea',  //  
   apiUrl: 'http://localhost:3002' // Will be overridden
 };
 
@@ -47,6 +47,8 @@ export function parseWidgetConfig(): WidgetConfig | null {
       apiUrl: script.getAttribute('data-voxora-api-url') || getApiUrl(),
       position: (script.getAttribute('data-voxora-position') as any) || DEFAULT_CONFIG.position,
       primaryColor: script.getAttribute('data-voxora-color') || DEFAULT_CONFIG.primaryColor,
+      logoUrl: script.getAttribute('data-voxora-logo-url') || undefined,
+      backgroundColor: script.getAttribute('data-voxora-background-color') || undefined,
     };
 
     return config;

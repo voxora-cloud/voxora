@@ -39,7 +39,7 @@ export default function CreateWidgetPage() {
     const script = document.createElement("script");
     script.src =
     process.env.NEXT_PUBLIC_CDN_URL ||
-      "http://localhost:9001/voxora-widget/v1/voxora.js";
+      "http://localhost:9001/voxora-widget/v1/voxora.js?v=2";
     script.setAttribute(
       "data-voxora-public-key",
       formData._id,
