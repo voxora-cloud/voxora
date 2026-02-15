@@ -323,100 +323,39 @@ export function ConversationSidebar() {
               <div className="flex items-start space-x-3">
                 {/* Avatar */}
                 <div className="relative">
-                  <div
-                    className={`
-                    w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium
-                    ${
-                      conversation.status === "open"
-                        ? "bg-green-500"
-                        : conversation.status === "pending"
-                          ? "bg-yellow-500"
-                          : conversation.status === "resolved"
-                            ? "bg-blue-500"
-                            : "bg-gray-500"
-                    }
-                  `}
-                  >
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium bg-primary">
                     {getCustomerName(conversation)
                       .split(" ")
                       .map((n: string) => n[0])
                       .join("")
                       .toUpperCase()}
                   </div>
-                  {isAnonymous(conversation) && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-white" title="Anonymous user"></span>
-                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  {/* Customer Name & Status */}
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <h4 className="text-sm font-medium text-foreground truncate">
-                        {getCustomerName(conversation)}
-                      </h4>
-                      {isAnonymous(conversation) && (
-                        <span className="text-xs px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full flex-shrink-0">
-                          Anon
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className={`
-                      text-xs px-2 py-1 rounded-full flex-shrink-0
-                      ${
-                        conversation.status === "open"
-                          ? "text-green-600 bg-green-100"
-                          : conversation.status === "pending"
-                            ? "text-yellow-600 bg-yellow-100"
-                            : conversation.status === "resolved"
-                              ? "text-blue-600 bg-blue-100"
-                              : "text-gray-600 bg-gray-100"
-                      }
-                    `}
-                    >
-                      {conversation.status}
-                    </span>
-                  </div>
+                  {/* Customer Name */}
+                  <h4 className="text-sm font-medium text-foreground truncate mb-1">
+                    {getCustomerName(conversation)}
+                  </h4>
 
-                  {/* Email if available */}
-                  {getCustomerEmail(conversation) && (
-                    <p className="text-xs text-muted-foreground truncate mb-1">
-                      {getCustomerEmail(conversation)}
+                  {/* Source */}
+                  {conversation.metadata?.source && (
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Source: {conversation.metadata.source}
                     </p>
                   )}
-
-                  {/* Subject */}
-                  <p className="text-sm font-medium text-foreground mb-1 truncate">
-                    {conversation.subject}
-                  </p>
 
                   {/* Last Message */}
                   <p className="text-xs text-muted-foreground truncate mb-2">
                     {conversation.lastMessage?.content || "No messages yet"}
                   </p>
 
-                  {/* Meta info */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {conversation.metadata?.source === "widget" && (
-                        <span className="text-xs px-2 py-1 bg-purple-100 text-purple-600 rounded-full">
-                          Widget
-                        </span>
-                      )}
-                      <span className="text-xs text-muted-foreground">
-                        {formatTime(
-                          conversation.lastMessageAt || conversation.createdAt,
-                        )}
-                      </span>
-                    </div>
-
-                    {conversation.unreadCount > 0 && (
-                      <span className="bg-blue-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
-                        {conversation.unreadCount}
-                      </span>
+                  {/* Date */}
+                  <p className="text-xs text-muted-foreground">
+                    {formatTime(
+                      conversation.lastMessageAt || conversation.createdAt,
                     )}
-                  </div>
+                  </p>
                 </div>
               </div>
             </div>
