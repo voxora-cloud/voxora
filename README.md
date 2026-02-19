@@ -1,4 +1,27 @@
-# Voxora
+<div id="top"></div>
+
+<p align="center">Help us grow and star us on Github! ⭐️</p>
+
+<p align="center">
+
+<a href="https://voxora.cloud">
+
+<img width="120" alt="Open Source Customer Support" src="https://avatars.githubusercontent.com/u/222506196?s=200&v=4">
+
+</a>
+
+<h3 align="center">Voxora</h3>
+
+<p align="center">
+The Open Source Customer Support Reimagined
+<br />
+<a href="https://voxora.cloud/">Website</a>
+</p>
+</p>
+
+
+## ✨ About Voxora
+
 <img width="1895" height="969" alt="Screenshot 2026-02-13 at 11 03 21 PM" src="https://github.com/user-attachments/assets/9f1fbeeb-3b7f-4b4d-8a5f-1fe835b6ddca" />
 
 Voxora is a monorepo for a modern, realtime customer support platform. It includes a Next.js web app and an Express + Socket.IO API with MongoDB and Redis. Teams can manage agents, converse with users in realtime, and embed a lightweight chat widget.
