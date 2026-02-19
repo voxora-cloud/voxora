@@ -3,22 +3,6 @@
 
 Voxora is a monorepo for a modern, realtime customer support platform. It includes a Next.js web app and an Express + Socket.IO API with MongoDB and Redis. Teams can manage agents, converse with users in realtime, and embed a lightweight chat widget.
 
-## What’s inside
-
-- apps/web: Next.js 15 React 19 app (App Router, Tailwind)
-- apps/api: Express 5 + Socket.IO backend, MongoDB (Mongoose), Redis
-- packages/\*: shared ESLint and TypeScript config
-- docker/: local dev services (MongoDB, Redis, Mongo Express, MailHog)
-
-## Quick start (developer)
-
-Prerequisites
-
-- Docker Desktop
-- Node.js >= 18 and npm 10+
-- VS Code extensions (recommended)
-  - Better Comments (aaron-bond.better-comments)
-  - Prettier – Code formatter (esbenp.prettier-vscode)
 
 1. Fork
 
@@ -65,42 +49,19 @@ This will:
 - MailHog (Mail UI): http://localhost:8025
   - SMTP server (for local email): localhost:1025
 
-Optional widget endpoints during development (served by API):
-
-- Widget HTML: http://localhost:3002/widget
-- Loader script: http://localhost:3002/widget-loader.js
-
-## Common scripts
-
-From the repository root:
-
-```bash
-# Start Docker services (Redis, MongoDB, Mongo Express) only
-npm run docker:start
-
-# Stop Docker services
-npm run docker:stop
-
-# Run all dev servers without starting Docker
-npm run dev
-
-# Build all packages/apps
-npm run build
-
-# Lint and format
-npm run lint
-npm run format
-```
-
-## Notes
-
-- If ports are already in use, stop conflicting services or change ports in docker/docker-compose.dev.yml and env files.
-- For MongoDB auth locally, credentials are seeded in the .env files and docker-compose; see apps/api/.env.\* and docker/docker-compose.dev.yml.
-- The web app uses Next.js with Turbopack in dev; if you hit issues, you can switch to the classic dev server by adjusting the script.
 
 ## Contributing
 
 Before contributing, please read our contribution guidelines: `CONTRIBUTION.md`
+
+## ❤️ Contributors
+
+Thanks to these amazing people who built Voxora 🚀
+
+<a href="https://github.com/voxora-cloud/voxora/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=voxora-cloud/voxora" />
+</a>
+
 
 ## License
 
