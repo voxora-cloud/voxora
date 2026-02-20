@@ -8,6 +8,7 @@ import AddKnowledgeModal from "@/components/admin/knowledge/AddKnowledgeModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { KnowledgeBase, AddKnowledgeFormData } from "@/lib/interfaces/knowledge";
+import { apiService } from "@/lib/api";
 
 export default function KnowledgePage() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeBase[]>([]);
@@ -20,54 +21,34 @@ export default function KnowledgePage() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [viewUrlLoading, setViewUrlLoading] = useState<boolean>(false);
 
   useEffect(() => {
     fetchKnowledgeItems();
   }, []);
 
+  // Fetch presigned view URL whenever the view modal opens with a file-type item
+  useEffect(() => {
+    if (!showViewModal || !selectedItem) {
+      setViewUrl(null);
+      return;
+    }
+    if (selectedItem.source === "pdf" || selectedItem.source === "docx") {
+      setViewUrlLoading(true);
+      apiService
+        .getKnowledgeViewUrl(selectedItem._id)
+        .then((res) => setViewUrl(res.data.url))
+        .catch(() => setViewUrl(null))
+        .finally(() => setViewUrlLoading(false));
+    }
+  }, [showViewModal, selectedItem]);
+
   const fetchKnowledgeItems = async () => {
     setLoading(true);
     try {
-      // Simulate API call - replace with actual API endpoint
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Mock data
-      const mockData: KnowledgeBase[] = [
-        {
-          _id: "1",
-          title: "Refund Policy",
-          description: "Used for support answers about refunds",
-          source: "pdf",
-          status: "indexed",
-          lastIndexed: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          fileName: "refund-policy.pdf",
-        },
-        {
-          _id: "2",
-          title: "API Documentation",
-          description: "Developer API reference",
-          source: "url",
-          status: "indexing",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          sourceUrl: "https://api.example.com/docs",
-        },
-        {
-          _id: "3",
-          title: "Pricing FAQ",
-          description: "Common pricing questions",
-          source: "text",
-          status: "failed",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          content: "Sample content...",
-          errorMessage: "Failed to process content",
-        },
-      ];
-
-      setKnowledgeItems(mockData);
+      const res = await apiService.getKnowledgeItems();
+      setKnowledgeItems(res.data.items);
     } catch (err) {
       console.error("Error fetching knowledge items:", err);
       setError("Failed to load knowledge items");
@@ -78,33 +59,46 @@ export default function KnowledgePage() {
 
   const handleAddKnowledge = async (data: AddKnowledgeFormData) => {
     setIsSubmitting(true);
+    setError(null);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      let newItem: KnowledgeBase;
 
-      console.log("Adding knowledge:", data);
+      if ((data.source === "pdf" || data.source === "docx") && data.file) {
+        // ── Presigned URL flow ─────────────────────────────────────────────
+        // 1. Get presigned PUT URL + create DB record
+        const { data: uploadMeta } = await apiService.requestKnowledgeUpload({
+          title: data.title,
+          description: data.description,
+          catalog: data.catalog,
+          source: data.source,
+          fileName: data.file.name,
+          fileSize: data.file.size,
+          mimeType: data.file.type,
+        });
 
-      // Mock: Add new item to list
-      const newItem: KnowledgeBase = {
-        _id: String(Date.now()),
-        title: data.title,
-        description: data.description,
-        source: data.source,
-        status: "pending",
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...(data.source === "text" && { content: data.content }),
-        ...(data.source === "url" && { sourceUrl: data.url }),
-        ...((data.source === "pdf" || data.source === "docx") && {
-          fileName: data.file?.name,
-        }),
-      };
+        // 2. Upload file directly to MinIO (no API server buffering)
+        await apiService.uploadFileToMinIO(uploadMeta.presignedUrl, data.file);
+
+        // 3. Confirm upload → marks queued + enqueues BullMQ job
+        const { data: confirmed } = await apiService.confirmKnowledgeUpload(uploadMeta.documentId);
+        newItem = confirmed;
+      } else {
+        // ── Text: single step ──────────────────────────────────────────────────────
+        const { data: created } = await apiService.createTextKnowledge({
+          title: data.title,
+          description: data.description,
+          catalog: data.catalog,
+          source: "text",
+          content: data.content,
+        });
+        newItem = created;
+      }
 
       setKnowledgeItems((prev) => [newItem, ...prev]);
       setShowAddModal(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding knowledge:", err);
-      setError("Failed to add knowledge");
+      setError(err.message || "Failed to add knowledge item");
     } finally {
       setIsSubmitting(false);
     }
@@ -181,7 +175,7 @@ export default function KnowledgePage() {
 
     setIsDeleting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await apiService.deleteKnowledgeItem(itemToDelete._id);
       setKnowledgeItems((prev) => prev.filter((k) => k._id !== itemToDelete._id));
       setShowDeleteDialog(false);
       setItemToDelete(null);
@@ -361,6 +355,49 @@ export default function KnowledgePage() {
                   <p className="text-sm text-muted-foreground">
                     {selectedItem.fileName}
                   </p>
+                </div>
+              )}
+
+              {/* PDF inline preview */}
+              {selectedItem.source === "pdf" && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">Preview</p>
+                  {viewUrlLoading ? (
+                    <div className="flex items-center justify-center h-24">
+                      <Loader size="sm" />
+                    </div>
+                  ) : viewUrl ? (
+                    <iframe
+                      src={viewUrl}
+                      title="PDF Preview"
+                      className="w-full h-96 rounded border border-border"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Preview unavailable</p>
+                  )}
+                </div>
+              )}
+
+              {/* DOCX download link */}
+              {selectedItem.source === "docx" && (
+                <div>
+                  <p className="text-sm font-medium text-foreground mb-2">Download</p>
+                  {viewUrlLoading ? (
+                    <div className="flex items-center justify-center h-8">
+                      <Loader size="sm" />
+                    </div>
+                  ) : viewUrl ? (
+                    <a
+                      href={viewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Download {selectedItem.fileName ?? "file"}
+                    </a>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Download link unavailable</p>
+                  )}
                 </div>
               )}
 

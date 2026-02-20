@@ -17,6 +17,7 @@ import { agentRouter } from "@modules/agent";
 import { conversationRouter } from "@modules/conversation";
 import { widgetRouter } from "@modules/widget";
 import { storageRouter } from "@modules/storage";
+import { knowledgeRouter } from "@modules/knowledge";
 
 class Application {
   private app: express.Application;
@@ -84,6 +85,7 @@ class Application {
     router.use("/widget", widgetRouter);
     router.use("/conversations", conversationRouter);
     router.use("/storage", storageRouter);
+    router.use("/knowledge", knowledgeRouter);
 
     // Health check
     router.get("/health", (req, res) => {

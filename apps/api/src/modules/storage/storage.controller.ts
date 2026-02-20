@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import StorageService from "./storage.service";
+import { VOXORA_BUCKET } from "@shared/config/minio";
 import logger from "@shared/utils/logger";
 
 // Helper to ensure param is string (not string array)
@@ -9,6 +10,27 @@ const getParamAsString = (param: string | string[] | undefined): string => {
 };
 
 export const storageController = {
+  async getPublicUrl(req: Request, res: Response): Promise<void> {
+    const { objectKey } = req.params;
+
+    if (!objectKey) {
+      res.status(400).json({ error: "Object key is required" });
+      return;
+    }
+
+    try {
+      const url = StorageService.getPublicUrl(objectKey);
+      res.status(200).json({
+        success: true,
+        message: "Public URL generated",
+        data: { url, objectKey, bucket: VOXORA_BUCKET },
+      });
+    } catch (error) {
+      logger.error(`Error generating public URL:`, error);
+      res.status(500).json({ error: "Failed to generate public URL" });
+    }
+  },
+
   async generateUploadUrl(req: Request, res: Response): Promise<void> {
     try {
       const { fileName, mimeType, expiresIn } = req.body;

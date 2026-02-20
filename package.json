@@ -5,7 +5,7 @@
     "build": "turbo run build",
     "dev:full": "npm run docker:start && turbo run dev",
     "dev": "turbo run dev",
-    "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio",
+    "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio qdrant",
     "docker:stop": "cd docker && docker-compose -f docker-compose.dev.yml down",
     "widget:deploy": "cd apps/widget && npm run deploy",
     "widget:deploy:prod": "cd apps/widget && npm run deploy:prod",

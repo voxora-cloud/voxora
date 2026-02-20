@@ -1,7 +1,6 @@
 import * as Minio from "minio";
 import { config } from "./index";
 import logger from "../utils/logger";
-
 export const minioClient = new Minio.Client({
   endPoint: config.minio.endpoint,
   port: config.minio.port,

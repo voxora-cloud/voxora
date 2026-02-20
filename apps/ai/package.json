@@ -10,12 +10,17 @@
   },
   "dependencies": {
     "@google/genai": "^0.7.0",
+    "@qdrant/js-client-rest": "^1.17.0",
     "bullmq": "^5.0.0",
     "dotenv": "^16.3.1",
-    "ioredis": "^5.3.2"
+    "ioredis": "^5.3.2",
+    "mammoth": "^1.11.0",
+    "minio": "^8.0.6",
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/pdf-parse": "^1.1.5",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.0"
   }

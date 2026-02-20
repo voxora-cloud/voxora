@@ -8,7 +8,6 @@ import {
   X,
   FileText,
   Upload,
-  Link as LinkIcon,
   ChevronRight,
   ChevronLeft,
   AlertCircle,
@@ -36,11 +35,9 @@ export default function AddKnowledgeModal({
     description: "",
     catalog: "",
     content: "",
-    url: "",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showUrlPreview, setShowUrlPreview] = useState(false);
   const [showCustomCatalog, setShowCustomCatalog] = useState(false);
 
   // Predefined catalog categories
@@ -59,10 +56,9 @@ export default function AddKnowledgeModal({
   const handleClose = () => {
     setStep(1);
     setSelectedSource(null);
-    setFormData({ title: "", description: "", catalog: "", content: "", url: "" });
+    setFormData({ title: "", description: "", catalog: "", content: "" });
     setSelectedFile(null);
     setErrors({});
-    setShowUrlPreview(false);
     setShowCustomCatalog(false);
     onClose();
   };
@@ -93,9 +89,6 @@ export default function AddKnowledgeModal({
     }
     if ((selectedSource === "pdf" || selectedSource === "docx") && !selectedFile) {
       newErrors.file = "Please upload a file";
-    }
-    if (selectedSource === "url" && !formData.url?.trim()) {
-      newErrors.url = "URL is required";
     }
 
     setErrors(newErrors);
@@ -142,8 +135,6 @@ export default function AddKnowledgeModal({
       submitData.content = formData.content;
     } else if (selectedSource === "pdf" || selectedSource === "docx") {
       submitData.file = selectedFile!;
-    } else if (selectedSource === "url") {
-      submitData.url = formData.url;
     }
 
     onSubmit(submitData);
@@ -210,23 +201,7 @@ export default function AddKnowledgeModal({
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </button>
 
-              <button
-                onClick={() => handleSourceSelect("url")}
-                className="flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer text-left"
-              >
-                <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <LinkIcon className="h-6 w-6 text-green-500" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-foreground">
-                    Website URL
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Extract content from a webpage
-                  </div>
-                </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
-              </button>
+
             </div>
           </div>
         )}
@@ -312,43 +287,7 @@ export default function AddKnowledgeModal({
               </div>
             )}
 
-            {selectedSource === "url" && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Website URL
-                </label>
-                <Input
-                  type="url"
-                  value={formData.url || ""}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, url: e.target.value }))
-                  }
-                  placeholder="https://example.com/docs"
-                  className="cursor-text"
-                />
-                {errors.url && (
-                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.url}
-                  </p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowUrlPreview(!showUrlPreview)}
-                  className="mt-3 cursor-pointer"
-                >
-                  {showUrlPreview ? "Hide Preview" : "Preview Content"}
-                </Button>
-                {showUrlPreview && (
-                  <div className="mt-3 p-4 bg-muted rounded-lg max-h-48 overflow-y-auto">
-                    <p className="text-xs text-muted-foreground">
-                      Preview will be available after URL validation
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+
 
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={handleBack} className="cursor-pointer">
@@ -486,12 +425,7 @@ export default function AddKnowledgeModal({
                     <div className="text-foreground">{selectedFile.name}</div>
                   </>
                 )}
-                {formData.url && (
-                  <>
-                    <div className="text-muted-foreground">URL:</div>
-                    <div className="text-foreground truncate">{formData.url}</div>
-                  </>
-                )}
+
               </div>
             </div>
 

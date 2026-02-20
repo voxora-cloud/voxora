@@ -17,6 +17,14 @@ export interface FileMetadata {
 }
 
 class StorageService {
+  getPublicUrl(objectKey: string): string {
+    const minioEndpoint = process.env.MINIO_ENDPOINT || "localhost";
+    const minioPort = process.env.MINIO_PORT || "9001";
+    const useSSL = process.env.MINIO_USE_SSL === "true";
+    const protocol = useSSL ? "https" : "http";
+    return `${protocol}://${minioEndpoint}:${minioPort}/${VOXORA_BUCKET}/${objectKey}`;
+  }
+
   async generatePresignedUploadUrl(
     fileName: string,
     mimeType: string,

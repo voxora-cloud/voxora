@@ -2,14 +2,16 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { startWorker } from "./worker";
+import { startIngestionWorker } from "./ingestion/worker";
 
 console.log("[Voxora AI] Starting AI service...");
 
-const worker = startWorker();
+const chatWorker = startWorker();
+const ingestionWorker = startIngestionWorker();
 
 const shutdown = async (signal: string) => {
   console.log(`[Voxora AI] Received ${signal}, shutting down gracefully...`);
-  await worker.close();
+  await Promise.all([chatWorker.close(), ingestionWorker.close()]);
   process.exit(0);
 };
 
