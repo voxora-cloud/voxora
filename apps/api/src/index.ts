@@ -2,16 +2,21 @@ import express from "express";
 import { createServer } from "http";
 import cors from "cors";
 import helmet from "helmet";
-import config from "./config";
-import { connectDatabase } from "./config/database";
-import { connectRedis } from "./config/redis";
-import { initializeMinIO } from "./config/minio";
-import routes from "./routes";
-import { globalRateLimit, errorHandler, notFound } from "./middleware";
-import SocketManager from "./sockets";
-import { setSocketManager } from "./controllers/conversationController";
-import { startAIResponseConsumer } from "./services/AIResponseConsumer";
-import logger from "./utils/logger";
+import { Router } from "express";
+import config from "@shared/config";
+import { connectDatabase } from "@shared/config/database";
+import { connectRedis } from "@shared/config/redis";
+import { initializeMinIO } from "@shared/config/minio";
+import { globalRateLimit, errorHandler, notFound } from "@shared/middleware";
+import SocketManager from "@sockets/index";
+import { startAIResponseConsumer } from "@sockets/consumer";
+import logger from "@shared/utils/logger";
+import { authRouter } from "@modules/auth";
+import { adminRouter } from "@modules/admin";
+import { agentRouter } from "@modules/agent";
+import { conversationRouter } from "@modules/conversation";
+import { widgetRouter } from "@modules/widget";
+import { storageRouter } from "@modules/storage";
 
 class Application {
   private app: express.Application;
@@ -24,10 +29,8 @@ class Application {
     this.setupMiddleware();
     this.setupRoutes();
     this.setupErrorHandling();
+    // SocketManager sets its own module-level singleton — no setSocketManager call needed
     this.socketManager = new SocketManager(this.server);
-
-    // Set socket manager instance in conversation controller
-    setSocketManager(this.socketManager);
   }
 
   private setupMiddleware(): void {
@@ -72,8 +75,27 @@ class Application {
   }
 
   private setupRoutes(): void {
+    const router = Router();
+
+    // API Routes
+    router.use("/auth", authRouter);
+    router.use("/admin", adminRouter);
+    router.use("/agent", agentRouter);
+    router.use("/widget", widgetRouter);
+    router.use("/conversations", conversationRouter);
+    router.use("/storage", storageRouter);
+
+    // Health check
+    router.get("/health", (req, res) => {
+      res.json({
+        success: true,
+        message: "API is healthy",
+        timestamp: new Date().toISOString(),
+      });
+    });
+
     // API routes
-    this.app.use("/api/v1", routes);
+    this.app.use("/api/v1", router);
 
     // Root endpoint
     this.app.get("/", (req, res) => {

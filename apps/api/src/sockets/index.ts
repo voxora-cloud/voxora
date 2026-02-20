@@ -1,10 +1,10 @@
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
-import { redisPublisher, redisSubscriber } from "../config/redis";
-import { verifyToken } from "../utils/auth";
-import { User } from "../models";
-import logger from "../utils/logger";
-import config from "../config";
+import { redisPublisher, redisSubscriber } from "@shared/config/redis";
+import { verifyToken } from "@shared/utils/auth";
+import { User } from "@shared/models";
+import logger from "@shared/utils/logger";
+import config from "@shared/config";
 import { handleMessage } from "./handlers/handlerMessage";
 
 let socketManagerInstance: SocketManager | null = null;

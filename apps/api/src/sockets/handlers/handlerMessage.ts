@@ -1,6 +1,6 @@
-import { Message, Conversation } from "../../models";
-import logger from "../../utils/logger";
-import { aiQueue } from "../../config/queue";
+import { Message, Conversation } from "@shared/models";
+import logger from "@shared/utils/logger";
+import { aiQueue } from "@shared/config/queue";
 
 export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
   socket.on(
