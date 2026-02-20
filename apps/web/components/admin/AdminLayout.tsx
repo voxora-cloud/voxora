@@ -153,9 +153,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </span>
             </Button>
           </Link>
-          {/* Knowledge Base with Submenu */}
-          {/* it will be implemented in version 2 of voxora */}
-          {/* <div>
+
+          <div>
             <Button
               onClick={() => {
                 setActiveTab("knowledge");
@@ -187,8 +186,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </svg>
             </Button>
 
-            {/* Submenu */}
-            {/* {showKnowledgeSubmenu && (
+        
+            {showKnowledgeSubmenu && (
               <div className="ml-8 mt-1 space-y-1">
                 <Link href="/admin/knowledge">
                   <Button
@@ -221,8 +220,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                   </Button>
                 </Link>
               </div>
-            )} */}
-          {/* </div>*/} 
+            )}
+        </div>
           
               <Link href="/admin/widget">
             <Button

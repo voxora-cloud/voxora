@@ -11,7 +11,20 @@ YELLOW := \033[1;33m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
 
+define BANNER
+	@printf "$(BLUE)"
+@printf "██╗   ██╗ ██████╗ ██╗  ██╗ ██████╗ ██████╗  █████╗ \n"
+@printf "██║   ██║██╔═══██╗╚██╗██╔╝██╔═══██╗██╔══██╗██╔══██╗\n"
+@printf "██║   ██║██║   ██║ ╚███╔╝ ██║   ██║██████╔╝███████║\n"
+@printf "╚██╗ ██╔╝██║   ██║ ██╔██╗ ██║   ██║██╔══██╗██╔══██║\n"
+@printf " ╚████╔╝ ╚██████╔╝██╔╝ ██╗╚██████╔╝██║  ██║██║  ██║\n"
+@printf "  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝\n"
+	@printf "$(NC)"
+	@echo ""
+endef
+
 help: ## Show available commands
+	$(BANNER)
 	@echo "$(BLUE)Voxora Development Commands$(NC)"
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -19,6 +32,7 @@ help: ## Show available commands
 	@echo "$(YELLOW)First time setup?$(NC) Run: make check-docker && make all"
 
 check-docker: ## Check Docker installation and requirements
+	$(BANNER)
 	@echo "$(BLUE)🔍 Checking Docker setup...$(NC)"
 	@command -v docker >/dev/null 2>&1 || { \
 		echo "$(RED)❌ Docker is not installed!$(NC)"; \
@@ -50,6 +64,7 @@ check-docker: ## Check Docker installation and requirements
 	@docker-compose --version 2>/dev/null || docker compose version
 
 check-ports: ## Check if required ports are available
+	$(BANNER)
 	@echo "$(BLUE)🔍 Checking required ports...$(NC)"
 	@for port in 3000 3001 3002 6379 9001 9002 27017 8081 1025 8025; do \
 		if lsof -Pi :$$port -sTCP:LISTEN -t >/dev/null 2>&1; then \
@@ -61,6 +76,7 @@ check-ports: ## Check if required ports are available
 	@echo "$(GREEN)✅ Port check complete$(NC)"
 
 verify: ## Verify system requirements (git, node, npm, ports)
+	$(BANNER)
 	@echo "$(BLUE)🔍 Verifying system requirements...$(NC)"
 	@echo ""
 	@echo "$(BLUE)📋 Checking installed tools:$(NC)"
@@ -103,9 +119,20 @@ verify: ## Verify system requirements (git, node, npm, ports)
 	@echo ""
 	@echo "$(GREEN)✅ System verification complete!$(NC)"
 
-all: verify check-docker install docker-start widget-deploy dev ## Install, start Docker, deploy widget, and run dev
+all: ## Install, start Docker, deploy widget, and run dev (api + web + ai)
+	$(BANNER)
+	@echo "$(BLUE)  Installing Voxora...$(NC)"
+	@echo ""
+	@sleep 2
+	@$(MAKE) verify
+	@$(MAKE) check-docker
+	@$(MAKE) install
+	@$(MAKE) docker-start
+	@$(MAKE) widget-deploy
+	@$(MAKE) dev
 
 install: ## Install dependencies
+	$(BANNER)
 	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
 	@command -v npm >/dev/null 2>&1 || { \
 		echo "$(RED)❌ npm is not installed!$(NC)"; \
@@ -127,24 +154,31 @@ install: ## Install dependencies
 	}
 	@echo "$(GREEN)✅ Dependencies installed$(NC)"
 
-dev: ## Start development servers
+dev: ## Start development servers (api, web, ai)
+	$(BANNER)
+	@echo "$(BLUE)🚀 Starting all dev servers via Turbo (api, web, ai)...$(NC)"
 	npm run dev
 
 build: ## Build all applications
+	$(BANNER)
 	npm run build
 
 lint: ## Run linters
+	$(BANNER)
 	npm run lint
 
 format: ## Format code
+	$(BANNER)
 	npm run format
 
 check-types: ## Type check
+	$(BANNER)
 	npm run check-types
 
 docker-start: check-docker ## Start Docker services
+	$(BANNER)
 	@echo "$(BLUE)🐳 Starting Docker services...$(NC)"
-	@cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio || { \
+	@cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio qdrant || { \
 		echo "$(RED)❌ Failed to start Docker services!$(NC)"; \
 		echo ""; \
 		echo "$(YELLOW)Common issues:$(NC)"; \
@@ -166,10 +200,16 @@ docker-start: check-docker ## Start Docker services
 	@echo "  $(GREEN)✓$(NC) MinIO API      → http://localhost:9001"
 	@echo "  $(GREEN)✓$(NC) MinIO Console  → http://localhost:9002 (minioadmin/minioadmin)"
 	@echo ""
+	@echo "$(BLUE)📋 App services (started via 'make dev' / turbo):$(NC)"
+	@echo "  $(GREEN)✓$(NC) API            → http://localhost:3002"
+	@echo "  $(GREEN)✓$(NC) Web            → http://localhost:3000"
+	@echo "  $(GREEN)✓$(NC) AI Worker      → BullMQ worker (queue: ai-processing)"
+	@echo ""
 	@sleep 2
 	@$(MAKE) docker-health
 
 docker-health: ## Check health of Docker services
+	$(BANNER)
 	@echo "$(BLUE)🏥 Checking service health...$(NC)"
 	@sleep 3
 	@docker ps --filter "name=voxora-" --format "table {{.Names}}\t{{.Status}}" | grep -v "NAMES" | while read line; do \
@@ -182,15 +222,19 @@ docker-health: ## Check health of Docker services
 	@echo ""
 
 docker-stop: ## Stop Docker services
+	$(BANNER)
 	cd docker && docker-compose -f docker-compose.dev.yml down
 
 docker-clean: ## Stop and remove volumes
+	$(BANNER)
 	cd docker && docker-compose -f docker-compose.dev.yml down -v
 
 docker-logs: ## Show Docker logs
+	$(BANNER)
 	cd docker && docker-compose -f docker-compose.dev.yml logs -f
 
 widget-deploy: ## Build and deploy widget to MinIO
+	$(BANNER)
 	@echo "$(BLUE)📦 Building and deploying widget...$(NC)"
 	@cd apps/widget && npm run build && npm run deploy || { \
 		echo "$(RED)❌ Widget deployment failed!$(NC)"; \
@@ -210,12 +254,14 @@ docker-setup-builder:
 	@docker buildx create --use --name voxora-builder 2>/dev/null || docker buildx use voxora-builder
 
 docker-build-api: docker-setup-builder ## Build API image
+	$(BANNER)
 	docker buildx build --platform $(PLATFORMS) \
 		--tag $(REGISTRY)/voxora-api:$(VERSION) \
 		--tag $(REGISTRY)/voxora-api:latest \
 		--push -f apps/api/Dockerfile apps/api
 
 docker-build-web: docker-setup-builder ## Build Web image
+	$(BANNER)
 	docker buildx build --platform $(PLATFORMS) \
 		--tag $(REGISTRY)/voxora-web:$(VERSION) \
 		--tag $(REGISTRY)/voxora-web:latest \
@@ -224,5 +270,6 @@ docker-build-web: docker-setup-builder ## Build Web image
 docker-images: docker-build-api docker-build-web ## Build all images
 
 clean: ## Clean artifacts
+	$(BANNER)
 	rm -rf node_modules apps/*/node_modules apps/*/dist apps/*/.turbo .turbo
 

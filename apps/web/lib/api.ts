@@ -577,6 +577,96 @@ class ApiService {
       throw new Error("Failed to upload file to storage");
     }
   }
+
+  // Knowledge Base APIs
+  async getKnowledgeItems(): Promise<{
+    success: boolean;
+    data: { items: import("./interfaces/knowledge").KnowledgeBase[]; total: number };
+  }> {
+    return this.makeRequest("/knowledge", { method: "GET" });
+  }
+
+  /**
+   * Step 1 (file): request a presigned MinIO PUT URL + create the DB record.
+   */
+  async requestKnowledgeUpload(meta: {
+    title: string;
+    description?: string;
+    catalog?: string;
+    source: "pdf" | "docx";
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  }): Promise<{
+    success: boolean;
+    data: { documentId: string; presignedUrl: string; fileKey: string };
+  }> {
+    return this.makeRequest("/knowledge/request-upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(meta),
+    });
+  }
+
+  /**
+   * Step 2 (file): PUT the file binary directly to MinIO via the presigned URL.
+   * No auth headers — this goes straight to MinIO, bypassing the API.
+   */
+  async uploadFileToMinIO(presignedUrl: string, file: File): Promise<void> {
+    const response = await fetch(presignedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!response.ok) {
+      throw new Error(`MinIO upload failed: ${response.status} ${response.statusText}`);
+    }
+  }
+
+  /**
+   * Step 3 (file): confirm the upload — marks DB record as queued + enqueues BullMQ job.
+   */
+  async confirmKnowledgeUpload(documentId: string): Promise<{
+    success: boolean;
+    data: import("./interfaces/knowledge").KnowledgeBase;
+  }> {
+    return this.makeRequest(`/knowledge/${documentId}/confirm`, { method: "POST" });
+  }
+
+  /**
+   * Single-step create for text / URL knowledge entries.
+   */
+  async createTextKnowledge(data: {
+    title: string;
+    description?: string;
+    catalog?: string;
+    source: "text" | "url";  // "url" only used by realtime sync
+    content?: string;
+    url?: string;
+  }): Promise<{ success: boolean; data: import("./interfaces/knowledge").KnowledgeBase }> {
+    return this.makeRequest("/knowledge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Get a short-lived presigned GET URL to preview/download a file.
+   */
+  async getKnowledgeViewUrl(documentId: string): Promise<{
+    success: boolean;
+    data: { url: string; fileName?: string; mimeType?: string };
+  }> {
+    return this.makeRequest(`/knowledge/${documentId}/view-url`, { method: "GET" });
+  }
+
+  /**
+   * Delete a knowledge item (MongoDB record + MinIO file).
+   */
+  async deleteKnowledgeItem(documentId: string): Promise<{ success: boolean; data: { id: string } }> {
+    return this.makeRequest(`/knowledge/${documentId}`, { method: "DELETE" });
+  }
 }
 
 export const apiService = new ApiService();

@@ -121,6 +121,13 @@ export default function KnowledgeTable({
             Pending
           </span>
         );
+      case "queued":
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-medium">
+            <Clock className="h-3 w-3" />
+            Queued
+          </span>
+        );
       default:
         return null;
     }

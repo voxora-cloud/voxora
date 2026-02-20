@@ -62,6 +62,23 @@ services:
       - voxora-dev-network
 
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: voxora-qdrant-dev
+    restart: unless-stopped
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC
+    volumes:
+      - qdrant_data_dev:/qdrant/storage
+    networks:
+      - voxora-dev-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   minio:
     image: minio/minio:latest
     container_name: voxora-minio-dev
@@ -91,6 +108,8 @@ volumes:
   redis_data_dev:
     driver: local
   minio_data_dev:
+    driver: local
+  qdrant_data_dev:
     driver: local
 
 networks:

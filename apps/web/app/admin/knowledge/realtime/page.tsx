@@ -8,6 +8,7 @@ import AddLiveSourceModal from "@/components/admin/knowledge/AddLiveSourceModal"
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { LiveSource, AddLiveSourceFormData } from "@/lib/interfaces/liveSource";
+import { apiService } from "@/lib/api";
 
 export default function RealtimePage() {
   const [sources, setSources] = useState<LiveSource[]>([]);
@@ -25,53 +26,40 @@ export default function RealtimePage() {
     fetchSources();
   }, []);
 
+  /** Map a KnowledgeStatus → LiveSource SourceStatus */
+  const mapStatus = (s: string): LiveSource["status"] => {
+    if (s === "indexed") return "synced";
+    if (s === "indexing") return "fetching";
+    if (s === "failed") return "failed";
+    return "pending"; // queued | pending
+  };
+
+  /** Guess SourceType from URL path */
+  const detectType = (url: string): LiveSource["type"] => {
+    if (url.includes("/blog")) return "blog";
+    if (url.includes("/docs")) return "docs";
+    return "website";
+  };
+
   const fetchSources = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Mock data
-      const mockData: LiveSource[] = [
-        {
-          _id: "1",
-          url: "https://company.com/docs",
-          type: "website",
-          fetchMode: "crawl",
-          crawlDepth: 2,
-          syncFrequency: "6hours",
-          status: "synced",
-          lastFetch: new Date(Date.now() - 10 * 60 * 1000),
-          changesSummary: "+2 sections",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          _id: "2",
-          url: "https://company.com/pricing",
-          type: "page",
-          fetchMode: "single",
-          syncFrequency: "1hour",
-          status: "fetching",
-          lastFetch: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          _id: "3",
-          url: "https://company.com/blog",
-          type: "blog",
-          fetchMode: "crawl",
-          crawlDepth: 1,
-          syncFrequency: "daily",
-          status: "failed",
-          errorMessage: "Failed to fetch content: Connection timeout",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ];
-
-      setSources(mockData);
+      const { data } = await apiService.getKnowledgeItems();
+      // Only show items that came from realtime URL ingestion
+      const urlItems = data.items.filter((k) => k.source === "url");
+      const mapped: LiveSource[] = urlItems.map((k) => ({
+        _id: k._id,
+        url: k.sourceUrl ?? k.title,
+        type: detectType(k.sourceUrl ?? k.title),
+        fetchMode: "single",
+        syncFrequency: "manual",
+        status: mapStatus(k.status),
+        lastFetch: k.lastIndexed ? new Date(k.lastIndexed) : undefined,
+        errorMessage: k.errorMessage,
+        createdAt: new Date(k.createdAt),
+        updatedAt: new Date(k.updatedAt),
+      }));
+      setSources(mapped);
     } catch (err) {
       console.error("Error fetching sources:", err);
       setError("Failed to load live sources");
@@ -83,18 +71,22 @@ export default function RealtimePage() {
   const handleAddSource = async (data: AddLiveSourceFormData) => {
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Persist via knowledge pipeline (source: "url" → queued for ingestion)
+      const { data: created } = await apiService.createTextKnowledge({
+        title: data.url,
+        source: "url",
+        url: data.url,
+        catalog: "realtime",
+      });
 
-      console.log("Adding live source:", data);
-
-      // Detect type from URL
+      // Detect friendly type from URL for the table
       let type: LiveSource["type"] = "website";
       if (data.url.includes("/blog")) type = "blog";
       else if (data.url.includes("/docs")) type = "docs";
       else if (data.fetchMode === "single") type = "page";
 
       const newSource: LiveSource = {
-        _id: String(Date.now()),
+        _id: created._id,
         url: data.url,
         type,
         fetchMode: data.fetchMode,
@@ -107,15 +99,6 @@ export default function RealtimePage() {
 
       setSources((prev) => [newSource, ...prev]);
       setShowAddModal(false);
-
-      // Simulate auto-fetch
-      setTimeout(() => {
-        setSources((prev) =>
-          prev.map((s) =>
-            s._id === newSource._id ? { ...s, status: "fetching" as const } : s
-          )
-        );
-      }, 500);
     } catch (err) {
       console.error("Error adding source:", err);
       setError("Failed to add live source");
@@ -209,7 +192,7 @@ export default function RealtimePage() {
 
     setIsDeleting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await apiService.deleteKnowledgeItem(sourceToDelete._id);
       setSources((prev) => prev.filter((s) => s._id !== sourceToDelete._id));
       setShowDeleteDialog(false);
       setSourceToDelete(null);
