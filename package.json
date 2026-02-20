@@ -26,5 +26,8 @@
     "apps/*",
     "packages/*",
     "api/*"
-  ]
+  ],
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
 }

@@ -1,5 +1,6 @@
 import { Message, Conversation } from "../../models";
 import logger from "../../utils/logger";
+import { aiQueue } from "../../config/queue";
 
 export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
   socket.on(
@@ -65,8 +66,19 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           },
         });
 
-        // If this is from a widget user, notify all support agents
+        // If this is from a widget user, enqueue for AI processing and notify agents
         if (messageMetadata.source === "widget") {
+          // Add to BullMQ queue — the AI service will process and respond via Redis Stream
+          aiQueue
+            .add("process", {
+              conversationId,
+              content,
+              messageId: message._id.toString(),
+            })
+            .catch((err) =>
+              logger.error("Failed to enqueue AI job:", err),
+            );
+
           // Broadcast to all agents that a new customer message has arrived
           io.emit("customer_message", {
             conversationId,

@@ -103,7 +103,7 @@ verify: ## Verify system requirements (git, node, npm, ports)
 	@echo ""
 	@echo "$(GREEN)✅ System verification complete!$(NC)"
 
-all: verify check-docker install docker-start widget-deploy dev ## Install, start Docker, deploy widget, and run dev
+all: verify check-docker install docker-start widget-deploy dev ## Install, start Docker, deploy widget, and run dev (api + web + ai)
 
 install: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
@@ -127,7 +127,8 @@ install: ## Install dependencies
 	}
 	@echo "$(GREEN)✅ Dependencies installed$(NC)"
 
-dev: ## Start development servers
+dev: ## Start development servers (api, web, ai)
+	@echo "$(BLUE)🚀 Starting all dev servers via Turbo (api, web, ai)...$(NC)"
 	npm run dev
 
 build: ## Build all applications
@@ -165,6 +166,11 @@ docker-start: check-docker ## Start Docker services
 	@echo "  $(GREEN)✓$(NC) MailHog UI     → http://localhost:8025"
 	@echo "  $(GREEN)✓$(NC) MinIO API      → http://localhost:9001"
 	@echo "  $(GREEN)✓$(NC) MinIO Console  → http://localhost:9002 (minioadmin/minioadmin)"
+	@echo ""
+	@echo "$(BLUE)📋 App services (started via 'make dev' / turbo):$(NC)"
+	@echo "  $(GREEN)✓$(NC) API            → http://localhost:3002"
+	@echo "  $(GREEN)✓$(NC) Web            → http://localhost:3000"
+	@echo "  $(GREEN)✓$(NC) AI Worker      → BullMQ worker (queue: ai-processing)"
 	@echo ""
 	@sleep 2
 	@$(MAKE) docker-health

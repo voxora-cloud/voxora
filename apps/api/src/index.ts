@@ -10,11 +10,12 @@ import routes from "./routes";
 import { globalRateLimit, errorHandler, notFound } from "./middleware";
 import SocketManager from "./sockets";
 import { setSocketManager } from "./controllers/conversationController";
+import { startAIResponseConsumer } from "./services/AIResponseConsumer";
 import logger from "./utils/logger";
 
 class Application {
   private app: express.Application;
-  private server: any;
+  private server: ReturnType<typeof createServer>;
   private socketManager: SocketManager;
 
   constructor() {
@@ -33,38 +34,15 @@ class Application {
     // Security middleware
     this.app.use(
       helmet({
-        crossOriginEmbedderPolicy: false,
-        contentSecurityPolicy: {
-          directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["*", "data:", "blob:"],
-            connectSrc: [
-              "'self'",
-              "ws://localhost:3002", // WebSocket dev
-              "wss://api.voxora.ai",
-              "wss://api.voxora.cloud"
-            ],
-            fontSrc: ["*", "data:"],
-            mediaSrc: ["*"],
-            objectSrc: ["'none'"],
-          },
-        },
+        crossOriginEmbedderPolicy: false, // required for widget iframe embedding via MinIO
+        contentSecurityPolicy: false,     // API serves only JSON — no HTML, no CSP needed
       }),
     );
 
 
     this.app.use(
       cors({
-        origin: (origin, callback) => {
-          // Allow requests with no origin (mobile apps, curl, etc.)
-          if (!origin) return callback(null, true);
-          
-          // Allow all origins for widget embedding (checked at auth layer)
-          // Widget can be embedded anywhere, but auth validates the public key
-          callback(null, true);
-        },
+        origin: true, // Reflect request origin — allows requests from any origin (adjust in production),
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -74,6 +52,7 @@ class Application {
     );
 
     // Rate limiting
+    this.app.set("trust proxy", 1); // Trust first proxy (if behind a reverse proxy)
     this.app.use(globalRateLimit);
 
     // Body parsing middleware
@@ -100,7 +79,7 @@ class Application {
     this.app.get("/", (req, res) => {
       res.json({
         success: true,
-        message: "Voxora Chat API",
+        message: "Voxora API",
         version: "1.0.0",
         timestamp: new Date().toISOString(),
       });
@@ -120,7 +99,10 @@ class Application {
       // Connect to databases
       await connectDatabase();
       await connectRedis();
-      
+
+      // Start AI response stream consumer (background loop)
+      startAIResponseConsumer(this.socketManager);
+
       // Initialize MinIO (non-blocking - log error but don't crash)
       initializeMinIO().catch((error) => {
         logger.error('MinIO initialization failed (will retry on first use):', error);
@@ -131,10 +113,11 @@ class Application {
         logger.info(`🚀 Server running on port ${config.app.port}`);
         logger.info(`📱 Environment: ${config.app.env}`);
         logger.info(`🔗 API URL: ${config.app.apiUrl}`);
+        logger.info(`🔌 Socket.IO: Ready`);
         logger.info(`💾 MongoDB: Connected`);
         logger.info(`📮 Redis: Connected`);
         logger.info(`📦 MinIO: Initializing...`);
-        logger.info(`🔌 Socket.IO: Ready`);
+        logger.info(`⚡ AI Stream: Starting...`);
       });
 
       // Graceful shutdown
