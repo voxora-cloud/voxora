@@ -17,8 +17,16 @@ import { AIJobData } from "./types";
 export async function runPipeline(job: AIJobData): Promise<void> {
   const { conversationId, content } = job;
 
+  console.log(`\n[Pipeline] ─── NEW JOB ───────────────────────────────────`);
+  console.log(`[Pipeline] conversationId : ${conversationId}`);
+  console.log(`[Pipeline] messageId      : ${job.messageId}`);
+  console.log(`[Pipeline] content        : ${content.slice(0, 120).replace(/\n/g, " ")}`);
+
   // ── 1. Context ──────────────────────────────────────────────────────────────
-  const context = await buildContext(conversationId, content, job.teamId);
+  // Pass messageId so buildContext can exclude the just-saved user message from
+  // the history fetch (avoids sending it twice to the LLM as both history and
+  // currentMessage).
+  const context = await buildContext(conversationId, content, job.teamId, job.companyName, job.messageId);
 
   // ── 2. Build message thread for LLM ─────────────────────────────────────────
   const messages: LLMMessage[] = [

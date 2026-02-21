@@ -34,4 +34,11 @@ router.get(
   WidgetController.getConversationMessages,
 );
 
+// Soft-delete (close) a conversation — visitor can only delete their own
+router.delete(
+  "/conversations/:conversationId",
+  authenticateWidget,
+  WidgetController.deleteConversation,
+);
+
 export default router;

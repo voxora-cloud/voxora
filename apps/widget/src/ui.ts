@@ -19,6 +19,38 @@ export class WidgetUI {
   }
 
   /**
+   * Merge server-provided config fields (e.g. logoUrl, displayName) into local config.
+   * Must be called before createButton() so the button picks up the logo.
+   */
+  applyServerConfig(serverConfig: Record<string, any> | null): void {
+    if (!serverConfig) return;
+    if (serverConfig.logoUrl)        this.config.logoUrl        = serverConfig.logoUrl;
+    if (serverConfig.displayName)    this.config.displayName    = serverConfig.displayName;
+    if (serverConfig.backgroundColor) this.config.backgroundColor = serverConfig.backgroundColor;
+    if (serverConfig.primaryColor)   this.config.primaryColor   = serverConfig.primaryColor;
+  }
+
+  /**
+   * Returns the button innerHTML for the idle (closed) state.
+   * Shows the brand logo if available, otherwise falls back to the chat SVG.
+   */
+  private buttonIdleContent(): string {
+    if (this.config.logoUrl) {
+      // Inline onerror so broken images silently fall back to the SVG
+      const fallbackSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
+      return `<img
+        src="${this.config.logoUrl}"
+        alt="logo"
+        style="width:34px;height:34px;object-fit:contain;border-radius:4px;display:block;"
+        onerror="this.replaceWith((function(){var s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('width','24');s.setAttribute('height','24');s.setAttribute('viewBox','0 0 24 24');s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','2');var p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z');s.appendChild(p);return s;})())"
+      />`;
+    }
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>`;
+  }
+
+  /**
    * Create and mount chat button
    */
   createButton(): HTMLElement {
@@ -27,13 +59,11 @@ export class WidgetUI {
     this.button.setAttribute('role', 'button');
     this.button.setAttribute('aria-label', 'Open chat');
     
-    const bgColor = this.config.primaryColor || '#667eea';
+    const bgColor = this.config.backgroundColor || this.config.primaryColor || '#667eea';
+    // Derive shadow colour from the background for a cohesive look
+    const shadowColor = bgColor.startsWith('#') ? `${bgColor}66` : 'rgba(102,126,234,0.4)';
     
-    this.button.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
-    `;
+    this.button.innerHTML = this.buttonIdleContent();
 
     Object.assign(this.button.style, {
       position: 'fixed',
@@ -44,7 +74,7 @@ export class WidgetUI {
       height: '60px',
       borderRadius: '50%',
       background: bgColor,
-      boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+      boxShadow: `0 8px 24px ${shadowColor}`,
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
@@ -55,25 +85,34 @@ export class WidgetUI {
       transform: 'scale(0)',
       opacity: '0',
       border: 'none',
-      outline: 'none'
+      outline: 'none',
+      // Prevent text/element selection on double-click or drag over the button
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
     });
 
     // Hover effects
     this.button.addEventListener('mouseenter', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1.1)';
-        this.button.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.5)';
+        this.button.style.boxShadow = `0 12px 32px ${shadowColor}`;
       }
     });
 
     this.button.addEventListener('mouseleave', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1)';
-        this.button.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.4)';
+        this.button.style.boxShadow = `0 8px 24px ${shadowColor}`;
       }
     });
 
     this.button.addEventListener('click', () => this.toggle());
+
+    // Prevent the host page from getting a blue selection highlight when the
+    // user double-clicks the button (selectstart fires before the browser
+    // marks anything as selected, so cancelling it is zero-risk).
+    this.button.addEventListener('mousedown', (e) => e.preventDefault());
+    this.button.addEventListener('selectstart', (e) => e.preventDefault());
 
     // Create unread badge
     this.badge = document.createElement('div');
@@ -143,7 +182,11 @@ export class WidgetUI {
       transform: 'scale(0.8) translateY(20px)',
       opacity: '0',
       transformOrigin: isLeft ? 'bottom left' : 'bottom right',
-      display: 'none'
+      display: 'none',
+      // Prevent the host page from getting a selection highlight when the
+      // user double-clicks inside the iframe area.
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
     });
 
     document.body.appendChild(this.iframe);
@@ -204,12 +247,8 @@ export class WidgetUI {
 
     this.state.isOpen = false;
 
-    // Restore chat icon
-    this.button.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-      </svg>
-    `;
+    // Restore logo / chat icon
+    this.button.innerHTML = this.buttonIdleContent();
     this.button.style.transform = 'scale(1) rotate(0deg)';
     this.button.setAttribute('aria-label', 'Open chat');
 

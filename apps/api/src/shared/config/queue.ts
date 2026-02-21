@@ -6,6 +6,8 @@ export interface AIJobData {
   content: string;
   messageId: string;
   teamId?: string;
+  /** Display name of the company whose widget initiated the conversation */
+  companyName?: string;
 }
 
 export interface IngestionJobData {

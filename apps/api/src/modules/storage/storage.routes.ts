@@ -7,6 +7,10 @@ const router = Router();
 // Get public URL for a MinIO object (no auth required)
 router.get("/public-url/:objectKey", storageController.getPublicUrl);
 
+// Public proxy — streams a MinIO object through the API (no auth).
+// Used so browsers never need to reach the internal MinIO hostname.
+router.get("/file", storageController.proxyFile);
+
 // Apply authentication to all routes below
 router.use(authenticate);
 

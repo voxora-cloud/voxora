@@ -6,22 +6,35 @@ import { WidgetConfig } from './types';
 
 const DEFAULT_CONFIG: Partial<WidgetConfig> = {
   position: 'bottom-right',
-  primaryColor: '#667eea',  //  
-  apiUrl: 'http://localhost:3002' // Will be overridden
+  primaryColor: '#667eea',
+  apiUrl: 'http://localhost:3002'
 };
 
 /**
- * Get API base URL based on environment
+ * Get API base URL based on environment.
  */
 export function getApiUrl(customUrl?: string): string {
   if (customUrl) return customUrl;
-  
-  // In production, default to production API
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
     return 'https://api.voxora.cloud';
   }
-  
   return DEFAULT_CONFIG.apiUrl!;
+}
+
+/**
+ * Derive the origin where the widget iframe HTML is served from.
+ * In production this is the widget CDN; in local dev it's MinIO.
+ */
+export function getWidgetOrigin(apiUrl: string): string {
+  if (apiUrl.includes('localhost')) return 'http://localhost:9001';
+  return 'https://widget.voxora.ai';
+}
+
+/**
+ * Build the base URL for the widget iframe HTML file.
+ */
+export function getWidgetBaseUrl(apiUrl: string): string {
+  return `${getWidgetOrigin(apiUrl)}/voxora-widget/v1`;
 }
 
 /**
