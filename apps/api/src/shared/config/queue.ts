@@ -10,6 +10,8 @@ export interface AIJobData {
 
 export interface IngestionJobData {
   documentId: string;
+  /** "ingest" (default) | "delete-vectors" — drives worker behaviour */
+  jobType?: "ingest" | "delete-vectors";
   /** "text" | "pdf" | "docx" | "url" — drives which path the worker takes */
   source: string;
   fileKey: string;
@@ -22,6 +24,10 @@ export interface IngestionJobData {
   sourceUrl?: string;
   /** Raw text content for source === "text" */
   content?: string;
+  /** URL-specific crawl options */
+  fetchMode?: "single" | "crawl";
+  crawlDepth?: number;
+  syncFrequency?: string;
 }
 
 const connection: ConnectionOptions = {
@@ -32,8 +38,7 @@ const connection: ConnectionOptions = {
 };
 
 const defaultJobOptions = {
-  attempts: 3,
-  backoff: { type: "exponential" as const, delay: 1000 },
+  attempts: 1,
   removeOnComplete: 100,
   removeOnFail: 50,
 };

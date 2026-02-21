@@ -17,11 +17,17 @@ export interface IKnowledge extends Document {
   // Text/URL
   content?: string;
   sourceUrl?: string;
+  // URL-sync options (only for source === "url")
+  fetchMode?: "single" | "crawl";
+  crawlDepth?: number;
+  syncFrequency?: "manual" | "1hour" | "6hours" | "daily";
   // Indexing meta
   wordCount?: number;
   chunkCount?: number;
   lastIndexed?: Date;
   errorMessage?: string;
+  // URL pause control
+  isPaused?: boolean;
   // Ownership
   teamId?: string;
   uploadedBy: string;
@@ -50,10 +56,14 @@ const KnowledgeSchema = new Schema<IKnowledge>(
     mimeType: { type: String },
     content: { type: String },
     sourceUrl: { type: String },
+    fetchMode: { type: String, enum: ["single", "crawl"] },
+    crawlDepth: { type: Number },
+    syncFrequency: { type: String, enum: ["manual", "1hour", "6hours", "daily"] },
     wordCount: { type: Number },
     chunkCount: { type: Number },
     lastIndexed: { type: Date },
     errorMessage: { type: String },
+    isPaused: { type: Boolean, default: false },
     teamId: { type: String },
     uploadedBy: { type: String, required: true },
   },

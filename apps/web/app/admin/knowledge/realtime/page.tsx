@@ -2,12 +2,19 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { Plus, Radio, Eye, X } from "lucide-react";
+import { Plus, Radio, X } from "lucide-react";
 import LiveSourceTable from "@/components/admin/knowledge/LiveSourceTable";
 import AddLiveSourceModal from "@/components/admin/knowledge/AddLiveSourceModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { LiveSource, AddLiveSourceFormData } from "@/lib/interfaces/liveSource";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { LiveSource, AddLiveSourceFormData, SyncFrequency } from "@/lib/interfaces/liveSource";
 import { apiService } from "@/lib/api";
 import { useAppToast } from "@/lib/hooks/useAppToast";
 
@@ -52,9 +59,11 @@ export default function RealtimePage() {
         _id: k._id,
         url: k.sourceUrl ?? k.title,
         type: detectType(k.sourceUrl ?? k.title),
-        fetchMode: "single",
-        syncFrequency: "manual",
+        fetchMode: (k.fetchMode as LiveSource["fetchMode"]) ?? "single",
+        crawlDepth: k.crawlDepth,
+        syncFrequency: (k.syncFrequency as LiveSource["syncFrequency"]) ?? "manual",
         status: mapStatus(k.status),
+        isPaused: k.isPaused ?? false,
         lastFetch: k.lastIndexed ? new Date(k.lastIndexed) : undefined,
         errorMessage: k.errorMessage,
         createdAt: new Date(k.createdAt),
@@ -78,6 +87,9 @@ export default function RealtimePage() {
         source: "url",
         url: data.url,
         catalog: "realtime",
+        fetchMode: data.fetchMode,
+        crawlDepth: data.crawlDepth,
+        syncFrequency: data.syncFrequency,
       });
 
       // Detect friendly type from URL for the table
@@ -116,71 +128,65 @@ export default function RealtimePage() {
 
   const handlePauseSource = async (source: LiveSource) => {
     try {
-      console.log("Pausing source:", source.url);
       setSources((prev) =>
         prev.map((s) => (s._id === source._id ? { ...s, isPaused: true } : s))
       );
+      await apiService.updateKnowledgeItem(source._id, { isPaused: true });
     } catch (err) {
       console.error("Error pausing source:", err);
+      setError("Failed to pause source");
+      // Revert optimistic update
+      setSources((prev) =>
+        prev.map((s) => (s._id === source._id ? { ...s, isPaused: false } : s))
+      );
     }
   };
 
   const handleResumeSource = async (source: LiveSource) => {
     try {
-      console.log("Resuming source:", source.url);
       setSources((prev) =>
         prev.map((s) =>
-          s._id === source._id
-            ? { ...s, isPaused: false, status: "fetching" as const }
-            : s
+          s._id === source._id ? { ...s, isPaused: false, status: "fetching" as const } : s
         )
       );
-
-      // Simulate fetch completion
-      setTimeout(() => {
-        setSources((prev) =>
-          prev.map((s) =>
-            s._id === source._id
-              ? {
-                  ...s,
-                  status: "synced" as const,
-                  lastFetch: new Date(),
-                  changesSummary: "+1 section",
-                }
-              : s
-          )
-        );
-      }, 2000);
+      await apiService.updateKnowledgeItem(source._id, { isPaused: false });
+      await apiService.reindexKnowledgeItem(source._id);
+      setSources((prev) =>
+        prev.map((s) => (s._id === source._id ? { ...s, status: "pending" as const } : s))
+      );
     } catch (err) {
       console.error("Error resuming source:", err);
+      setError("Failed to resume source");
     }
   };
 
   const handleRetrySource = async (source: LiveSource) => {
     try {
-      console.log("Retrying source:", source.url);
       setSources((prev) =>
-        prev.map((s) =>
-          s._id === source._id ? { ...s, status: "fetching" as const } : s
-        )
+        prev.map((s) => (s._id === source._id ? { ...s, status: "fetching" as const } : s))
       );
-
-      setTimeout(() => {
-        setSources((prev) =>
-          prev.map((s) =>
-            s._id === source._id
-              ? {
-                  ...s,
-                  status: "synced" as const,
-                  lastFetch: new Date(),
-                  changesSummary: "Content synced",
-                }
-              : s
-          )
-        );
-      }, 2000);
+      await apiService.reindexKnowledgeItem(source._id);
+      setSources((prev) =>
+        prev.map((s) => (s._id === source._id ? { ...s, status: "pending" as const } : s))
+      );
     } catch (err) {
       console.error("Error retrying source:", err);
+      setError("Failed to retry source");
+    }
+  };
+
+  const handleUpdateSyncFrequency = async (source: LiveSource, freq: SyncFrequency) => {
+    try {
+      setSources((prev) =>
+        prev.map((s) => (s._id === source._id ? { ...s, syncFrequency: freq } : s))
+      );
+      if (selectedSource?._id === source._id) {
+        setSelectedSource((prev) => prev ? { ...prev, syncFrequency: freq } : prev);
+      }
+      await apiService.updateKnowledgeItem(source._id, { syncFrequency: freq });
+    } catch (err) {
+      console.error("Error updating sync frequency:", err);
+      setError("Failed to update sync schedule");
     }
   };
 
@@ -226,9 +232,7 @@ export default function RealtimePage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Realtime Knowledge
-          </h1>
+          <h1 className="text-2xl font-bold text-foreground">Realtime Knowledge</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Auto-sync live URLs with your vector database
           </p>
@@ -330,9 +334,22 @@ export default function RealtimePage() {
                   <p className="text-xs text-muted-foreground mb-1">
                     Sync Frequency
                   </p>
-                  <p className="text-sm font-medium text-foreground">
-                    {getSyncFrequencyLabel(selectedSource.syncFrequency)}
-                  </p>
+                  <Select
+                    value={selectedSource.syncFrequency}
+                    onValueChange={(val) =>
+                      handleUpdateSyncFrequency(selectedSource, val as SyncFrequency)
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="1hour">Every 1 hour</SelectItem>
+                      <SelectItem value="6hours">Every 6 hours</SelectItem>
+                      <SelectItem value="daily">Daily</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Status</p>

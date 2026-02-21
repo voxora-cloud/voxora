@@ -38,9 +38,13 @@ export function chunkText(
       index++;
     }
 
+    // We consumed to the end of the text — stop
+    if (endPos >= cleaned.length) break;
+
     // Advance start, keeping overlap
-    startPos = endPos - overlap;
-    if (startPos <= 0 || startPos >= cleaned.length) break;
+    const nextStart = endPos - overlap;
+    // Guard: if we didn't advance at all (pathological overlap >= chunkSize), force +1
+    startPos = nextStart > startPos ? nextStart : startPos + 1;
   }
 
   return chunks;

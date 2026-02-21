@@ -643,6 +643,9 @@ class ApiService {
     source: "text" | "url";  // "url" only used by realtime sync
     content?: string;
     url?: string;
+    fetchMode?: "single" | "crawl";
+    crawlDepth?: number;
+    syncFrequency?: string;
   }): Promise<{ success: boolean; data: import("./interfaces/knowledge").KnowledgeBase }> {
     return this.makeRequest("/knowledge", {
       method: "POST",
@@ -659,6 +662,34 @@ class ApiService {
     data: { url: string; fileName?: string; mimeType?: string };
   }> {
     return this.makeRequest(`/knowledge/${documentId}/view-url`, { method: "GET" });
+  }
+
+  /**
+   * Re-enqueue an existing knowledge item for indexing (reindex or retry).
+   */
+  async reindexKnowledgeItem(documentId: string): Promise<{
+    success: boolean;
+    data: import("./interfaces/knowledge").KnowledgeBase;
+  }> {
+    return this.makeRequest(`/knowledge/${documentId}/reindex`, { method: "POST" });
+  }
+
+  /**
+   * Partial-update a knowledge item (pause/resume, syncFrequency, etc.).
+   */
+  async updateKnowledgeItem(
+    documentId: string,
+    patch: {
+      isPaused?: boolean;
+      syncFrequency?: string;
+      status?: string;
+    },
+  ): Promise<{ success: boolean; data: import("./interfaces/knowledge").KnowledgeBase }> {
+    return this.makeRequest(`/knowledge/${documentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
   }
 
   /**
