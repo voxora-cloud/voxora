@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { Plus, BookOpen, Eye, X } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 import KnowledgeTable from "@/components/admin/knowledge/KnowledgeTable";
 import AddKnowledgeModal from "@/components/admin/knowledge/AddKnowledgeModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { KnowledgeBase, AddKnowledgeFormData } from "@/lib/interfaces/knowledge";
 import { apiService } from "@/lib/api";
+import { useAppToast } from "@/lib/hooks/useAppToast";
 
 export default function KnowledgePage() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeBase[]>([]);
@@ -20,9 +21,10 @@ export default function KnowledgePage() {
   const [itemToDelete, setItemToDelete] = useState<KnowledgeBase | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [viewUrlLoading, setViewUrlLoading] = useState<boolean>(false);
+
+  const { toastSuccess, toastError } = useAppToast();
 
   useEffect(() => {
     fetchKnowledgeItems();
@@ -51,7 +53,7 @@ export default function KnowledgePage() {
       setKnowledgeItems(res.data.items);
     } catch (err) {
       console.error("Error fetching knowledge items:", err);
-      setError("Failed to load knowledge items");
+      toastError("Failed to load knowledge items");
     } finally {
       setLoading(false);
     }
@@ -59,13 +61,10 @@ export default function KnowledgePage() {
 
   const handleAddKnowledge = async (data: AddKnowledgeFormData) => {
     setIsSubmitting(true);
-    setError(null);
     try {
       let newItem: KnowledgeBase;
 
       if ((data.source === "pdf" || data.source === "docx") && data.file) {
-        // ── Presigned URL flow ─────────────────────────────────────────────
-        // 1. Get presigned PUT URL + create DB record
         const { data: uploadMeta } = await apiService.requestKnowledgeUpload({
           title: data.title,
           description: data.description,
@@ -75,15 +74,10 @@ export default function KnowledgePage() {
           fileSize: data.file.size,
           mimeType: data.file.type,
         });
-
-        // 2. Upload file directly to MinIO (no API server buffering)
         await apiService.uploadFileToMinIO(uploadMeta.presignedUrl, data.file);
-
-        // 3. Confirm upload → marks queued + enqueues BullMQ job
         const { data: confirmed } = await apiService.confirmKnowledgeUpload(uploadMeta.documentId);
         newItem = confirmed;
       } else {
-        // ── Text: single step ──────────────────────────────────────────────────────
         const { data: created } = await apiService.createTextKnowledge({
           title: data.title,
           description: data.description,
@@ -96,9 +90,10 @@ export default function KnowledgePage() {
 
       setKnowledgeItems((prev) => [newItem, ...prev]);
       setShowAddModal(false);
+      toastSuccess("Knowledge added successfully", `"${data.title}" has been queued for indexing`);
     } catch (err: any) {
       console.error("Error adding knowledge:", err);
-      setError(err.message || "Failed to add knowledge item");
+      toastError(err.message || "Failed to add knowledge item");
     } finally {
       setIsSubmitting(false);
     }
@@ -179,9 +174,10 @@ export default function KnowledgePage() {
       setKnowledgeItems((prev) => prev.filter((k) => k._id !== itemToDelete._id));
       setShowDeleteDialog(false);
       setItemToDelete(null);
+      toastSuccess("Knowledge item deleted successfully");
     } catch (err) {
       console.error("Error deleting item:", err);
-      setError("Failed to delete knowledge item");
+      toastError("Failed to delete knowledge item");
     } finally {
       setIsDeleting(false);
     }
@@ -201,18 +197,6 @@ export default function KnowledgePage() {
           Add Knowledge
         </Button>
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md">
-          {error}
-          <button
-            onClick={() => setError(null)}
-            className="ml-2 underline cursor-pointer"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[400px]">
@@ -257,161 +241,208 @@ export default function KnowledgePage() {
 
       {/* View Knowledge Modal */}
       <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className={selectedItem?.source === "pdf" ? "sm:max-w-[1000px]" : "sm:max-w-[700px]"}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">
               {selectedItem?.title}
             </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowViewModal(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
 
           {selectedItem && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Source</p>
-                  <p className="text-sm font-medium text-foreground uppercase">
-                    {selectedItem.source}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Status</p>
-                  <p className="text-sm font-medium text-foreground capitalize">
-                    {selectedItem.status}
-                  </p>
-                </div>
-                {selectedItem.lastIndexed && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Last Indexed
-                    </p>
-                    <p className="text-sm font-medium text-foreground">
-                      {new Date(selectedItem.lastIndexed).toLocaleString()}
-                    </p>
+            selectedItem.source === "pdf" ? (
+              /* ── PDF: landscape two-column layout ── */
+              <div className="flex gap-6 min-h-[520px]">
+                {/* Left: info panel */}
+                <div className="w-64 shrink-0 space-y-4 overflow-y-auto">
+                  <div className="grid grid-cols-1 gap-3 p-4 bg-muted rounded-lg">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Source</p>
+                      <p className="text-sm font-medium text-foreground uppercase">{selectedItem.source}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Status</p>
+                      <p className="text-sm font-medium text-foreground capitalize">{selectedItem.status}</p>
+                    </div>
+                    {selectedItem.lastIndexed && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Last Indexed</p>
+                        <p className="text-sm font-medium text-foreground">
+                          {new Date(selectedItem.lastIndexed).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+                    {selectedItem.wordCount && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Word Count</p>
+                        <p className="text-sm font-medium text-foreground">{selectedItem.wordCount} words</p>
+                      </div>
+                    )}
+                    {selectedItem.fileName && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">File Name</p>
+                        <p className="text-sm font-medium text-foreground break-all">{selectedItem.fileName}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-                {selectedItem.wordCount && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Word Count
-                    </p>
-                    <p className="text-sm font-medium text-foreground">
-                      {selectedItem.wordCount} words
-                    </p>
-                  </div>
-                )}
-              </div>
 
-              {selectedItem.description && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">
-                    Description
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedItem.description}
-                  </p>
+                  {selectedItem.description && (
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">Description</p>
+                      <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
+                    </div>
+                  )}
+
+                  {selectedItem.errorMessage && (
+                    <div className="p-3 bg-red-500/10 rounded-lg">
+                      <p className="text-sm font-medium text-red-500 mb-1">Error</p>
+                      <p className="text-sm text-red-400">{selectedItem.errorMessage}</p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {selectedItem.content && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">
-                    Content Preview
-                  </p>
-                  <div className="p-4 bg-muted rounded-lg max-h-64 overflow-y-auto">
-                    <p className="text-sm text-foreground whitespace-pre-wrap">
-                      {selectedItem.content.substring(0, 500)}
-                      {selectedItem.content.length > 500 ? "..." : ""}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {selectedItem.sourceUrl && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">URL</p>
-                  <a
-                    href={selectedItem.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline"
-                  >
-                    {selectedItem.sourceUrl}
-                  </a>
-                </div>
-              )}
-
-              {selectedItem.fileName && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">
-                    File Name
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedItem.fileName}
-                  </p>
-                </div>
-              )}
-
-              {/* PDF inline preview */}
-              {selectedItem.source === "pdf" && (
-                <div>
+                {/* Right: PDF preview */}
+                <div className="flex-1 flex flex-col">
                   <p className="text-sm font-medium text-foreground mb-2">Preview</p>
                   {viewUrlLoading ? (
-                    <div className="flex items-center justify-center h-24">
+                    <div className="flex items-center justify-center flex-1">
                       <Loader size="sm" />
                     </div>
                   ) : viewUrl ? (
                     <iframe
                       src={viewUrl}
                       title="PDF Preview"
-                      className="w-full h-96 rounded border border-border"
+                      className="w-full flex-1 rounded border border-border min-h-[480px]"
                     />
                   ) : (
-                    <p className="text-sm text-muted-foreground">Preview unavailable</p>
+                    <div className="flex items-center justify-center flex-1 text-sm text-muted-foreground border border-dashed rounded-lg">
+                      Preview unavailable
+                    </div>
                   )}
                 </div>
-              )}
-
-              {/* DOCX download link */}
-              {selectedItem.source === "docx" && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">Download</p>
-                  {viewUrlLoading ? (
-                    <div className="flex items-center justify-center h-8">
-                      <Loader size="sm" />
+              </div>
+            ) : (
+              /* ── Non-PDF: original stacked layout ── */
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Source</p>
+                    <p className="text-sm font-medium text-foreground uppercase">
+                      {selectedItem.source}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Status</p>
+                    <p className="text-sm font-medium text-foreground capitalize">
+                      {selectedItem.status}
+                    </p>
+                  </div>
+                  {selectedItem.lastIndexed && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Last Indexed
+                      </p>
+                      <p className="text-sm font-medium text-foreground">
+                        {new Date(selectedItem.lastIndexed).toLocaleString()}
+                      </p>
                     </div>
-                  ) : viewUrl ? (
+                  )}
+                  {selectedItem.wordCount && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Word Count
+                      </p>
+                      <p className="text-sm font-medium text-foreground">
+                        {selectedItem.wordCount} words
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {selectedItem.description && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      Description
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedItem.description}
+                    </p>
+                  </div>
+                )}
+
+                {selectedItem.content && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      Content Preview
+                    </p>
+                    <div className="p-4 bg-muted rounded-lg max-h-64 overflow-y-auto">
+                      <p className="text-sm text-foreground whitespace-pre-wrap">
+                        {selectedItem.content.substring(0, 500)}
+                        {selectedItem.content.length > 500 ? "..." : ""}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedItem.sourceUrl && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">URL</p>
                     <a
-                      href={viewUrl}
+                      href={selectedItem.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-sm text-primary hover:underline"
                     >
-                      Download {selectedItem.fileName ?? "file"}
+                      {selectedItem.sourceUrl}
                     </a>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Download link unavailable</p>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {selectedItem.errorMessage && (
-                <div className="p-3 bg-red-500/10 rounded-lg">
-                  <p className="text-sm font-medium text-red-500 mb-1">
-                    Error Message
-                  </p>
-                  <p className="text-sm text-red-400">
-                    {selectedItem.errorMessage}
-                  </p>
-                </div>
-              )}
-            </div>
+                {selectedItem.fileName && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      File Name
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedItem.fileName}
+                    </p>
+                  </div>
+                )}
+
+                {/* DOCX download link */}
+                {selectedItem.source === "docx" && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-2">Download</p>
+                    {viewUrlLoading ? (
+                      <div className="flex items-center justify-center h-8">
+                        <Loader size="sm" />
+                      </div>
+                    ) : viewUrl ? (
+                      <a
+                        href={viewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        Download {selectedItem.fileName ?? "file"}
+                      </a>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Download link unavailable</p>
+                    )}
+                  </div>
+                )}
+
+                {selectedItem.errorMessage && (
+                  <div className="p-3 bg-red-500/10 rounded-lg">
+                    <p className="text-sm font-medium text-red-500 mb-1">
+                      Error Message
+                    </p>
+                    <p className="text-sm text-red-400">
+                      {selectedItem.errorMessage}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )
           )}
         </DialogContent>
       </Dialog>

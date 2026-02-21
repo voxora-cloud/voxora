@@ -228,3 +228,12 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* ── Sonner toast close button – force vertical center ── */
+[data-sonner-toast] [data-close-button] {
+  position: absolute !important;
+  top: 50% !important;
+  left: auto !important;
+  right: 10px !important;
+  transform: translateY(-50%) !important;
+}

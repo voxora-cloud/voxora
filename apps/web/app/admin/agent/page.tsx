@@ -3,15 +3,15 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Loader } from "@/components/ui/loader";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Agent, Team } from "@/lib/api";
-import { Plus, User, X, CheckCircle2 } from "lucide-react";
+import { Plus, User } from "lucide-react";
 import AgentForm from "@/components/admin/agent/Form";
 import AgentDetailModal from "@/components/admin/agent/AgentDetailModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import FilterableAgentTable from "@/components/admin/FilterableAgentTable";
 import { apiService } from "@/lib/api";
 import { AgentFormData } from "@/lib/interfaces/admin";
+import { useAppToast } from "@/lib/hooks/useAppToast";
 
 export default function AgentPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -22,12 +22,12 @@ export default function AgentPage() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const { toastSuccess, toastError } = useAppToast();
 
   useEffect(() => {
     fetchAgents();
@@ -41,11 +41,11 @@ export default function AgentPage() {
       if (response.success) {
         setAgents(response.data.agents);
       } else {
-        setError("Failed to fetch agents");
+        toastError("Failed to fetch agents");
       }
     } catch (err) {
       console.error("Error fetching agents:", err);
-      setError("An error occurred while loading agents");
+      toastError("An error occurred while loading agents");
     } finally {
       setLoading(false);
     }
@@ -77,6 +77,7 @@ export default function AgentPage() {
         setShowCreateModal(false);
         setModalError(null);
         fetchAgents();
+        toastSuccess("Agent invited successfully", `An invitation has been sent to ${data.email}`);
       } else {
         setModalError("Failed to invite agent");
       }
@@ -100,12 +101,13 @@ export default function AgentPage() {
       if (response.success) {
         setShowEditModal(false);
         fetchAgents();
+        toastSuccess("Agent updated successfully");
       } else {
-        setError("Failed to update agent");
+        toastError("Failed to update agent");
       }
     } catch (err) {
       console.error("Error updating agent:", err);
-      setError("An error occurred while updating the agent");
+      toastError("An error occurred while updating the agent");
     } finally {
       setIsSubmitting(false);
     }
@@ -126,12 +128,13 @@ export default function AgentPage() {
         fetchAgents();
         setShowDeleteDialog(false);
         setAgentToDelete(null);
+        toastSuccess("Agent deleted successfully");
       } else {
-        setError("Failed to delete agent");
+        toastError("Failed to delete agent");
       }
     } catch (err) {
       console.error("Error deleting agent:", err);
-      setError("An error occurred while deleting the agent");
+      toastError("An error occurred while deleting the agent");
     } finally {
       setIsDeleting(false);
     }
@@ -141,14 +144,13 @@ export default function AgentPage() {
     try {
       const response = await apiService.resendInvite(agentId);
       if (response.success) {
-        setSuccessMessage("Invitation resent successfully!");
-        setTimeout(() => setSuccessMessage(null), 5000);
+        toastSuccess("Invitation resent successfully");
       } else {
-        setError("Failed to resend invitation");
+        toastError("Failed to resend invitation");
       }
     } catch (err) {
       console.error("Error resending invite:", err);
-      setError("An error occurred while resending the invitation");
+      toastError("An error occurred while resending the invitation");
     }
   };
 
@@ -161,19 +163,6 @@ export default function AgentPage() {
           Invite Agent
         </Button>
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
-          {error}
-        </div>
-      )}
-
-      {successMessage && (
-        <Alert variant="success" className="mb-4 flex items-center">
-          <CheckCircle2 className="h-4 w-4" />
-          <AlertDescription className="ml-1">{successMessage}</AlertDescription>
-        </Alert>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -221,18 +210,8 @@ export default function AgentPage() {
         if (!open) setModalError(null);
       }}>
         <DialogContent className="sm:max-w-[500px]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold">Invite New Agent</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setShowCreateModal(false);
-                setModalError(null);
-              }}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           {modalError && (
             <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/50 text-destructive">
@@ -254,15 +233,8 @@ export default function AgentPage() {
       {/* Edit Agent Modal */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="sm:max-w-[500px]">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h2 className="text-lg font-semibold">Edit Agent</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowEditModal(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <AgentForm
             agent={selectedAgent}

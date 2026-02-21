@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  X,
   FileText,
   Upload,
   ChevronRight,
@@ -13,6 +12,7 @@ import {
   AlertCircle,
   FolderOpen,
 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { AddKnowledgeFormData, KnowledgeSource } from "@/lib/interfaces/knowledge";
 
 interface AddKnowledgeModalProps {
@@ -152,9 +152,6 @@ export default function AddKnowledgeModal({
               Step {step} of 3
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleClose}>
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Step 1: Choose Source Type */}
@@ -211,9 +208,7 @@ export default function AddKnowledgeModal({
           <div className="space-y-4">
             {selectedSource === "text" && (
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Content
-                </label>
+                <Label className="block mb-2">Content</Label>
                 <Textarea
                   value={formData.content || ""}
                   onChange={(e) =>
@@ -241,9 +236,7 @@ export default function AddKnowledgeModal({
 
             {(selectedSource === "pdf" || selectedSource === "docx") && (
               <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Upload File
-                </label>
+                <Label className="block mb-2">Upload File</Label>
                 <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
                   <input
                     type="file"
@@ -252,7 +245,7 @@ export default function AddKnowledgeModal({
                     className="hidden"
                     id="file-upload"
                   />
-                  <label
+                  <Label
                     htmlFor="file-upload"
                     className="cursor-pointer flex flex-col items-center"
                   >
@@ -263,7 +256,7 @@ export default function AddKnowledgeModal({
                     <p className="text-xs text-muted-foreground">
                       {selectedSource.toUpperCase()} files only
                     </p>
-                  </label>
+                  </Label>
                 </div>
                 {selectedFile && (
                   <div className="mt-3 p-3 bg-muted rounded-lg flex items-center justify-between">
@@ -306,9 +299,9 @@ export default function AddKnowledgeModal({
         {step === 3 && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <Label className="block mb-2">
                 Title <span className="text-red-500">*</span>
-              </label>
+              </Label>
               <Input
                 value={formData.title || ""}
                 onChange={(e) =>
@@ -326,9 +319,7 @@ export default function AddKnowledgeModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Description
-              </label>
+              <Label className="block mb-2">Description</Label>
               <Textarea
                 value={formData.description || ""}
                 onChange={(e) =>
@@ -344,12 +335,12 @@ export default function AddKnowledgeModal({
 
             {/* Catalog/Category */}
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <Label className="block mb-2">
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4" />
                   Catalog/Category
                 </div>
-              </label>
+              </Label>
               <div className="space-y-3">
                 {/* Predefined Categories */}
                 <div className="grid grid-cols-2 gap-2">
@@ -449,17 +440,17 @@ export default function AddKnowledgeModal({
         <div className="flex gap-2 mt-6">
           <div
             className={`h-1 flex-1 rounded-full ${
-              step >= 1 ? "bg-primary" : "bg-muted"
+              step > 1 ? "bg-primary" : "bg-muted"
             }`}
           />
           <div
             className={`h-1 flex-1 rounded-full ${
-              step >= 2 ? "bg-primary" : "bg-muted"
+              step > 2 ? "bg-primary" : "bg-muted"
             }`}
           />
           <div
             className={`h-1 flex-1 rounded-full ${
-              step >= 3 ? "bg-primary" : "bg-muted"
+              step > 3 ? "bg-primary" : "bg-muted"
             }`}
           />
         </div>

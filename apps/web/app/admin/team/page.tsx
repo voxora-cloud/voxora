@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { Team } from "@/lib/api";
-import { Plus, Users, X } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import TeamForm from "@/components/admin/team/Form";
 import TeamDetailModal from "@/components/admin/team/TeamDetailModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
@@ -11,6 +11,7 @@ import FilterableTeamTable from "@/components/admin/FilterableTeamTable";
 import { apiService } from "@/lib/api";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { TeamFormData } from "@/lib/interfaces/admin";
+import { useAppToast } from "@/lib/hooks/useAppToast";
 
 export default function TeamPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -20,10 +21,11 @@ export default function TeamPage() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [showDetailModal, setShowDetailModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  const { toastSuccess, toastError } = useAppToast();
 
   useEffect(() => {
     fetchTeams();
@@ -37,11 +39,11 @@ export default function TeamPage() {
         console.log("Fetched teams:", response.data.teams);
         setTeams(response.data.teams);
       } else {
-        setError("Failed to fetch teams");
+        toastError("Failed to fetch teams");
       }
     } catch (err) {
       console.error("Error fetching teams:", err);
-      setError("An error occurred while loading teams");
+      toastError("An error occurred while loading teams");
     } finally {
       setLoading(false);
     }
@@ -54,12 +56,13 @@ export default function TeamPage() {
       if (response.success) {
         setShowCreateModal(false);
         fetchTeams();
+        toastSuccess("Team created successfully");
       } else {
-        setError("Failed to create team");
+        toastError("Failed to create team");
       }
     } catch (err) {
       console.error("Error creating team:", err);
-      setError("An error occurred while creating the team");
+      toastError("An error occurred while creating the team");
     } finally {
       setIsSubmitting(false);
     }
@@ -73,12 +76,13 @@ export default function TeamPage() {
       if (response.success) {
         setShowEditModal(false);
         fetchTeams();
+        toastSuccess("Team updated successfully");
       } else {
-        setError("Failed to update team");
+        toastError("Failed to update team");
       }
     } catch (err) {
       console.error("Error updating team:", err);
-      setError("An error occurred while updating the team");
+      toastError("An error occurred while updating the team");
     } finally {
       setIsSubmitting(false);
     }
@@ -99,12 +103,13 @@ export default function TeamPage() {
         fetchTeams();
         setShowDeleteDialog(false);
         setTeamToDelete(null);
+        toastSuccess("Team deleted successfully");
       } else {
-        setError("Failed to delete team");
+        toastError("Failed to delete team");
       }
     } catch (err) {
       console.error("Error deleting team:", err);
-      setError("An error occurred while deleting the team");
+      toastError("An error occurred while deleting the team");
     } finally {
       setIsDeleting(false);
     }
@@ -119,12 +124,6 @@ export default function TeamPage() {
           New Team
         </Button>
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-4">
-          {error}
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -169,13 +168,6 @@ export default function TeamPage() {
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Create New Team</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCreateModal(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <TeamForm
             onSubmit={handleCreateTeam}
@@ -190,13 +182,6 @@ export default function TeamPage() {
         <DialogContent className="sm:max-w-[500px]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Edit Team</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowEditModal(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
           <TeamForm
             team={selectedTeam}

@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  X,
   ChevronRight,
   ChevronLeft,
   AlertCircle,
@@ -128,9 +127,6 @@ export default function AddLiveSourceModal({
               Step {step} of 3
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleClose}>
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Step 1: Add URL */}
@@ -461,17 +457,17 @@ export default function AddLiveSourceModal({
         <div className="flex gap-2 mt-6">
           <div
             className={`h-1 flex-1 rounded-full ${
-              step >= 1 ? "bg-primary" : "bg-muted"
+              step > 1 ? "bg-primary" : "bg-muted"
             }`}
           />
           <div
             className={`h-1 flex-1 rounded-full ${
-              step >= 2 ? "bg-primary" : "bg-muted"
+              step > 2 ? "bg-primary" : "bg-muted"
             }`}
           />
           <div
             className={`h-1 flex-1 rounded-full ${
-              step >= 3 ? "bg-primary" : "bg-muted"
+              step > 3 ? "bg-primary" : "bg-muted"
             }`}
           />
         </div>
