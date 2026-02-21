@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { LiveSource, AddLiveSourceFormData, SyncFrequency } from "@/lib/interfaces/liveSource";
 import { apiService } from "@/lib/api";
+import { useAppToast } from "@/lib/hooks/useAppToast";
 
 export default function RealtimePage() {
   const [sources, setSources] = useState<LiveSource[]>([]);
@@ -27,7 +28,7 @@ export default function RealtimePage() {
   const [sourceToDelete, setSourceToDelete] = useState<LiveSource | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toastSuccess, toastError } = useAppToast();
 
   useEffect(() => {
     fetchSources();
@@ -71,7 +72,7 @@ export default function RealtimePage() {
       setSources(mapped);
     } catch (err) {
       console.error("Error fetching sources:", err);
-      setError("Failed to load live sources");
+      toastError("Failed to load live sources");
     } finally {
       setLoading(false);
     }
@@ -111,9 +112,10 @@ export default function RealtimePage() {
 
       setSources((prev) => [newSource, ...prev]);
       setShowAddModal(false);
+      toastSuccess("Live source added successfully", "The URL has been queued for ingestion.");
     } catch (err) {
       console.error("Error adding source:", err);
-      setError("Failed to add live source");
+      toastError("Failed to add live source");
     } finally {
       setIsSubmitting(false);
     }
@@ -202,9 +204,10 @@ export default function RealtimePage() {
       setSources((prev) => prev.filter((s) => s._id !== sourceToDelete._id));
       setShowDeleteDialog(false);
       setSourceToDelete(null);
+      toastSuccess("Live source deleted successfully");
     } catch (err) {
       console.error("Error deleting source:", err);
-      setError("Failed to delete live source");
+      toastError("Failed to delete live source");
     } finally {
       setIsDeleting(false);
     }
@@ -242,18 +245,6 @@ export default function RealtimePage() {
           Add Live Source
         </Button>
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md">
-          {error}
-          <button
-            onClick={() => setError(null)}
-            className="ml-2 underline cursor-pointer"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[400px]">
@@ -307,13 +298,6 @@ export default function RealtimePage() {
             <h2 className="text-lg font-semibold text-foreground">
               Source Details
             </h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowViewModal(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
 
           {selectedSource && (

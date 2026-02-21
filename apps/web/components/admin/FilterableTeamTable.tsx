@@ -5,6 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Team } from "@/lib/api";
 import { Edit, Search, Trash2, Users, X } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface FilterableTeamTableProps {
   teams: Team[];
@@ -76,15 +83,20 @@ export default function FilterableTeamTable({
               {/* Total Agents Column with Filter */}
               <th className="px-4 py-3 text-left">
                 <div className="space-y-2">
-                  <select
-                    className="w-full h-8 text-xs rounded-md border border-input bg-background px-2 cursor-pointer"
+                  <div className="font-medium text-foreground">Total Agents</div>
+                  <Select
                     value={agentCountFilter}
-                    onChange={(e) => setAgentCountFilter(e.target.value)}
+                    onValueChange={(value) => setAgentCountFilter(value)}
                   >
-                    <option value="all">All</option>
-                    <option value="with-agents">With Agents</option>
-                    <option value="no-agents">No Agents</option>
-                  </select>
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="with-agents">With Agents</SelectItem>
+                      <SelectItem value="no-agents">No Agents</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </th>
 
@@ -156,7 +168,7 @@ export default function FilterableTeamTable({
                 <td className="px-4 py-3">
                   <span className="font-semibold text-green-600">
                     {team.onlineAgents || 0}
-                  </span>  <div className="font-medium text-foreground">Total Agents</div>
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(team.createdAt).toLocaleDateString()}
