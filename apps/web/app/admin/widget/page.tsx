@@ -403,7 +403,7 @@ export default function CreateWidgetPage() {
                     size="sm"
                     className="cursor-pointer rounded-lg border-white/10 hover:bg-white/5 transition-all w-full sm:w-auto"
                     onClick={() => {
-                      const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}" data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"></script>`;
+                      const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}" data-voxora-env="${process.env.NEXT_PUBLIC_ENV}" async></script>`;
                       navigator.clipboard.writeText(code);
                       setIsCopied(true);
                       setMessage({ type: "success", text: "Code copied to clipboard!" });
@@ -442,7 +442,8 @@ export default function CreateWidgetPage() {
                         {`<script 
   src="${process.env.NEXT_PUBLIC_CDN_URL}" 
   data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
-  data-voxora-env="${process.env.NEXT_PUBLIC_ENV}">
+  data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"
+  async>
 </script>`}
                       </code>
                     </pre>

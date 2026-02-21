@@ -12,6 +12,10 @@ export interface KnowledgeBase {
   fileKey?: string;
   content?: string;
   status: KnowledgeStatus;
+  isPaused?: boolean;
+  syncFrequency?: "manual" | "1hour" | "6hours" | "daily";
+  fetchMode?: "single" | "crawl";
+  crawlDepth?: number;
   lastIndexed?: Date;
   createdAt: Date;
   updatedAt: Date;

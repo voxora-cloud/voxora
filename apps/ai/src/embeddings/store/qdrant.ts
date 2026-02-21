@@ -16,7 +16,18 @@ class QdrantVectorStore implements VectorStore {
 
   async ensureCollection(dimensions: number): Promise<void> {
     const existing = await this.client.collectionExists(COLLECTION);
-    if (existing.exists) return;
+
+    if (existing.exists) {
+      // Verify dimensions match — recreate if they don't (e.g. model was swapped)
+      const info = await this.client.getCollection(COLLECTION);
+      const existingSize = (info.config?.params?.vectors as any)?.size as number | undefined;
+      if (existingSize === dimensions) return;
+
+      console.warn(
+        `[Qdrant] Collection "${COLLECTION}" has ${existingSize}d but provider needs ${dimensions}d — recreating`,
+      );
+      await this.client.deleteCollection(COLLECTION);
+    }
 
     await this.client.createCollection(COLLECTION, {
       vectors: { size: dimensions, distance: "Cosine" },
@@ -56,16 +67,21 @@ class QdrantVectorStore implements VectorStore {
 
   async search(
     vector: number[],
-    options: { teamId: string; topK?: number },
+    options: { teamId?: string; topK?: number },
   ): Promise<VectorSearchResult[]> {
+    console.log(`[Qdrant] Searching collection="${COLLECTION}" vectorDim=${vector.length} teamId=${options.teamId || "(none)"} topK=${options.topK ?? 5}`);
+
     const results = await this.client.search(COLLECTION, {
       vector,
       limit: options.topK ?? 5,
-      filter: {
-        must: [{ key: "teamId", match: { value: options.teamId } }],
-      },
+      // Only filter by teamId when one is provided and non-empty
+      ...(options.teamId
+        ? { filter: { must: [{ key: "teamId", match: { value: options.teamId } }] } }
+        : {}),
       with_payload: true,
     });
+
+    console.log(`[Qdrant] Raw results: ${results.length}`);
 
     return results.map((r) => ({
       id: r.id,

@@ -35,6 +35,24 @@ export const knowledgeSchema = {
       then: Joi.required(),
       otherwise: Joi.optional(),
     }),
+    // URL-only crawl options
+    fetchMode: Joi.string().valid("single", "crawl").when("source", {
+      is: "url",
+      then: Joi.optional().default("single"),
+      otherwise: Joi.forbidden(),
+    }),
+    crawlDepth: Joi.number().integer().min(1).max(5).when("fetchMode", {
+      is: "crawl",
+      then: Joi.optional().default(1),
+      otherwise: Joi.optional(),
+    }),
+    syncFrequency: Joi.string()
+      .valid("manual", "1hour", "6hours", "daily")
+      .when("source", {
+        is: "url",
+        then: Joi.optional().default("manual"),
+        otherwise: Joi.forbidden(),
+      }),
     teamId: Joi.string().trim().optional(),
   }),
 };

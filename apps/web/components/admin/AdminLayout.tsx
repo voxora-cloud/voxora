@@ -8,28 +8,22 @@ import React, { useEffect } from "react";
 import { Team, Agent, apiService } from "@/lib/api";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const [activeTab, setActiveTab] = React.useState(() => {
-    if (typeof window !== "undefined") {
-      const path = window.location.pathname;
-      if (path.includes("/admin/team")) return "teams";
-      if (path.includes("/admin/agent")) return "agents";
-      if (path.includes("/admin/knowledge")) return "knowledge";
-      if (path.includes("/admin/widget")) return "widgets";
+  const pathname = usePathname();
+  const [showKnowledgeSubmenu, setShowKnowledgeSubmenu] = React.useState(false);
+
+  // Auto-open submenu when on a knowledge route
+  useEffect(() => {
+    if (pathname.includes("/admin/knowledge")) {
+      setShowKnowledgeSubmenu(true);
     }
-    return "overview";
-  });
-  const [showKnowledgeSubmenu, setShowKnowledgeSubmenu] = React.useState(() => {
-    if (typeof window !== "undefined") {
-      return window.location.pathname.includes("/admin/knowledge");
-    }
-    return false;
-  });
+  }, [pathname]);
   const [showLogoutDialog, setShowLogoutDialog] = React.useState(false);
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
@@ -105,10 +99,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <nav className="mt-6 px-3">
           <Link href="/admin">
             <Button
-              onClick={() => setActiveTab("overview")}
               variant="ghost"
               className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors ${
-                activeTab === "overview"
+                pathname === "/admin"
                   ? "bg-primary/10 text-primary border-r-2 border-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
@@ -120,10 +113,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           <Link href="/admin/team">
             <Button
-              onClick={() => setActiveTab("teams")}
               variant="ghost"
               className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors ${
-                activeTab === "teams"
+                pathname.startsWith("/admin/team")
                   ? "bg-primary/10 text-primary border-r-2 border-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
@@ -138,10 +130,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           <Link href="/admin/agent">
             <Button
-              onClick={() => setActiveTab("agents")}
               variant="ghost"
               className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors ${
-                activeTab === "agents"
+                pathname.startsWith("/admin/agent")
                   ? "bg-primary/10 text-primary border-r-2 border-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
@@ -156,13 +147,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
           <div>
             <Button
-              onClick={() => {
-                setActiveTab("knowledge");
-                setShowKnowledgeSubmenu(!showKnowledgeSubmenu);
-              }}
+              onClick={() => setShowKnowledgeSubmenu(!showKnowledgeSubmenu)}
               variant="ghost"
               className={`w-full flex items-center px-3 py-2 text-sm font-medium cursor-pointer rounded-lg transition-colors ${
-                activeTab === "knowledge"
+                pathname.startsWith("/admin/knowledge")
                   ? "bg-primary/10 text-primary border-r-2 border-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
@@ -189,14 +177,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         
             {showKnowledgeSubmenu && (
               <div className="ml-8 mt-1 space-y-1">
-                <Link href="/admin/knowledge">
+                <Link href="/admin/knowledge/static">
                   <Button
-                    onClick={() => setActiveTab("knowledge")}
                     variant="ghost"
                     className={`w-full flex items-center px-3 py-1.5 text-sm cursor-pointer rounded-lg transition-colors ${
-                      typeof window !== "undefined" &&
-                      window.location.pathname === "/admin/knowledge"
-                        ? "text-primary bg-primary/5"
+                      pathname === "/admin/knowledge/static" || pathname === "/admin/knowledge"
+                        ? "text-primary bg-primary/5 font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-accent"
                     }`}
                   >
@@ -205,14 +191,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </Link>
                 <Link href="/admin/knowledge/realtime">
                   <Button
-                    onClick={() => setActiveTab("knowledge")}
                     variant="ghost"
                     className={`w-full flex items-center px-3 py-1.5 text-sm cursor-pointer rounded-lg transition-colors ${
-                      typeof window !== "undefined" &&
-                      window.location.pathname.includes(
-                        "/admin/knowledge/realtime"
-                      )
-                        ? "text-primary bg-primary/5"
+                      pathname.startsWith("/admin/knowledge/realtime")
+                        ? "text-primary bg-primary/5 font-medium"
                         : "text-muted-foreground hover:text-foreground hover:bg-accent"
                     }`}
                   >
@@ -225,10 +207,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           
               <Link href="/admin/widget">
             <Button
-              onClick={() => setActiveTab("widgets")}
               variant="ghost"
               className={`w-full flex items-center px-3 py-2 text-sm font-medium cursor-pointer rounded-lg transition-colors ${
-                activeTab === "widgets"
+                pathname.startsWith("/admin/widget")
                   ? "bg-primary/10 text-primary border-r-2 border-primary"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
