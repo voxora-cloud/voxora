@@ -3,8 +3,8 @@ import { EmbeddingProvider } from "./types";
 
 export class GeminiEmbeddingProvider implements EmbeddingProvider {
   readonly name = "gemini";
-  /** text-embedding-004 outputs 768-dimensional vectors */
-  readonly dimensions = 768;
+  /** gemini-embedding-001 outputs 3072-dimensional vectors */
+  readonly dimensions = 3072;
 
   private ai: GoogleGenAI;
   private model: string;
@@ -14,13 +14,13 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
       throw new Error("GEMINI_API_KEY is required for GeminiEmbeddingProvider");
     }
     this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    this.model = process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004";
+    this.model = process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001";
   }
 
   async embed(text: string): Promise<number[]> {
     const result = await this.ai.models.embedContent({
       model: this.model,
-      contents: text,
+      contents: [text],
     });
 
     const values = (result as any).embeddings?.[0]?.values;

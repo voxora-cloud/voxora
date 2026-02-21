@@ -10,6 +10,7 @@ export interface AuthenticatedRequest extends Request {
     userId: string;
     email: string;
     role: string;
+    teams: string[];
   };
 }
 
@@ -48,6 +49,7 @@ export const authenticate = async (
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
+      teams: user.teams.map(String),
     };
 
     next();

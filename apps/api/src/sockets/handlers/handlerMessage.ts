@@ -69,11 +69,14 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         // If this is from a widget user, enqueue for AI processing and notify agents
         if (messageMetadata.source === "widget") {
           // Add to BullMQ queue — the AI service will process and respond via Redis Stream
+          // Pass teamId so the AI worker can scope RAG search to this team's knowledge base
+          const teamId: string | undefined = (conversation.metadata as any)?.teamId ?? undefined;
           aiQueue
             .add("process", {
               conversationId,
               content,
               messageId: message._id.toString(),
+              teamId,
             })
             .catch((err) =>
               logger.error("Failed to enqueue AI job:", err),

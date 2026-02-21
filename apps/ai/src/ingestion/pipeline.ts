@@ -3,6 +3,7 @@ import { DocumentJob } from "./types";
 import { loadDocument } from "./loader";
 import { chunkText } from "./chunker";
 import { getEmbeddingProvider, vectorStore } from "../embeddings";
+import { setDocStatus } from "./db";
 
 /**
  * Full document ingestion pipeline:
@@ -14,12 +15,15 @@ import { getEmbeddingProvider, vectorStore } from "../embeddings";
 export async function runIngestionPipeline(job: DocumentJob): Promise<void> {
   const { documentId, fileKey, mimeType, fileName, teamId = "", metadata = {} } = job;
 
-  console.log(`[Ingestion] Starting: ${fileName} (${mimeType})`);
+  await setDocStatus(documentId, { status: "indexing" });
+  console.log(`[Ingestion] Starting: ${fileName} (${mimeType}) teamId=${teamId || "(none)"}`);
 
+  try {
   // ── 1. Load ──────────────────────────────────────────────────────────────────
   const rawText = await loadDocument(fileKey, mimeType);
   if (!rawText.trim()) {
     console.warn(`[Ingestion] Empty text extracted from ${fileKey} — skipping`);
+    await setDocStatus(documentId, { status: "failed", errorMessage: "Empty document" });
     return;
   }
   console.log(`[Ingestion] Extracted ${rawText.length} chars from ${fileName}`);
@@ -67,7 +71,18 @@ export async function runIngestionPipeline(job: DocumentJob): Promise<void> {
     );
   }
 
+  await setDocStatus(documentId, {
+    status: "indexed",
+    wordCount: rawText.split(/\s+/).length,
+    chunkCount: chunks.length,
+    lastIndexed: new Date(),
+  });
+
   console.log(
     `[Ingestion] Done: ${chunks.length} chunks stored for document ${documentId}`,
   );
+  } catch (err: any) {
+    await setDocStatus(documentId, { status: "failed", errorMessage: err.message });
+    throw err;
+  }
 }

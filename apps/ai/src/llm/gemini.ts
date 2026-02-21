@@ -17,20 +17,23 @@ export class GeminiProvider implements LLMProvider {
   async generate(messages: LLMMessage[], options: LLMOptions = {}): Promise<string> {
     const { model = this.defaultModel } = options;
 
-    // Build a single prompt string from the message thread.
-    // When tools / multi-turn support land, replace this with the Gemini
-    // multi-turn chat API (ai.chats.create).
-    const prompt = messages
-      .map((m) => {
-        if (m.role === "system") return `System: ${m.content}`;
-        if (m.role === "assistant") return `Assistant: ${m.content}`;
-        return `User: ${m.content}`;
-      })
-      .join("\n\n");
+    // Split system instruction from conversation turns
+    const systemMsg = messages.find((m) => m.role === "system");
+    const turns = messages.filter((m) => m.role !== "system");
+
+    // Map to Gemini's multi-turn contents format
+    // Gemini uses "model" for assistant role
+    const contents = turns.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
 
     const result = await this.ai.models.generateContent({
       model,
-      contents: prompt,
+      contents,
+      config: {
+        ...(systemMsg ? { systemInstruction: systemMsg.content } : {}),
+      },
     });
 
     return result.text ?? "Sorry, I could not generate a response.";
