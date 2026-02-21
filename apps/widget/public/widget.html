@@ -415,7 +415,70 @@
         50%       { opacity: 0; }
       }
 
-      /* Input Area */
+      /* ── System / escalation notices ──────────────────────────────────────── */
+      /* Centered pill shown for system events (e.g. "Connecting you to an agent") */
+      .system-notice {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 8px 0 16px;
+        animation: messageSlide 0.3s ease-out;
+      }
+      .system-notice::before,
+      .system-notice::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e5e7eb;
+      }
+      .system-notice span {
+        font-size: 12px;
+        color: #6b7280;
+        background: #f3f4f6;
+        border: 1px solid #e5e7eb;
+        border-radius: 99px;
+        padding: 3px 12px;
+        white-space: nowrap;
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Card shown when a specific agent has been assigned */
+      .handoff-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 8px 0 16px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: #166534;
+        animation: messageSlide 0.35s ease-out;
+      }
+      .handoff-card .handoff-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #22c55e;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .handoff-card .handoff-text strong {
+        font-weight: 600;
+        display: block;
+      }
+      .handoff-card .handoff-text span {
+        opacity: 0.75;
+        font-size: 12px;
+      }
       .input-area {
         padding: 16px 20px;
         background: #f8f9fa;
@@ -1336,6 +1399,13 @@
           // Re-enable send button
           sendBtn.disabled = false;
 
+          // System messages (e.g. escalation notices) → compact pill, not a chat bubble
+          if (data.message?.metadata?.source === 'system') {
+            removeTypingDots();
+            addSystemNotice(data.message.content);
+            return;
+          }
+
           // Use animated typing effect for all incoming agent / AI messages
           typeMessage(data.message.content);
         });
@@ -1355,6 +1425,19 @@
         // Removed system message on agent assignment to avoid dummy messages
         socket.on('conversation_assigned', (data) => {
           // Optionally handle UI state without adding a chat bubble
+        });
+
+        // Fired by the API when the AI escalates the conversation to a human agent.
+        // We already received a system 'new_message' with the notice text, so here
+        // we just clean up the typing state and show the handoff card if an agent
+        // was assigned.
+        socket.on('conversation_escalated', (data) => {
+          if (data.conversationId !== chatId) return;
+          removeTypingDots();
+          sendBtn.disabled = false;
+          if (data.agent?.name) {
+            addHandoffCard(data.agent.name);
+          }
         });
 
         // Handle message sent acknowledgment
@@ -1937,6 +2020,37 @@
           _typingDotsEl.remove();
           _typingDotsEl = null;
         }
+      }
+
+      /**
+       * addSystemNotice — renders a centered pill-style divider for system events.
+       * Used for messages like "Connecting you to a human agent…"
+       */
+      function addSystemNotice(text) {
+        const el = document.createElement('div');
+        el.className = 'system-notice';
+        // Strip markdown bold markers for the compact pill label
+        const plain = text.replace(/\*\*(.+?)\*\*/g, '$1');
+        el.innerHTML = '<span>' + escapeHtml(plain) + '</span>';
+        messagesContainer.appendChild(el);
+        scrollToBottom();
+      }
+
+      /**
+       * addHandoffCard — renders a green card with agent name when a specific
+       * agent has been assigned via escalation.
+       */
+      function addHandoffCard(agentName) {
+        const el = document.createElement('div');
+        el.className = 'handoff-card';
+        el.innerHTML =
+          '<div class="handoff-icon">👤</div>' +
+          '<div class="handoff-text">' +
+            '<strong>' + escapeHtml(agentName) + '</strong>' +
+            '<span>Human agent connected</span>' +
+          '</div>';
+        messagesContainer.appendChild(el);
+        scrollToBottom();
       }
 
       /**

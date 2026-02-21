@@ -139,7 +139,7 @@ export class ConversationService {
     try {
       const agents = await User.find({
         teams: teamId,
-        role: { $in: ["agent", "admin"] },
+        role: "agent",
         isActive: true,
         status: { $in: ["online", "away"] },
       });
@@ -192,14 +192,14 @@ export class ConversationService {
         teams.map(async (team) => {
           const onlineAgents = await User.countDocuments({
             teams: team._id,
-            role: { $in: ["agent", "admin"] },
+            role: "agent",
             isActive: true,
             status: "online",
           });
 
           const awayAgents = await User.countDocuments({
             teams: team._id,
-            role: { $in: ["agent", "admin"] },
+            role: "agent",
             isActive: true,
             status: "away",
           });
