@@ -18,24 +18,25 @@ export const initializeMinIO = async (): Promise<void> => {
     if (!bucketExists) {
       await minioClient.makeBucket(VOXORA_BUCKET, "us-east-1");
       logger.info(`MinIO bucket created: ${VOXORA_BUCKET}`);
-
-      const policy = {
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Effect: "Allow",
-            Principal: { AWS: ["*"] },
-            Action: ["s3:GetObject"],
-            Resource: [`arn:aws:s3:::${VOXORA_BUCKET}/*`],
-          },
-        ],
-      };
-
-      await minioClient.setBucketPolicy(VOXORA_BUCKET, JSON.stringify(policy));
-      logger.info(`MinIO bucket policy set for: ${VOXORA_BUCKET}`);
     } else {
       logger.info(`MinIO bucket already exists: ${VOXORA_BUCKET}`);
     }
+
+    // Always ensure the bucket has a public-read policy so direct object
+    // URLs (http://minio-host/bucket/key) work without presigning.
+    const policy = {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: { AWS: ["*"] },
+          Action: ["s3:GetObject"],
+          Resource: [`arn:aws:s3:::${VOXORA_BUCKET}/*`],
+        },
+      ],
+    };
+    await minioClient.setBucketPolicy(VOXORA_BUCKET, JSON.stringify(policy));
+    logger.info(`MinIO bucket public-read policy applied: ${VOXORA_BUCKET}`);
   } catch (error) {
     logger.error("Error initializing MinIO:", error);
     throw error;

@@ -1,4 +1,4 @@
-import { Message, Conversation } from "@shared/models";
+import { Message, Conversation, Widget } from "@shared/models";
 import logger from "@shared/utils/logger";
 import { aiQueue } from "@shared/config/queue";
 
@@ -71,12 +71,26 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           // Add to BullMQ queue — the AI service will process and respond via Redis Stream
           // Pass teamId so the AI worker can scope RAG search to this team's knowledge base
           const teamId: string | undefined = (conversation.metadata as any)?.teamId ?? undefined;
+          const widgetKey: string | undefined = (conversation.metadata as any)?.widgetKey ?? undefined;
+
+          // Resolve company name from the Widget record so the AI prompt is personalised
+          let companyName: string | undefined;
+          if (widgetKey) {
+            try {
+              const widget = await Widget.findById(widgetKey).select('displayName').lean();
+              companyName = (widget as any)?.displayName || undefined;
+            } catch {
+              // Non-fatal — fall back to generic prompt
+            }
+          }
+
           aiQueue
             .add("process", {
               conversationId,
               content,
               messageId: message._id.toString(),
               teamId,
+              companyName,
             })
             .catch((err) =>
               logger.error("Failed to enqueue AI job:", err),

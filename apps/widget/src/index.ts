@@ -12,292 +12,207 @@
  * ```
  */
 
-import { parseWidgetConfig } from './config';
+import { parseWidgetConfig, getWidgetOrigin } from './config';
 import { WidgetAPI } from './api';
 import { WidgetUI } from './ui';
-import { WidgetState, WidgetMessage } from './types';
+import { WidgetState } from './types';
+import {
+  getOrCreateVisitorId,
+  setIdentity,
+  getIdentity,
+  clearIdentity,
+  StoredIdentity,
+} from './session';
+import {
+  PROTOCOL_VERSION,
+  InitWidgetMessage,
+  UserIdentityMessage,
+  PageChangeMessage,
+  CustomEventMessage,
+  IframeToParentMessage,
+  isIframeMessage,
+  WidgetAppearance,
+} from './protocol';
 
-class VoxoraWidget {
-  private api: WidgetAPI | null = null;
-  private ui: WidgetUI | null = null;
+type QueuedMessage = InitWidgetMessage | UserIdentityMessage | PageChangeMessage | CustomEventMessage;
+
+class VoxoraLoader {
+  private api: WidgetAPI;
+  private ui: WidgetUI;
   private state: WidgetState;
-  private allowedOrigins: string[] = [];
+  private readonly iframeOrigin: string;
+  private iframe: HTMLIFrameElement | null = null;
+  private iframeReady = false;
+  private pendingMessages: QueuedMessage[] = [];
+  private readonly visitorId: string;
+  private identity: StoredIdentity | null;
+  private lastPageUrl: string;
+  private appearance: WidgetAppearance | null = null;
 
   constructor() {
-    // Parse configuration from script tag
     const config = parseWidgetConfig();
-    
     if (!config) {
-      console.error('[VoxoraWidget] Failed to parse widget configuration. Widget will not load.');
-      this.state = {
-        isOpen: false,
-        unreadCount: 0,
-        token: null,
-        conversationId: null
-      };
+      console.error('[VoxoraWidget] Invalid config — widget not loaded.');
+      this.state        = { isOpen: false, unreadCount: 0, token: null, conversationId: null };
+      this.api          = null as unknown as WidgetAPI;
+      this.ui           = null as unknown as WidgetUI;
+      this.iframeOrigin = '';
+      this.visitorId    = '';
+      this.identity     = null;
+      this.lastPageUrl  = '';
       return;
     }
-    
-    // Initialize state
-    this.state = {
-      isOpen: false,
-      unreadCount: 0,
-      token: null,
-      conversationId: null
-    };
 
-    // Initialize API and UI
-    this.api = new WidgetAPI(config);
-    this.ui = new WidgetUI(config, this.state);
+    this.state        = { isOpen: false, unreadCount: 0, token: null, conversationId: null };
+    this.api          = new WidgetAPI(config);
+    this.ui           = new WidgetUI(config, this.state);
+    this.iframeOrigin = getWidgetOrigin(config.apiUrl!);
+    this.lastPageUrl  = window.location.href;
 
-    // Set allowed origins for postMessage security
-    this.allowedOrigins = [
-      config.apiUrl!,
-      window.location.origin
-    ];
+    // ONLY place customer localStorage is read. Values forwarded to iframe via INIT_WIDGET.
+    this.visitorId = getOrCreateVisitorId();
+    this.identity  = getIdentity();
 
-    // Initialize widget
-    this.init().catch(error => {
-      console.error('[VoxoraWidget] Initialization failed:', error);
-    });
+    this.init().catch(err => console.error('[VoxoraWidget] Init error:', err));
   }
 
-  /**
-   * Get or create sessionId in parent window (persists across refreshes)
-   */
-  private getOrCreateSessionId(): string {
-    const STORAGE_KEY = 'voxora_session_id';
-    
-    try {
-      // Try localStorage first (works in parent window)
-      let sessionId = localStorage.getItem(STORAGE_KEY);
-      if (sessionId) {
-        console.log('[VoxoraWidget] Using existing sessionId from localStorage');
-        return sessionId;
-      }
-
-      // Generate new sessionId
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem(STORAGE_KEY, sessionId);
-      console.log('[VoxoraWidget] Created new sessionId:', sessionId);
-      return sessionId;
-    } catch (error) {
-      console.error('[VoxoraWidget] localStorage not available, using temporary sessionId');
-      // Fallback to memory (won't persist)
-      return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-  }
-
-  /**
-   * Initialize widget
-   */
   private async init(): Promise<void> {
-    try {
-      console.log('[VoxoraWidget] Starting initialization...');
-      
-      if (!this.api || !this.ui) {
-        throw new Error('Widget API or UI not initialized');
-      }
-      
-      // Fetch widget configuration and authenticate in parallel
-      const [widgetConfig] = await Promise.all([
-        this.api.fetchConfig().catch(err => {
-          console.warn('[VoxoraWidget] Config fetch failed:', err.message);
-          return null;
-        }),
-        this.api.authenticate().catch(err => {
-          console.error('[VoxoraWidget] Authentication failed:', err.message);
-          throw err;
-        })
-      ]);
-
-      const token = this.api.getToken();
-      if (!token) {
-        throw new Error('Failed to obtain authentication token');
-      }
-
-      this.state.token = token;
-
-      // Get or create sessionId in parent window
-      const sessionId = this.getOrCreateSessionId();
-
-      // Create UI elements
-      console.log('[VoxoraWidget] Creating UI...');
-      this.ui.createButton();
-      
-      // Create iframe with authenticated URL and sessionId
-      const iframeUrl = this.api.getWidgetUrl(token, sessionId, widgetConfig);
-      this.ui.createIframe(iframeUrl);
-
-      // Setup message handlers
-      this.setupMessageHandlers();
-
-      console.log('[VoxoraWidget] Initialized successfully');
-    } catch (error) {
-      console.error('[VoxoraWidget] Initialization error:', error);
-      // Don't throw - fail gracefully
-      this.showError('Widget failed to load. Please refresh the page.');
+    const cfg = await this.api.fetchConfig().catch(() => null);
+    if (cfg) {
+      this.appearance = cfg as WidgetAppearance;
+      this.ui.applyServerConfig(this.appearance);
     }
+
+    // Register message handler BEFORE creating the iframe.
+    // The iframe fires WIDGET_READY as soon as its DOM is ready — if we register
+    // the listener after createIframe(), a fast-loading iframe (e.g. from cache)
+    // can fire WIDGET_READY before the listener exists, silently dropping the
+    // message and leaving the widget stuck on "Connecting..." indefinitely.
+    this.setupMessageHandlers();
+    this.setupPageChangeDetection();
+
+    this.ui.createButton();
+    this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
   }
 
-  /**
-   * Show error message to user
-   */
-  private showError(message: string): void {
-    console.error('[VoxoraWidget]', message);
-    // Could show a small error indicator, but don't break the page
-  }
-
-  /**
-   * Setup postMessage handlers for secure cross-origin communication
-   */
   private setupMessageHandlers(): void {
     window.addEventListener('message', (event: MessageEvent) => {
-      // Verify origin for security
-      if (!this.isValidOrigin(event.origin)) {
-        console.warn('[VoxoraWidget] Message from untrusted origin:', event.origin);
-        return;
-      }
+      if (event.origin !== this.iframeOrigin) return;
+      if (this.iframe && event.source !== this.iframe.contentWindow) return;
+      if (!isIframeMessage(event.data)) return;
 
-      try {
-        const message: WidgetMessage = event.data;
-        
-        if (!message || !message.type) return;
-
-        switch (message.type) {
-          case 'MINIMIZE_WIDGET':
-            if (this.ui) this.ui.close();
-            break;
-
-          case 'NEW_MESSAGE':
-            if (this.ui) this.ui.incrementUnread();
-            break;
-
-          case 'READY':
-            console.log('[VoxoraWidget] Widget iframe ready');
-            break;
-
-          default:
-            // Ignore unknown message types
-            break;
-        }
-      } catch (error) {
-        console.warn('[VoxoraWidget] Error handling message:', error);
+      const msg: IframeToParentMessage = event.data;
+      switch (msg.type) {
+        case 'WIDGET_READY':
+          this.onIframeReady();
+          break;
+        case 'CLOSE_WIDGET':
+          this.ui.close();
+          this.state.isOpen = false;
+          break;
+        case 'OPEN_WIDGET':
+          this.ui.open();
+          this.state.isOpen = true;
+          break;
+        case 'UNREAD_COUNT':
+          this.state.unreadCount = msg.payload.count;
+          this.ui.setUnreadCount(msg.payload.count);
+          break;
+        case 'RESIZE_WIDGET':
+          break;
+        default:
+          break;
       }
     });
   }
 
-  /**
-   * Validate message origin
-   */
-  private isValidOrigin(origin: string): boolean {
-    // Allow 'null' origin for sandboxed iframes (they don't have same-origin access)
-    if (origin === 'null') {
-      return true;
-    }
-    
-    // In production, be strict about origins
-    return this.allowedOrigins.some(allowed => 
-      origin === allowed || origin.startsWith(allowed)
-    );
+  private onIframeReady(): void {
+    this.iframeReady = true;
+    for (const msg of this.pendingMessages) this.dispatchToIframe(msg);
+    this.pendingMessages = [];
+    this.dispatchToIframe({
+      type: 'INIT_WIDGET',
+      version: PROTOCOL_VERSION,
+      payload: {
+        publicKey:  this.api.getConfig().publicKey,
+        apiUrl:     this.api.getConfig().apiUrl!,
+        visitorId:  this.visitorId,
+        identity:   this.identity ?? undefined,
+        pageUrl:    window.location.href,
+        pageTitle:  document.title,
+        appearance: this.appearance ?? undefined,
+      },
+    } as InitWidgetMessage);
   }
 
-  /**
-   * Public API Methods
-   */
-
-  /**
-   * Open the widget programmatically
-   */
-  public open(): void {
-    if (this.ui) this.ui.open();
+  private setupPageChangeDetection(): void {
+    const report = () => {
+      const url = window.location.href;
+      if (url === this.lastPageUrl) return;
+      this.lastPageUrl = url;
+      this.queueOrSend({ type: 'PAGE_CHANGE', version: PROTOCOL_VERSION, payload: { pageUrl: url, pageTitle: document.title } } as PageChangeMessage);
+    };
+    const orig = { push: history.pushState.bind(history), replace: history.replaceState.bind(history) };
+    history.pushState    = (...a: Parameters<typeof history.pushState>)    => { orig.push(...a);    report(); };
+    history.replaceState = (...a: Parameters<typeof history.replaceState>) => { orig.replace(...a); report(); };
+    window.addEventListener('popstate',   report);
+    window.addEventListener('hashchange', report);
   }
 
-  /**
-   * Close the widget programmatically
-   */
-  public close(): void {
-    if (this.ui) this.ui.close();
+  private dispatchToIframe(msg: QueuedMessage): void {
+    this.iframe?.contentWindow?.postMessage(msg, this.iframeOrigin);
   }
 
-  /**
-   * Toggle widget open/close
-   */
-  public toggle(): void {
-    if (this.ui) this.ui.toggle();
+  private queueOrSend(msg: QueuedMessage): void {
+    if (this.iframeReady) this.dispatchToIframe(msg);
+    else this.pendingMessages.push(msg);
   }
 
-  /**
-   * Manually add unread count (for custom integrations)
-   */
-  public addUnread(count: number = 1): void {
-    if (this.ui) this.ui.setUnreadCount(this.state.unreadCount + count);
+  open()   { this.ui.open();   this.state.isOpen = true;  }
+  close()  { this.ui.close();  this.state.isOpen = false; }
+  toggle() { this.state.isOpen ? this.close() : this.open(); }
+
+  identify(userId: string, traits: Omit<StoredIdentity, 'userId'> = {}): void {
+    const identity: StoredIdentity = { userId, ...traits };
+    this.identity = identity;
+    setIdentity(identity);
+    this.queueOrSend({ type: 'USER_IDENTITY', version: PROTOCOL_VERSION, payload: identity } as UserIdentityMessage);
   }
 
-  /**
-   * Get current widget state
-   */
-  public getState(): Readonly<WidgetState> {
-    return { ...this.state };
+  reset(): void {
+    this.identity = null;
+    clearIdentity();
+    this.queueOrSend({ type: 'USER_IDENTITY', version: PROTOCOL_VERSION, payload: {} } as UserIdentityMessage);
   }
 
-  /**
-   * Destroy widget and cleanup
-   */
-  public destroy(): void {
-    console.log('[VoxoraWidget] Destroying widget...');
-    if (this.ui) {
-      this.ui.destroy();  // ✅ Just cleanup
-    }
-    widgetInstance = null;
+  track(name: string, properties: Record<string, string | number | boolean> = {}): void {
+    this.queueOrSend({ type: 'CUSTOM_EVENT', version: PROTOCOL_VERSION, payload: { name, properties } } as CustomEventMessage);
   }
+
+  getState(): Readonly<WidgetState> { return { ...this.state }; }
+  destroy(): void { this.ui.destroy(); widgetInstance = null; }
 }
 
-// Global widget instance
-let widgetInstance: VoxoraWidget | null = null;
+let widgetInstance: VoxoraLoader | null = null;
 
-/**
- * Initialize widget only once
- */
-function initWidget(): void {
-  // Log page load to detect reloads
-  console.log('[VoxoraWidget] Page loaded at:', new Date().toISOString());
-  console.log('[VoxoraWidget] Current URL:', window.location.href);
-  
-  if (widgetInstance !== null) {
-    console.log('[VoxoraWidget] Widget already initialized, skipping.');
-    return;
-  }
+function boot(): void {
+  if (widgetInstance) return;
+  widgetInstance = new VoxoraLoader();
 
-  console.log('[VoxoraWidget] Initializing widget...');
-  widgetInstance = new VoxoraWidget();
-
-  // Expose global API
-  (window as any).VoxoraWidget = {
-    open: () => widgetInstance?.open(),
-    close: () => widgetInstance?.close(),
-    toggle: () => widgetInstance?.toggle(),
-    addUnread: (count?: number) => widgetInstance?.addUnread(count),
-    getState: () => widgetInstance?.getState(),
-    destroy: () => {
-      widgetInstance?.destroy();
-      widgetInstance = null;
-      (window as any).VoxoraWidget = undefined;
-    }
+  (window as any).Voxora = {
+    open:     ()                            => widgetInstance?.open(),
+    close:    ()                            => widgetInstance?.close(),
+    toggle:   ()                            => widgetInstance?.toggle(),
+    identify: (id: string, t?: object)     => widgetInstance?.identify(id, t as any),
+    reset:    ()                            => widgetInstance?.reset(),
+    track:    (n: string, p?: object)       => widgetInstance?.track(n, p as any),
+    getState: ()                            => widgetInstance?.getState(),
+    destroy: () => { widgetInstance?.destroy(); widgetInstance = null; delete (window as any).Voxora; },
   };
 }
 
-// Initialize when DOM is ready (only once)
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initWidget, { once: true });
+  document.addEventListener('DOMContentLoaded', boot, { once: true });
 } else {
-  initWidget();
+  boot();
 }
-
-// Detect page unload to debug reload issue
-window.addEventListener('beforeunload', (event) => {
-  console.log('[VoxoraWidget] Page is unloading/reloading!');
-  console.trace('[VoxoraWidget] Stack trace of reload');
-});
-
-export { VoxoraWidget };

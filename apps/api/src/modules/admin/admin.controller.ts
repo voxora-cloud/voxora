@@ -252,18 +252,49 @@ export const getWidget = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const result = await adminService.getWidget(req.user.userId);
-      sendResponse(res, 200, true, "Widget retrieved successfully", result);
+      // Resolve logoUrl to an API-proxied URL so the browser can always load it
+      // (direct MinIO URLs use internal Docker hostnames that browsers can't reach)
+      const widgetData: any = result.toObject ? result.toObject() : { ...result };
+      if (widgetData.logoUrl) {
+        // Normalize any full MinIO URL → fileKey, then proxy through the API.
+        // This handles both new records (fileKey only) and legacy records (full URL).
+        const fileKey = normalizeLogoUrl(widgetData.logoUrl)!;
+        const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
+        const host = req.get("host") || "localhost:3002";
+        widgetData.logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
+      }
+      sendResponse(res, 200, true, "Widget retrieved successfully", widgetData);
     } catch (error: any) {
       sendError(res, 500, error.message);
     }
   },
 );
 
+/**
+ * If the incoming logoUrl is a full MinIO URL (presigned or plain),
+ * strip it down to just the fileKey so we never store expiring URLs.
+ * e.g. "http://localhost:9001/voxora-chat-dev/knowledge/uuid.png?X-Amz-..." → "knowledge/uuid.png"
+ */
+function normalizeLogoUrl(logoUrl: string | undefined): string | undefined {
+  if (!logoUrl) return logoUrl;
+  if (!/^https?:\/\//i.test(logoUrl)) return logoUrl; // already a fileKey
+  try {
+    const url = new URL(logoUrl);
+    // pathname: /bucket/fileKey  →  split, drop empty + bucket, rejoin
+    const parts = url.pathname.split('/').filter(Boolean);
+    if (parts.length > 1) return parts.slice(1).join('/');
+  } catch {}
+  return logoUrl;
+}
+
 export const updateWidget = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
     try {
+      const body = { ...req.body };
+      if (body.logoUrl) body.logoUrl = normalizeLogoUrl(body.logoUrl);
+
       const updateData = {
-        ...req.body,
+        ...body,
         userId: req.user.userId,
       };
 

@@ -126,7 +126,9 @@ export default function CreateWidgetPage() {
     fileName: string;
   }) => {
     setUploadedFileKey(data.fileKey);
-    handleInputChange("logoUrl", data.downloadUrl);
+    // Store the raw fileKey — the API generates a permanent public URL from it.
+    // Using the presigned downloadUrl would expire after 15 min.
+    handleInputChange("logoUrl", data.fileKey);
     setMessage({ type: "success", text: "Logo uploaded successfully!" });
     setTimeout(() => setMessage(null), 3000);
   };

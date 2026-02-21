@@ -85,12 +85,21 @@ export const getWidgetConfig = asyncHandler(
       }
 
       let logoUrl = (widget as any).logoUrl as string | undefined;
-      if (logoUrl && !/^https?:\/\//i.test(logoUrl)) {
+      if (logoUrl) {
+        // Normalize any full MinIO URL (presigned or plain) down to just the fileKey,
+        // then proxy through the API. This handles both new records (fileKey only)
+        // and legacy records that stored a full presigned URL.
+        let fileKey = logoUrl;
+        if (/^https?:\/\//i.test(logoUrl)) {
+          try {
+            const u = new URL(logoUrl);
+            const parts = u.pathname.split('/').filter(Boolean);
+            if (parts.length > 1) fileKey = parts.slice(1).join('/');
+          } catch {}
+        }
         const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
-        const host = req.get("host");
-        const base = `${scheme}://${host}`;
-        if (!logoUrl.startsWith("/")) logoUrl = "/" + logoUrl;
-        logoUrl = `${base}${logoUrl}`;
+        const host = req.get("host") || "localhost:3002";
+        logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
       }
 
       return sendResponse(res, 200, true, "Widget config fetched", {
@@ -474,6 +483,7 @@ export const getWidgetConversations = asyncHandler(
       const conversations = await Conversation.find({
         "visitor.sessionId": sessionId,
         "metadata.source": "widget",
+        status: { $ne: "closed" },   // hide conversations the visitor deleted
       })
         .select(
           "_id subject status createdAt updatedAt visitor assignedTo metadata",
@@ -533,6 +543,41 @@ export const getWidgetConversations = asyncHandler(
     } catch (error: any) {
       logger.error(`Error fetching widget conversations: ${error.message}`);
       sendError(res, 500, "Failed to fetch conversations");
+    }
+  },
+);
+
+export const deleteConversation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { conversationId } = req.params;
+    const { sessionId } = req.query;
+
+    if (!sessionId || typeof sessionId !== "string") {
+      return sendError(res, 400, "Session ID is required");
+    }
+
+    try {
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        "visitor.sessionId": sessionId,
+        "metadata.source": "widget",
+      });
+
+      if (!conversation) {
+        return sendError(res, 404, "Conversation not found");
+      }
+
+      // Soft-delete: mark as closed so it disappears from the visitor's list
+      await Conversation.findByIdAndUpdate(conversationId, {
+        $set: { status: "closed", closedAt: new Date() },
+      });
+
+      logger.info(`Widget conversation ${conversationId} closed by visitor`);
+
+      return sendResponse(res, 200, true, "Conversation deleted successfully", {});
+    } catch (error: any) {
+      logger.error(`Error deleting widget conversation: ${error.message}`);
+      return sendError(res, 500, "Failed to delete conversation");
     }
   },
 );
