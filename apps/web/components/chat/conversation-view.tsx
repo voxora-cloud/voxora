@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,13 @@ interface Message {
     source: string;
   };
   createdAt: string;
+}
+
+interface FileAttachment {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  fileKey: string;
 }
 
 interface Customer {
@@ -66,6 +73,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [updateForm, setUpdateForm] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -301,6 +309,125 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
   const isAgentMessage = (message: Message) => {
     return message.metadata?.source === "web" || message.senderId === user?.id;
+  };
+
+  const getFileUrl = (fileKey: string) =>
+    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/storage/file?key=${encodeURIComponent(fileKey)}`;
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType?.startsWith("image/")) return "🖼️";
+    if (mimeType === "application/pdf") return "📕";
+    if (mimeType?.includes("word")) return "📝";
+    if (mimeType === "text/plain") return "📃";
+    return "📎";
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const renderMessageContent = (message: Message) => {
+    if (message.type === "file" || message.type === "image") {
+      try {
+        const att: FileAttachment = JSON.parse(message.content);
+        const url = att.fileKey ? getFileUrl(att.fileKey) : "";
+        if (att.mimeType?.startsWith("image/") && url) {
+          return (
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={url}
+                alt={att.fileName}
+                className="max-w-[220px] max-h-[180px] rounded-lg block cursor-pointer"
+              />
+            </a>
+          );
+        }
+        return (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 no-underline hover:opacity-80"
+          >
+            <div className="w-9 h-9 rounded-lg bg-white/20 flex items-center justify-center text-lg flex-shrink-0">
+              {getFileIcon(att.mimeType)}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-semibold truncate max-w-[180px]">{att.fileName}</span>
+              <span className="text-xs opacity-70">{formatFileSize(att.fileSize)}</span>
+            </div>
+          </a>
+        );
+      } catch {
+        return <p className="text-sm whitespace-pre-wrap">{message.content}</p>;
+      }
+    }
+    return <p className="text-sm whitespace-pre-wrap">{message.content}</p>;
+  };
+
+  const sendFileMessage = async (file: File) => {
+    if (!socket) return;
+    const MAX = 10 * 1024 * 1024;
+    if (file.size > MAX) { alert("File too large (max 10 MB)"); return; }
+
+    const token = localStorage.getItem("token");
+    try {
+      // 1. Get presigned URL
+      const urlResp = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/storage/conversation-upload`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ fileName: file.name, mimeType: file.type }),
+        },
+      );
+      if (!urlResp.ok) throw new Error("Failed to get upload URL");
+      const { data } = await urlResp.json();
+
+      // 2. PUT to MinIO
+      const putResp = await fetch(data.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!putResp.ok) throw new Error("Storage upload failed");
+
+      // 3. Send via socket
+      const fileContent = JSON.stringify({
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        fileKey: data.fileKey,
+      });
+      const msgType = file.type.startsWith("image/") ? "image" : "file";
+      const messageData = {
+        conversationId,
+        content: fileContent,
+        type: msgType,
+        metadata: {
+          senderName: user?.name || "Agent",
+          senderEmail: user?.email || "",
+          source: "web",
+        },
+      };
+      socket.emit("send_message", messageData);
+
+      // Optimistic update
+      const tempMsg: Message = {
+        _id: `temp-${Date.now()}`,
+        senderId: user?.id || "agent",
+        content: fileContent,
+        type: msgType,
+        metadata: messageData.metadata,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, tempMsg]);
+    } catch (err: any) {
+      alert("File upload failed: " + (err?.message || "Unknown error"));
+    }
   };
 
   const handleUpdateCustomerInfo = async () => {
@@ -560,7 +687,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     {formatTime(message.createdAt)}
                   </span>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                {renderMessageContent(message)}
               </div>
             </div>
           ))
@@ -585,7 +712,22 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             disabled={loading}
           />
           <div className="flex flex-col space-y-2">
-            <Button variant="outline" size="icon">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,.pdf,.doc,.docx,.txt"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) { sendFileMessage(file); e.target.value = ""; }
+              }}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach file"
+            >
               <Paperclip className="h-4 w-4" />
             </Button>
             <Button

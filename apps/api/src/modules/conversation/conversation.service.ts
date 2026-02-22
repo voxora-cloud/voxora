@@ -9,10 +9,19 @@ export class ConversationService {
     status?: string;
     limit?: number;
     offset?: number;
+    assignedTo?: string;
   }) {
-    const { status, limit = 50, offset = 0 } = options;
+    const { status, limit = 50, offset = 0, assignedTo } = options;
 
     const filter: any = {};
+
+    // Only show conversations explicitly assigned to this agent.
+    // While the AI is handling a conversation, assignedTo is null
+    // so it never appears on any agent's dashboard.
+    if (assignedTo) {
+      filter.assignedTo = assignedTo;
+    }
+
     if (status && status !== "all") {
       filter.status = status;
     }
@@ -139,7 +148,7 @@ export class ConversationService {
     try {
       const agents = await User.find({
         teams: teamId,
-        role: { $in: ["agent", "admin"] },
+        role: "agent",
         isActive: true,
         status: { $in: ["online", "away"] },
       });
@@ -192,14 +201,14 @@ export class ConversationService {
         teams.map(async (team) => {
           const onlineAgents = await User.countDocuments({
             teams: team._id,
-            role: { $in: ["agent", "admin"] },
+            role: "agent",
             isActive: true,
             status: "online",
           });
 
           const awayAgents = await User.countDocuments({
             teams: team._id,
-            role: { $in: ["agent", "admin"] },
+            role: "agent",
             isActive: true,
             status: "away",
           });
@@ -299,6 +308,7 @@ export class ConversationService {
       selectedAgentId,
       selectedTeamId,
       agentName: agent?.name,
+      agentEmail: (agent as any)?.email,
       teamName: team?.name,
       originalConversation: conversation,
     };

@@ -54,6 +54,27 @@ class StorageService {
     }
   }
 
+  async generateConversationUploadUrl(
+    fileName: string,
+    mimeType: string,
+    expiresIn: number = 300,
+  ): Promise<PresignedUrlResponse> {
+    try {
+      const fileExtension = fileName.split(".").pop();
+      const fileKey = `conversations/${uuidv4()}.${fileExtension}`;
+      const uploadUrl = await minioClient.presignedPutObject(
+        VOXORA_BUCKET,
+        fileKey,
+        expiresIn,
+      );
+      logger.info(`Generated conversation upload URL for: ${fileName}`);
+      return { uploadUrl, fileKey, fileName, expiresIn };
+    } catch (error) {
+      logger.error("Error generating conversation upload URL:", error);
+      throw new Error("Failed to generate upload URL");
+    }
+  }
+
   async generatePresignedDownloadUrl(
     fileKey: string,
     expiresIn: number = 3600,

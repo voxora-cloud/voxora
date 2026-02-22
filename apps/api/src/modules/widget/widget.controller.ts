@@ -130,7 +130,7 @@ async function findAvailableAgent(teamId: string): Promise<string | null> {
   try {
     const agents = await User.find({
       teams: teamId,
-      role: { $in: ["agent", "admin"] },
+      role: "agent",
       isActive: true,
       status: { $in: ["online", "away"] },
     });
@@ -187,14 +187,14 @@ async function autoAssignConversation(): Promise<{
       teams.map(async (team) => {
         const onlineAgents = await User.countDocuments({
           teams: team._id,
-          role: { $in: ["agent", "admin"] },
+          role: "agent",
           isActive: true,
           status: "online",
         });
 
         const awayAgents = await User.countDocuments({
           teams: team._id,
-          role: { $in: ["agent", "admin"] },
+          role: "agent",
           isActive: true,
           status: "away",
         });
@@ -578,6 +578,32 @@ export const deleteConversation = asyncHandler(
     } catch (error: any) {
       logger.error(`Error deleting widget conversation: ${error.message}`);
       return sendError(res, 500, "Failed to delete conversation");
+    }
+  },
+);
+
+export const getUploadUrl = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { fileName, mimeType } = req.body;
+    if (!fileName || !mimeType) {
+      return sendError(res, 400, "fileName and mimeType are required");
+    }
+    const allowed = [
+      "image/jpeg", "image/png", "image/gif", "image/webp",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+    ];
+    if (!allowed.includes(mimeType)) {
+      return sendError(res, 400, "File type not allowed");
+    }
+    try {
+      const StorageService = (await import("../storage/storage.service")).default;
+      const result = await StorageService.generateConversationUploadUrl(fileName, mimeType);
+      sendResponse(res, 200, true, "Upload URL generated", result);
+    } catch (err: any) {
+      sendError(res, 500, err.message || "Failed to generate upload URL");
     }
   },
 );

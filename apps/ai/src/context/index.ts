@@ -10,17 +10,25 @@ const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 /**
  * Build the base system prompt for the given company.
  * Supports markdown in responses and knows the company it represents.
+ *
+ * When `hasTeam` is true, the prompt includes escalation rules so the AI can
+ * hand off complex or sensitive conversations to a human agent by outputting the
+ * special sentinel:  [ESCALATE: <reason>]
+ *
+ * When `hasTeam` is false (no teams/agents configured), escalation is disabled —
+ * the AI always handles the conversation itself.
  */
-function buildSystemPrompt(companyName?: string): string {
+function buildSystemPrompt(companyName?: string, hasTeam?: boolean): string {
   const company = companyName?.trim() || process.env.AI_COMPANY_NAME || "our company";
-  return (
+
+  const basePrompt =
     process.env.AI_SYSTEM_PROMPT ||
 `You are a helpful, professional customer support assistant for **${company}**.
 
 Your responsibilities:
 - Answer customer questions accurately and concisely on behalf of **${company}**
 - Be friendly, empathetic, and solution-focused
-- If you don't know the answer, say so honestly and offer to escalate
+- If you don't know the answer, say so honestly
 - Keep responses clear and well-structured
 
 Formatting guidelines:
@@ -28,8 +36,40 @@ Formatting guidelines:
 - Use bullet lists or numbered lists when presenting multiple steps or options
 - Use inline \`code\` for technical values, commands, or IDs
 - Keep paragraphs short — prefer 2–3 sentences max
-- Never use raw HTML; use Markdown only`
-  );
+- Never use raw HTML; use Markdown only`;
+
+  if (!hasTeam) {
+    return basePrompt;
+  }
+
+  // Escalation rules — only injected when human agents are available
+  const escalationRules = `
+
+---
+
+**Escalation rules (human agents are available):**
+
+You MUST output ONLY the following sentinel — with no other text — when any of these conditions apply:
+
+  [ESCALATE: <brief reason>]
+
+Trigger escalation when:
+1. The user **explicitly requests a human agent** (e.g. "talk to a person", "speak to support", "connect me to an agent")
+2. The question involves **sensitive topics**: billing disputes, refunds, account suspension, legal threats, privacy/data requests, or abuse
+3. You **cannot confidently answer** after checking the knowledge base and are at risk of giving wrong information
+4. The user shows **repeated frustration** (e.g. "you're useless", "I already told you", "this isn't helping") — especially after 2+ failed attempts
+5. The conversation has had **many back-and-forth turns** (8+) without resolving the issue
+6. The request requires **account-level access** or actions only a human can perform
+
+Examples of valid escalation outputs:
+  [ESCALATE: user requested human agent]
+  [ESCALATE: billing dispute requires human review]
+  [ESCALATE: unable to resolve with available knowledge]
+  [ESCALATE: user frustration after multiple failed attempts]
+
+Do NOT include any other text when escalating. The sentinel must be the entire response.`;
+
+  return basePrompt + escalationRules;
 }
 
 /**
@@ -48,7 +88,8 @@ export async function buildContext(
   /** _id of the message just saved — excluded from history to avoid sending it twice */
   messageId?: string,
 ): Promise<ContextResult> {
-  let systemPrompt = buildSystemPrompt(companyName);
+  const hasTeam = !!teamId;
+  let systemPrompt = buildSystemPrompt(companyName, hasTeam);
 
   // ── 1. RAG: search knowledge base for relevant chunks ────────────────────────
   try {
@@ -69,7 +110,7 @@ export async function buildContext(
       });
 
       systemPrompt =
-        `${buildSystemPrompt(companyName)}\n\n` +
+        `${buildSystemPrompt(companyName, hasTeam)}\n\n` +
         `Use the following knowledge base excerpts to answer accurately:\n\n` +
         `${knowledgeContext}\n\n` +
         `If the answer is not in the excerpts, say so honestly.`;
@@ -144,5 +185,7 @@ export async function buildContext(
   return {
     systemPrompt,
     messages: allMessages,
+    turnCount: allMessages.length,
+    hasTeam,
   };
 }
