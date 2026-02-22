@@ -378,7 +378,7 @@ export const initConversation = asyncHandler(
 
 export const updateVisitorInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const { conversationId } = req.params;
+    const conversationId = req.params.conversationId as string;
     const { name, email, sessionId } = req.body;
 
     try {
@@ -549,7 +549,7 @@ export const getWidgetConversations = asyncHandler(
 
 export const deleteConversation = asyncHandler(
   async (req: Request, res: Response) => {
-    const { conversationId } = req.params;
+    const conversationId = req.params.conversationId as string;
     const { sessionId } = req.query;
 
     if (!sessionId || typeof sessionId !== "string") {
@@ -610,7 +610,7 @@ export const getUploadUrl = asyncHandler(
 
 export const getConversationMessages = asyncHandler(
   async (req: Request, res: Response) => {
-    const { conversationId } = req.params;
+    const conversationId = req.params.conversationId as string;
     const { sessionId } = req.query;
 
     if (!sessionId || typeof sessionId !== "string") {

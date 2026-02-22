@@ -24,8 +24,7 @@ const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 function buildSystemPrompt(companyName?: string, hasTeam?: boolean): string {
   const company = companyName?.trim() || process.env.AI_COMPANY_NAME || "our company";
 
-  const basePrompt =
-    process.env.AI_SYSTEM_PROMPT ||
+  const basePrompt = 
 `You are a helpful, professional customer support assistant for **${company}**.
 
 Your responsibilities:

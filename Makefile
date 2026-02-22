@@ -1,4 +1,4 @@
-.PHONY: help install dev build lint format clean docker-start docker-stop docker-clean widget-deploy docker-images all check-docker check-ports docker-health verify
+.PHONY: help install dev build lint format clean docker-start docker-stop docker-clean widget-deploy docker-images docker-release all check-docker check-ports docker-health verify
 
 REGISTRY ?= ompharate
 VERSION := $(shell date +%Y.%m.%d)-$(shell git rev-parse --short HEAD)
@@ -267,7 +267,29 @@ docker-build-web: docker-setup-builder ## Build Web image
 		--tag $(REGISTRY)/voxora-web:latest \
 		--push -f apps/web/Dockerfile apps/web
 
-docker-images: docker-build-api docker-build-web ## Build all images
+docker-build-ai: docker-setup-builder ## Build AI worker image
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-ai:$(VERSION) \
+		--tag $(REGISTRY)/voxora-ai:latest \
+		--push -f apps/ai/Dockerfile apps/ai
+
+docker-images: docker-build-api docker-build-web docker-build-ai ## Build all images
+
+docker-release: docker-setup-builder ## Build and push all images with RELEASE_VERSION (e.g. make docker-release RELEASE_VERSION=0.9.0-beta)
+	@[ "$(RELEASE_VERSION)" ] || { echo "$(RED)❌ RELEASE_VERSION is required$(NC)  usage: make docker-release RELEASE_VERSION=0.9.0-beta"; exit 1; }
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-api:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/voxora-api:latest \
+		--push -f apps/api/Dockerfile apps/api
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-web:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/voxora-web:latest \
+		--push -f apps/web/Dockerfile apps/web
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-ai:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/voxora-ai:latest \
+		--push -f apps/ai/Dockerfile apps/ai
+	@echo "$(GREEN)✅ Released $(RELEASE_VERSION) to Docker Hub$(NC)"
 
 clean: ## Clean artifacts
 	rm -rf node_modules apps/*/node_modules apps/*/dist apps/*/.turbo .turbo

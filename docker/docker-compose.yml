@@ -1,7 +1,7 @@
 services:
 
   web: 
-    image: ompharate/voxora-web:2026.02.10-25cca95
+    image: ompharate/voxora-web:0.9.0-beta
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -30,7 +30,7 @@ services:
         max-file: "3"
 
   api:
-    image: ompharate/voxora-api:2026.02.10-25cca95
+    image: ompharate/voxora-api:0.9.0-beta
     restart: unless-stopped
     ports:
       - "3002:3002"
@@ -56,6 +56,31 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ai:
+    image: ompharate/voxora-ai:0.9.0-beta
+    restart: unless-stopped
+    env_file:
+      - .env.ai
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - voxora-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
     logging:
       driver: "json-file"
       options:

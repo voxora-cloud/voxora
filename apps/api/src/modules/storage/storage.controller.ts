@@ -11,7 +11,7 @@ const getParamAsString = (param: string | string[] | undefined): string => {
 
 export const storageController = {
   async getPublicUrl(req: Request, res: Response): Promise<void> {
-    const { objectKey } = req.params;
+    const objectKey = req.params.objectKey as string;
 
     if (!objectKey) {
       res.status(400).json({ error: "Object key is required" });

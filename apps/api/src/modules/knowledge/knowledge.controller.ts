@@ -34,7 +34,7 @@ export const requestFileUpload = asyncHandler(
  */
 export const confirmUpload = asyncHandler(
   async (req: Request, res: Response) => {
-    const { documentId } = req.params;
+    const documentId = req.params.documentId as string;
     const doc = await KnowledgeService.confirmUpload(documentId);
     sendResponse(
       res,
@@ -52,7 +52,7 @@ export const confirmUpload = asyncHandler(
  */
 export const getViewUrl = asyncHandler(
   async (req: Request, res: Response) => {
-    const { documentId } = req.params;
+    const documentId = req.params.documentId as string;
     const result = await KnowledgeService.getViewUrl(documentId);
     sendResponse(
       res,
@@ -70,7 +70,7 @@ export const getViewUrl = asyncHandler(
  */
 export const deleteKnowledge = asyncHandler(
   async (req: Request, res: Response) => {
-    const { documentId } = req.params;
+    const documentId = req.params.documentId as string;
     const doc = await KnowledgeService.deleteItem(documentId);
     sendResponse(
       res,
@@ -88,7 +88,7 @@ export const deleteKnowledge = asyncHandler(
  */
 export const reindexKnowledge = asyncHandler(
   async (req: Request, res: Response) => {
-    const { documentId } = req.params;
+    const documentId = req.params.documentId as string;
     const doc = await KnowledgeService.reindexItem(documentId);
     sendResponse(
       res,
@@ -106,7 +106,7 @@ export const reindexKnowledge = asyncHandler(
  */
 export const updateKnowledge = asyncHandler(
   async (req: Request, res: Response) => {
-    const { documentId } = req.params;
+    const documentId = req.params.documentId as string;
     const doc = await KnowledgeService.updateItem(documentId, req.body);
     sendResponse(
       res,
