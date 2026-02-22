@@ -132,9 +132,10 @@ export default function RealtimePage() {
         prev.map((s) => (s._id === source._id ? { ...s, isPaused: true } : s))
       );
       await apiService.updateKnowledgeItem(source._id, { isPaused: true });
+      toastSuccess("Live source paused", "Syncing has been paused for this source.");
     } catch (err) {
       console.error("Error pausing source:", err);
-      setError("Failed to pause source");
+      toastError("Failed to pause source");
       // Revert optimistic update
       setSources((prev) =>
         prev.map((s) => (s._id === source._id ? { ...s, isPaused: false } : s))
@@ -154,9 +155,10 @@ export default function RealtimePage() {
       setSources((prev) =>
         prev.map((s) => (s._id === source._id ? { ...s, status: "pending" as const } : s))
       );
+      toastSuccess("Live source resumed", "The source has been queued for re-sync.");
     } catch (err) {
       console.error("Error resuming source:", err);
-      setError("Failed to resume source");
+      toastError("Failed to resume source");
     }
   };
 
@@ -171,7 +173,7 @@ export default function RealtimePage() {
       );
     } catch (err) {
       console.error("Error retrying source:", err);
-      setError("Failed to retry source");
+      toastError("Failed to retry source");
     }
   };
 
@@ -186,7 +188,7 @@ export default function RealtimePage() {
       await apiService.updateKnowledgeItem(source._id, { syncFrequency: freq });
     } catch (err) {
       console.error("Error updating sync frequency:", err);
-      setError("Failed to update sync schedule");
+      toastError("Failed to update sync schedule");
     }
   };
 

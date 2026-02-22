@@ -12,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { usePagination } from "@/lib/hooks/usePagination";
 
 interface FilterableTeamTableProps {
   teams: Team[];
@@ -52,6 +62,19 @@ export default function FilterableTeamTable({
 
     return true;
   });
+
+  const {
+    currentItems: paginatedTeams,
+    currentPage,
+    totalPages,
+    pageNumbers,
+    goToPage,
+    goToNext,
+    goPrev,
+    startItem,
+    endItem,
+    totalItems,
+  } = usePagination(filteredTeams, 10, [searchQuery, agentCountFilter]);
 
   return (
     <Card>
@@ -133,7 +156,7 @@ export default function FilterableTeamTable({
             </tr>
           </thead>
           <tbody>
-            {filteredTeams.map((team) => (
+            {paginatedTeams.map((team) => (
               <tr
                 key={team._id}
                 className="border-t border-border hover:bg-muted/50 transition-colors"
@@ -178,6 +201,7 @@ export default function FilterableTeamTable({
                     <Button
                       variant="outline"
                       size="sm"
+                      className="cursor-pointer"
                       onClick={() => onViewDetails(team)}
                     >
                       Details
@@ -185,6 +209,7 @@ export default function FilterableTeamTable({
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="cursor-pointer"
                       onClick={() => onEditTeam(team)}
                     >
                       <Edit className="h-4 w-4" />
@@ -192,7 +217,7 @@ export default function FilterableTeamTable({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 cursor-pointer"
                       onClick={() => onDeleteTeam(team)}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -216,6 +241,57 @@ export default function FilterableTeamTable({
               {teams.length === 0
                 ? "No teams have been created yet"
                 : "Try adjusting your filters"}
+            </p>
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {totalItems > 0 && (
+          <div className="flex flex-col items-center gap-2 px-4 py-4 border-t border-border">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={goPrev}
+                    aria-disabled={currentPage === 1}
+                    className={currentPage === 1 ? "opacity-40 pointer-events-none" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+
+                {pageNumbers.map((page, idx) =>
+                  page === "..." ? (
+                    <PaginationItem key={`ellipsis-${idx}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        isActive={page === currentPage}
+                        onClick={() => goToPage(page as number)}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={goToNext}
+                    aria-disabled={currentPage === totalPages}
+                    className={currentPage === totalPages ? "opacity-40 pointer-events-none" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+
+            <p className="text-xs text-muted-foreground">
+              Showing{" "}
+              <span className="font-medium text-foreground">{startItem}–{endItem}</span>{" "}
+              of{" "}
+              <span className="font-medium text-foreground">{totalItems}</span>{" "}
+              teams
             </p>
           </div>
         )}

@@ -85,11 +85,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <Image
               src="/logo.png"
               alt="Voxora Logo"
-              width={32}
-              height={32}
+              width={47}
+              height={47}
               className="object-contain"
             />
-            <h1 className="ml-3 text-lg font-semibold text-foreground">
+            <h1 className="ml-1 text-lg font-semibold text-foreground">
               Voxora Admin
             </h1>
           </div>
@@ -239,7 +239,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             onClick={() => setShowLogoutDialog(true)}
             variant="outline"
             size="sm"
-            className="w-full"
+            className="w-full cursor-pointer"
           >
             <LogOut className="h-4 w-4 mr-2" />
             Sign out

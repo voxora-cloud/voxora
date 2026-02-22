@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
-import { Plus, BookOpen, X } from "lucide-react";
+import { Plus, BookOpen } from "lucide-react";
 import KnowledgeTable from "@/components/admin/knowledge/KnowledgeTable";
 import AddKnowledgeModal from "@/components/admin/knowledge/AddKnowledgeModal";
 import DeleteConfirmDialog from "@/components/admin/DeleteConfirmDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { KnowledgeBase, AddKnowledgeFormData } from "@/lib/interfaces/knowledge";
 import { apiService } from "@/lib/api";
+import { useAppToast } from "@/lib/hooks/useAppToast";
 
 export default function StaticKnowledgePage() {
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeBase[]>([]);
@@ -20,9 +21,9 @@ export default function StaticKnowledgePage() {
   const [itemToDelete, setItemToDelete] = useState<KnowledgeBase | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [viewUrl, setViewUrl] = useState<string | null>(null);
   const [viewUrlLoading, setViewUrlLoading] = useState<boolean>(false);
+  const { toastSuccess, toastError } = useAppToast();
 
   useEffect(() => {
     fetchKnowledgeItems();
@@ -51,7 +52,7 @@ export default function StaticKnowledgePage() {
       setKnowledgeItems(res.data.items.filter((k) => k.source !== "url"));
     } catch (err) {
       console.error("Error fetching knowledge items:", err);
-      setError("Failed to load knowledge items");
+      toastError("Failed to load knowledge items");
     } finally {
       setLoading(false);
     }
@@ -59,7 +60,6 @@ export default function StaticKnowledgePage() {
 
   const handleAddKnowledge = async (data: AddKnowledgeFormData) => {
     setIsSubmitting(true);
-    setError(null);
     try {
       let newItem: KnowledgeBase;
 
@@ -91,9 +91,10 @@ export default function StaticKnowledgePage() {
 
       setKnowledgeItems((prev) => [newItem, ...prev]);
       setShowAddModal(false);
+      toastSuccess("Knowledge added successfully", "Your content has been queued for indexing.");
     } catch (err: any) {
       console.error("Error adding knowledge:", err);
-      setError(err.message || "Failed to add knowledge item");
+      toastError("Failed to add knowledge item", err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +116,7 @@ export default function StaticKnowledgePage() {
       );
     } catch (err) {
       console.error("Error re-indexing:", err);
-      setError("Failed to re-index item");
+      toastError("Failed to re-index item");
     }
   };
 
@@ -130,7 +131,7 @@ export default function StaticKnowledgePage() {
       );
     } catch (err) {
       console.error("Error retrying:", err);
-      setError("Failed to retry item");
+      toastError("Failed to retry item");
     }
   };
 
@@ -147,9 +148,10 @@ export default function StaticKnowledgePage() {
       setKnowledgeItems((prev) => prev.filter((k) => k._id !== itemToDelete._id));
       setShowDeleteDialog(false);
       setItemToDelete(null);
+      toastSuccess("Knowledge deleted successfully");
     } catch (err) {
       console.error("Error deleting item:", err);
-      setError("Failed to delete knowledge item");
+      toastError("Failed to delete knowledge item");
     } finally {
       setIsDeleting(false);
     }
@@ -169,15 +171,6 @@ export default function StaticKnowledgePage() {
           Add Knowledge
         </Button>
       </div>
-
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md">
-          {error}
-          <button onClick={() => setError(null)} className="ml-2 underline cursor-pointer">
-            Dismiss
-          </button>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[400px]">
@@ -218,15 +211,88 @@ export default function StaticKnowledgePage() {
       />
 
       <Dialog open={showViewModal} onOpenChange={setShowViewModal}>
-        <DialogContent className="sm:max-w-[700px]">
+        <DialogContent className={
+          selectedItem?.source === "pdf"
+            ? "sm:max-w-[1000px] max-h-[90vh] overflow-y-auto"
+            : "sm:max-w-[700px]"
+        }>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">{selectedItem?.title}</h2>
-            <Button variant="ghost" size="sm" onClick={() => setShowViewModal(false)}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
 
-          {selectedItem && (
+          {selectedItem && selectedItem.source === "pdf" ? (
+            /* ── Landscape PDF layout ── */
+            <div className="flex gap-6">
+              {/* Left: metadata */}
+              <div className="w-56 shrink-0 space-y-4">
+                <div className="grid grid-cols-1 gap-3 p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Source</p>
+                    <p className="text-sm font-medium text-foreground uppercase">{selectedItem.source}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Status</p>
+                    <p className="text-sm font-medium text-foreground capitalize">{selectedItem.status}</p>
+                  </div>
+                  {selectedItem.lastIndexed && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Last Indexed</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {new Date(selectedItem.lastIndexed).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {selectedItem.wordCount && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Word Count</p>
+                      <p className="text-sm font-medium text-foreground">{selectedItem.wordCount} words</p>
+                    </div>
+                  )}
+                  {selectedItem.fileName && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">File Name</p>
+                      <p className="text-sm font-medium text-foreground break-all">{selectedItem.fileName}</p>
+                    </div>
+                  )}
+                </div>
+
+                {selectedItem.description && (
+                  <div>
+                    <p className="text-sm font-medium text-foreground mb-1">Description</p>
+                    <p className="text-sm text-muted-foreground">{selectedItem.description}</p>
+                  </div>
+                )}
+
+                {selectedItem.errorMessage && (
+                  <div className="p-3 bg-red-500/10 rounded-lg">
+                    <p className="text-sm font-medium text-red-500 mb-1">Error</p>
+                    <p className="text-sm text-red-400">{selectedItem.errorMessage}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: PDF iframe */}
+              <div className="flex-1">
+                <p className="text-sm font-medium text-foreground mb-2">Preview</p>
+                {viewUrlLoading ? (
+                  <div className="flex items-center justify-center h-[600px] bg-muted rounded border border-border">
+                    <Loader size="sm" />
+                  </div>
+                ) : viewUrl ? (
+                  <iframe
+                    src={viewUrl}
+                    title="PDF Preview"
+                    className="w-full h-[600px] rounded border border-border"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-[600px] bg-muted rounded border border-border">
+                    <p className="text-sm text-muted-foreground">Preview unavailable</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : selectedItem && (
+            /* ── Default portrait layout for non-PDF ── */
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                 <div>
@@ -276,25 +342,6 @@ export default function StaticKnowledgePage() {
                 <div>
                   <p className="text-sm font-medium text-foreground mb-2">File Name</p>
                   <p className="text-sm text-muted-foreground">{selectedItem.fileName}</p>
-                </div>
-              )}
-
-              {selectedItem.source === "pdf" && (
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">Preview</p>
-                  {viewUrlLoading ? (
-                    <div className="flex items-center justify-center h-24">
-                      <Loader size="sm" />
-                    </div>
-                  ) : viewUrl ? (
-                    <iframe
-                      src={viewUrl}
-                      title="PDF Preview"
-                      className="w-full h-96 rounded border border-border"
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Preview unavailable</p>
-                  )}
                 </div>
               )}
 

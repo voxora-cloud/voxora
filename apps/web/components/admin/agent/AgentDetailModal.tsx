@@ -52,7 +52,7 @@ export default function AgentDetailModal({
       <div className="bg-card rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto border border-border">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Agent Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="cursor-pointer">
             <X className="h-4 w-4" />
           </Button>
         </div>

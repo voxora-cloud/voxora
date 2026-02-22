@@ -158,7 +158,7 @@ export default function AgentPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Agents</h1>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => setShowCreateModal(true)} className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
           Invite Agent
         </Button>
@@ -197,7 +197,7 @@ export default function AgentPage() {
           <p className="text-muted-foreground mt-1">
             Invite agents to start managing your support team
           </p>
-          <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+          <Button className="mt-4 cursor-pointer" onClick={() => setShowCreateModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Invite Agent
           </Button>

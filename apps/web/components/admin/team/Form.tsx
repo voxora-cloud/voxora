@@ -150,7 +150,7 @@ function TeamForm({
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit" className="flex-1" disabled={isLoading}>
+        <Button type="submit" className="flex-1 cursor-pointer" disabled={isLoading}>
           {isLoading ? (
             <>
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-white mr-2"></div>
@@ -166,7 +166,7 @@ function TeamForm({
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="flex-1"
+          className="flex-1 cursor-pointer"
           disabled={isLoading}
         >
           Cancel
