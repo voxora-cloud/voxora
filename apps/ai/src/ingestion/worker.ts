@@ -25,7 +25,10 @@ export function startIngestionWorker() {
   };
 
   // Separate queue instance used only for self-scheduling URL re-crawl jobs
-  const ingestionQueue = new Queue<DocumentJob>(INGESTION_QUEUE, { connection });
+  const ingestionQueue = new Queue<DocumentJob>(INGESTION_QUEUE, {
+    connection,
+    defaultJobOptions: { attempts: 1, removeOnComplete: 100, removeOnFail: 50 },
+  });
 
   const worker = new Worker<DocumentJob, void, string>(
     INGESTION_QUEUE,
@@ -75,12 +78,23 @@ export function startIngestionWorker() {
         // the source while a crawl was already in flight.
         await connectDB();
         const doc = await (KnowledgeModel as any).findOne({ _id: job.data.documentId }, { isPaused: 1 });
-        if (doc?.isPaused) {
+
+        // Document was deleted — skip re-scheduling
+        if (!doc) {
+          console.log(
+            `[Ingestion Worker] Document deleted, skipping re-crawl for documentId=${job.data.documentId}`,
+          );
+          return;
+        }
+
+        // Source was paused while the crawl was in flight — skip re-scheduling
+        if (doc.isPaused) {
           console.log(
             `[Ingestion Worker] Source is paused, skipping re-crawl schedule for documentId=${job.data.documentId}`,
           );
           return;
         }
+
         await ingestionQueue.add("ingest", job.data, { delay });
         console.log(
           `[Ingestion Worker] Re-crawl scheduled in ${delay / 60_000} min for ${job.data.sourceUrl}`,

@@ -63,6 +63,28 @@ export const patchStatus = asyncHandler(
         return sendError(res, 404, "Conversation not found");
       }
 
+      // Notify widget + all room members about the status change
+      const sm = getSocketManager();
+      if (sm) {
+        try {
+          const payload = {
+            conversationId,
+            status,
+            updatedBy: (req as any).user?.name || "Agent",
+            timestamp: new Date(),
+          };
+          if (sm.ioInstance) {
+            sm.ioInstance
+              .to(`conversation:${conversationId}`)
+              .emit("status_updated", payload);
+          }
+        } catch (emitErr: any) {
+          logger.error(
+            `Failed to emit status update: ${emitErr?.message || emitErr}`,
+          );
+        }
+      }
+
       sendResponse(res, 200, true, "Conversation status updated", {
         conversation,
       });

@@ -415,6 +415,41 @@
         50%       { opacity: 0; }
       }
 
+      /* ── Conversation closed / resolved banner ────────────────────────────── */
+      .conv-closed-banner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 14px 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .conv-closed-banner .banner-icon { font-size: 20px; }
+      .conv-closed-banner .banner-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+      }
+      .conv-closed-banner .banner-sub {
+        font-size: 12px;
+        color: #6b7280;
+      }
+      .conv-closed-banner .banner-new-btn {
+        margin-top: 4px;
+        padding: 6px 18px;
+        border-radius: 20px;
+        border: none;
+        background: var(--vx-accent, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
       /* ── System / escalation notices ──────────────────────────────────────── */
       /* Centered pill shown for system events (e.g. "Connecting you to an agent") */
       .system-notice {
@@ -684,41 +719,49 @@
       .chat-toolbar {
         display: flex;
         align-items: center;
-        padding: 8px 12px;
+        justify-content: space-between;
+        padding: 8px 14px;
         border-bottom: 1px solid #e9ecef;
-        background: #f8f9fa;
-        /* RC1: toolbar must never shrink — it is not scrollable content */
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         flex-shrink: 0;
+        min-height: 52px;
       }
 
       /* Agent badge shown in the toolbar after escalation */
       .agent-badge {
         display: none;
         align-items: center;
-        gap: 7px;
-        margin-left: 10px;
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-radius: 99px;
-        padding: 4px 12px 4px 6px;
-        font-size: 12px;
-        color: #166534;
-        max-width: 200px;
-        overflow: hidden;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .agent-badge-avatar-wrap {
+        position: relative;
         flex-shrink: 0;
       }
       .agent-badge-avatar {
-        width: 22px;
-        height: 22px;
+        width: 34px;
+        height: 34px;
         border-radius: 50%;
-        background: #22c55e;
+        background: linear-gradient(135deg, var(--vx-accent-from, #667eea), var(--vx-accent-to, #764ba2));
         color: #fff;
-        font-size: 11px;
-        font-weight: 600;
+        font-size: 13px;
+        font-weight: 700;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        letter-spacing: 0.02em;
+      }
+      .agent-badge-online {
+        position: absolute;
+        bottom: 1px;
+        right: 1px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #22c55e;
+        border: 2px solid #fff;
       }
       .agent-badge-text {
         display: flex;
@@ -726,31 +769,46 @@
         min-width: 0;
       }
       .agent-badge-name {
+        font-size: 13px;
         font-weight: 600;
+        color: #111827;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.2;
+        line-height: 1.3;
       }
       .agent-badge-label {
-        font-size: 10px;
-        opacity: 0.7;
-        line-height: 1.2;
+        font-size: 11px;
+        color: #6b7280;
+        line-height: 1.3;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .agent-badge-label::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+        flex-shrink: 0;
       }
       .back-btn {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 4px 10px;
+        gap: 5px;
+        padding: 5px 8px;
         background: none;
-        border: 1px solid #d1d5db;
+        border: none;
         border-radius: 6px;
         font-size: 13px;
-        color: #374151;
+        color: #6b7280;
         cursor: pointer;
-        transition: background 0.15s;
+        transition: background 0.15s, color 0.15s;
+        flex-shrink: 0;
       }
-      .back-btn:hover { background: #e5e7eb; }
+      .back-btn:hover { background: #f3f4f6; color: #111827; }
 
       /* Conversations list */
       .recent-conversations {
@@ -996,10 +1054,13 @@
           </button>
           <!-- Shown once a human agent is connected via AI escalation -->
           <div class="agent-badge" id="agentBadge" style="display:none">
-            <div class="agent-badge-avatar" id="agentBadgeInitial"></div>
+            <div class="agent-badge-avatar-wrap">
+              <div class="agent-badge-avatar" id="agentBadgeInitial"></div>
+              <span class="agent-badge-online"></span>
+            </div>
             <div class="agent-badge-text">
               <span class="agent-badge-name" id="agentBadgeName"></span>
-              <span class="agent-badge-label">Human agent</span>
+              <span class="agent-badge-label">Online · Support Agent</span>
             </div>
           </div>
         </div>
@@ -1466,9 +1527,15 @@
         isConnected = false;
         _escalationShown = false;
         document.getElementById('agentBadge').style.display = 'none';
+        // Clean up any closed/resolved banner from previous session
+        const oldBanner = document.getElementById('conv-closed-banner');
+        if (oldBanner) oldBanner.remove();
+        const inputArea = document.querySelector('.input-area');
+        if (inputArea) inputArea.style.display = '';
         showChatView();
         messageInput.disabled = false;
         messageInput.placeholder = 'Type your message...';
+        sendBtn.disabled = true;
         messageInput.focus();
         // Welcome messages for fresh conversation
         setTimeout(function() { addMessage('Hi there! 👋', 'agent', 'Support Team'); }, 150);
@@ -1603,6 +1670,60 @@
         socket.on('message_sent', (data) => {
           // Re-enable send button when message is acknowledged by server
           sendBtn.disabled = false;
+        });
+
+        // Agent / AI changed the conversation status
+        socket.off('status_updated');
+        socket.on('status_updated', (data) => {
+          if (data.conversationId?.toString() !== chatId?.toString()) return;
+          const status = data.status;
+          const inputArea = document.querySelector('.input-area');
+
+          if (status === 'resolved' || status === 'closed') {
+            // Show system notice in the thread
+            addSystemNotice(
+              status === 'resolved'
+                ? '✅ This conversation has been resolved'
+                : '🔒 This conversation has been closed'
+            );
+            // Replace the input area with a closed banner
+            if (inputArea && !document.getElementById('conv-closed-banner')) {
+              inputArea.style.display = 'none';
+              const banner = document.createElement('div');
+              banner.className = 'conv-closed-banner';
+              banner.id = 'conv-closed-banner';
+              banner.innerHTML =
+                '<span class="banner-icon">' + (status === 'resolved' ? '✅' : '🔒') + '</span>' +
+                '<span class="banner-title">' + (status === 'resolved' ? 'Conversation resolved' : 'Conversation closed') + '</span>' +
+                '<span class="banner-sub">Start a new chat if you have more questions</span>' +
+                '<button class="banner-new-btn" id="bannerNewChatBtn">Start new chat</button>';
+              inputArea.parentNode.insertBefore(banner, inputArea.nextSibling);
+              document.getElementById('bannerNewChatBtn').addEventListener('click', function() {
+                banner.remove();
+                inputArea.style.display = '';
+                messagesContainer.innerHTML = '';
+                chatId = null;
+                isConnected = false;
+                _escalationShown = false;
+                document.getElementById('agentBadge').style.display = 'none';
+                messageInput.disabled = false;
+                messageInput.placeholder = 'Type your message...';
+                messageInput.focus();
+                sendBtn.disabled = true;
+                setTimeout(function() { addMessage('Hi there! 👋', 'agent', 'Support Team'); }, 150);
+                setTimeout(function() { addMessage('How can we help you today?', 'agent', 'Support Team'); }, 500);
+              });
+            }
+          } else if (status === 'pending') {
+            addSystemNotice('⏳ Your query is pending review — we\'ll be right with you');
+          } else if (status === 'open') {
+            // Reopened
+            const banner = document.getElementById('conv-closed-banner');
+            if (banner) { banner.remove(); inputArea.style.display = ''; }
+            messageInput.disabled = false;
+            sendBtn.disabled = !messageInput.value.trim();
+            addSystemNotice('🔄 This conversation has been reopened');
+          }
         });
       }
       // JWT Authentication functions
@@ -2061,6 +2182,7 @@
             fileSize: file.size,
             mimeType: file.type,
             fileKey: data.fileKey,
+            downloadUrl: data.downloadUrl || null,
           });
           addMessage(fileContent, 'user', userName || 'You', 'file');
 
@@ -2376,9 +2498,9 @@
       function renderFileBubble(content, bubbleType) {
         try {
           const f = JSON.parse(content);
-          const fileUrl = f.fileKey
-            ? API_BASE_URL + '/api/v1/storage/file?key=' + encodeURIComponent(f.fileKey)
-            : null;
+          // Prefer presigned MinIO URL stored at upload time; fall back to API proxy
+          const fileUrl = f.downloadUrl
+            || (f.fileKey ? API_BASE_URL + '/api/v1/storage/file?key=' + encodeURIComponent(f.fileKey) : null);
           if (f.mimeType && f.mimeType.startsWith('image/') && fileUrl) {
             return '<img class="img-preview-msg" src="' + fileUrl + '" alt="' + escapeHtml(f.fileName || 'image') + '" onclick="window.open(this.src,\'_blank\')"><div class="message-time" style="margin-top:4px">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div>';
           }
@@ -2469,8 +2591,9 @@
         messageInput.value = "";
         adjustTextareaHeight();
         sendBtn.disabled = true;
-        // Show typing dots immediately so the user knows the AI is working
-        showTypingDots();
+        // Show typing dots only while AI is handling the conversation.
+        // After escalation to a human the agent's typing indicator takes over.
+        if (!_escalationShown) showTypingDots();
 
         // Create conversation if this is the first message
         if (!chatId) {
