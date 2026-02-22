@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev:full": "npm run docker:start && turbo run dev",
-    "dev": "turbo run dev",
+    "dev:full": "npm run docker:start && turbo run dev --filter=!./apps/widget",
+    "dev": "turbo run dev --filter=!./apps/widget",
     "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio qdrant",
     "docker:stop": "cd docker && docker-compose -f docker-compose.dev.yml down",
     "widget:deploy": "cd apps/widget && npm run deploy",

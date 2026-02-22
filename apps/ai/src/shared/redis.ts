@@ -1,6 +1,7 @@
 import IORedis from "ioredis";
 
-// Used for publishing AI responses — BullMQ manages its own connection internally
+// Live Redis connection for Pub/Sub — shared across modules.
+// BullMQ manages its own separate connections internally.
 export const pubRedis = new IORedis({
   host: process.env.REDIS_HOST || "localhost",
   port: parseInt(process.env.REDIS_PORT || "6379", 10),

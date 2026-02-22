@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { ContextResult, ContextMessage } from "./types";
 import { getEmbeddingProvider, vectorStore } from "../embeddings";
-import { connectDB, MessageModel } from "../ingestion/db";
+import { connectDB, MessageModel } from "../shared/db";
 import config from "../config";
 
 /** How many prior messages to include as conversation history */

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { EmbeddingProvider } from "./types";
+import { EmbeddingProvider } from "../types";
 
 export class GeminiEmbeddingProvider implements EmbeddingProvider {
   readonly name = "gemini";

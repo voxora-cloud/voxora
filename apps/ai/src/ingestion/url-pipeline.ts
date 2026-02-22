@@ -3,7 +3,7 @@ import { DocumentJob } from "./types";
 import { FetchedPage, fetchSinglePage, crawlPages } from "./url-fetcher";
 import { chunkText } from "./chunker";
 import { getEmbeddingProvider, vectorStore } from "../embeddings";
-import { setDocStatus } from "./db";
+import { setDocStatus } from "../shared/db";
 
 /** Embed a batch of pages and upsert the resulting vectors into Qdrant */
 async function embedAndUpsertPages(

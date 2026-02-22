@@ -5,7 +5,7 @@ import { runIngestionPipeline } from "./pipeline";
 import { runUrlIngestionPipeline } from "./url-pipeline";
 import { runTextIngestionPipeline } from "./text-pipeline";
 import { vectorStore } from "../embeddings/store/qdrant";
-import { connectDB, KnowledgeModel } from "./db";
+import { connectDB, KnowledgeModel } from "../shared/db";
 
 export const INGESTION_QUEUE = "document-ingestion";
 

@@ -39,3 +39,4 @@ yarn-error.log*
 *.pem
 
 test-docker
+.current-host

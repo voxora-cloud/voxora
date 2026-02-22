@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
-import { redisPublisher, redisSubscriber } from "@shared/config/redis";
+import { redisClient, redisPublisher, redisSubscriber } from "@shared/config/redis";
 import { verifyToken } from "@shared/utils/auth";
 import { User } from "@shared/models";
 import logger from "@shared/utils/logger";
@@ -89,8 +89,9 @@ export class SocketManager {
     this.io.on("connection", (socket) => {
       logger.info(`User connected: ${socket.data.user.userId}`);
 
-      // Store user connection
+      // Store user connection — in-memory for fast local lookup + Redis for cross-instance routing
       this.connectedUsers.set(socket.data.user.userId, socket.id);
+      redisClient.set(`socket:user:${socket.data.user.userId}`, socket.id, { EX: 86400 }).catch(() => {});
 
       // Update user status to online
       this.updateUserStatus(socket.data.user.userId, "online");
@@ -101,8 +102,9 @@ export class SocketManager {
       socket.on("disconnect", () => {
         logger.info(`User disconnected: ${socket.data.user.userId}`);
 
-        // Remove user connection
+        // Remove user connection from local Map and Redis
         this.connectedUsers.delete(socket.data.user.userId);
+        redisClient.del(`socket:user:${socket.data.user.userId}`).catch(() => {});
 
         // Update user status to offline
         this.updateUserStatus(socket.data.user.userId, "offline");
@@ -171,10 +173,21 @@ export class SocketManager {
     this.io.to(`conversation:${conversationId}`).emit(event, data);
   }
 
-  public emitToUser(userId: string, event: string, data: any): void {
-    const socketId = this.connectedUsers.get(userId);
-    if (socketId) {
-      this.io.to(socketId).emit(event, data);
+  public async emitToUser(userId: string, event: string, data: any): Promise<void> {
+    // Fast path — agent is on this instance
+    const localSocketId = this.connectedUsers.get(userId);
+    if (localSocketId) {
+      this.io.to(localSocketId).emit(event, data);
+      return;
+    }
+    // Cross-instance fallback — look up socketId in Redis; Redis adapter routes to correct server
+    try {
+      const remoteSocketId = await redisClient.get(`socket:user:${userId}`);
+      if (remoteSocketId) {
+        this.io.to(remoteSocketId).emit(event, data);
+      }
+    } catch {
+      logger.warn(`[SocketManager] Redis lookup failed for emitToUser(${userId})`);
     }
   }
 

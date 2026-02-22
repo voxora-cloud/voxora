@@ -118,10 +118,17 @@ export async function startAIResponseConsumer(
   // ── AI response channel ────────────────────────────────────────────────────
   await subscriber.subscribe(PUBSUB_CHANNEL, async (message) => {
     try {
-      const { conversationId, content } = JSON.parse(message) as {
+      const { conversationId, content, nonce } = JSON.parse(message) as {
         conversationId: string;
         content: string;
+        nonce?: string;
       };
+
+      // Dedup guard — only one API instance processes each published message
+      if (nonce) {
+        const claimed = await redisClient.set(`dedup:${nonce}`, "1", { NX: true, EX: 30 });
+        if (!claimed) return;
+      }
 
       const msg = new Message({
         conversationId,
@@ -158,11 +165,18 @@ export async function startAIResponseConsumer(
   // ── AI escalation channel ──────────────────────────────────────────────────
   await subscriber.subscribe(ESCALATION_CHANNEL, async (raw) => {
     try {
-      const { conversationId, teamId, reason } = JSON.parse(raw) as {
+      const { conversationId, teamId, reason, nonce } = JSON.parse(raw) as {
         conversationId: string;
         teamId: string | null;
         reason: string;
+        nonce?: string;
       };
+
+      // Dedup guard
+      if (nonce) {
+        const claimed = await redisClient.set(`dedup:${nonce}`, "1", { NX: true, EX: 30 });
+        if (!claimed) return;
+      }
 
       logger.info(`[Escalation] Received for conversation ${conversationId} — reason: "${reason}"`);
 
@@ -217,7 +231,7 @@ export async function startAIResponseConsumer(
       });
 
       // 4. Notify the assigned agent's dashboard
-      socketManager.emitToUser(assignment.agentId, "new_widget_conversation", {
+      await socketManager.emitToUser(assignment.agentId, "new_widget_conversation", {
         conversationId,
         reason,
         agent: {
@@ -238,10 +252,17 @@ export async function startAIResponseConsumer(
   // ── AI resolution channel ──────────────────────────────────────────────────
   await subscriber.subscribe(RESOLUTION_CHANNEL, async (raw) => {
     try {
-      const { conversationId, reason } = JSON.parse(raw) as {
+      const { conversationId, reason, nonce } = JSON.parse(raw) as {
         conversationId: string;
         reason: string;
+        nonce?: string;
       };
+
+      // Dedup guard
+      if (nonce) {
+        const claimed = await redisClient.set(`dedup:${nonce}`, "1", { NX: true, EX: 30 });
+        if (!claimed) return;
+      }
 
       logger.info(`[Resolution] Received for conversation ${conversationId} — reason: "${reason}"`);
 

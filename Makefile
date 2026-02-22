@@ -128,6 +128,21 @@ all: ## Install, start Docker, deploy widget, and run dev (api + web + ai)
 	@$(MAKE) widget-deploy
 	@$(MAKE) dev
 
+use-localhost: ## Switch all env files back to localhost
+	@./scripts/use-host.sh localhost
+
+use-network: ## Switch all env files to your local network IP (auto-detected)
+	@HOST=$$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $$1}'); \
+	if [ -z "$$HOST" ]; then \
+		echo "$(RED)Could not auto-detect network IP. Run: make use-network-ip IP=192.168.x.x$(NC)"; \
+		exit 1; \
+	fi; \
+	./scripts/use-host.sh $$HOST
+
+use-network-ip: ## Switch all env files to a specific IP: make use-network-ip IP=192.168.1.100
+	@if [ -z "$(IP)" ]; then echo "$(RED)Usage: make use-network-ip IP=192.168.x.x$(NC)"; exit 1; fi
+	@./scripts/use-host.sh $(IP)
+
 install: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
 	@command -v npm >/dev/null 2>&1 || { \

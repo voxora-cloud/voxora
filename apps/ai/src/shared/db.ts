@@ -7,11 +7,10 @@ export async function connectDB(): Promise<void> {
     connected = true;
     return;
   }
-  const uri =
-    process.env.MONGODB_URI || "mongodb://localhost:27017/voxora-chat";
+  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/voxora-chat";
   await mongoose.connect(uri);
   connected = true;
-  console.log("[Ingestion DB] MongoDB connected");
+  console.log("[DB] MongoDB connected");
 }
 
 /**
@@ -20,7 +19,6 @@ export async function connectDB(): Promise<void> {
  */
 const KnowledgeSchema = new mongoose.Schema({}, { strict: false });
 
-// Avoid model re-registration on hot-reload
 export const KnowledgeModel =
   (mongoose.models["Knowledge"] as mongoose.Model<mongoose.Document> | undefined) ??
   mongoose.model("Knowledge", KnowledgeSchema);

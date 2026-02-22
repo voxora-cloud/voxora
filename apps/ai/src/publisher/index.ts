@@ -1,4 +1,5 @@
-import { pubRedis } from "../config/redis";
+import { randomUUID } from "crypto";
+import { pubRedis } from "../shared/redis";
 
 const PUBSUB_CHANNEL = "ai:response";
 const ESCALATION_CHANNEL = "ai:escalation";
@@ -29,7 +30,7 @@ export interface ResolutionPayload {
  * saves the Message to MongoDB, and emits via Socket.IO.
  */
 export async function publishResponse(payload: PublishPayload): Promise<void> {
-  await pubRedis.publish(PUBSUB_CHANNEL, JSON.stringify(payload));
+  await pubRedis.publish(PUBSUB_CHANNEL, JSON.stringify({ ...payload, nonce: randomUUID() }));
 }
 
 /**
@@ -38,7 +39,7 @@ export async function publishResponse(payload: PublishPayload): Promise<void> {
  * agent to the conversation, and emits `conversation_escalated` via Socket.IO.
  */
 export async function publishEscalation(payload: EscalationPayload): Promise<void> {
-  await pubRedis.publish(ESCALATION_CHANNEL, JSON.stringify(payload));
+  await pubRedis.publish(ESCALATION_CHANNEL, JSON.stringify({ ...payload, nonce: randomUUID() }));
 }
 
 /**
@@ -47,5 +48,5 @@ export async function publishEscalation(payload: EscalationPayload): Promise<voi
  * conversation as resolved, and emits `status_updated` via Socket.IO.
  */
 export async function publishResolution(payload: ResolutionPayload): Promise<void> {
-  await pubRedis.publish(RESOLUTION_CHANNEL, JSON.stringify(payload));
+  await pubRedis.publish(RESOLUTION_CHANNEL, JSON.stringify({ ...payload, nonce: randomUUID() }));
 }
