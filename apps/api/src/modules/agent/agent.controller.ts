@@ -115,6 +115,37 @@ export const getTeamMembers = asyncHandler(
   },
 );
 
+// Returns ALL teams regardless of the agent's membership (for routing conversations)
+export const getAllTeams = asyncHandler(
+  async (_req: AuthenticatedRequest, res: Response) => {
+    try {
+      const teams = await agentService.getAllTeams();
+      sendResponse(res, 200, true, "All teams retrieved successfully", teams);
+    } catch (error: any) {
+      sendError(res, 500, error.message);
+    }
+  },
+);
+
+// Returns members of ANY team — for routing dialog agent picker
+export const getAllTeamMembers = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const id = getParamAsString(req.params.id);
+    try {
+      const members = await agentService.getAllTeamMembers(id);
+      sendResponse(
+        res,
+        200,
+        true,
+        "Team members retrieved successfully",
+        members,
+      );
+    } catch (error: any) {
+      sendError(res, 500, error.message);
+    }
+  },
+);
+
 // =================
 // AGENT STATS
 // =================

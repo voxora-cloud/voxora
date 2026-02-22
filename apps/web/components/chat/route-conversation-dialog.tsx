@@ -73,7 +73,7 @@ export function RouteConversationDialog({
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/agent/teams`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/agent/teams/all`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -95,7 +95,7 @@ export function RouteConversationDialog({
       setFetchingAgents(true);
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/agent/teams/${teamId}/members`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/agent/teams/${teamId}/all-members`,
         {
           headers: {
             Authorization: `Bearer ${token}`,

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { User } from "@shared/models";
+import { User, Team } from "@shared/models";
 import { Conversation } from "@shared/models";
 import logger from "@shared/utils/logger";
 
@@ -91,6 +91,25 @@ export class AgentService {
     }).select("name email role status lastSeen totalChats rating");
 
     return members;
+  }
+
+  // Returns ALL teams (used for routing conversations to any team)
+  async getAllTeams() {
+    return await Team.find({ isActive: { $ne: false } })
+      .select("name description color agentCount onlineAgents")
+      .sort({ name: 1 });
+  }
+
+  // Returns members of any team — no membership check (used for routing)
+  async getAllTeamMembers(teamId: string) {
+    if (!mongoose.Types.ObjectId.isValid(teamId)) {
+      throw new Error("Invalid team ID");
+    }
+
+    return await User.find({
+      teams: teamId,
+      isActive: true,
+    }).select("name email role status lastSeen totalChats rating");
   }
 
   // =================

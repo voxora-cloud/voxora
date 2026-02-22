@@ -12,10 +12,13 @@ export const getConversations = asyncHandler(
     try {
       const { status, limit = 50, offset = 0 } = req.query;
 
+      const userId = (req as any).user?.userId as string | undefined;
+
       const result = await conversationService.getConversations({
         status: status as string,
         limit: Number(limit),
         offset: Number(offset),
+        assignedTo: userId,
       });
 
       sendResponse(res, 200, true, "Conversations fetched successfully", result);
@@ -196,12 +199,36 @@ export const routeConversation = asyncHandler(
             timestamp: new Date(),
           };
 
+          // 1. Tell the new agent's dashboard sidebar
           if (typeof sm.emitToUser === "function") {
             sm.emitToUser(
               result.selectedAgentId.toString(),
-              "conversation_routed",
+              "new_widget_conversation",
               payload,
             );
+          }
+
+          // 2. Tell the widget so the agent badge updates (re-uses conversation_escalated event)
+          sm.emitToConversation(conversationId, "conversation_escalated", {
+            conversationId,
+            reason: reason || "Transferred to another agent",
+            agent: {
+              id: result.selectedAgentId.toString(),
+              name: result.agentName,
+              email: result.agentEmail,
+            },
+          });
+
+          // 3. Remove the conversation from the OLD agent's sidebar (if there was one)
+          const oldAgentId = result.originalConversation!.assignedTo;
+          if (
+            oldAgentId &&
+            oldAgentId.toString() !== result.selectedAgentId.toString() &&
+            typeof sm.emitToUser === "function"
+          ) {
+            sm.emitToUser(oldAgentId.toString(), "conversation_removed", {
+              conversationId,
+            });
           }
         } catch (emitErr: any) {
           logger.error(

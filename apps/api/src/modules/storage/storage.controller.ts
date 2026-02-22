@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import StorageService from "./storage.service";
-import { VOXORA_BUCKET } from "@shared/config/minio";
+import { minioClient, VOXORA_BUCKET } from "@shared/config/minio";
 import logger from "@shared/utils/logger";
 
 // Helper to ensure param is string (not string array)
@@ -66,6 +66,32 @@ export const storageController = {
         .json({ message: "Presigned upload URL generated", data: result });
     } catch (error) {
       logger.error("Error in generateUploadUrl:", error);
+      res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  },
+
+  async generateConversationUploadUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileName, mimeType } = req.body;
+      if (!fileName || !mimeType) {
+        res.status(400).json({ error: "fileName and mimeType are required" });
+        return;
+      }
+      const allowed = [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+      ];
+      if (!allowed.includes(mimeType)) {
+        res.status(400).json({ error: "File type not allowed" });
+        return;
+      }
+      const result = await StorageService.generateConversationUploadUrl(fileName, mimeType);
+      res.status(200).json({ success: true, message: "Upload URL generated", data: result });
+    } catch (error) {
+      logger.error("Error in generateConversationUploadUrl:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
   },
@@ -170,6 +196,35 @@ export const storageController = {
     } catch (error) {
       logger.error("Error in listFiles:", error);
       res.status(500).json({ error: "Failed to list files" });
+    }
+  },
+
+  /**
+   * GET /api/v1/storage/file?key=<fileKey>
+   * Public proxy: streams the object from MinIO so the browser never needs
+   * to reach the internal MinIO host directly.
+   */
+  async proxyFile(req: Request, res: Response): Promise<void> {
+    const fileKey = req.query.key as string | undefined;
+    if (!fileKey) {
+      res.status(400).json({ error: "key query param is required" });
+      return;
+    }
+    try {
+      const stat = await minioClient.statObject(VOXORA_BUCKET, fileKey);
+      const contentType =
+        (stat.metaData as any)?.["content-type"] ||
+        (stat.metaData as any)?.["Content-Type"] ||
+        "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      // Allow cross-origin embedding (iframes on different origins loading this image).
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      const stream = await minioClient.getObject(VOXORA_BUCKET, fileKey);
+      stream.pipe(res);
+    } catch (err: any) {
+      logger.warn(`proxyFile: object not found for key=${fileKey}`);
+      res.status(404).json({ error: "File not found" });
     }
   },
 };

@@ -35,7 +35,7 @@ export const adminSchema = {
 
   createWidget: Joi.object({
     displayName: Joi.string().min(1).max(50).required(),
-    logoUrl: Joi.string().uri().allow(""),
+    logoUrl: Joi.string().allow(""),
     backgroundColor: Joi.string()
       .pattern(/^#[0-9A-Fa-f]{6}$/)
       .default("#ffffff"),
@@ -43,7 +43,7 @@ export const adminSchema = {
 
   updateWidget: Joi.object({
     displayName: Joi.string().min(1).max(50),
-    logoUrl: Joi.string().uri().allow(""),
+    logoUrl: Joi.string().allow(""),
     backgroundColor: Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/),
     _id: Joi.string().optional(),
     userId: Joi.string().optional(),
