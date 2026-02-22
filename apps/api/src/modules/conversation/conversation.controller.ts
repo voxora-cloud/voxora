@@ -32,7 +32,7 @@ export const getConversations = asyncHandler(
 export const getConversationById = asyncHandler(
   async (req: Request, res: Response) => {
     try {
-      const { conversationId } = req.params;
+      const conversationId = req.params.conversationId as string;
 
       const result = await conversationService.getConversationById(conversationId);
 
@@ -51,7 +51,7 @@ export const getConversationById = asyncHandler(
 export const patchStatus = asyncHandler(
   async (req: Request, res: Response) => {
     try {
-      const { conversationId } = req.params;
+      const conversationId = req.params.conversationId as string;
       const { status } = req.body;
 
       const conversation = await conversationService.patchConversationStatus(
@@ -61,6 +61,28 @@ export const patchStatus = asyncHandler(
 
       if (!conversation) {
         return sendError(res, 404, "Conversation not found");
+      }
+
+      // Notify widget + all room members about the status change
+      const sm = getSocketManager();
+      if (sm) {
+        try {
+          const payload = {
+            conversationId,
+            status,
+            updatedBy: (req as any).user?.name || "Agent",
+            timestamp: new Date(),
+          };
+          if (sm.ioInstance) {
+            sm.ioInstance
+              .to(`conversation:${conversationId}`)
+              .emit("status_updated", payload);
+          }
+        } catch (emitErr: any) {
+          logger.error(
+            `Failed to emit status update: ${emitErr?.message || emitErr}`,
+          );
+        }
       }
 
       sendResponse(res, 200, true, "Conversation status updated", {
@@ -75,7 +97,7 @@ export const patchStatus = asyncHandler(
 // Update visitor information (public endpoint - no auth required for widget users)
 export const updateVisitorInfo = asyncHandler(
   async (req: Request, res: Response) => {
-    const { conversationId } = req.params;
+    const conversationId = req.params.conversationId as string;
     const { name, email, sessionId } = req.body;
 
     try {
@@ -142,7 +164,7 @@ export const updateVisitorInfo = asyncHandler(
 // Route conversation to team or agent
 export const routeConversation = asyncHandler(
   async (req: Request, res: Response) => {
-    const { conversationId } = req.params;
+    const conversationId = req.params.conversationId as string;
     const { teamId, agentId, reason } = req.body;
 
     try {
@@ -254,7 +276,7 @@ export const routeConversation = asyncHandler(
 // Update conversation status (full version with metadata)
 export const updateConversationStatus = asyncHandler(
   async (req: Request, res: Response) => {
-    const { conversationId } = req.params;
+    const conversationId = req.params.conversationId as string;
     const { status } = req.body;
 
     try {

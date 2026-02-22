@@ -18,7 +18,6 @@ const config = {
   },
   ai: {
     systemPrompt:
-      process.env.AI_SYSTEM_PROMPT ||
       "You are a helpful customer support assistant. Be concise, friendly, and accurate.",
   },
   embeddings: {

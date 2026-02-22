@@ -1,4 +1,4 @@
-.PHONY: help install dev build lint format clean docker-start docker-stop docker-clean widget-deploy docker-images all check-docker check-ports docker-health verify
+.PHONY: help install dev build lint format clean docker-start docker-stop docker-clean widget-deploy docker-images docker-release all check-docker check-ports docker-health verify
 
 REGISTRY ?= ompharate
 VERSION := $(shell date +%Y.%m.%d)-$(shell git rev-parse --short HEAD)
@@ -128,6 +128,21 @@ all: ## Install, start Docker, deploy widget, and run dev (api + web + ai)
 	@$(MAKE) widget-deploy
 	@$(MAKE) dev
 
+use-localhost: ## Switch all env files back to localhost
+	@./scripts/use-host.sh localhost
+
+use-network: ## Switch all env files to your local network IP (auto-detected)
+	@HOST=$$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $$1}'); \
+	if [ -z "$$HOST" ]; then \
+		echo "$(RED)Could not auto-detect network IP. Run: make use-network-ip IP=192.168.x.x$(NC)"; \
+		exit 1; \
+	fi; \
+	./scripts/use-host.sh $$HOST
+
+use-network-ip: ## Switch all env files to a specific IP: make use-network-ip IP=192.168.1.100
+	@if [ -z "$(IP)" ]; then echo "$(RED)Usage: make use-network-ip IP=192.168.x.x$(NC)"; exit 1; fi
+	@./scripts/use-host.sh $(IP)
+
 install: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
 	@command -v npm >/dev/null 2>&1 || { \
@@ -252,7 +267,29 @@ docker-build-web: docker-setup-builder ## Build Web image
 		--tag $(REGISTRY)/voxora-web:latest \
 		--push -f apps/web/Dockerfile apps/web
 
-docker-images: docker-build-api docker-build-web ## Build all images
+docker-build-ai: docker-setup-builder ## Build AI worker image
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-ai:$(VERSION) \
+		--tag $(REGISTRY)/voxora-ai:latest \
+		--push -f apps/ai/Dockerfile apps/ai
+
+docker-images: docker-build-api docker-build-web docker-build-ai ## Build all images
+
+docker-release: docker-setup-builder ## Build and push all images with RELEASE_VERSION (e.g. make docker-release RELEASE_VERSION=0.9.0-beta)
+	@[ "$(RELEASE_VERSION)" ] || { echo "$(RED)❌ RELEASE_VERSION is required$(NC)  usage: make docker-release RELEASE_VERSION=0.9.0-beta"; exit 1; }
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-api:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/voxora-api:latest \
+		--push -f apps/api/Dockerfile apps/api
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-web:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/voxora-web:latest \
+		--push -f apps/web/Dockerfile apps/web
+	docker buildx build --platform $(PLATFORMS) \
+		--tag $(REGISTRY)/voxora-ai:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/voxora-ai:latest \
+		--push -f apps/ai/Dockerfile apps/ai
+	@echo "$(GREEN)✅ Released $(RELEASE_VERSION) to Docker Hub$(NC)"
 
 clean: ## Clean artifacts
 	rm -rf node_modules apps/*/node_modules apps/*/dist apps/*/.turbo .turbo

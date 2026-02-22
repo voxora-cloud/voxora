@@ -1,16 +1,20 @@
 import { buildContext } from "../context";
 import { getDefaultProvider } from "../llm";
 import { LLMMessage } from "../llm/types";
-import { publishResponse, publishEscalation } from "../publisher";
+import { publishResponse, publishEscalation, publishResolution } from "../publisher";
 import { AIJobData } from "./types";
 
 /**
- * Regex that matches the escalation sentinel the LLM outputs when it decides
- * a human agent should take over.  The full response must be ONLY this marker.
- *
+ * Regex that matches the escalation sentinel anywhere in the LLM response.
  *   [ESCALATE: <reason text>]
  */
-const ESCALATE_RE = /^\s*\[ESCALATE:\s*(.+?)\]\s*$/i;
+const ESCALATE_RE = /\[ESCALATE:\s*(.+?)\]/i;
+
+/**
+ * Regex that matches the resolution sentinel anywhere in the LLM response.
+ *   [RESOLVE: <reason text>]
+ */
+const RESOLVE_RE = /\[RESOLVE:\s*(.+?)\]/i;
 
 /**
  * Core AI pipeline — runs for every incoming BullMQ job.
@@ -78,15 +82,36 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
   console.log(`[Pipeline] raw LLM response: ${response.slice(0, 200).replace(/\n/g, " ")}`);
 
-  // ── 4. Route: check for escalation sentinel ──────────────────────────────────
-  const escalateMatch = response.trim().match(ESCALATE_RE);
+  // ── 4. Route: check for escalation or resolution sentinels ─────────────────
+  const escalateMatch = response.match(ESCALATE_RE);
+  const resolveMatch  = !escalateMatch && response.match(RESOLVE_RE);
+
+  /**
+   * Strip the sentinel token from the response and return any remaining text.
+   * Trims blank lines left behind after removal.
+   */
+  function stripSentinel(text: string, re: RegExp): string {
+    return text.replace(re, "").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  if (resolveMatch) {
+    const reason = resolveMatch[1].trim();
+    console.log(`[Pipeline] ✅ Resolution detected — reason: "${reason}"`);
+    // Publish any human-readable text that preceded/followed the sentinel
+    const humanText = stripSentinel(response, RESOLVE_RE);
+    if (humanText) await publishResponse({ conversationId, content: humanText });
+    await publishResolution({ conversationId, reason });
+    return;
+  }
 
   if (escalateMatch) {
     const reason = escalateMatch[1].trim();
     console.log(`[Pipeline] ⬆  Escalation detected — reason: "${reason}"`);
+    // Publish any human-readable text that preceded/followed the sentinel
+    const humanText = stripSentinel(response, ESCALATE_RE);
 
     if (context.hasTeam) {
-      // Edge case B: AI wants to escalate and a team is available
+      if (humanText) await publishResponse({ conversationId, content: humanText });
       await publishEscalation({
         conversationId,
         teamId: job.teamId ?? null,
@@ -102,7 +127,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
           "but I'd recommend reaching out through another support channel or trying again later.",
       });
     }
-    return; // Do NOT also publish a regular AI response
+    return;
   }
 
   // ── 5. Tools / MCP execution (placeholder) ───────────────────────────────────

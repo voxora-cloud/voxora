@@ -57,7 +57,7 @@ export function ConversationSidebar() {
   // State
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
   const [notifications, setNotifications] = useState<
@@ -104,6 +104,18 @@ export function ConversationSidebar() {
         console.log("Conversation removed from my queue:", data);
         setConversations((prev) =>
           prev.filter((conv) => conv._id !== data.conversationId),
+        );
+      });
+
+      // Remove conversation from the current list when its status changes away
+      socketInstance.on("status_updated", (data) => {
+        setConversations((prev) =>
+          prev.filter((conv) => {
+            if (conv._id !== data.conversationId) return true;
+            // If we're filtering by a specific status and the new status
+            // no longer matches, drop it from the list immediately.
+            return data.status === filterStatus || filterStatus === "all";
+          }),
         );
       });
 
@@ -156,8 +168,10 @@ export function ConversationSidebar() {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
+      const params = new URLSearchParams();
+      if (filterStatus !== "all") params.set("status", filterStatus);
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1"}/conversations`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1"}/conversations?${params.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -275,11 +289,9 @@ export function ConversationSidebar() {
           onChange={(e) => setFilterStatus(e.target.value)}
           className="w-full px-3 py-2 text-sm border border-input bg-background rounded-md"
         >
-          <option value="all">All Status</option>
           <option value="open">Open</option>
           <option value="pending">Pending</option>
           <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
         </select>
       </div>
 
@@ -301,7 +313,7 @@ export function ConversationSidebar() {
       )}
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/60 [&::-webkit-scrollbar-track]:bg-transparent">
         {loading ? (
           <div className="p-4 text-center text-muted-foreground">
             Loading conversations...

@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { ContextResult, ContextMessage } from "./types";
 import { getEmbeddingProvider, vectorStore } from "../embeddings";
-import { connectDB, MessageModel } from "../ingestion/db";
+import { connectDB, MessageModel } from "../shared/db";
 import config from "../config";
 
 /** How many prior messages to include as conversation history */
@@ -17,12 +17,14 @@ const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
  *
  * When `hasTeam` is false (no teams/agents configured), escalation is disabled —
  * the AI always handles the conversation itself.
+ *
+ * Resolution rules ([RESOLVE: <reason>]) are always included — the AI can close
+ * the loop whether or not human agents are configured.
  */
 function buildSystemPrompt(companyName?: string, hasTeam?: boolean): string {
   const company = companyName?.trim() || process.env.AI_COMPANY_NAME || "our company";
 
-  const basePrompt =
-    process.env.AI_SYSTEM_PROMPT ||
+  const basePrompt = 
 `You are a helpful, professional customer support assistant for **${company}**.
 
 Your responsibilities:
@@ -38,8 +40,31 @@ Formatting guidelines:
 - Keep paragraphs short — prefer 2–3 sentences max
 - Never use raw HTML; use Markdown only`;
 
+  // Resolution rules — always available (AI can close the loop in any mode)
+  const resolutionRules = `
+
+---
+
+**Resolution rules:**
+
+You MUST output ONLY the following sentinel — with no other text — when the issue is fully resolved:
+
+  [RESOLVE: <brief reason>]
+
+Trigger resolution when:
+1. You have answered the user's question completely and they have confirmed it (e.g. "thanks", "that worked", "got it", "perfect")
+2. The user explicitly says goodbye or that they are done (e.g. "bye", "that's all", "no more questions")
+3. The conversation has naturally concluded with no outstanding issues
+
+Examples of valid resolution outputs:
+  [RESOLVE: user confirmed issue resolved]
+  [RESOLVE: user said goodbye]
+  [RESOLVE: question answered and user satisfied]
+
+Do NOT include any other text when resolving. The sentinel must be the entire response.`;
+
   if (!hasTeam) {
-    return basePrompt;
+    return basePrompt + resolutionRules;
   }
 
   // Escalation rules — only injected when human agents are available
@@ -69,7 +94,7 @@ Examples of valid escalation outputs:
 
 Do NOT include any other text when escalating. The sentinel must be the entire response.`;
 
-  return basePrompt + escalationRules;
+  return basePrompt + resolutionRules + escalationRules;
 }
 
 /**

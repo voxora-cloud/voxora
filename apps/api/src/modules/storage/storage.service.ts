@@ -4,6 +4,7 @@ import logger from "@shared/utils/logger";
 
 export interface PresignedUrlResponse {
   uploadUrl: string;
+  downloadUrl?: string;
   fileKey: string;
   fileName: string;
   expiresIn: number;
@@ -67,8 +68,14 @@ class StorageService {
         fileKey,
         expiresIn,
       );
+      // 7-day presigned download URL so clients open files directly from MinIO
+      const downloadUrl = await minioClient.presignedGetObject(
+        VOXORA_BUCKET,
+        fileKey,
+        604800,
+      );
       logger.info(`Generated conversation upload URL for: ${fileName}`);
-      return { uploadUrl, fileKey, fileName, expiresIn };
+      return { uploadUrl, downloadUrl, fileKey, fileName, expiresIn };
     } catch (error) {
       logger.error("Error generating conversation upload URL:", error);
       throw new Error("Failed to generate upload URL");

@@ -1,5 +1,5 @@
 import { EmbeddingProvider } from "./types";
-import { GeminiEmbeddingProvider } from "./gemini";
+import { GeminiEmbeddingProvider } from "./providers/gemini";
 
 // ─── Provider registry ────────────────────────────────────────────────────────
 const providers = new Map<string, EmbeddingProvider>();

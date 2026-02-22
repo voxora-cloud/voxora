@@ -1,5 +1,5 @@
 import { LLMProvider } from "./types";
-import { GeminiProvider } from "./gemini";
+import { GeminiProvider } from "./providers/gemini";
 
 // ─── Provider registry ────────────────────────────────────────────────────────
 const providers = new Map<string, LLMProvider>();

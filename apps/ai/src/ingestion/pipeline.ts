@@ -3,7 +3,7 @@ import { DocumentJob } from "./types";
 import { loadDocument } from "./loader";
 import { chunkText } from "./chunker";
 import { getEmbeddingProvider, vectorStore } from "../embeddings";
-import { setDocStatus } from "./db";
+import { setDocStatus } from "../shared/db";
 
 /**
  * Full document ingestion pipeline:

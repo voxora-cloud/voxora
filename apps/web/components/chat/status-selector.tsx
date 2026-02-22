@@ -21,7 +21,6 @@ interface StatusSelectorProps {
 const statusConfig = {
   open: { label: "Open", color: "bg-green-100 text-green-700" },
   pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700" },
-  closed: { label: "Closed", color: "bg-gray-100 text-gray-700" },
   resolved: { label: "Resolved", color: "bg-blue-100 text-blue-700" },
 };
 

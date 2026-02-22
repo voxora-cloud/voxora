@@ -68,9 +68,13 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
         // If this is from a widget user, enqueue for AI processing and notify agents
         if (messageMetadata.source === "widget") {
-          // Once the conversation has been escalated to a human agent, stop feeding
-          // new messages into the AI pipeline — the agent handles it from here on.
-          if ((conversation as any).status === "escalated") {
+          // Once escalated to a human OR already resolved, stop feeding messages
+          // into the AI pipeline. Use metadata flags as the source of truth since
+          // status is "open" post-escalation and "resolved" post-AI-resolution.
+          if (
+            (conversation as any).metadata?.escalatedAt ||
+            (conversation as any).status === "resolved"
+          ) {
             return; // message was saved & broadcast above; just don't run AI
           }
 

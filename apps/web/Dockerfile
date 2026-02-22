@@ -22,29 +22,19 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Build Next.js app
 RUN npm run build
 
-# Production stage
+# Production stage — standalone output is self-contained, no npm install needed
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Remove workspace dependencies that don't exist in npm
-RUN sed -i '/@repo\//d' package.json || true
-
-# Install only production dependencies
-RUN npm install --omit=dev && npm cache clean --force
-
-# Copy built Next.js files
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001 && \
-    chown -R nextjs:nodejs /app
+    adduser -S nextjs -u 1001
+
+# Copy built Next.js standalone bundle (includes pruned node_modules)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 

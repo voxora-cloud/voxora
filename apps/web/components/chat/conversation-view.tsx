@@ -74,6 +74,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [updateForm, setUpdateForm] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -83,6 +84,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const isAgentTypingRef = React.useRef(false);
   const { user } = useAuth();
   const router = useRouter();
+
+  // Auto-scroll to bottom whenever messages update or typing indicator changes
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isCustomerTyping]);
 
   // Initialize socket and fetch conversation
   useEffect(() => {
@@ -311,7 +317,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     return message.metadata?.source === "web" || message.senderId === user?.id;
   };
 
-  const getFileUrl = (fileKey: string) =>
+  const getFileUrl = (fileKey: string, downloadUrl?: string) =>
+    downloadUrl ||
     `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002"}/storage/file?key=${encodeURIComponent(fileKey)}`;
 
   const getFileIcon = (mimeType: string) => {
@@ -332,8 +339,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const renderMessageContent = (message: Message) => {
     if (message.type === "file" || message.type === "image") {
       try {
-        const att: FileAttachment = JSON.parse(message.content);
-        const url = att.fileKey ? getFileUrl(att.fileKey) : "";
+        const att: FileAttachment & { downloadUrl?: string } = JSON.parse(message.content);
+        const url = att.fileKey ? getFileUrl(att.fileKey, att.downloadUrl) : "";
         if (att.mimeType?.startsWith("image/") && url) {
           return (
             <a href={url} target="_blank" rel="noopener noreferrer">
@@ -401,6 +408,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         fileSize: file.size,
         mimeType: file.type,
         fileKey: data.fileKey,
+        downloadUrl: data.downloadUrl || null,
       });
       const msgType = file.type.startsWith("image/") ? "image" : "file";
       const messageData = {
@@ -646,6 +654,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               if (conversation) {
                 setConversation({ ...conversation, status: newStatus });
               }
+              // Navigate back to blank state so resolved/pending conv
+              // disappears from the current view
+              if (newStatus !== "open") {
+                router.push("/support/dashboard");
+              }
             }}
           />
           
@@ -656,14 +669,15 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
         {messages.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
             <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message) => (
+          <>
+          {messages.map((message) => (
             <div
               key={message._id}
               className={`flex ${isAgentMessage(message) ? "justify-end" : "justify-start"}`}
@@ -690,7 +704,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                 {renderMessageContent(message)}
               </div>
             </div>
-          ))
+          ))}
+          <div ref={messagesEndRef} />
+          </>
         )}
       </div>
 
