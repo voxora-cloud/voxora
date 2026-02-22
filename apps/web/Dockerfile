@@ -19,6 +19,11 @@ COPY . .
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Build with placeholder values — replaced at container startup by entrypoint.sh
+ENV NEXT_PUBLIC_API_URL=__NEXT_PUBLIC_API_URL__
+ENV NEXT_PUBLIC_SOCKET_URL=__NEXT_PUBLIC_SOCKET_URL__
+ENV NEXT_PUBLIC_CDN_URL=__NEXT_PUBLIC_CDN_URL__
+
 # Build Next.js app
 RUN npm run build
 
@@ -36,6 +41,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Entrypoint: replaces __PLACEHOLDER__ strings with real env vars at startup
+COPY --chown=nextjs:nodejs entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 USER nextjs
 
 # Expose port
@@ -50,4 +59,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start Next.js server
-CMD ["node", "server.js"]
+CMD ["./entrypoint.sh"]

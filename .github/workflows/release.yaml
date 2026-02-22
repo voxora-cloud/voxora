@@ -50,37 +50,24 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-api:${{ steps.version.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       # ── WEB ──────────────────────────────────────────────────────────────
-      # NEXT_PUBLIC_* URLs are baked at build time and depend on your server's
-      # IP/domain — so the web image cannot be built generically in CI.
-      #
-      # Options:
-      #   A) You have a fixed domain → add these 3 repo secrets and uncomment:
-      #        NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SOCKET_URL, NEXT_PUBLIC_CDN_URL
-      #
-      #   B) Self-hosting / friend's laptop → build locally:
-      #        make use-network && make docker-lan
-      #
-      # - name: Build & push Web
-      #   uses: docker/build-push-action@v6
-      #   with:
-      #     context: ./apps/web
-      #     file: ./apps/web/Dockerfile
-      #     platforms: linux/amd64,linux/arm64
-      #     push: true
-      #     tags: |
-      #       ${{ secrets.DOCKERHUB_USERNAME }}/voxora-web:${{ steps.version.outputs.tag }}
-      #       ${{ secrets.DOCKERHUB_USERNAME }}/voxora-web:latest
-      #     build-args: |
-      #       NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-      #       NEXT_PUBLIC_SOCKET_URL=${{ secrets.NEXT_PUBLIC_SOCKET_URL }}
-      #       NEXT_PUBLIC_CDN_URL=${{ secrets.NEXT_PUBLIC_CDN_URL }}
-      #     cache-from: type=gha
-      #     cache-to: type=gha,mode=max
+      # Built with placeholder values (__NEXT_PUBLIC_API_URL__ etc).
+      # entrypoint.sh replaces them at container startup from .env.web — 
+      # so this is now a generic image that works with any server IP/domain.
+      - name: Build & push Web
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-web:${{ steps.version.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       # ── AI ───────────────────────────────────────────────────────────────
       - name: Build & push AI worker
@@ -92,7 +79,6 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-ai:${{ steps.version.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-ai:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -104,6 +90,5 @@ jobs:
           echo "| Image | Tag |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
           echo "| voxora-api | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| voxora-web | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| voxora-ai  | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> ⚠️ **voxora-web** must be built locally with \`make docker-lan\` (requires server IP/domain)" >> $GITHUB_STEP_SUMMARY
