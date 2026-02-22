@@ -68,6 +68,12 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
         // If this is from a widget user, enqueue for AI processing and notify agents
         if (messageMetadata.source === "widget") {
+          // Once the conversation has been escalated to a human agent, stop feeding
+          // new messages into the AI pipeline — the agent handles it from here on.
+          if ((conversation as any).status === "escalated") {
+            return; // message was saved & broadcast above; just don't run AI
+          }
+
           // Add to BullMQ queue — the AI service will process and respond via Redis Stream
           // Pass teamId so the AI worker can scope RAG search to this team's knowledge base
           const teamId: string | undefined = (conversation.metadata as any)?.teamId ?? undefined;
@@ -95,16 +101,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             .catch((err) =>
               logger.error("Failed to enqueue AI job:", err),
             );
-
-          // Broadcast to all agents that a new customer message has arrived
-          io.emit("customer_message", {
-            conversationId,
-            customerName: messageMetadata.senderName,
-            customerEmail: messageMetadata.senderEmail,
-            isAnonymous: conversation.visitor?.isAnonymous || false,
-            message: content,
-            timestamp: new Date(),
-          });
+          // Note: no broadcast to agents while AI is handling the conversation.
+          // Agents only see the conversation after it is escalated to them.
         }
       } catch (error) {
         logger.error("Error handling send_message:", error);

@@ -133,7 +133,7 @@ class Application {
       });
 
       // Start server
-      this.server.listen(config.app.port, () => {
+      this.server.listen(config.app.port,"0.0.0.0", () => {
         logger.info(`🚀 Server running on port ${config.app.port}`);
         logger.info(`📱 Environment: ${config.app.env}`);
         logger.info(`🔗 API URL: ${config.app.apiUrl}`);

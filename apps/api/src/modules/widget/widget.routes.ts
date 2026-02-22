@@ -34,6 +34,9 @@ router.get(
   WidgetController.getConversationMessages,
 );
 
+// Presigned upload URL for widget file attachments
+router.post("/upload-url", authenticateWidget, WidgetController.getUploadUrl);
+
 // Soft-delete (close) a conversation — visitor can only delete their own
 router.delete(
   "/conversations/:conversationId",

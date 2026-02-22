@@ -70,6 +70,32 @@ export const storageController = {
     }
   },
 
+  async generateConversationUploadUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileName, mimeType } = req.body;
+      if (!fileName || !mimeType) {
+        res.status(400).json({ error: "fileName and mimeType are required" });
+        return;
+      }
+      const allowed = [
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+      ];
+      if (!allowed.includes(mimeType)) {
+        res.status(400).json({ error: "File type not allowed" });
+        return;
+      }
+      const result = await StorageService.generateConversationUploadUrl(fileName, mimeType);
+      res.status(200).json({ success: true, message: "Upload URL generated", data: result });
+    } catch (error) {
+      logger.error("Error in generateConversationUploadUrl:", error);
+      res.status(500).json({ error: "Failed to generate upload URL" });
+    }
+  },
+
   async generateDownloadUrl(req: Request, res: Response): Promise<void> {
     try {
       const { fileKey, expiresIn } = req.body;

@@ -525,6 +525,71 @@
         color: #9ca3af;
       }
 
+      /* File attach button */
+      .attach-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        background: transparent;
+        color: #9ca3af;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: color 0.2s;
+        padding: 0;
+      }
+      .attach-btn:hover { color: #4b5563; }
+
+      /* File message bubble */
+      .file-bubble {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-decoration: none;
+        color: inherit;
+      }
+      .file-bubble-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 20px;
+      }
+      .file-bubble-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .file-bubble-name {
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 170px;
+      }
+      .file-bubble-meta {
+        font-size: 11px;
+        opacity: 0.7;
+        margin-top: 1px;
+      }
+      .img-preview-msg {
+        max-width: 200px;
+        max-height: 160px;
+        border-radius: 10px;
+        display: block;
+        cursor: pointer;
+        margin-bottom: 2px;
+      }
+      .upload-placeholder .message-bubble { opacity: 0.6; }
+
       .send-btn {
         width: 36px;
         height: 36px;
@@ -624,6 +689,53 @@
         background: #f8f9fa;
         /* RC1: toolbar must never shrink — it is not scrollable content */
         flex-shrink: 0;
+      }
+
+      /* Agent badge shown in the toolbar after escalation */
+      .agent-badge {
+        display: none;
+        align-items: center;
+        gap: 7px;
+        margin-left: 10px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 99px;
+        padding: 4px 12px 4px 6px;
+        font-size: 12px;
+        color: #166534;
+        max-width: 200px;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .agent-badge-avatar {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #22c55e;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .agent-badge-text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .agent-badge-name {
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: 1.2;
+      }
+      .agent-badge-label {
+        font-size: 10px;
+        opacity: 0.7;
+        line-height: 1.2;
       }
       .back-btn {
         display: flex;
@@ -882,6 +994,14 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"></polyline></svg>
             Back
           </button>
+          <!-- Shown once a human agent is connected via AI escalation -->
+          <div class="agent-badge" id="agentBadge" style="display:none">
+            <div class="agent-badge-avatar" id="agentBadgeInitial"></div>
+            <div class="agent-badge-text">
+              <span class="agent-badge-name" id="agentBadgeName"></span>
+              <span class="agent-badge-label">Human agent</span>
+            </div>
+          </div>
         </div>
         <!-- Chat Interface -->
         <div class="chat-interface" id="chatInterface" style="display: flex;">
@@ -893,12 +1013,18 @@
           </div>
           <div class="input-area">
             <div class="input-container">
+              <input type="file" id="fileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.txt">
               <textarea
                 class="message-input"
                 id="messageInput"
                 placeholder="Type your message..."
                 rows="1"
               ></textarea>
+              <button type="button" class="attach-btn" id="attachBtn" title="Attach file">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+              </button>
               <button class="send-btn" id="sendBtn">
                 <svg
                   width="18"
@@ -941,6 +1067,9 @@
       let socket = null;
       let typingTimeout = null;
       let isTyping = false;
+      // One-shot flag: true once the human-agent handoff card has been shown.
+      // Lives at module scope so it survives multiple initializeSocket() calls.
+      let _escalationShown = false;
 
       // Cross-origin security: the parent page's origin, read from URL param.
       // All outbound postMessages are targeted at this origin (never '*').
@@ -1158,7 +1287,7 @@
         const content = item.querySelector('.conversation-content');
         content.addEventListener('click', (e) => {
           if (!e.target.classList.contains('conversation-delete')) {
-            loadConversation(conversationId);
+            loadConversation(conversationId, conversation);
           }
         });
         
@@ -1223,7 +1352,7 @@
       }
 
       // Load conversation from storage
-      async function loadConversation(conversationId) {
+      async function loadConversation(conversationId, convData) {
         try {
           // Show loading state
           messagesContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Loading conversation...</div>';
@@ -1233,6 +1362,20 @@
           // list so we can trust the ID and load messages straight away.
           chatId = conversationId;
           isConnected = true;
+
+          // If conversation is already escalated to an agent, show the badge immediately
+          const assignedAgent = convData?.assignedAgent || null;
+          if (convData?.status === 'escalated' && assignedAgent) {
+            _escalationShown = true;
+            const initials = assignedAgent.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+            document.getElementById('agentBadgeInitial').textContent = initials;
+            document.getElementById('agentBadgeName').textContent = assignedAgent;
+            document.getElementById('agentBadge').style.display = 'flex';
+          } else {
+            // Hide badge for non-escalated conversations
+            _escalationShown = false;
+            document.getElementById('agentBadge').style.display = 'none';
+          }
 
           console.log('Loading conversation:', conversationId);
           
@@ -1321,6 +1464,8 @@
         messagesContainer.innerHTML = '';
         chatId = null;
         isConnected = false;
+        _escalationShown = false;
+        document.getElementById('agentBadge').style.display = 'none';
         showChatView();
         messageInput.disabled = false;
         messageInput.placeholder = 'Type your message...';
@@ -1406,6 +1551,13 @@
             return;
           }
 
+          // File / image attachments from agent
+          if (data.message?.type === 'file' || data.message?.type === 'image') {
+            removeTypingDots();
+            addMessage(data.message.content, 'agent', null, 'file');
+            return;
+          }
+
           // Use animated typing effect for all incoming agent / AI messages
           typeMessage(data.message.content);
         });
@@ -1428,15 +1580,22 @@
         });
 
         // Fired by the API when the AI escalates the conversation to a human agent.
-        // We already received a system 'new_message' with the notice text, so here
-        // we just clean up the typing state and show the handoff card if an agent
-        // was assigned.
+        // Remove any previously registered handler first (initializeSocket can be called
+        // multiple times; without this, handlers stack up and each fires independently
+        // with its own stale closure).
+        socket.off('conversation_escalated');
         socket.on('conversation_escalated', (data) => {
           if (data.conversationId !== chatId) return;
           removeTypingDots();
           sendBtn.disabled = false;
           if (data.agent?.name) {
-            addHandoffCard(data.agent.name);
+            _escalationShown = true;
+            // Always update badge — supports re-routing to a different agent
+            const name = data.agent.name;
+            const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+            document.getElementById('agentBadgeInitial').textContent = initials;
+            document.getElementById('agentBadgeName').textContent = name;
+            document.getElementById('agentBadge').style.display = 'flex';
           }
         });
 
@@ -1842,7 +2001,86 @@
         messageInput.addEventListener('blur', () => {
           typingStop();
         });
+
+        // File attachment
+        const attachBtn = document.getElementById('attachBtn');
+        const fileInput = document.getElementById('fileInput');
+        if (attachBtn && fileInput) {
+          attachBtn.addEventListener('click', () => fileInput.click());
+          fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+              uploadAndSendFile(this.files[0]);
+              this.value = '';
+            }
+          });
+        }
       }
+
+      async function uploadAndSendFile(file) {
+        if (!widgetToken) return;
+        if (!chatId) {
+          alert('Please send your first message to start the conversation, then attach files.');
+          return;
+        }
+        const MAX = 10 * 1024 * 1024;
+        if (file.size > MAX) { alert('File too large (max 10 MB)'); return; }
+
+        const meta = { fileName: file.name, fileSize: file.size, mimeType: file.type, fileKey: null };
+        // Show upload placeholder
+        addMessage(JSON.stringify(meta), 'user', userName || 'You', 'file-uploading');
+
+        function removeLastPlaceholder() {
+          const ph = messagesContainer.querySelectorAll('.upload-placeholder');
+          if (ph.length) ph[ph.length - 1].remove();
+        }
+
+        try {
+          // 1. Get presigned URL from widget backend
+          const urlResp = await makeAuthenticatedRequest(
+            API_BASE_URL + '/api/v1/widget/upload-url',
+            { method: 'POST', body: JSON.stringify({ fileName: file.name, mimeType: file.type }) }
+          );
+          if (!urlResp.ok) {
+            const err = await urlResp.json().catch(() => ({}));
+            throw new Error(err.error || 'Upload URL failed');
+          }
+          const { data } = await urlResp.json();
+
+          // 2. PUT file directly to MinIO via presigned URL
+          const putResp = await fetch(data.uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type },
+          });
+          if (!putResp.ok) throw new Error('Storage upload failed');
+
+          // 3. Replace placeholder with real file message
+          removeLastPlaceholder();
+          const fileContent = JSON.stringify({
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            fileKey: data.fileKey,
+          });
+          addMessage(fileContent, 'user', userName || 'You', 'file');
+
+          // 4. Emit to socket so agent sees it
+          if (socket) {
+            socket.emit('send_message', {
+              conversationId: chatId,
+              content: fileContent,
+              type: file.type.startsWith('image/') ? 'image' : 'file',
+              metadata: { source: 'widget' },
+            });
+          }
+        } catch (err) {
+          console.error('[VoxoraWidget] File upload failed:', err);
+          removeLastPlaceholder();
+          alert('File upload failed: ' + (err.message || 'Unknown error'));
+        }
+      }
+
+      
 
       async function handleStartChat(e) {
         e.preventDefault();
@@ -2119,33 +2357,76 @@
         typeNextWord();
       }
 
-      function addMessage(text, type, senderName) {
+      function getFileIcon(mimeType) {
+        if (!mimeType) return '📄';
+        if (mimeType.startsWith('image/')) return '🖼️';
+        if (mimeType === 'application/pdf') return '📕';
+        if (mimeType.includes('word')) return '📝';
+        if (mimeType === 'text/plain') return '📃';
+        return '📎';
+      }
+
+      function formatFileSize(bytes) {
+        if (!bytes) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      function renderFileBubble(content, bubbleType) {
+        try {
+          const f = JSON.parse(content);
+          const fileUrl = f.fileKey
+            ? API_BASE_URL + '/api/v1/storage/file?key=' + encodeURIComponent(f.fileKey)
+            : null;
+          if (f.mimeType && f.mimeType.startsWith('image/') && fileUrl) {
+            return '<img class="img-preview-msg" src="' + fileUrl + '" alt="' + escapeHtml(f.fileName || 'image') + '" onclick="window.open(this.src,\'_blank\')"><div class="message-time" style="margin-top:4px">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div>';
+          }
+          const link = fileUrl
+            ? '<a class="file-bubble" href="' + fileUrl + '" target="_blank" rel="noopener">'
+            : '<div class="file-bubble">';
+          const linkClose = fileUrl ? '</a>' : '</div>';
+          return link +
+            '<div class="file-bubble-icon">' + getFileIcon(f.mimeType) + '</div>' +
+            '<div class="file-bubble-info">' +
+              '<span class="file-bubble-name">' + escapeHtml(f.fileName || 'File') + '</span>' +
+              '<span class="file-bubble-meta">' + (fileUrl ? 'Download · ' : 'Uploading… · ') + formatFileSize(f.fileSize) + '</span>' +
+            '</div>' +
+            linkClose +
+            '<div class="message-time" style="margin-top:6px">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div>';
+        } catch(e) {
+          return escapeHtml(content);
+        }
+      }
+
+      function addMessage(text, type, senderName, msgType) {
         const messageDiv = document.createElement("div");
         messageDiv.className = `message ${type}`;
+        if (msgType === 'file-uploading') messageDiv.classList.add('upload-placeholder');
 
         const time = new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         });
 
-        // Agent messages: render markdown. User messages: plain-text (HTML-escaped).
-        const bodyHtml = type === 'agent'
-          ? '<div class="md">' + parseMarkdown(text) + '</div>'
-          : escapeHtml(text);
+        let bodyHtml;
+        if (msgType === 'file' || msgType === 'file-uploading' || msgType === 'image') {
+          bodyHtml = renderFileBubble(text, type);
+        } else if (type === 'agent') {
+          // Agent messages: render markdown.
+          bodyHtml = '<div class="md">' + parseMarkdown(text) + '</div>' +
+            '<div class="message-time">' + time + '</div>';
+        } else {
+          // User messages: plain-text (HTML-escaped).
+          bodyHtml = escapeHtml(text) + '<div class="message-time">' + time + '</div>';
+        }
 
-        messageDiv.innerHTML = `
-        <div class="message-bubble">
-          ${bodyHtml}
-          <div class="message-time">${time}</div>
-        </div>
-      `;
+        messageDiv.innerHTML = '<div class="message-bubble">' + bodyHtml + '</div>';
 
         messagesContainer.appendChild(messageDiv);
         scrollToBottom();
 
         // Notify parent of unread message count when a new agent message arrives.
-        // Uses UNREAD_COUNT protocol message (replaces the old NEW_MESSAGE).
-        // The loader will render this number on the floating button badge.
         if (type === "agent" && window.parent) {
           unreadCount++;
           window.parent.postMessage(

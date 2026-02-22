@@ -205,36 +205,7 @@ export async function startAIResponseConsumer(
         $set: updateFields,
       });
 
-      // 3. Save a system message visible in the widget
-      const systemMsg = new Message({
-        conversationId,
-        senderId: "system",
-        content: assignment
-          ? `You're being connected to **${assignment.agentName}** — a human agent will be with you shortly.`
-          : "We're connecting you to a support agent. Please hold on — someone will be with you soon.",
-        type: "text",
-        metadata: {
-          senderName: "System",
-          senderEmail: "system@voxora.internal",
-          source: "system",
-        },
-      });
-      await systemMsg.save();
-
-      // Emit system message to widget
-      socketManager.emitToConversation(conversationId, "new_message", {
-        conversationId,
-        message: {
-          _id: systemMsg._id,
-          senderId: systemMsg.senderId,
-          content: systemMsg.content,
-          type: systemMsg.type,
-          metadata: systemMsg.metadata,
-          createdAt: systemMsg.createdAt,
-        },
-      });
-
-      // 4. Emit escalation event so the widget can update its UI
+      // 3. Emit escalation event to the widget (single notification — no separate system message)
       socketManager.emitToConversation(conversationId, "conversation_escalated", {
         conversationId,
         reason,
@@ -246,6 +217,19 @@ export async function startAIResponseConsumer(
             }
           : null,
       });
+
+      // 4. Notify ONLY the assigned agent's dashboard so they see the conversation
+      if (assignment?.agentId) {
+        socketManager.emitToUser(assignment.agentId, "new_widget_conversation", {
+          conversationId,
+          reason,
+          agent: {
+            id: assignment.agentId,
+            name: assignment.agentName,
+            email: assignment.agentEmail,
+          },
+        });
+      }
 
       logger.info(
         `[Escalation] Conversation ${conversationId} escalated to agent ${assignment?.agentId ?? "unassigned"}`,

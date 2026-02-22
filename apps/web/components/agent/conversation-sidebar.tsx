@@ -93,10 +93,18 @@ export function ConversationSidebar() {
         console.log("Agent socket connected");
       });
 
+      // Fires when THIS agent is assigned a conversation (AI escalation or manual routing)
       socketInstance.on("new_widget_conversation", (data) => {
-        console.log("New widget conversation:", data);
-        // Just refresh conversations list without notification
+        console.log("Conversation assigned to me:", data);
         fetchConversations();
+      });
+
+      // Fires when a conversation is re-routed AWAY from this agent to someone else
+      socketInstance.on("conversation_removed", (data) => {
+        console.log("Conversation removed from my queue:", data);
+        setConversations((prev) =>
+          prev.filter((conv) => conv._id !== data.conversationId),
+        );
       });
 
       socketInstance.on("new_message", (data) => {
