@@ -12,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { usePagination } from "@/lib/hooks/usePagination";
 
 interface FilterableAgentTableProps {
   agents: Agent[];
@@ -111,6 +121,19 @@ export default function FilterableAgentTable({
     return true;
   });
 
+  const {
+    currentItems: paginatedAgents,
+    currentPage,
+    totalPages,
+    pageNumbers,
+    goToPage,
+    goToNext,
+    goPrev,
+    startItem,
+    endItem,
+    totalItems,
+  } = usePagination(filteredAgents, 10, [searchQuery, statusFilter, teamFilter]);
+
   return (
     <Card>
       <div className="overflow-x-auto">
@@ -206,7 +229,7 @@ export default function FilterableAgentTable({
             </tr>
           </thead>
           <tbody>
-            {filteredAgents.map((agent) => (
+            {paginatedAgents.map((agent) => (
               <tr
                 key={agent._id}
                 className="border-t border-border hover:bg-muted/50 transition-colors"
@@ -297,7 +320,7 @@ export default function FilterableAgentTable({
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-yellow-600 hover:text-yellow-700"
+                        className="text-yellow-600 hover:text-yellow-700 cursor-pointer"
                         onClick={() => onResendInvite(agent._id)}
                       >
                         <Mail className="h-3 w-3 mr-1" />
@@ -307,6 +330,7 @@ export default function FilterableAgentTable({
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="cursor-pointer"
                       onClick={() => onViewDetails(agent)}
                     >
                       <User className="h-3 w-3" />
@@ -314,6 +338,7 @@ export default function FilterableAgentTable({
                     <Button
                       variant="ghost"
                       size="sm"
+                      className="cursor-pointer"
                       onClick={() => onEditAgent(agent)}
                     >
                       <Edit className="h-3 w-3" />
@@ -321,7 +346,7 @@ export default function FilterableAgentTable({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 cursor-pointer"
                       onClick={() => onDeleteAgent(agent)}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -345,6 +370,57 @@ export default function FilterableAgentTable({
               {agents.length === 0
                 ? "No agents have been added yet"
                 : "Try adjusting your filters"}
+            </p>
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {totalItems > 0 && (
+          <div className="flex flex-col items-center gap-2 px-4 py-4 border-t border-border">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={goPrev}
+                    aria-disabled={currentPage === 1}
+                    className={currentPage === 1 ? "opacity-40 pointer-events-none" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+
+                {pageNumbers.map((page, idx) =>
+                  page === "..." ? (
+                    <PaginationItem key={`ellipsis-${idx}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        isActive={page === currentPage}
+                        onClick={() => goToPage(page as number)}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={goToNext}
+                    aria-disabled={currentPage === totalPages}
+                    className={currentPage === totalPages ? "opacity-40 pointer-events-none" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+
+            <p className="text-xs text-muted-foreground">
+              Showing{" "}
+              <span className="font-medium text-foreground">{startItem}–{endItem}</span>{" "}
+              of{" "}
+              <span className="font-medium text-foreground">{totalItems}</span>{" "}
+              agents
             </p>
           </div>
         )}

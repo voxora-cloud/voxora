@@ -22,6 +22,16 @@ import {
   X,
 } from "lucide-react";
 import { KnowledgeBase } from "@/lib/interfaces/knowledge";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { usePagination } from "@/lib/hooks/usePagination";
 
 interface KnowledgeTableProps {
   knowledgeItems: KnowledgeBase[];
@@ -76,6 +86,19 @@ export default function KnowledgeTable({
     setStatusFilter("all");
     setSourceFilter("all");
   };
+
+  const {
+    currentItems: paginatedItems,
+    currentPage,
+    totalPages,
+    pageNumbers,
+    goToPage,
+    goToNext,
+    goPrev,
+    startItem,
+    endItem,
+    totalItems,
+  } = usePagination(filteredItems, 10, [searchQuery, statusFilter, sourceFilter]);
 
   const getSourceIcon = (source: string) => {
     switch (source) {
@@ -225,8 +248,8 @@ export default function KnowledgeTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
+          {paginatedItems.length > 0 ? (
+            paginatedItems.map((item) => (
               <tr
                 key={item._id}
                 className="hover:bg-muted/30 transition-colors"
@@ -312,6 +335,57 @@ export default function KnowledgeTable({
           )}
         </tbody>
       </table>
+
+      {/* Pagination Footer */}
+      {totalItems > 0 && (
+        <div className="flex flex-col items-center gap-2 px-4 py-4 border-t border-border">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={goPrev}
+                  aria-disabled={currentPage === 1}
+                  className={currentPage === 1 ? "opacity-40 pointer-events-none" : "cursor-pointer"}
+                />
+              </PaginationItem>
+
+              {pageNumbers.map((page, idx) =>
+                page === "..." ? (
+                  <PaginationItem key={`ellipsis-${idx}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      isActive={page === currentPage}
+                      onClick={() => goToPage(page as number)}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={goToNext}
+                  aria-disabled={currentPage === totalPages}
+                  className={currentPage === totalPages ? "opacity-40 pointer-events-none" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+
+          <p className="text-xs text-muted-foreground">
+            Showing{" "}
+            <span className="font-medium text-foreground">{startItem}–{endItem}</span>{" "}
+            of{" "}
+            <span className="font-medium text-foreground">{totalItems}</span>{" "}
+            items
+          </p>
+        </div>
+      )}
     </div>
   );
 }

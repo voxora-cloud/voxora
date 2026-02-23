@@ -8,7 +8,9 @@ import { FileUpload } from "@/components/ui/file-upload";
 import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
 import { Save, Loader2, X, MessageCircle, Copy, Check } from "lucide-react";
+import Image from "next/image";
 import { validateWidgetForm } from "@/lib/validation";
+import { useAppToast } from "@/lib/hooks/useAppToast";
 
 export default function CreateWidgetPage() {
   const router = useRouter();
@@ -18,11 +20,9 @@ export default function CreateWidgetPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [uploadedFileKey, setUploadedFileKey] = useState<string>("");
+  const [savedLogoUrl, setSavedLogoUrl] = useState<string>("");
   const widgetInitialized = useRef(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const { toastSuccess, toastError } = useAppToast();
   const [validationErrors, setValidationErrors] = useState<{
     displayName?: string;
     backgroundColor?: string;
@@ -101,17 +101,14 @@ export default function CreateWidgetPage() {
         setFormData(response.data);
         setExistingWidget(response.data); // Store existing widget data
         setUploadedFileKey(response.data.logoFileKey || ""); // Store existing file key
+        setSavedLogoUrl(response.data.logoUrl || ""); // Store saved logo for preview
         setIsExistingWidget(true);
       } else {
-        setMessage({ type: "error", text: "Failed to load widget data" });
+        toastError("Failed to load widget data");
       }
     } catch (error) {
       console.error("Error fetching widget data:", error);
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error ? error.message : "Failed to load widget data",
-      });
+      toastError(error instanceof Error ? error.message : "Failed to load widget data");
     }
   };
 
@@ -126,16 +123,13 @@ export default function CreateWidgetPage() {
     fileName: string;
   }) => {
     setUploadedFileKey(data.fileKey);
-    // Store the raw fileKey — the API generates a permanent public URL from it.
-    // Using the presigned downloadUrl would expire after 15 min.
-    handleInputChange("logoUrl", data.fileKey);
-    setMessage({ type: "success", text: "Logo uploaded successfully!" });
-    setTimeout(() => setMessage(null), 3000);
+    handleInputChange("logoUrl", data.downloadUrl);
+    toastSuccess("Logo uploaded successfully!");
   };
 
   // Handle file upload error
   const handleUploadError = (error: string) => {
-    setMessage({ type: "error", text: error });
+    toastError(error);
   };
 
   // Handle file removal
@@ -162,12 +156,11 @@ export default function CreateWidgetPage() {
         }
       });
       setValidationErrors(errors);
-      setMessage({ type: "error", text: "Please fix the validation errors" });
+      toastError("Please fix the validation errors");
       return;
     }
 
     setIsLoading(true);
-    setMessage(null);
     setValidationErrors({});
 
     try {
@@ -192,31 +185,25 @@ export default function CreateWidgetPage() {
           }
         }
 
-        setMessage({
-          type: "success",
-          text: isExistingWidget
-            ? "Widget updated successfully!"
-            : "Widget created successfully!",
-        });
-        
+        toastSuccess(
+          isExistingWidget ? "Widget updated successfully!" : "Widget created successfully!"
+        );
+
+        // Update saved logo preview only after successful save
+        setSavedLogoUrl(formData.logoUrl || "");
+
         // Reload to see the updated widget
         setTimeout(() => {
           window.location.reload();
         }, 1500);
       } else {
-        setMessage({
-          type: "error",
-          text: isExistingWidget
-            ? "Failed to update widget"
-            : "Failed to create widget",
-        });
+        toastError(
+          isExistingWidget ? "Failed to update widget" : "Failed to create widget"
+        );
       }
     } catch (error) {
       console.error("Error saving widget:", error);
-      setMessage({
-        type: "error",
-        text: error instanceof Error ? error.message : "Failed to save widget",
-      });
+      toastError(error instanceof Error ? error.message : "Failed to save widget");
     } finally {
       setIsLoading(false);
     }
@@ -247,22 +234,6 @@ export default function CreateWidgetPage() {
 
       {/* Main Content */}
       <div className="relative max-w-7xl mx-auto p-6 lg:p-8">
-        {/* Message Display */}
-        {message && (
-          <div
-            className={`mb-6 p-4 rounded-xl border backdrop-blur-sm ${message.type === "success"
-                ? "bg-primary/10 border-primary/30 text-primary"
-                : "bg-red-500/10 border-red-500/30 text-red-400"
-              }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className={`w-1.5 h-1.5 rounded-full ${message.type === "success" ? "bg-primary" : "bg-red-500"
-                }`} />
-              {message.text}
-            </div>
-          </div>
-        )}
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column - Configuration Form */}
           <div className="lg:col-span-8 space-y-6">
@@ -381,6 +352,26 @@ export default function CreateWidgetPage() {
                       helperText="Upload from your device (PNG, JPG, SVG - Max 2MB)"
                     />
 
+                    {/* Saved logo preview — only shows after save/load, not on fresh upload */}
+                    {savedLogoUrl && (
+                      <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
+                        <div className="w-16 h-16 rounded-xl border border-white/20 overflow-hidden flex items-center justify-center bg-black/30 flex-shrink-0">
+                          <Image
+                            src={savedLogoUrl}
+                            alt="Current logo"
+                            width={64}
+                            height={64}
+                            className="w-full h-full object-contain"
+                            unoptimized
+                          />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Current Logo</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">This logo will appear in your chat widget</p>
+                        </div>
+                      </div>
+                    )}
+
                     <p className="text-xs text-muted-foreground">
                       Square format recommended, minimum 64x64px
                     </p>
@@ -408,10 +399,9 @@ export default function CreateWidgetPage() {
                       const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}" data-voxora-env="${process.env.NEXT_PUBLIC_ENV}" async></script>`;
                       navigator.clipboard.writeText(code);
                       setIsCopied(true);
-                      setMessage({ type: "success", text: "Code copied to clipboard!" });
+                      toastSuccess("Code copied to clipboard!");
                       setTimeout(() => {
                         setIsCopied(false);
-                        setMessage(null);
                       }, 2000);
                     }}
                   >

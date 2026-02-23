@@ -132,6 +132,7 @@ export default function RealtimePage() {
         prev.map((s) => (s._id === source._id ? { ...s, isPaused: true } : s))
       );
       await apiService.updateKnowledgeItem(source._id, { isPaused: true });
+      toastSuccess("Live source paused", "Syncing has been paused for this source.");
     } catch (err) {
       console.error("Error pausing source:", err);
       toastError("Failed to pause source");
@@ -154,6 +155,7 @@ export default function RealtimePage() {
       setSources((prev) =>
         prev.map((s) => (s._id === source._id ? { ...s, status: "pending" as const } : s))
       );
+      toastSuccess("Live source resumed", "The source has been queued for re-sync.");
     } catch (err) {
       console.error("Error resuming source:", err);
       toastError("Failed to resume source");

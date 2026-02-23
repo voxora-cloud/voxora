@@ -156,7 +156,7 @@ export default function TeamPage() {
           <p className="text-muted-foreground mt-1">
             Create a new team to organize your agents
           </p>
-          <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
+          <Button className="mt-4 cursor-pointer" onClick={() => setShowCreateModal(true)}>
             <Plus className="h-4 w-4 mr-2" />
             New Team
           </Button>

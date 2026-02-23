@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,18 @@ export default function AddKnowledgeModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCustomCatalog, setShowCustomCatalog] = useState(false);
+
+  // Reset form every time the modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setSelectedSource(null);
+      setFormData({ title: "", description: "", catalog: "", content: "" });
+      setSelectedFile(null);
+      setErrors({});
+      setShowCustomCatalog(false);
+    }
+  }, [isOpen]);
 
   // Predefined catalog categories
   const catalogCategories = [
@@ -144,7 +156,7 @@ export default function AddKnowledgeModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className={step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"}>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Add Knowledge</h2>
@@ -298,129 +310,133 @@ export default function AddKnowledgeModal({
         {/* Step 3: Metadata */}
         {step === 3 && (
           <div className="space-y-4">
-            <div>
-              <Label className="block mb-2">
-                Title <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                value={formData.title || ""}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, title: e.target.value }))
-                }
-                placeholder="e.g., Refund Policy"
-                className="cursor-text"
-              />
-              {errors.title && (
-                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  {errors.title}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <Label className="block mb-2">Description</Label>
-              <Textarea
-                value={formData.description || ""}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder="Used for support answers..."
-                className="w-full h-20 cursor-text resize-none"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Help agents understand when to use this knowledge
-              </p>
-            </div>
-
-            {/* Catalog/Category */}
-            <div>
-              <Label className="block mb-2">
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  Catalog/Category
-                </div>
-              </Label>
-              <div className="space-y-3">
-                {/* Predefined Categories */}
-                <div className="grid grid-cols-2 gap-2">
-                  {catalogCategories.map((category) => (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => {
-                        if (category === "Custom") {
-                          setShowCustomCatalog(true);
-                          setFormData((prev) => ({ ...prev, catalog: "" }));
-                        } else {
-                          setShowCustomCatalog(false);
-                          setFormData((prev) => ({ ...prev, catalog: category }));
-                        }
-                      }}
-                      className={`p-3 rounded-lg border text-left text-sm transition-all cursor-pointer ${
-                        formData.catalog === category && !showCustomCatalog
-                          ? "border-primary bg-primary/10 text-primary"
-                          : category === "Custom" && showCustomCatalog
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border hover:bg-muted/50 text-foreground"
-                      }`}
-                    >
-                      {category}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Custom Catalog Input */}
-                {showCustomCatalog && (
-                  <div className="space-y-2">
-                    <Input
-                      value={formData.catalog || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, catalog: e.target.value }))
-                      }
-                      placeholder="Enter custom catalog name..."
-                      className="cursor-text"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Create a custom catalog name for organizing your knowledge
+            {/* Two-column landscape layout */}
+            <div className="grid grid-cols-2 gap-6">
+              {/* Left column */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="block mb-2">
+                    Title <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    value={formData.title || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                    placeholder="e.g., Refund Policy"
+                    className="cursor-text"
+                  />
+                  {errors.title && (
+                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {errors.title}
                     </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="block mb-2">Description</Label>
+                  <Textarea
+                    value={formData.description || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                    placeholder="Used for support answers..."
+                    className="w-full h-24 cursor-text resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Help agents understand when to use this knowledge
+                  </p>
+                </div>
+
+                {/* Summary */}
+                <div className="p-4 bg-muted rounded-lg space-y-2">
+                  <h4 className="text-sm font-medium text-foreground">Summary</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="text-muted-foreground">Source:</div>
+                    <div className="text-foreground uppercase">{selectedSource}</div>
+                    {formData.catalog && (
+                      <>
+                        <div className="text-muted-foreground">Catalog:</div>
+                        <div className="text-foreground">{formData.catalog}</div>
+                      </>
+                    )}
+                    {selectedSource === "text" && wordCount > 0 && (
+                      <>
+                        <div className="text-muted-foreground">Word Count:</div>
+                        <div className="text-foreground">{wordCount} words</div>
+                      </>
+                    )}
+                    {selectedFile && (
+                      <>
+                        <div className="text-muted-foreground">File:</div>
+                        <div className="text-foreground truncate">{selectedFile.name}</div>
+                      </>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Organize knowledge into catalogs for easier navigation
-              </p>
+
+              {/* Right column — Catalog */}
+              <div>
+                <Label className="block mb-2">
+                  <div className="flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    Catalog / Category
+                  </div>
+                </Label>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {catalogCategories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        onClick={() => {
+                          if (category === "Custom") {
+                            setShowCustomCatalog(true);
+                            setFormData((prev) => ({ ...prev, catalog: "" }));
+                          } else {
+                            setShowCustomCatalog(false);
+                            setFormData((prev) => ({ ...prev, catalog: category }));
+                          }
+                        }}
+                        className={`p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer ${
+                          formData.catalog === category && !showCustomCatalog
+                            ? "border-primary bg-primary/10 text-primary"
+                            : category === "Custom" && showCustomCatalog
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border hover:bg-muted/50 text-foreground"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+
+                  {showCustomCatalog && (
+                    <div className="space-y-2">
+                      <Input
+                        value={formData.catalog || ""}
+                        onChange={(e) =>
+                          setFormData((prev) => ({ ...prev, catalog: e.target.value }))
+                        }
+                        placeholder="Enter custom catalog name..."
+                        className="cursor-text"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Create a custom catalog name for organizing your knowledge
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    Organize knowledge into catalogs for easier navigation
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Summary */}
-            <div className="p-4 bg-muted rounded-lg space-y-2">
-              <h4 className="text-sm font-medium text-foreground">Summary</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-muted-foreground">Source:</div>
-                <div className="text-foreground uppercase">{selectedSource}</div>
-                {formData.catalog && (
-                  <>
-                    <div className="text-muted-foreground">Catalog:</div>
-                    <div className="text-foreground">{formData.catalog}</div>
-                  </>
-                )}
-                {selectedSource === "text" && wordCount > 0 && (
-                  <>
-                    <div className="text-muted-foreground">Word Count:</div>
-                    <div className="text-foreground">{wordCount} words</div>
-                  </>
-                )}
-                {selectedFile && (
-                  <>
-                    <div className="text-muted-foreground">File:</div>
-                    <div className="text-foreground">{selectedFile.name}</div>
-                  </>
-                )}
-
-              </div>
-            </div>
-
-            <div className="flex justify-between pt-4">
+            <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={handleBack} className="cursor-pointer">
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
