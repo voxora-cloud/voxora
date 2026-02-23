@@ -1,7 +1,7 @@
 services:
 
   web: 
-    image: ompharate/voxora-web:0.9.0-beta
+    image: ompharate/voxora-web:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -30,7 +30,7 @@ services:
         max-file: "3"
 
   api:
-    image: ompharate/voxora-api:0.9.0-beta
+    image: ompharate/voxora-api:latest
     restart: unless-stopped
     ports:
       - "3002:3002"
@@ -63,7 +63,7 @@ services:
         max-file: "3"
 
   ai:
-    image: ompharate/voxora-ai:0.9.0-beta
+    image: ompharate/voxora-ai:latest
     restart: unless-stopped
     env_file:
       - .env.ai
