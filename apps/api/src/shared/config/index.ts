@@ -55,6 +55,7 @@ interface Config {
     useSSL: boolean;
     accessKey: string;
     secretKey: string;
+    publicUrl: string;
   };
 }
 
@@ -112,6 +113,9 @@ const config: Config = {
     useSSL: process.env.MINIO_USE_SSL === "true",
     accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
     secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
+    // Public URL for presigned links returned to browsers.
+    // In Docker: MINIO_ENDPOINT=minio (internal), MINIO_PUBLIC_URL=http://<public-ip>:9001
+    publicUrl: process.env.MINIO_PUBLIC_URL || "",
   },
 };
 

@@ -1,6 +1,18 @@
 import { minioClient, VOXORA_BUCKET } from "@shared/config/minio";
 import { v4 as uuidv4 } from "uuid";
 import logger from "@shared/utils/logger";
+import config from "@shared/config";
+
+/**
+ * Rewrites internal MinIO hostname in presigned URLs to the public URL.
+ * e.g. http://minio:9001/... → http://3.111.24.80:9001/...
+ */
+function toPublicUrl(url: string): string {
+  const publicUrl = config.minio.publicUrl;
+  if (!publicUrl) return url;
+  // Replace everything up to and including the port with the public base URL
+  return url.replace(/^https?:\/\/[^/]+/, publicUrl.replace(/\/$/, ""));
+}
 
 export interface PresignedUrlResponse {
   uploadUrl: string;
@@ -19,6 +31,10 @@ export interface FileMetadata {
 
 class StorageService {
   getPublicUrl(objectKey: string): string {
+    const publicUrl = config.minio.publicUrl;
+    if (publicUrl) {
+      return `${publicUrl.replace(/\/$/, "")}/${VOXORA_BUCKET}/${objectKey}`;
+    }
     const minioEndpoint = process.env.MINIO_ENDPOINT || "localhost";
     const minioPort = process.env.MINIO_PORT || "9001";
     const useSSL = process.env.MINIO_USE_SSL === "true";
@@ -35,11 +51,11 @@ class StorageService {
       const fileExtension = fileName.split(".").pop();
       const fileKey = `knowledge/${uuidv4()}.${fileExtension}`;
 
-      const uploadUrl = await minioClient.presignedPutObject(
+      const uploadUrl = toPublicUrl(await minioClient.presignedPutObject(
         VOXORA_BUCKET,
         fileKey,
         expiresIn,
-      );
+      ));
 
       logger.info(`Generated presigned upload URL for: ${fileName}`);
 
@@ -63,17 +79,17 @@ class StorageService {
     try {
       const fileExtension = fileName.split(".").pop();
       const fileKey = `conversations/${uuidv4()}.${fileExtension}`;
-      const uploadUrl = await minioClient.presignedPutObject(
+      const uploadUrl = toPublicUrl(await minioClient.presignedPutObject(
         VOXORA_BUCKET,
         fileKey,
         expiresIn,
-      );
+      ));
       // 7-day presigned download URL so clients open files directly from MinIO
-      const downloadUrl = await minioClient.presignedGetObject(
+      const downloadUrl = toPublicUrl(await minioClient.presignedGetObject(
         VOXORA_BUCKET,
         fileKey,
         604800,
-      );
+      ));
       logger.info(`Generated conversation upload URL for: ${fileName}`);
       return { uploadUrl, downloadUrl, fileKey, fileName, expiresIn };
     } catch (error) {
@@ -87,11 +103,11 @@ class StorageService {
     expiresIn: number = 3600,
   ): Promise<string> {
     try {
-      const downloadUrl = await minioClient.presignedGetObject(
+      const downloadUrl = toPublicUrl(await minioClient.presignedGetObject(
         VOXORA_BUCKET,
         fileKey,
         expiresIn,
-      );
+      ));
 
       logger.info(`Generated presigned download URL for: ${fileKey}`);
       return downloadUrl;
