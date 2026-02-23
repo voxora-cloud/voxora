@@ -50,6 +50,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-api:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -66,6 +67,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-web:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -79,6 +81,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-ai:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-ai:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
