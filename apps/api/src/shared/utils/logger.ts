@@ -13,18 +13,14 @@ const logger = winston.createLogger({
   transports: [
     new winston.transports.File({ filename: "logs/error.log", level: "error" }),
     new winston.transports.File({ filename: "logs/combined.log" }),
-  ],
-});
-
-if (config.app.env !== "production") {
-  logger.add(
+    // Always log to console so errors are visible in docker logs
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.simple(),
       ),
     }),
-  );
-}
+  ],
+});
 
 export default logger;
