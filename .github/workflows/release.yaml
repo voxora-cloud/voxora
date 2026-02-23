@@ -46,7 +46,7 @@ jobs:
         with:
           context: ./apps/api
           file: ./apps/api/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-api:${{ steps.version.outputs.tag }}
@@ -63,7 +63,7 @@ jobs:
         with:
           context: ./apps/web
           file: ./apps/web/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-web:${{ steps.version.outputs.tag }}
@@ -77,7 +77,7 @@ jobs:
         with:
           context: ./apps/ai
           file: ./apps/ai/Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/voxora-ai:${{ steps.version.outputs.tag }}
