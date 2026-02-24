@@ -23,18 +23,29 @@ export function getApiUrl(customUrl?: string): string {
 
 /**
  * Derive the origin where the widget iframe HTML is served from.
- * In production this is the widget CDN; in local dev it's MinIO.
+ * - localhost dev  → http://localhost:9001  (local MinIO)
+ * - self-hosted    → same host as apiUrl but on port 9001  (EC2 MinIO)
+ * - voxora.cloud   → https://widget.voxora.ai  (managed CDN)
+ * Can be overridden with data-voxora-cdn-url on the script tag.
  */
-export function getWidgetOrigin(apiUrl: string): string {
+export function getWidgetOrigin(apiUrl: string, cdnUrl?: string): string {
+  if (cdnUrl) return cdnUrl.replace(/\/$/, '');
   if (apiUrl.includes('localhost')) return 'http://localhost:9001';
-  return 'https://widget.voxora.ai';
+  if (apiUrl.includes('voxora.cloud') || apiUrl.includes('voxora.ai')) return 'https://widget.voxora.ai';
+  // Self-hosted: derive MinIO origin from the same hostname, port 9001
+  try {
+    const url = new URL(apiUrl);
+    return `${url.protocol}//${url.hostname}:9001`;
+  } catch {
+    return 'https://widget.voxora.ai';
+  }
 }
 
 /**
  * Build the base URL for the widget iframe HTML file.
  */
-export function getWidgetBaseUrl(apiUrl: string): string {
-  return `${getWidgetOrigin(apiUrl)}/voxora-widget/v1`;
+export function getWidgetBaseUrl(apiUrl: string, cdnUrl?: string): string {
+  return `${getWidgetOrigin(apiUrl, cdnUrl)}/voxora-widget/v1`;
 }
 
 /**
@@ -58,6 +69,7 @@ export function parseWidgetConfig(): WidgetConfig | null {
     const config: WidgetConfig = {
       publicKey,
       apiUrl: script.getAttribute('data-voxora-api-url') || getApiUrl(),
+      cdnUrl: script.getAttribute('data-voxora-cdn-url') || undefined,
       position: (script.getAttribute('data-voxora-position') as any) || DEFAULT_CONFIG.position,
       primaryColor: script.getAttribute('data-voxora-color') || DEFAULT_CONFIG.primaryColor,
       logoUrl: script.getAttribute('data-voxora-logo-url') || undefined,

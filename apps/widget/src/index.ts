@@ -66,7 +66,7 @@ class VoxoraLoader {
     this.state        = { isOpen: false, unreadCount: 0, token: null, conversationId: null };
     this.api          = new WidgetAPI(config);
     this.ui           = new WidgetUI(config, this.state);
-    this.iframeOrigin = getWidgetOrigin(config.apiUrl!);
+    this.iframeOrigin = getWidgetOrigin(config.apiUrl!, config.cdnUrl);
     this.lastPageUrl  = window.location.href;
 
     // ONLY place customer localStorage is read. Values forwarded to iframe via INIT_WIDGET.

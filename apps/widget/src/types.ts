@@ -17,6 +17,10 @@ export interface WidgetConfig {
   position?: 'bottom-right' | 'bottom-left';
   /** Override button accent color */
   primaryColor?: string;
+  /** Optional CDN/MinIO public URL override for the widget iframe origin.
+   *  Set via data-voxora-cdn-url on the script tag for self-hosted deployments.
+   *  e.g. http://3.111.24.80:9001  */
+  cdnUrl?: string;
   // The following are populated from the API response, not the script tag:
   displayName?: string;
   logoUrl?: string;

@@ -9,9 +9,13 @@ node_modules
 # Local env files
 .env
 .env.local
+.env.development
 .env.development.local
+.env.production
 .env.test.local
 .env.production.local
+# Always track the example template
+!.env.example
 
 # Testing
 coverage

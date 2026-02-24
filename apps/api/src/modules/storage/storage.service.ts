@@ -6,12 +6,11 @@ import config from "@shared/config";
 /**
  * Rewrites internal MinIO hostname in presigned URLs to the public URL.
  * e.g. http://minio:9001/... → http://3.111.24.80:9001/...
+ * config.minio.publicUrl is always non-empty (falls back to MINIO_ENDPOINT:PORT).
  */
 function toPublicUrl(url: string): string {
-  const publicUrl = config.minio.publicUrl;
-  if (!publicUrl) return url;
-  // Replace everything up to and including the port with the public base URL
-  return url.replace(/^https?:\/\/[^/]+/, publicUrl.replace(/\/$/, ""));
+  const publicBase = config.minio.publicUrl.replace(/\/$/, "");
+  return url.replace(/^https?:\/\/[^/]+/, publicBase);
 }
 
 export interface PresignedUrlResponse {

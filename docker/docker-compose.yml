@@ -1,12 +1,34 @@
 services:
 
+  # One-shot: builds widget JS and deploys it to MinIO on every stack startup.
+  # Exits after deploy (restart: no). Re-runs on `docker-compose up`.
+  widget-deploy:
+    image: ompharate/voxora-widget:latest
+    restart: no
+    env_file:
+      - ../apps/widget/.env.docker
+    environment:
+      # Override endpoint to internal Docker hostname — no public port needed
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9001"
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - voxora-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
   web: 
     image: ompharate/voxora-web:latest
     restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
-      - .env.web
+      - ../apps/web/.env.docker
     depends_on:
       api:
         condition: service_healthy
@@ -35,7 +57,7 @@ services:
     ports:
       - "3002:3002"
     env_file:
-      - .env.api
+      - ../apps/api/.env.docker
     depends_on:
       mongodb:
         condition: service_healthy
@@ -66,7 +88,7 @@ services:
     image: ompharate/voxora-ai:latest
     restart: unless-stopped
     env_file:
-      - .env.ai
+      - ../apps/ai/.env.docker
     depends_on:
       mongodb:
         condition: service_healthy

@@ -85,6 +85,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # ── WIDGET ───────────────────────────────────────────────────────────
+      # Builds the widget JS bundle and packages it with the deploy script.
+      # The widget-deploy service in docker-compose runs this image on startup
+      # to push voxora.js into MinIO automatically.
+      - name: Build & push Widget
+        uses: docker/build-push-action@v6
+        with:
+          context: ./apps/widget
+          file: ./apps/widget/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-widget:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/voxora-widget:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       # ── Summary ──────────────────────────────────────────────────────────
       - name: Summary
         run: |
@@ -95,3 +112,4 @@ jobs:
           echo "| voxora-api | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| voxora-web | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| voxora-ai  | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| voxora-widget | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY

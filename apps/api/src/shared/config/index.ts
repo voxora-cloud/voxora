@@ -114,8 +114,21 @@ const config: Config = {
     accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
     secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
     // Public URL for presigned links returned to browsers.
-    // In Docker: MINIO_ENDPOINT=minio (internal), MINIO_PUBLIC_URL=http://<public-ip>:9001
-    publicUrl: process.env.MINIO_PUBLIC_URL || "",
+    // Explicitly set MINIO_PUBLIC_URL=http://<server-ip>:9001 in production.
+    // Falls back to deriving from MINIO_ENDPOINT so dev (localhost) works without extra config.
+    get publicUrl(): string {
+      if (process.env.MINIO_PUBLIC_URL) return process.env.MINIO_PUBLIC_URL.replace(/\/$/, "");
+      const protocol = process.env.MINIO_USE_SSL === "true" ? "https" : "http";
+      const endpoint = process.env.MINIO_ENDPOINT || "localhost";
+      const port = process.env.MINIO_PORT || "9001";
+      if (process.env.NODE_ENV === "production") {
+        console.warn(
+          "[WARN] MINIO_PUBLIC_URL is not set. Presigned URLs will use internal hostname '"
+          + endpoint + "' which browsers cannot resolve. Set MINIO_PUBLIC_URL=http://<server-ip>:" + port
+        );
+      }
+      return `${protocol}://${endpoint}:${port}`;
+    },
   },
 };
 
