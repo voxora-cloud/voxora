@@ -183,6 +183,10 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # MINIO_SERVER_URL makes MinIO sign presigned URLs with the public IP.
+      # Without this, signatures are computed for host "minio" (internal) and
+      # browsers get 403 because the Host header doesn't match the signature.
+      MINIO_SERVER_URL: ${MINIO_PUBLIC_URL}
       MINIO_API_CORS_ALLOW_ORIGIN: "*"
     command: server /data --console-address ":9002" --address ":9001"
     volumes:
