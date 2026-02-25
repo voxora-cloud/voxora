@@ -181,8 +181,8 @@ services:
       - "9001:9001"  # API port (widget CDN)
       - "9002:9002"  # Console port
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      # MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       # MINIO_SERVER_URL makes MinIO sign presigned URLs with the public IP.
       # Without this, signatures are computed for host "minio" (internal) and
       # browsers get 403 because the Host header doesn't match the signature.

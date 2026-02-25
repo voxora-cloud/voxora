@@ -516,7 +516,7 @@ export const getWidgetConversations = asyncHandler(
             updatedAt: conv.updatedAt,
             visitor: conv.visitor,
             assignedTo:
-              typeof conv.assignedTo === "object"
+              conv.assignedTo && typeof conv.assignedTo === "object"
                 ? (conv.assignedTo as any)._id
                 : conv.assignedTo,
             assignedAgent: agentName,
