@@ -1,0 +1,48 @@
+# ============================================================
+# Caddyfile  —  Voxora reverse proxy
+#
+# Uses Caddy's native environment variable substitution: {$VAR}
+# Values come from docker/.env  →  docker-compose caddy.environment
+#
+# API_HOST  — domain/IP that serves the backend API and sockets
+#             e.g.  api.example.com   or   1.2.3.4
+# WEB_HOST  — domain/IP that serves the Next.js frontend
+#             e.g.  app.example.com   (can be the same as API_HOST)
+# CDN_HOST  — subdomain for MinIO (file storage / widget JS delivery)
+#             e.g.  cdn.example.com
+#
+# TLS behaviour (automatic, zero-config):
+#   - Real domain name  → Caddy obtains a Let's Encrypt cert automatically.
+#   - IP address        → Caddy serves plain HTTP (no cert possible).
+#   - localhost         → Caddy serves plain HTTP (dev mode).
+# ============================================================
+
+# ── API / sockets  (path-prefix routing) ─────────────────────────────────────
+{$API_HOST} {
+    # WebSocket upgrade for Socket.IO must reach the API container
+    handle /socket.io/* {
+        reverse_proxy api:3002
+    }
+    # REST API
+    handle /api/* {
+        reverse_proxy api:3002
+    }
+    # Everything else → Next.js web frontend
+    handle {
+        reverse_proxy web:3000
+    }
+}
+
+# ── Web frontend on a separate domain (only active when WEB_HOST != API_HOST) ─
+# Uncomment this block if your frontend lives on a different domain.
+#
+# {$WEB_HOST} {
+#     reverse_proxy web:3000
+# }
+
+# ── MinIO CDN  (cdn.example.com → minio:9001) ────────────────────────────────
+# Caddy terminates TLS for the CDN subdomain and proxies to the minio container
+# on the internal Docker network.  No non-standard ports needed.
+{$CDN_HOST} {
+    reverse_proxy minio:9001
+}
