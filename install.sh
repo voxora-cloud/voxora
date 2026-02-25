@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ============================================================
-# Voxora — Production Installer for Ubuntu 22.04+ / EC2
+# Voxora — Production Installer for Amazon Linux 2023 / EC2
 # Usage: curl -fsSL https://raw.githubusercontent.com/voxora-cloud/voxora/main/install.sh | bash
 # ============================================================
 
@@ -57,10 +57,10 @@ check_root() {
 # ── System update ─────────────────────────────────────────────────────────────
 update_system() {
   step "System Update"
-  info "Updating apt package lists..."
-  apt-get update -qq
-  info "Installing prerequisites (curl git ca-certificates gnupg lsb-release jq lsof)..."
-  apt-get install -y -qq curl git ca-certificates gnupg lsb-release jq lsof
+  info "Updating dnf package lists..."
+  dnf update -y -q
+  info "Installing prerequisites (curl git ca-certificates gnupg2 jq lsof tar)..."
+  dnf install -y -q curl git ca-certificates gnupg2 jq lsof tar
   success "System packages up to date."
 }
 
@@ -71,19 +71,12 @@ install_docker() {
   if command -v docker &>/dev/null && docker info &>/dev/null; then
     success "Docker already installed: $(docker --version)"
   else
-    info "Adding Docker GPG key and repository..."
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
+    info "Adding Docker CE repository (RHEL/AL2023)..."
+    dnf config-manager --add-repo \
+      https://download.docker.com/linux/centos/docker-ce.repo
 
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
-      > /etc/apt/sources.list.d/docker.list
-
-    apt-get update -qq
-    apt-get install -y -qq \
+    info "Installing Docker Engine, CLI, Containerd, Buildx and Compose plugin..."
+    dnf install -y -q \
       docker-ce docker-ce-cli containerd.io \
       docker-buildx-plugin docker-compose-plugin
 
@@ -109,9 +102,9 @@ check_ports() {
   step "Port Availability Check"
   local blocked=0
   for port in "${REQUIRED_PORTS[@]}"; do
-    if lsof -Pi :"$port" -sTCP:LISTEN -t &>/dev/null 2>&1; then
+    if ss -tlnp "sport = :${port}" 2>/dev/null | grep -q ":${port}"; then
       warn "Port ${port} is already in use:"
-      lsof -Pi :"$port" -sTCP:LISTEN | tail -n +2 | awk '{print "       " $0}'
+      ss -tlnp "sport = :${port}" | tail -n +2 | awk '{print "       " $0}'
       blocked=$((blocked + 1))
     else
       success "Port ${port} is free."
