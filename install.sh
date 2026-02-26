@@ -75,6 +75,26 @@ check_docker_compose() {
 
 # Install Docker on Amazon Linux 2023
 install_docker_amazon_linux_2023() {
+    # Check if Docker is already installed
+    if command -v docker &> /dev/null; then
+        log_success "Docker is already installed: $(docker --version)"
+        
+        # Ensure Docker is running
+        if ! systemctl is-active --quiet docker; then
+            log_info "Starting Docker service..."
+            systemctl start docker
+            systemctl enable docker
+        fi
+        
+        # Add current user to docker group if not already member
+        if [ -n "$SUDO_USER" ] && ! groups "$SUDO_USER" | grep -q docker; then
+            usermod -aG docker "$SUDO_USER"
+            log_info "Added $SUDO_USER to docker group. You may need to log out and back in."
+        fi
+        
+        return 0
+    fi
+    
     log_info "Installing Docker on Amazon Linux 2023..."
     
     # Update system
@@ -98,23 +118,64 @@ install_docker_amazon_linux_2023() {
 
 # Install Docker Compose on Amazon Linux 2023
 install_docker_compose_amazon_linux_2023() {
+    # Check if docker compose (plugin) is already available
+    if docker compose version &> /dev/null 2>&1; then
+        log_success "Docker Compose is already installed: $(docker compose version)"
+        return 0
+    fi
+    
+    # Check if docker-compose (standalone) is already available
+    if command -v docker-compose &> /dev/null && docker-compose --version &> /dev/null 2>&1; then
+        log_success "Docker Compose is already installed: $(docker-compose --version)"
+        return 0
+    fi
+    
     log_info "Installing Docker Compose plugin..."
     
-    # Docker Compose is included with Docker on Amazon Linux 2023
-    # Just verify it's available
-    if docker compose version &> /dev/null; then
-        log_success "Docker Compose is available"
+    # Install Docker Compose plugin
+    dnf install -y docker-compose-plugin
+    
+    # Verify installation
+    if docker compose version &> /dev/null 2>&1; then
+        log_success "Docker Compose installed successfully: $(docker compose version)"
     else
-        log_error "Docker Compose plugin not found. Please install manually."
-        exit 1
+        log_error "Docker Compose installation failed. Trying alternative method..."
+        
+        # Fallback: Install docker-compose as standalone binary
+        COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+        curl -L "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
+        
+        if docker-compose --version &> /dev/null 2>&1; then
+            log_success "Docker Compose installed via fallback method: $(docker-compose --version)"
+        else
+            log_error "Docker Compose installation failed. Please install manually."
+            exit 1
+        fi
     fi
 }
 
 # Install dependencies for Amazon Linux 2023
 install_dependencies_amazon_linux_2023() {
-    log_info "Installing dependencies (git, curl)..."
-    dnf install -y git curl
-    log_success "Dependencies installed"
+    log_info "Installing dependencies..."
+    
+    # Install git if not present
+    if ! command -v git &> /dev/null; then
+        dnf install -y git
+    else
+        log_success "git is already installed"
+    fi
+    
+    # Check if curl is available (curl-minimal provides curl command)
+    if ! command -v curl &> /dev/null; then
+        # curl not available, install full curl package
+        dnf install -y curl
+    else
+        log_success "curl is already available"
+    fi
+    
+    log_success "Dependencies ready"
 }
 
 # Generic install function that routes to OS-specific installers

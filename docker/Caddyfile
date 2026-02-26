@@ -27,18 +27,12 @@
     handle /api/* {
         reverse_proxy api:3002
     }
-    # Everything else → Next.js web frontend
-    handle {
-        reverse_proxy web:3000
-    }
 }
 
-# ── Web frontend on a separate domain (only active when WEB_HOST != API_HOST) ─
-# Uncomment this block if your frontend lives on a different domain.
-#
-# {$WEB_HOST} {
-#     reverse_proxy web:3000
-# }
+# ── Web frontend on a separate domain ────────────────────────────────────────
+{$WEB_HOST} {
+    reverse_proxy web:3000
+}
 
 # ── MinIO CDN  (cdn.example.com → minio:9001) ────────────────────────────────
 # Caddy terminates TLS for the CDN subdomain and proxies to the minio container
