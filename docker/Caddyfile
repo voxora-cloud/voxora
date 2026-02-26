@@ -38,5 +38,17 @@
 # Caddy terminates TLS for the CDN subdomain and proxies to the minio container
 # on the internal Docker network.  No non-standard ports needed.
 {$CDN_HOST} {
-    reverse_proxy minio:9001
+    reverse_proxy minio:9001 {
+        # Preserve original headers needed for MinIO presigned URL validation
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+    
+    # Allow larger file uploads (default is 10MB, increase to 100MB)
+    request_body {
+        max_size 100MB
+    }
 }
