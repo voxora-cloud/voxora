@@ -130,29 +130,36 @@ install_docker_compose_amazon_linux_2023() {
         return 0
     fi
     
-    log_info "Installing Docker Compose plugin..."
+    log_info "Installing Docker Compose CLI plugin..."
     
-    # Install Docker Compose plugin
-    dnf install -y docker-compose-plugin
+    # Create the directory for Docker CLI plugins if it doesn't exist
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    
+    # Get the latest Docker Compose version
+    log_info "Fetching latest Docker Compose version..."
+    COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep tag_name | cut -d '"' -f 4)
+    
+    if [ -z "$COMPOSE_VERSION" ]; then
+        log_error "Failed to fetch Docker Compose version. Trying direct download..."
+        COMPOSE_VERSION="latest"
+    else
+        log_info "Latest version: $COMPOSE_VERSION"
+    fi
+    
+    # Download the latest Docker Compose plugin binary
+    log_info "Downloading Docker Compose plugin..."
+    curl -SL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
+        -o /usr/local/lib/docker/cli-plugins/docker-compose
+    
+    # Make the downloaded binary executable
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
     
     # Verify installation
     if docker compose version &> /dev/null 2>&1; then
         log_success "Docker Compose installed successfully: $(docker compose version)"
     else
-        log_error "Docker Compose installation failed. Trying alternative method..."
-        
-        # Fallback: Install docker-compose as standalone binary
-        COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-        curl -L "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        chmod +x /usr/local/bin/docker-compose
-        ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-        
-        if docker-compose --version &> /dev/null 2>&1; then
-            log_success "Docker Compose installed via fallback method: $(docker-compose --version)"
-        else
-            log_error "Docker Compose installation failed. Please install manually."
-            exit 1
-        fi
+        log_error "Docker Compose installation failed. Please check the installation manually."
+        exit 1
     fi
 }
 
