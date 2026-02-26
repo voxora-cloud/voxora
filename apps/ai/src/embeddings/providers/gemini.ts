@@ -18,12 +18,12 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<number[]> {
-    const result = await this.ai.models.embedContent({
+    const response = await this.ai.models.embedContent({
       model: this.model,
       contents: [text],
     });
 
-    const values = (result as any).embeddings?.[0]?.values;
+    const values = response.embeddings?.[0]?.values;
     if (!Array.isArray(values)) {
       throw new Error("Gemini embedContent returned unexpected shape");
     }

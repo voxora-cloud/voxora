@@ -28,7 +28,7 @@ export class GeminiProvider implements LLMProvider {
       parts: [{ text: m.content }],
     }));
 
-    const result = await this.ai.models.generateContent({
+    const response = await this.ai.models.generateContent({
       model,
       contents,
       config: {
@@ -36,6 +36,6 @@ export class GeminiProvider implements LLMProvider {
       },
     });
 
-    return result.text ?? "Sorry, I could not generate a response.";
+    return response.text ?? "Sorry, I could not generate a response.";
   }
 }

@@ -413,7 +413,7 @@ LLM_PROVIDER=gemini
 
 # Embeddings
 EMBEDDING_PROVIDER=gemini
-GEMINI_EMBEDDING_MODEL=text-embedding-004
+GEMINI_EMBEDDING_MODEL=gemini-embedding-001
 
 # RAG Configuration
 RAG_TOP_K=5

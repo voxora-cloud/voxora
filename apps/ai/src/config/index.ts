@@ -22,7 +22,7 @@ const config = {
   },
   embeddings: {
     provider: process.env.EMBEDDING_PROVIDER || "gemini",
-    geminiModel: process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
+    geminiModel: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
     /** Number of similar chunks to inject into context (RAG) */
     ragTopK: parseInt(process.env.RAG_TOP_K || "5", 10),
   },
