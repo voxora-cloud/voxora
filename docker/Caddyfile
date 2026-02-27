@@ -39,8 +39,10 @@
 # on the internal Docker network.  No non-standard ports needed.
 {$CDN_HOST} {
     reverse_proxy minio:9001 {
-        # Preserve original headers needed for MinIO presigned URL validation
-        header_up Host {host}
+        # Set Host to internal address for MinIO signature validation
+        # MinIO signs URLs with the host it knows (minio:9001), so we must 
+        # preserve that in the Host header, otherwise signatures fail
+        header_up Host "minio:9001"
         header_up X-Real-IP {remote_host}
         header_up X-Forwarded-For {remote_host}
         header_up X-Forwarded-Proto {scheme}
