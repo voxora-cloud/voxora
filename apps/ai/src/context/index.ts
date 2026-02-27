@@ -142,9 +142,20 @@ export async function buildContext(
     } else {
       console.log(`[Context] RAG: no matching chunks found`);
     }
-  } catch (err) {
-    // RAG failure is non-fatal — fall back to base system prompt
-    console.warn("[Context] RAG search failed, continuing without context:", err);
+  } catch (err: any) {
+    // Check if error is due to missing collection (404 on fresh deployment)
+    if (err?.status === 404 && err?.data?.status?.error?.includes("doesn't exist")) {
+      console.log(`[Context] Qdrant collection doesn't exist yet — creating with ${getEmbeddingProvider().dimensions}d vectors`);
+      try {
+        await vectorStore.ensureCollection(getEmbeddingProvider().dimensions);
+        console.log(`[Context] Collection created successfully. RAG will work after documents are ingested.`);
+      } catch (createErr) {
+        console.error("[Context] Failed to create collection:", createErr);
+      }
+    } else {
+      // RAG failure is non-fatal — fall back to base system prompt
+      console.warn("[Context] RAG search failed, continuing without context:", err);
+    }
   }
 
   // ── 2. Conversation history from MongoDB ─────────────────────────────────────
