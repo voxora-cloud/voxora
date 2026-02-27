@@ -260,7 +260,7 @@ prompt_config() {
     fi
     
     # CDN Host
-    read -p "Enter CDN domain (e.g., cdn.voxora.cloud): " CDN_HOSTi
+    read -p "Enter CDN domain (e.g., cdn.voxora.cloud): " CDN_HOST
     if [ -z "$CDN_HOST" ]; then
         log_error "CDN domain cannot be empty"
         exit 1
