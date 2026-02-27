@@ -32,7 +32,6 @@ export default defineConfig({
     }
   },
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-    'process.env.API_URL_PRODUCTION': JSON.stringify(process.env.API_URL_PRODUCTION || 'http://localhost:3002')
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
   }
 });

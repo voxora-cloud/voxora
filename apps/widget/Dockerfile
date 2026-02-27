@@ -24,7 +24,9 @@ RUN npm install --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 
-# Copy deploy script
+# Copy deploy script and entrypoint
 COPY deploy-to-minio.js ./
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
 
-CMD ["node", "deploy-to-minio.js"]
+ENTRYPOINT ["./entrypoint.sh"]

@@ -38,6 +38,7 @@ services:
 
   # One-shot: builds widget JS and deploys it to MinIO on every stack startup.
   # Exits after deploy (restart: no). Re-runs on `docker-compose up`.
+  # Uses runtime config injection via entrypoint.sh (similar to Next.js web app).
   widget-deploy:
     image: ompharate/voxora-widget:latest
     restart: no
@@ -47,6 +48,8 @@ services:
       # Override endpoint to internal Docker hostname — no public port needed
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9001"
+      # Runtime config injection - entrypoint.sh replaces __API_URL_PRODUCTION__ placeholder
+      API_URL_PRODUCTION: ${API_URL_PRODUCTION:-https://apivoxora.voxora.cloud}
     depends_on:
       minio:
         condition: service_healthy

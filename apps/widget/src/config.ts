@@ -7,12 +7,13 @@ import { WidgetConfig } from './types';
 const DEFAULT_CONFIG: Partial<WidgetConfig> = {
   position: 'bottom-right',
   primaryColor: '#667eea',
-  apiUrl: process.env.API_URL_PRODUCTION || 'http://localhost:3002'
+  // Runtime placeholder - replaced by entrypoint.sh at container startup
+  apiUrl: '__API_URL_PRODUCTION__'
 };
 
 /**
  * Get API base URL based on environment.
- * Uses API_URL_PRODUCTION from .env files during build time.
+ * Placeholder __API_URL_PRODUCTION__ is replaced at container startup via entrypoint.sh
  */
 export function getApiUrl(customUrl?: string): string {
   return customUrl || DEFAULT_CONFIG.apiUrl!;
