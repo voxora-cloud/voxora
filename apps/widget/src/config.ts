@@ -7,18 +7,15 @@ import { WidgetConfig } from './types';
 const DEFAULT_CONFIG: Partial<WidgetConfig> = {
   position: 'bottom-right',
   primaryColor: '#667eea',
-  apiUrl: 'http://localhost:3002'
+  apiUrl: process.env.API_URL_PRODUCTION || 'http://localhost:3002'
 };
 
 /**
  * Get API base URL based on environment.
+ * Uses API_URL_PRODUCTION from .env files during build time.
  */
 export function getApiUrl(customUrl?: string): string {
-  if (customUrl) return customUrl;
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return 'https://api.voxora.cloud';
-  }
-  return DEFAULT_CONFIG.apiUrl!;
+  return customUrl || DEFAULT_CONFIG.apiUrl!;
 }
 
 /**
