@@ -564,10 +564,18 @@ export class AdminService {
   }
 
   async getWidget(userId: string) {
-    const widget = await Widget.findOne({ userId });
+    let widget = await Widget.findOne({ userId });
 
+    // Auto-create default widget if none exists
     if (!widget) {
-      throw new Error("Widget not found for this user");
+      widget = new Widget({
+        userId,
+        displayName: "Support Chat",
+        backgroundColor: "#10b981",
+        publicKey: crypto.randomBytes(16).toString("hex"),
+      });
+      await widget.save();
+      logger.info(`Auto-created default widget for user ${userId}`);
     }
 
     return widget;
@@ -586,13 +594,22 @@ export class AdminService {
       ),
     );
 
-    const widget = await Widget.findOneAndUpdate({ userId }, cleanUpdates, {
+    let widget = await Widget.findOneAndUpdate({ userId }, cleanUpdates, {
       new: true,
       runValidators: true,
     });
 
+    // Auto-create widget if none exists (first time update)
     if (!widget) {
-      throw new Error("Widget not found for this user");
+      widget = new Widget({
+        userId,
+        displayName: updateData.displayName || "Support Chat",
+        backgroundColor: updateData.backgroundColor || "#10b981",
+        logoUrl: updateData.logoUrl,
+        publicKey: crypto.randomBytes(16).toString("hex"),
+      });
+      await widget.save();
+      logger.info(`Auto-created widget during update for user ${userId}`);
     }
 
     logger.info("Widget updated successfully", {

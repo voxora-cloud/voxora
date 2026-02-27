@@ -5,11 +5,23 @@ import config from "@shared/config";
 
 /**
  * Rewrites internal MinIO hostname in presigned URLs to the public URL.
- * e.g. http://minio:9001/... → http://3.111.24.80:9001/...
- * config.minio.publicUrl is always non-empty (falls back to MINIO_ENDPOINT:PORT).
+ * 
+ * IMPORTANT: This should NOT be used when MINIO_SERVER_URL is properly configured,
+ * because MinIO already generates presigned URLs with the correct public hostname,
+ * and replacing it will break the AWS signature validation.
+ * 
+ * This function is kept for backward compatibility but should be phased out.
  */
 function toPublicUrl(url: string): string {
+  // If MINIO_SERVER_URL (publicUrl) is configured, MinIO already generates
+  // URLs with the correct host. Return as-is to preserve the signature.
   const publicBase = config.minio.publicUrl.replace(/\/$/, "");
+  if (publicBase && url.includes(publicBase)) {
+    return url; // Already has public URL, don't modify (preserves signature)
+  }
+  
+  // Fallback: replace internal hostname with public URL
+  // This only happens if MINIO_SERVER_URL is not configured properly
   return url.replace(/^https?:\/\/[^/]+/, publicBase);
 }
 
