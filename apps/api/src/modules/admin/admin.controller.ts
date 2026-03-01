@@ -256,12 +256,10 @@ export const getWidget = asyncHandler(
       // (direct MinIO URLs use internal Docker hostnames that browsers can't reach)
       const widgetData: any = result.toObject ? result.toObject() : { ...result };
       if (widgetData.logoUrl) {
-        // Normalize any full MinIO URL → fileKey, then proxy through the API.
+        // Normalize any full MinIO URL → fileKey, then store as fileKey.
         // This handles both new records (fileKey only) and legacy records (full URL).
         const fileKey = normalizeLogoUrl(widgetData.logoUrl)!;
-        const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
-        const host = req.get("host") || "localhost:3002";
-        widgetData.logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
+        widgetData.fileKey = fileKey; // Store the plain fileKey (not URL-encoded)
       }
       sendResponse(res, 200, true, "Widget retrieved successfully", widgetData);
     } catch (error: any) {

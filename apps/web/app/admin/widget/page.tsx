@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { FileUpload } from "@/components/ui/file-upload";
 import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
-import { Save, Loader2, X, MessageCircle, Copy, Check } from "lucide-react";
+import { Save, Loader2, MessageCircle, Copy, Check } from "lucide-react";
 import Image from "next/image";
 import { validateWidgetForm } from "@/lib/validation";
 import { useAppToast } from "@/lib/hooks/useAppToast";
@@ -21,6 +21,7 @@ export default function CreateWidgetPage() {
   const [isCopied, setIsCopied] = useState(false);
   const [uploadedFileKey, setUploadedFileKey] = useState<string>("");
   const [savedLogoUrl, setSavedLogoUrl] = useState<string>("");
+  const [previewLogoUrl, setPreviewLogoUrl] = useState<string>("");
   const widgetInitialized = useRef(false);
   const { toastSuccess, toastError } = useAppToast();
   const [validationErrors, setValidationErrors] = useState<{
@@ -100,8 +101,34 @@ export default function CreateWidgetPage() {
       if (response.success) {
         setFormData(response.data);
         setExistingWidget(response.data); // Store existing widget data
-        setUploadedFileKey(response.data.logoFileKey || ""); // Store existing file key
-        setSavedLogoUrl(response.data.logoUrl || ""); // Store saved logo for preview
+        
+        // Use fileKey from response (backend already normalizes this)
+        const fileKey = response.data.fileKey || response.data.logoFileKey || response.data.logoUrl;
+        
+        setUploadedFileKey(fileKey || ""); // Store existing file key
+        
+        // If there's a fileKey, get presigned download URL
+        if (fileKey) {
+          try {
+            const downloadUrlResponse = await apiService.generatePresignedDownloadUrl(
+              fileKey,
+              900 // 15 minutes expiry
+            );
+            if (downloadUrlResponse.success) {
+              setSavedLogoUrl(downloadUrlResponse.data.downloadUrl);
+              setPreviewLogoUrl(downloadUrlResponse.data.downloadUrl);
+            }
+          } catch (error) {
+            console.error("Error getting presigned download URL:", error);
+            // Fallback to stored logoUrl if presigned URL fails
+            setSavedLogoUrl(response.data.logoUrl || "");
+            setPreviewLogoUrl(response.data.logoUrl || "");
+          }
+        } else {
+          setSavedLogoUrl(response.data.logoUrl || "");
+          setPreviewLogoUrl(response.data.logoUrl || "");
+        }
+        
         setIsExistingWidget(true);
       } else {
         toastError("Failed to load widget data");
@@ -124,18 +151,20 @@ export default function CreateWidgetPage() {
   }) => {
     setUploadedFileKey(data.fileKey);
     handleInputChange("logoUrl", data.downloadUrl);
+    setPreviewLogoUrl(data.downloadUrl); // Update preview with new upload
     toastSuccess("Logo uploaded successfully!");
   };
 
   // Handle file upload error
   const handleUploadError = (error: string) => {
-    toastError(error);
+    toastError(error);isExistingWidget
   };
 
   // Handle file removal
   const handleFileRemove = () => {
     setUploadedFileKey("");
     handleInputChange("logoUrl", "");
+    setPreviewLogoUrl(""); // Clear preview
   };
 
   // Handle form submission
@@ -168,7 +197,8 @@ export default function CreateWidgetPage() {
       const widgetData = {
         displayName: formData.displayName,
         backgroundColor: formData.backgroundColor,
-        logoUrl: formData.logoUrl || "",
+        logoUrl: formData.logoUrl || existingWidget?.logoUrl || "",
+        logoFileKey: uploadedFileKey || existingWidget?.logoFileKey || "",
       };
 
       const response = isExistingWidget
@@ -190,7 +220,7 @@ export default function CreateWidgetPage() {
         );
 
         // Update saved logo preview only after successful save
-        setSavedLogoUrl(formData.logoUrl || "");
+        setSavedLogoUrl(previewLogoUrl);
 
         // Reload to see the updated widget
         setTimeout(() => {
@@ -344,7 +374,7 @@ export default function CreateWidgetPage() {
                       onUploadSuccess={handleUploadSuccess}
                       onUploadError={handleUploadError}
                       onRemove={handleFileRemove}
-                      initialPreview={formData.logoUrl}
+                      initialPreview={previewLogoUrl}
                       initialFileName={existingWidget?.logoUrl ? "Current Logo" : undefined}
                       showPreview={true}
                       buttonText="Choose from Device"
@@ -515,27 +545,6 @@ export default function CreateWidgetPage() {
                     </>
                   )}
                 </Button>
-
-                {isExistingWidget && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 rounded-xl border-white/10 hover:bg-white/5 cursor-pointer"
-                    onClick={() => {
-                      setFormData({
-                        displayName: "",
-                        backgroundColor: "#10b981",
-                        logoUrl: "",
-                      });
-                      setUploadedFileKey("");
-                      setSavedLogoUrl("");
-                      setIsExistingWidget(false);
-                    }}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Reset to Defaults
-                  </Button>
-                )}
               </div>
             </div>
 
