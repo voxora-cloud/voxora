@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { FileUpload } from "@/components/ui/file-upload";
 import { useRouter } from "next/navigation";
 import { apiService, CreateWidgetData } from "@/lib/api";
-import { Save, Loader2, X, MessageCircle, Copy, Check } from "lucide-react";
+import { Save, Loader2, MessageCircle, Copy, Check } from "lucide-react";
 import Image from "next/image";
 import { validateWidgetForm } from "@/lib/validation";
 import { useAppToast } from "@/lib/hooks/useAppToast";
@@ -21,6 +21,7 @@ export default function CreateWidgetPage() {
   const [isCopied, setIsCopied] = useState(false);
   const [uploadedFileKey, setUploadedFileKey] = useState<string>("");
   const [savedLogoUrl, setSavedLogoUrl] = useState<string>("");
+  const [previewLogoUrl, setPreviewLogoUrl] = useState<string>("");
   const widgetInitialized = useRef(false);
   const { toastSuccess, toastError } = useAppToast();
   const [validationErrors, setValidationErrors] = useState<{
@@ -100,8 +101,34 @@ export default function CreateWidgetPage() {
       if (response.success) {
         setFormData(response.data);
         setExistingWidget(response.data); // Store existing widget data
-        setUploadedFileKey(response.data.logoFileKey || ""); // Store existing file key
-        setSavedLogoUrl(response.data.logoUrl || ""); // Store saved logo for preview
+        
+        // Use fileKey from response (backend already normalizes this)
+        const fileKey = response.data.fileKey || response.data.logoFileKey || response.data.logoUrl;
+        
+        setUploadedFileKey(fileKey || ""); // Store existing file key
+        
+        // If there's a fileKey, get presigned download URL
+        if (fileKey) {
+          try {
+            const downloadUrlResponse = await apiService.generatePresignedDownloadUrl(
+              fileKey,
+              900 // 15 minutes expiry
+            );
+            if (downloadUrlResponse.success) {
+              setSavedLogoUrl(downloadUrlResponse.data.downloadUrl);
+              setPreviewLogoUrl(downloadUrlResponse.data.downloadUrl);
+            }
+          } catch (error) {
+            console.error("Error getting presigned download URL:", error);
+            // Fallback to stored logoUrl if presigned URL fails
+            setSavedLogoUrl(response.data.logoUrl || "");
+            setPreviewLogoUrl(response.data.logoUrl || "");
+          }
+        } else {
+          setSavedLogoUrl(response.data.logoUrl || "");
+          setPreviewLogoUrl(response.data.logoUrl || "");
+        }
+        
         setIsExistingWidget(true);
       } else {
         toastError("Failed to load widget data");
@@ -124,6 +151,7 @@ export default function CreateWidgetPage() {
   }) => {
     setUploadedFileKey(data.fileKey);
     handleInputChange("logoUrl", data.downloadUrl);
+    setPreviewLogoUrl(data.downloadUrl); // Update preview with new upload
     toastSuccess("Logo uploaded successfully!");
   };
 
@@ -136,6 +164,7 @@ export default function CreateWidgetPage() {
   const handleFileRemove = () => {
     setUploadedFileKey("");
     handleInputChange("logoUrl", "");
+    setPreviewLogoUrl(""); // Clear preview
   };
 
   // Handle form submission
@@ -168,7 +197,8 @@ export default function CreateWidgetPage() {
       const widgetData = {
         displayName: formData.displayName,
         backgroundColor: formData.backgroundColor,
-        logoUrl: formData.logoUrl || "",
+        logoUrl: formData.logoUrl || existingWidget?.logoUrl || "",
+        logoFileKey: uploadedFileKey || existingWidget?.logoFileKey || "",
       };
 
       const response = isExistingWidget
@@ -190,7 +220,7 @@ export default function CreateWidgetPage() {
         );
 
         // Update saved logo preview only after successful save
-        setSavedLogoUrl(formData.logoUrl || "");
+        setSavedLogoUrl(previewLogoUrl);
 
         // Reload to see the updated widget
         setTimeout(() => {
@@ -344,7 +374,7 @@ export default function CreateWidgetPage() {
                       onUploadSuccess={handleUploadSuccess}
                       onUploadError={handleUploadError}
                       onRemove={handleFileRemove}
-                      initialPreview={formData.logoUrl}
+                      initialPreview={previewLogoUrl}
                       initialFileName={existingWidget?.logoUrl ? "Current Logo" : undefined}
                       showPreview={true}
                       buttonText="Choose from Device"
@@ -352,10 +382,10 @@ export default function CreateWidgetPage() {
                       helperText="Upload from your device (PNG, JPG, SVG - Max 2MB)"
                     />
 
-                    {/* Saved logo preview — only shows after save/load, not on fresh upload */}
-                    {savedLogoUrl && (
-                      <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
-                        <div className="w-16 h-16 rounded-xl border border-white/20 overflow-hidden flex items-center justify-center bg-black/30 flex-shrink-0">
+                    {/* Logo preview — shows placeholder when empty, actual logo when uploaded */}
+                    <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
+                      <div className="w-16 h-16 rounded-xl border border-white/20 overflow-hidden flex items-center justify-center bg-black/30 flex-shrink-0">
+                        {savedLogoUrl ? (
                           <Image
                             src={savedLogoUrl}
                             alt="Current logo"
@@ -364,13 +394,35 @@ export default function CreateWidgetPage() {
                             className="w-full h-full object-contain"
                             unoptimized
                           />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Current Logo</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">This logo will appear in your chat widget</p>
-                        </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground/50">
+                            <svg
+                              className="w-8 h-8"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {savedLogoUrl ? "Current Logo" : "No Logo Set"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {savedLogoUrl 
+                            ? "This logo will appear in your chat widget" 
+                            : "Upload a logo to display in your chat widget"}
+                        </p>
+                      </div>
+                    </div>
 
                     <p className="text-xs text-muted-foreground">
                       Square format recommended, minimum 64x64px
@@ -493,26 +545,6 @@ export default function CreateWidgetPage() {
                     </>
                   )}
                 </Button>
-
-                {isExistingWidget && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full h-12 rounded-xl border-white/10 hover:bg-white/5 cursor-pointer"
-                    onClick={() => {
-                      setFormData({
-                        displayName: "",
-                        backgroundColor: "#10b981",
-                        logoUrl: "",
-                      });
-                      setUploadedFileKey("");
-                      setIsExistingWidget(false);
-                    }}
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Reset to Defaults
-                  </Button>
-                )}
               </div>
             </div>
 
