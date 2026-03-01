@@ -157,7 +157,7 @@ export default function CreateWidgetPage() {
 
   // Handle file upload error
   const handleUploadError = (error: string) => {
-    toastError(error);isExistingWidget
+    toastError(error);
   };
 
   // Handle file removal
