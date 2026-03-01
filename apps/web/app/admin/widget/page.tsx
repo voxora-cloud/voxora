@@ -352,10 +352,10 @@ export default function CreateWidgetPage() {
                       helperText="Upload from your device (PNG, JPG, SVG - Max 2MB)"
                     />
 
-                    {/* Saved logo preview — only shows after save/load, not on fresh upload */}
-                    {savedLogoUrl && (
-                      <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
-                        <div className="w-16 h-16 rounded-xl border border-white/20 overflow-hidden flex items-center justify-center bg-black/30 flex-shrink-0">
+                    {/* Logo preview — shows placeholder when empty, actual logo when uploaded */}
+                    <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5">
+                      <div className="w-16 h-16 rounded-xl border border-white/20 overflow-hidden flex items-center justify-center bg-black/30 flex-shrink-0">
+                        {savedLogoUrl ? (
                           <Image
                             src={savedLogoUrl}
                             alt="Current logo"
@@ -364,13 +364,35 @@ export default function CreateWidgetPage() {
                             className="w-full h-full object-contain"
                             unoptimized
                           />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Current Logo</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">This logo will appear in your chat widget</p>
-                        </div>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground/50">
+                            <svg
+                              className="w-8 h-8"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {savedLogoUrl ? "Current Logo" : "No Logo Set"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {savedLogoUrl 
+                            ? "This logo will appear in your chat widget" 
+                            : "Upload a logo to display in your chat widget"}
+                        </p>
+                      </div>
+                    </div>
 
                     <p className="text-xs text-muted-foreground">
                       Square format recommended, minimum 64x64px
@@ -506,6 +528,7 @@ export default function CreateWidgetPage() {
                         logoUrl: "",
                       });
                       setUploadedFileKey("");
+                      setSavedLogoUrl("");
                       setIsExistingWidget(false);
                     }}
                   >
