@@ -568,14 +568,18 @@ export class AdminService {
 
     // Auto-create default widget if none exists
     if (!widget) {
+      // Fetch admin's company name to use as default display name
+      const admin = await User.findById(userId).select("companyName");
+      const displayName = admin?.companyName || "Support Chat";
+
       widget = new Widget({
         userId,
-        displayName: "Support Chat",
+        displayName,
         backgroundColor: "#10b981",
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();
-      logger.info(`Auto-created default widget for user ${userId}`);
+      logger.info(`Auto-created default widget for user ${userId} with company name: ${displayName}`);
     }
 
     return widget;
@@ -601,15 +605,19 @@ export class AdminService {
 
     // Auto-create widget if none exists (first time update)
     if (!widget) {
+      // Fetch admin's company name to use as default display name
+      const admin = await User.findById(userId).select("companyName");
+      const displayName = updateData.displayName || admin?.companyName || "Support Chat";
+
       widget = new Widget({
         userId,
-        displayName: updateData.displayName || "Support Chat",
+        displayName,
         backgroundColor: updateData.backgroundColor || "#10b981",
         logoUrl: updateData.logoUrl,
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();
-      logger.info(`Auto-created widget during update for user ${userId}`);
+      logger.info(`Auto-created widget during update for user ${userId} with company name: ${displayName}`);
     }
 
     logger.info("Widget updated successfully", {
