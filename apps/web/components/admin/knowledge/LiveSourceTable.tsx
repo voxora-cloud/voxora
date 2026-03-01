@@ -55,7 +55,6 @@ export default function LiveSourceTable({
 }: LiveSourceTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
 
   const filteredSources = useMemo(() => {
     let result = [...sources];
@@ -73,21 +72,15 @@ export default function LiveSourceTable({
       result = result.filter((source) => source.status === statusFilter);
     }
 
-    // Type filter
-    if (typeFilter !== "all") {
-      result = result.filter((source) => source.type === typeFilter);
-    }
-
     return result;
-  }, [sources, searchQuery, statusFilter, typeFilter]);
+  }, [sources, searchQuery, statusFilter]);
 
   const hasActiveFilters =
-    searchQuery.trim() !== "" || statusFilter !== "all" || typeFilter !== "all";
+    searchQuery.trim() !== "" || statusFilter !== "all";
 
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
-    setTypeFilter("all");
   };
 
   const {
@@ -101,7 +94,7 @@ export default function LiveSourceTable({
     startItem,
     endItem,
     totalItems,
-  } = usePagination(filteredSources, 10, [searchQuery, statusFilter, typeFilter]);
+  } = usePagination(filteredSources, 10, [searchQuery, statusFilter]);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -184,26 +177,6 @@ export default function LiveSourceTable({
               </div>
             </th>
             <th className="px-4 py-3 text-left">
-              <div className="space-y-2">
-                <div className="font-medium text-foreground">Type</div>
-                <Select
-                  value={typeFilter}
-                  onValueChange={(value) => setTypeFilter(value)}
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="All" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="website">Website</SelectItem>
-                    <SelectItem value="page">Page</SelectItem>
-                    <SelectItem value="blog">Blog</SelectItem>
-                    <SelectItem value="docs">Docs</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </th>
-            <th className="px-4 py-3 text-left">
               <div className="font-medium text-foreground">Last Fetch</div>
             </th>
             <th className="px-4 py-3 text-left">
@@ -257,12 +230,6 @@ export default function LiveSourceTable({
                 <td className="px-4 py-3">
                   <div className="font-medium text-foreground max-w-xs truncate">
                     {source.url}
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm text-foreground">
-                    {getTypeIcon(source.type)}
-                    <span className="capitalize">{source.type}</span>
                   </div>
                 </td>
                 <td className="px-4 py-3">
