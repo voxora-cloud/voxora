@@ -317,12 +317,6 @@ export default function RealtimePage() {
                   </a>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Type</p>
-                  <p className="text-sm font-medium text-foreground capitalize">
-                    {selectedSource.type}
-                  </p>
-                </div>
-                <div>
                   <p className="text-xs text-muted-foreground mb-1">
                     Fetch Mode
                   </p>
