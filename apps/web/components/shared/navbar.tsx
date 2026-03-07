@@ -51,7 +51,7 @@ export function Navbar({ className = '' }: NavbarProps) {
 
         <div className='flex items-center space-x-3'>
           <Button variant='ghost' className='hidden sm:flex' asChild>
-            <Link href='/admin-login'>Sign in</Link>
+            <Link href='/login'>Sign in</Link>
           </Button>
           <Button className='shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-shadow' asChild>
             <Link href='/admin-signup'>Start for Free</Link>

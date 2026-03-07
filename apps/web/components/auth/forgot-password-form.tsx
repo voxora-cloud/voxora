@@ -93,7 +93,7 @@ export function ForgotPasswordForm() {
             >
               Try again
             </Button>
-            <Link href="/admin-login" className="w-full">
+            <Link href="/login" className="w-full">
               <Button variant="ghost" className="w-full">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to login
@@ -172,7 +172,7 @@ export function ForgotPasswordForm() {
             {isLoading ? "Sending..." : "Send reset link"}
           </Button>
 
-          <Link href="/admin-login" className="w-full">
+          <Link href="/login" className="w-full">
             <Button variant="ghost" className="w-full">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to login

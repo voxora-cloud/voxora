@@ -61,29 +61,27 @@ export default function AgentDetailModal({
           {/* Agent Header */}
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
-              {agent.name?.charAt(0) || agent.email.charAt(0).toUpperCase()}
+              {agent.user?.name?.charAt(0) || agent.user?.email?.charAt(0)?.toUpperCase() || "A"}
             </div>
             <div>
               <h3 className="text-xl font-semibold text-foreground">
-                {agent.name || agent.email}
+                {agent.user?.name || agent.user?.email}
               </h3>
-              <p className="text-muted-foreground">{agent.email}</p>
+              <p className="text-muted-foreground">{agent.user?.email}</p>
               <div className="flex items-center space-x-2 mt-2">
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    agent.role === "admin"
-                      ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                      : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${agent.role === "admin"
+                    ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                    : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                    }`}
                 >
                   {agent.role}
                 </span>
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    agent.status === "online"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${agent.status === "online"
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400"
+                    }`}
                 >
                   {agent.status}
                 </span>
@@ -99,13 +97,12 @@ export default function AgentDetailModal({
                   Account Status
                 </h4>
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    agent.inviteStatus === "active"
-                      ? "bg-green-100 text-green-800"
-                      : agent.inviteStatus === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-gray-100 text-gray-800"
-                  }`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${agent.inviteStatus === "active"
+                    ? "bg-green-100 text-green-800"
+                    : agent.inviteStatus === "pending"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-gray-100 text-gray-800"
+                    }`}
                 >
                   {agent.inviteStatus}
                 </span>
@@ -130,9 +127,9 @@ export default function AgentDetailModal({
               </h4>
               <div className="space-y-2">
                 {agent.teams && agent.teams.length > 0 ? (
-                  agent.teams.map((team) => (
+                  agent.teams.map((team, index) => (
                     <div
-                      key={team._id}
+                      key={team._id || `team-${index}`}
                       className="flex items-center space-x-2 p-2 rounded"
                     >
                       <div

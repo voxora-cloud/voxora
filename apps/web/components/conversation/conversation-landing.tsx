@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export function SupportLandingPage() {
+export function ConversationLandingPage() {
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const router = useRouter();
 
@@ -32,7 +32,7 @@ export function SupportLandingPage() {
     e.preventDefault();
     if (loginData.email && loginData.password) {
       // Simulate login - in real app, validate credentials
-      router.push("/support/dashboard");
+      router.push("/conversation/inbox");
     }
   };
 
@@ -48,7 +48,7 @@ export function SupportLandingPage() {
               </span>
             </div>
             <span className="text-xl font-bold text-foreground">
-              Voxora Support
+              Voxora Conversations
             </span>
           </div>
 
@@ -82,10 +82,10 @@ export function SupportLandingPage() {
             <div className="space-y-4">
               <h1 className="text-4xl lg:text-5xl font-bold text-foreground leading-tight">
                 Professional
-                <span className="text-primary"> Support Portal</span>
+                <span className="text-primary"> Conversation Portal</span>
               </h1>
               <p className="text-xl text-muted-foreground leading-relaxed">
-                Join our support team and help customers succeed. Access
+                Join our conversation team and help customers succeed. Access
                 advanced tools, real-time communication, and comprehensive agent
                 resources.
               </p>
@@ -102,7 +102,7 @@ export function SupportLandingPage() {
                     Real-time Chat
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Instant customer support
+                    Instant customer conversation
                   </p>
                 </div>
               </div>
@@ -127,7 +127,7 @@ export function SupportLandingPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">
-                    24/7 Support
+                    24/7 Conversation
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     Round-the-clock assistance
@@ -153,7 +153,7 @@ export function SupportLandingPage() {
             {/* Benefits Section */}
             <div id="benefits" className="space-y-4">
               <h2 className="text-2xl font-bold text-foreground">
-                Why Choose Voxora Support?
+                Why Choose Voxora Conversations?
               </h2>
               <div className="space-y-3">
                 <div className="flex items-start space-x-3">
@@ -185,7 +185,7 @@ export function SupportLandingPage() {
                       Global Reach
                     </h4>
                     <p className="text-muted-foreground">
-                      Support customers worldwide with multi-language support
+                      Support customers worldwide with multi-language conversation
                     </p>
                   </div>
                 </div>
@@ -202,7 +202,7 @@ export function SupportLandingPage() {
                 </div>
                 <CardTitle className="text-2xl">Agent Login</CardTitle>
                 <CardDescription>
-                  Access your support dashboard and start helping customers
+                  Access your conversation dashboard and start helping customers
                 </CardDescription>
               </CardHeader>
 
@@ -298,11 +298,11 @@ export function SupportLandingPage() {
                   </span>
                 </div>
                 <span className="font-bold text-foreground">
-                  Voxora Support
+                  Voxora Conversations
                 </span>
               </div>
               <p className="text-muted-foreground text-sm">
-                Empowering support teams with professional communication tools.
+                Empowering conversation teams with professional communication tools.
               </p>
             </div>
 
@@ -327,7 +327,7 @@ export function SupportLandingPage() {
                   href="#"
                   className="text-muted-foreground hover:text-foreground block"
                 >
-                  Support Guidelines
+                  Conversation Guidelines
                 </Link>
               </div>
             </div>
@@ -339,14 +339,14 @@ export function SupportLandingPage() {
               <div className="space-y-2 text-sm text-muted-foreground">
                 <p>Email: admin@company.com</p>
                 <p>Phone: +1 (555) 123-4567</p>
-                <p>Hours: 24/7 Support Available</p>
+                <p>Hours: 24/7 Conversation Available</p>
               </div>
             </div>
           </div>
 
           <div className="border-t border-border/40 mt-8 pt-6 text-center">
             <p className="text-muted-foreground text-sm">
-              © 2024 Voxora Support. All rights reserved.
+              © 2024 Voxora Conversations. All rights reserved.
             </p>
           </div>
         </div>

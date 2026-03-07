@@ -5,14 +5,16 @@ import { authSchema } from "./auth.schema";
 
 const router = Router();
 
-// Public routes with rate limiting
+// ─── Bootstrap (public) ───────────────────────────────────────────────────────
+router.get("/bootstrap-status", AuthController.bootstrapCheck);
+
 router.post(
-  "/register",
+  "/setup",
   authRateLimit,
-  validateRequest(authSchema.register),
-  AuthController.register,
+  AuthController.adminSignup,
 );
 
+// ─── Unified Login ────────────────────────────────────────────────────────────
 router.post(
   "/login",
   authRateLimit,
@@ -20,52 +22,24 @@ router.post(
   AuthController.login,
 );
 
-// Admin/Agent specific auth routes
-router.post(
-  "/admin/signup",
-  authRateLimit,
-  validateRequest(authSchema.adminSignup),
-  AuthController.adminSignup,
-);
+// Legacy aliases (kept for backward compat)
+router.post("/admin/signup", authRateLimit, AuthController.adminSignup);
+router.post("/admin/login", authRateLimit, validateRequest(authSchema.login), AuthController.adminLogin);
+router.post("/agent/login", authRateLimit, validateRequest(authSchema.login), AuthController.agentLogin);
 
-router.post(
-  "/admin/login",
-  authRateLimit,
-  validateRequest(authSchema.login),
-  AuthController.adminLogin,
-);
+// ─── Password Reset ───────────────────────────────────────────────────────────
+router.post("/forgot-password", AuthController.forgotPassword);
+router.post("/reset-password", AuthController.resetPassword);
 
-router.post(
-  "/agent/login",
-  authRateLimit,
-  validateRequest(authSchema.login),
-  AuthController.agentLogin,
-);
-
-router.post(
-  "/accept-invite",
-  validateRequest(authSchema.acceptInvite),
-  AuthController.acceptInvite,
-);
-
-router.post(
-  "/forgot-password",
-  validateRequest(authSchema.forgotPassword),
-  AuthController.forgotPassword,
-);
-
-router.post(
-  "/reset-password",
-  validateRequest(authSchema.resetPassword),
-  AuthController.resetPassword,
-);
-
+// ─── Deprecated / Redirected ──────────────────────────────────────────────────
+router.post("/accept-invite", AuthController.acceptInvite);
 router.post("/refresh-token", AuthController.refreshToken);
 
-// Protected routes - below routes are authenticated
+// ─── Protected ────────────────────────────────────────────────────────────────
 router.use(authenticate);
 
 router.post("/logout", AuthController.logout);
 router.get("/profile", AuthController.getProfile);
 
+export { router as authRouter };
 export default router;

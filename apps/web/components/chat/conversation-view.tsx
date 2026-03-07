@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth/auth-context";
 import { MoreVertical, Send, Paperclip, ArrowLeft, Clock, Edit, User } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
@@ -84,6 +84,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const isAgentTypingRef = React.useRef(false);
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isAdmin = pathname.startsWith("/admin");
+  const basePath = isAdmin ? "/admin/conversation/inbox" : "/conversation/inbox";
 
   // Auto-scroll to bottom whenever messages update or typing indicator changes
   useEffect(() => {
@@ -469,7 +472,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       );
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Update local state
         setConversation((prev) => {
@@ -484,7 +487,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             },
           };
         });
-        
+
         setIsUpdateDialogOpen(false);
         setUpdateForm({ name: "", email: "" });
         alert("Customer information updated successfully!");
@@ -520,10 +523,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   }
 
   const customerName =
-    conversation?.visitor?.name || 
-    conversation?.metadata?.customer?.name || 
+    conversation?.visitor?.name ||
+    conversation?.metadata?.customer?.name ||
     "Anonymous User";
-  const customerEmail = 
+  const customerEmail =
     conversation?.visitor?.email !== "anonymous@temp.local"
       ? conversation?.visitor?.email
       : conversation?.metadata?.customer?.email || "No email provided";
@@ -537,7 +540,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push("/support/dashboard")}
+            onClick={() => router.push(basePath)}
             className="md:hidden"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -573,8 +576,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         <div className="flex items-center space-x-2">
           <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={openUpdateDialog}
                 className="cursor-pointer"
@@ -627,8 +630,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               </div>
             </DialogContent>
           </Dialog>
-          
-          <RouteConversationDialog 
+
+          <RouteConversationDialog
             conversationId={conversationId}
             onRouted={() => {
               // Refresh conversation data
@@ -657,11 +660,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               // Navigate back to blank state so resolved/pending conv
               // disappears from the current view
               if (newStatus !== "open") {
-                router.push("/support/dashboard");
+                router.push(basePath);
               }
             }}
           />
-          
+
           <Button variant="ghost" size="icon">
             <MoreVertical className="h-4 w-4" />
           </Button>
@@ -677,35 +680,34 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           </div>
         ) : (
           <>
-          {messages.map((message) => (
-            <div
-              key={message._id}
-              className={`flex ${isAgentMessage(message) ? "justify-end" : "justify-start"}`}
-            >
+            {messages.map((message) => (
               <div
-                className={`
-                max-w-[70%] px-4 py-3 rounded-lg
-                ${
-                  isAgentMessage(message)
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card border border-border"
-                }
-              `}
+                key={message._id}
+                className={`flex ${isAgentMessage(message) ? "justify-end" : "justify-start"}`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-medium opacity-75">
-                    {message.metadata?.senderName ||
-                      (isAgentMessage(message) ? "You" : "Customer")}
-                  </span>
-                  <span className="text-xs opacity-50 ml-2">
-                    {formatTime(message.createdAt)}
-                  </span>
+                <div
+                  className={`
+                max-w-[70%] px-4 py-3 rounded-lg
+                ${isAgentMessage(message)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border"
+                    }
+              `}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs font-medium opacity-75">
+                      {message.metadata?.senderName ||
+                        (isAgentMessage(message) ? "You" : "Customer")}
+                    </span>
+                    <span className="text-xs opacity-50 ml-2">
+                      {formatTime(message.createdAt)}
+                    </span>
+                  </div>
+                  {renderMessageContent(message)}
                 </div>
-                {renderMessageContent(message)}
               </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
+            ))}
+            <div ref={messagesEndRef} />
           </>
         )}
       </div>

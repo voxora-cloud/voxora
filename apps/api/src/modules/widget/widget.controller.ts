@@ -28,7 +28,7 @@ export const generateWidgetToken = asyncHandler(
       const widgetPayload = {
         publicKey: voxoraPublicKey,
         displayName: widget.displayName || "Unknown Widget",
-        userId: widget.userId,
+        organizationId: widget.organizationId,
         backgroundColor: widget.backgroundColor || "#FFFFFF",
         origin: origin || req.get("origin") || "unknown",
         type: "widget_session",
@@ -95,7 +95,7 @@ export const getWidgetConfig = asyncHandler(
             const u = new URL(logoUrl);
             const parts = u.pathname.split('/').filter(Boolean);
             if (parts.length > 1) fileKey = parts.slice(1).join('/');
-          } catch {}
+          } catch { }
         }
         const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
         const host = req.get("host") || "localhost:3002";
@@ -523,9 +523,9 @@ export const getWidgetConversations = asyncHandler(
             assignedTeam: conv.metadata?.teamId,
             lastMessage: lastMessage
               ? {
-                  content: lastMessage.content,
-                  createdAt: lastMessage.createdAt,
-                }
+                content: lastMessage.content,
+                createdAt: lastMessage.createdAt,
+              }
               : null,
             lastMessageAt: lastMessage?.createdAt || conv.createdAt,
           };

@@ -1,12 +1,12 @@
 import { Router } from "express";
 import * as AdminController from "./admin.controller";
-import { authenticate, authorize, validateRequest } from "@shared/middleware";
+import { authenticate, requireRole, validateRequest } from "@shared/middleware";
 import { adminSchema } from "./admin.schema";
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(["admin"]));
+router.use(requireRole("admin"));
 
 // ** TEAM ROUTES **
 router.get(

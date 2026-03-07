@@ -1,14 +1,21 @@
 import jwt from "jsonwebtoken";
 import config from "@shared/config";
+import { MembershipRole } from "@shared/models";
 
 export interface JWTPayload {
   userId: string;
   email: string;
-  role: string;
+  activeOrganizationId: string;
   type: "access" | "refresh";
 }
 
-export const generateTokens = (payload: Omit<JWTPayload, "type">) => {
+export interface GenerateTokensInput {
+  userId: string;
+  email: string;
+  activeOrganizationId: string;
+}
+
+export const generateTokens = (payload: GenerateTokensInput) => {
   if (!config.jwt.secret || !config.jwt.refreshSecret) {
     throw new Error("JWT secrets are not configured");
   }
@@ -56,3 +63,6 @@ export const extractTokenFromHeader = (authHeader?: string): string | null => {
   }
   return authHeader.substring(7);
 };
+
+export { MembershipRole };
+

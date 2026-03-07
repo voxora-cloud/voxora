@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { MessageCircle } from "lucide-react";
 
-export default function SupportDashboardPage() {
+export default function InboxPage() {
   return (
     <div className="hidden md:flex flex-1 items-center justify-center bg-muted/10 w-full h-full">
       <Card className="w-full max-w-lg mx-8 border-muted">

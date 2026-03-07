@@ -12,6 +12,7 @@ export interface AIJobData {
 
 export interface IngestionJobData {
   documentId: string;
+  organizationId: string;
   /** "ingest" (default) | "delete-vectors" — drives worker behaviour */
   jobType?: "ingest" | "delete-vectors";
   /** "text" | "pdf" | "docx" | "url" — drives which path the worker takes */

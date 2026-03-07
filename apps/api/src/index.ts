@@ -18,6 +18,8 @@ import { conversationRouter } from "@modules/conversation";
 import { widgetRouter } from "@modules/widget";
 import { storageRouter } from "@modules/storage";
 import { knowledgeRouter } from "@modules/knowledge";
+import { organizationRouter } from "@modules/organization";
+import { membershipRouter } from "@modules/membership";
 
 class Application {
   private app: express.Application;
@@ -63,7 +65,7 @@ class Application {
     this.app.use(express.json({ limit: "10mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
- 
+
 
     // Request logging
     this.app.use((req, res, next) => {
@@ -80,6 +82,8 @@ class Application {
 
     // API Routes
     router.use("/auth", authRouter);
+    router.use("/organizations", organizationRouter);
+    router.use("/memberships", membershipRouter);
     router.use("/admin", adminRouter);
     router.use("/agent", agentRouter);
     router.use("/widget", widgetRouter);
@@ -133,7 +137,7 @@ class Application {
       });
 
       // Start server
-      this.server.listen(config.app.port,"0.0.0.0", () => {
+      this.server.listen(config.app.port, "0.0.0.0", () => {
         logger.info(`🚀 Server running on port ${config.app.port}`);
         logger.info(`📱 Environment: ${config.app.env}`);
         logger.info(`🔗 API URL: ${config.app.apiUrl}`);

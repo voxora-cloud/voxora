@@ -1,20 +1,20 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
-import { User } from "@shared/models";
-import { Team } from "@shared/models";
-import { Widget } from "@shared/models";
-import emailService from "@shared/utils/email";
+import { Team, Widget, Membership, MembershipRole } from "@shared/models";
 import logger from "@shared/utils/logger";
 
 export class AdminService {
-  // =================
-  // TEAM MANAGEMENT
-  // =================
+  // ═══════════════════════════════════════════════════
+  //  TEAM MANAGEMENT
+  // ═══════════════════════════════════════════════════
 
-  async getTeams(options: { page: number; limit: number; search?: string }) {
+  async getTeams(
+    organizationId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
     const { page, limit, search } = options;
 
-    const query: any = { isActive: true };
+    const query: any = { organizationId, isActive: true };
 
     if (search) {
       query.$or = [
@@ -42,19 +42,18 @@ export class AdminService {
     };
   }
 
-  async getTeamById(id: string) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid team ID");
-    }
+  async getTeamById(organizationId: string, id: string) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid team ID");
 
-    return await Team.findOne({ _id: id, isActive: true }).populate(
+    return Team.findOne({ _id: id, organizationId, isActive: true }).populate(
       "createdBy",
       "name email",
     );
   }
 
-  async createTeam(teamData: any) {
+  async createTeam(organizationId: string, teamData: any) {
     const team = new Team({
+      organizationId,
       name: teamData.name,
       description: teamData.description,
       color: teamData.color || "#3b82f6",
@@ -65,6 +64,7 @@ export class AdminService {
 
     logger.info("Team created successfully", {
       teamId: team._id,
+      organizationId,
       name: team.name,
       createdBy: teamData.createdBy,
     });
@@ -72,119 +72,71 @@ export class AdminService {
     return team;
   }
 
-  async updateTeam(id: string, updateData: any) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid team ID");
-    }
+  async updateTeam(organizationId: string, id: string, updateData: any) {
+    if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid team ID");
 
     const team = await Team.findOneAndUpdate(
-      { _id: id, isActive: true },
+      { _id: id, organizationId, isActive: true },
       updateData,
       { new: true, runValidators: true },
     ).populate("createdBy", "name email");
 
-    if (team) {
-      logger.info("Team updated successfully", {
-        teamId: team._id,
-        updates: updateData,
-        updatedBy: updateData.updatedBy,
-      });
-    }
-
     return team;
   }
 
-  async deleteTeam(id: string, deletedBy: string) {
+  async deleteTeam(organizationId: string, id: string) {
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return { success: false, message: "Invalid team ID", statusCode: 400 };
     }
 
-    const team = await Team.findOne({ _id: id, isActive: true });
-
-    if (!team) {
-      return { success: false, message: "Team not found", statusCode: 404 };
-    }
-
-    const agentsInTeam = await User.find({
-      teams: id,
-      isActive: true,
-    });
+    const team = await Team.findOne({ _id: id, organizationId, isActive: true });
+    if (!team) return { success: false, message: "Team not found", statusCode: 404 };
 
     await Team.findByIdAndDelete(id);
 
-    if (agentsInTeam.length > 0) {
-      for (const agent of agentsInTeam) {
-        const remainingTeams = agent.teams.filter(
-          (teamId: any) => teamId.toString() !== id.toString()
-        );
+    // Remove team from all memberships in this org
+    await Membership.updateMany({ organizationId }, { $pull: { teams: id } });
 
-        if (remainingTeams.length > 0) {
-          await User.findByIdAndUpdate(agent._id, {
-            teams: remainingTeams,
-          });
-        } else {
-          await User.findByIdAndDelete(agent._id);
-        }
-      }
-
-      logger.info("Updated agents after team deletion", {
-        teamId: id,
-        teamName: team.name,
-        agentCount: agentsInTeam.length,
-        deletedBy,
-      });
-    }
-
-    logger.info("Team deleted successfully", {
-      teamId: id,
-      teamName: team.name,
-      deletedBy,
-    });
-
+    logger.info("Team deleted successfully", { teamId: id, teamName: team.name, organizationId });
     return { success: true };
   }
 
-  // =================
-  // AGENT MANAGEMENT
-  // =================
+  // ═══════════════════════════════════════════════════
+  //  AGENT MANAGEMENT (via Membership)
+  // ═══════════════════════════════════════════════════
 
-  async getAgents(options: {
-    page: number;
-    limit: number;
-    role?: string;
-    status?: string;
-    search?: string;
-  }) {
-    const { page, limit, role, status, search } = options;
+  async getAgents(
+    organizationId: string,
+    options: { page: number; limit: number; status?: string; search?: string },
+  ) {
+    const { page, limit, status, search } = options;
 
-    const query: any = {
+    const memberQuery: any = {
+      organizationId,
       role: "agent",
-      isActive: true,
+      inviteStatus: { $in: ["active", "pending"] },
     };
 
-    if (status) {
-      query.status = status;
-    }
+    if (status) memberQuery["$lookup.status"] = status;
 
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const agents = await User.find(query)
-      .populate("teams", "name color")
-      .populate("invitedBy", "name email")
-      .select("-password")
+    const members = await Membership.find(memberQuery)
+      .populate("userId", "name email avatar status lastSeen isActive")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
-    const total = await User.countDocuments(query);
+    const total = await Membership.countDocuments(memberQuery);
 
     return {
-      agents,
+      agents: members.map((m) => ({
+        membershipId: m._id,
+        user: m.userId,
+        role: m.role,
+        teams: m.teams,
+        inviteStatus: m.inviteStatus,
+        invitedAt: m.invitedAt,
+        activatedAt: m.activatedAt,
+      })),
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -194,394 +146,113 @@ export class AdminService {
     };
   }
 
-  async getAgentById(id: string) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid agent ID");
-    }
+  async getAgentById(organizationId: string, userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) throw new Error("Invalid user ID");
 
-    return await User.findOne({
-      _id: id,
-      role: { $in: ["agent", "admin"] },
-    })
-      .populate("teams", "name color")
-      .populate("invitedBy", "name email")
-      .select("-password");
+    const membership = await Membership.findOne({ userId, organizationId })
+      .populate("userId", "name email avatar status lastSeen")
+      .populate("teams", "name color");
+
+    return membership;
   }
 
-  async inviteAgent(inviteData: any) {
-    const { name, email, role, password, teamIds = [], invitedBy } = inviteData;
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return {
-        success: false,
-        message: "Email already registered",
-        statusCode: 400,
-      };
+  async updateAgent(organizationId: string, userId: string, updateData: any) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { success: false, message: "Invalid user ID", statusCode: 400 };
     }
 
-    const teamObjects = await Team.find({ _id: { $in: teamIds } });
-    if (teamObjects.length !== teamIds.length) {
-      return {
-        success: false,
-        message: "One or more teams not found",
-        statusCode: 400,
-      };
-    }
+    const updateFields: any = {};
 
-    const finalPassword = !password
-      ? crypto.randomBytes(12).toString("hex")
-      : password;
-    const inviteToken = crypto.randomBytes(32).toString("hex");
-
-    const inviteExpiresAt = new Date();
-    inviteExpiresAt.setDate(inviteExpiresAt.getDate() + 7);
-
-    const agent = new User({
-      name,
-      email,
-      password: finalPassword,
-      role: "agent",
-      teams: teamIds,
-      inviteStatus: "pending",
-      invitedBy,
-      invitedAt: new Date(),
-      inviteExpiresAt,
-      emailVerificationToken: inviteToken,
-      permissions: ["chat_support"],
-    });
-
-    await agent.save();
-
-    if (teamIds.length > 0) {
-      try {
-        await Team.updateMany(
-          { _id: { $in: teamIds } },
-          { $inc: { agentCount: 1 } },
-        );
-        logger.info("Incremented agent count for teams:", teamIds);
-      } catch (error) {
-        logger.error("Failed to increment agent count for teams:", {
-          teamIds,
-          error: (error as Error).message,
-        });
-      }
-    }
-
-    const inviter = await User.findById(invitedBy);
-    const teamNames = teamObjects.map((team: any) => team.name).join(", ");
-
-    await emailService.sendInviteEmail(
-      email,
-      inviter?.name || "Admin",
-      role,
-      inviteToken,
-      teamNames,
-    );
-
-    logger.info("Agent invited successfully", {
-      agentId: agent._id,
-      email,
-      role,
-      teamIds,
-      invitedBy,
-    });
-
-    return {
-      success: true,
-      data: {
-        id: agent._id,
-        name: agent.name,
-        email: agent.email,
-        role: agent.role,
-        teams: agent.teams,
-        inviteStatus: agent.inviteStatus,
-        invitedAt: agent.invitedAt,
-      },
-    };
-  }
-
-  async updateAgent(id: string, updateData: any) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return {
-        success: false,
-        message: "Invalid agent ID",
-        statusCode: 400,
-      };
-    }
-
-    if (updateData.email) {
-      const existingUser = await User.findOne({
-        email: updateData.email,
-        _id: { $ne: id },
-      });
-
-      if (existingUser) {
-        return {
-          success: false,
-          message: "Email already exists",
-          statusCode: 400,
-        };
-      }
-    }
-
+    if (updateData.role) updateFields.role = updateData.role as MembershipRole;
     if (updateData.teamIds) {
-      const teamObjects = await Team.find({ _id: { $in: updateData.teamIds } });
-      if (teamObjects.length !== updateData.teamIds.length) {
-        return {
-          success: false,
-          message: "One or more teams not found",
-          statusCode: 400,
-        };
-      }
-    }
-
-    const currentAgent = await User.findOne({
-      _id: id,
-      role: { $in: ["agent", "admin"] },
-    });
-    if (!currentAgent) {
-      return {
-        success: false,
-        message: "Agent not found",
-        statusCode: 404,
-      };
-    }
-
-    const updateFields = { ...updateData };
-    if (updateData.teamIds) {
-      const currentTeamIds = currentAgent.teams.map((team: any) => team.toString());
-      const newTeamIds = updateData.teamIds;
-
-      const teamsToDecrement = currentTeamIds.filter(
-        (teamId: string) => !newTeamIds.includes(teamId),
+      updateFields.teams = updateData.teamIds.map(
+        (id: string) => new mongoose.Types.ObjectId(id),
       );
-
-      const teamsToIncrement = newTeamIds.filter(
-        (teamId: string) => !currentTeamIds.includes(teamId),
-      );
-
-      if (teamsToDecrement.length > 0) {
-        try {
-          await Team.updateMany(
-            { _id: { $in: teamsToDecrement } },
-            { $inc: { agentCount: -1 } },
-          );
-          logger.info("Decremented agent count for teams:", teamsToDecrement);
-        } catch (error) {
-          logger.error("Failed to decrement agent count for teams:", {
-            teams: teamsToDecrement,
-            error: (error as Error).message,
-          });
-        }
-      }
-
-      if (teamsToIncrement.length > 0) {
-        try {
-          await Team.updateMany(
-            { _id: { $in: teamsToIncrement } },
-            { $inc: { agentCount: 1 } },
-          );
-          logger.info("Incremented agent count for teams:", teamsToIncrement);
-        } catch (error) {
-          logger.error("Failed to increment agent count for teams:", {
-            teams: teamsToIncrement,
-            error: (error as Error).message,
-          });
-        }
-      }
-
-      updateFields.teams = updateData.teamIds;
-      delete updateFields.teamIds;
     }
 
-    const agent = await User.findOneAndUpdate(
-      { _id: id, role: { $in: ["agent", "admin"] } },
+    const membership = await Membership.findOneAndUpdate(
+      { userId, organizationId },
       updateFields,
       { new: true, runValidators: true },
     )
-      .populate("teams", "name color")
-      .select("-password");
+      .populate("userId", "name email avatar status")
+      .populate("teams", "name color");
 
-    if (!agent) {
-      return {
-        success: false,
-        message: "Agent not found",
-        statusCode: 404,
-      };
+    if (!membership) {
+      return { success: false, message: "Agent not found in this organization", statusCode: 404 };
     }
 
-    logger.info("Agent updated successfully", {
-      agentId: agent._id,
-      updates: updateData,
-      updatedBy: updateData.updatedBy,
-    });
-
-    return {
-      success: true,
-      data: agent,
-    };
+    return { success: true, data: membership };
   }
 
-  async deleteAgent(id: string, deletedBy: string) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return {
-        success: false,
-        message: "Invalid agent ID",
-        statusCode: 400,
-      };
+  async deleteAgent(organizationId: string, userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { success: false, message: "Invalid user ID", statusCode: 400 };
     }
 
-    const agent = await User.findOne({
-      _id: id,
-      role: { $in: ["agent", "admin"] },
-    });
-
-    if (!agent) {
-      return {
-        success: false,
-        message: "Agent not found",
-        statusCode: 404,
-      };
+    const membership = await Membership.findOne({ userId, organizationId });
+    if (!membership) {
+      return { success: false, message: "Agent not found", statusCode: 404 };
     }
 
-    if (agent.teams && agent.teams.length > 0) {
-      try {
-        await Team.updateMany(
-          { _id: { $in: agent.teams } },
-          { $inc: { agentCount: -1 } },
-        );
-        logger.info("Decremented agent count for teams:", agent.teams);
-      } catch (error) {
-        logger.error("Failed to decrement agent count for teams:", {
-          teams: agent.teams,
-          error: (error as Error).message,
-        });
-      }
+    if (membership.role === "owner") {
+      return { success: false, message: "Cannot remove the organization owner", statusCode: 403 };
     }
 
-    await User.findByIdAndDelete(id);
-
-    logger.info("Agent deleted successfully", {
-      agentId: id,
-      agentEmail: agent.email,
-      deletedBy,
-    });
-
+    await Membership.findByIdAndDelete(membership._id);
     return { success: true };
   }
 
-  async resendAgentInvite(id: string, resentBy: string) {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return {
-        success: false,
-        message: "Invalid agent ID",
-        statusCode: 400,
-      };
-    }
+  // ═══════════════════════════════════════════════════
+  //  WIDGET MANAGEMENT
+  // ═══════════════════════════════════════════════════
 
-    const agent = await User.findOne({
-      _id: id,
-      role: { $in: ["agent", "admin"] },
-      inviteStatus: "pending",
-    }).populate("teams", "name");
-
-    if (!agent) {
-      return {
-        success: false,
-        message: "Agent not found or already activated",
-        statusCode: 404,
-      };
-    }
-
-    const inviteToken = crypto.randomBytes(32).toString("hex");
-    agent.emailVerificationToken = inviteToken;
-    agent.invitedAt = new Date();
-    agent.inviteExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await agent.save();
-
-    const resender = await User.findById(resentBy);
-    const teamNames = (agent.teams as any[])
-      .map((team: any) => team.name)
-      .join(", ");
-
-    await emailService.sendInviteEmail(
-      agent.email,
-      resender?.name || "Admin",
-      agent.role,
-      inviteToken,
-      teamNames,
-    );
-
-    logger.info("Invitation resent successfully", {
-      agentId: agent._id,
-      email: agent.email,
-      resentBy,
-    });
-
-    return { success: true };
-  }
-
-  // =================
-  // WIDGET MANAGEMENT
-  // =================
-
-  async createWidget(widgetData: any) {
-    const existingWidget = await Widget.findOne({ userId: widgetData.userId });
+  async createWidget(organizationId: string, widgetData: any) {
+    const existingWidget = await Widget.findOne({ organizationId });
 
     if (existingWidget) {
-      const updatedWidget = await Widget.findOneAndUpdate(
-        { userId: widgetData.userId },
-        widgetData,
+      const updated = await Widget.findOneAndUpdate(
+        { organizationId },
+        { ...widgetData, organizationId },
         { new: true, runValidators: true },
       );
-
-      if (updatedWidget) {
-        logger.info("Widget updated (via create endpoint)", {
-          widgetId: updatedWidget._id,
-          displayName: updatedWidget.displayName,
-          userId: updatedWidget.userId,
-        });
-      }
-
-      return updatedWidget;
+      return updated;
     }
 
     const widget = new Widget({
       ...widgetData,
-      userId: widgetData.userId,
+      organizationId,
     });
 
     await widget.save();
 
     logger.info("Widget created successfully", {
       widgetId: widget._id,
+      organizationId,
       displayName: widget.displayName,
-      userId: widget.userId,
     });
 
     return widget;
   }
 
-  async getWidget(userId: string) {
-    let widget = await Widget.findOne({ userId });
+  async getWidget(organizationId: string) {
+    let widget = await Widget.findOne({ organizationId });
 
-    // Auto-create default widget if none exists
     if (!widget) {
       widget = new Widget({
-        userId,
+        organizationId,
         displayName: "Support Chat",
         backgroundColor: "#10b981",
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();
-      logger.info(`Auto-created default widget for user ${userId}`);
+      logger.info(`Auto-created default widget for org ${organizationId}`);
     }
 
     return widget;
   }
 
-  async updateWidget(userId: string, updateData: any) {
+  async updateWidget(organizationId: string, updateData: any) {
     const allowedUpdates = {
       displayName: updateData.displayName,
       logoUrl: updateData.logoUrl,
@@ -589,101 +260,95 @@ export class AdminService {
     };
 
     const cleanUpdates = Object.fromEntries(
-      Object.entries(allowedUpdates).filter(
-        ([_, value]) => value !== undefined,
-      ),
+      Object.entries(allowedUpdates).filter(([_, v]) => v !== undefined),
     );
 
-    let widget = await Widget.findOneAndUpdate({ userId }, cleanUpdates, {
+    let widget = await Widget.findOneAndUpdate({ organizationId }, cleanUpdates, {
       new: true,
       runValidators: true,
     });
 
-    // Auto-create widget if none exists (first time update)
     if (!widget) {
       widget = new Widget({
-        userId,
+        organizationId,
         displayName: updateData.displayName || "Support Chat",
         backgroundColor: updateData.backgroundColor || "#10b981",
         logoUrl: updateData.logoUrl,
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();
-      logger.info(`Auto-created widget during update for user ${userId}`);
     }
-
-    logger.info("Widget updated successfully", {
-      widgetId: widget._id,
-      displayName: widget.displayName,
-      userId: widget.userId,
-      updates: cleanUpdates,
-    });
 
     return widget;
   }
 
-  // =================
-  // ANALYTICS & STATS
-  // =================
+  // ═══════════════════════════════════════════════════
+  //  ANALYTICS & STATS
+  // ═══════════════════════════════════════════════════
 
-  async getDashboardStats() {
-    const totalTeams = await Team.countDocuments({ isActive: true });
-    const totalAgents = await User.countDocuments({
+  async getDashboardStats(organizationId: string) {
+    const totalTeams = await Team.countDocuments({ organizationId, isActive: true });
+
+    const totalAgents = await Membership.countDocuments({
+      organizationId,
       role: "agent",
-      isActive: true,
+      inviteStatus: "active",
     });
-    const onlineAgents = await User.countDocuments({
-      role: "agent",
-      isActive: true,
-      status: "online",
-    });
-    const pendingInvites = await User.countDocuments({
-      role: "agent",
+
+    const pendingInvites = await Membership.countDocuments({
+      organizationId,
       inviteStatus: "pending",
     });
 
+    // Online agents — join through populated user
+    const agentMemberships = await Membership.find({
+      organizationId,
+      role: "agent",
+      inviteStatus: "active",
+    }).populate("userId", "status");
+
+    const onlineAgents = agentMemberships.filter(
+      (m) => (m.userId as any)?.status === "online",
+    ).length;
+
     const teamStats = await Team.aggregate([
-      { $match: { isActive: true } },
+      { $match: { organizationId: new mongoose.Types.ObjectId(organizationId), isActive: true } },
       {
         $lookup: {
-          from: "users",
+          from: "memberships",
           localField: "_id",
           foreignField: "teams",
-          as: "agents",
+          as: "memberEntries",
         },
       },
       {
         $project: {
           name: 1,
-          agentCount: { $size: "$agents" },
-          onlineAgents: {
-            $size: {
-              $filter: {
-                input: "$agents",
-                cond: { $eq: ["$$this.status", "online"] },
-              },
-            },
-          },
+          agentCount: { $size: "$memberEntries" },
         },
       },
     ]);
 
-    const recentAgents = await User.find({
-      role: "agent",
+    const recentMembers = await Membership.find({
+      organizationId,
+      inviteStatus: { $in: ["active", "pending"] },
     })
-      .select("name email role inviteStatus createdAt")
+      .populate("userId", "name email")
+      .select("role inviteStatus createdAt")
       .sort({ createdAt: -1 })
       .limit(5);
 
     return {
-      overview: {
-        totalTeams,
-        totalAgents,
-        onlineAgents,
-        pendingInvites,
-      },
+      overview: { totalTeams, totalAgents, onlineAgents, pendingInvites },
       teamStats,
-      recentAgents,
+      recentAgents: recentMembers.map((m: any) => ({
+        _id: m._id,
+        name: m.userId?.name,
+        email: m.userId?.email,
+        role: m.role,
+        inviteStatus: m.inviteStatus,
+        createdAt: m.createdAt,
+      })),
     };
   }
 }

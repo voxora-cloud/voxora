@@ -1,7 +1,9 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
+import { IOrganization } from "./Organization";
 
 export interface ITeam extends Document {
   _id: Types.ObjectId;
+  organizationId: Types.ObjectId | IOrganization;
   name: string;
   description: string;
   color?: string;
@@ -15,7 +17,8 @@ export interface ITeam extends Document {
 
 const teamSchema = new Schema<ITeam>(
   {
-    name: { type: String, required: true, trim: true, maxlength: 100, unique: true },
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
+    name: { type: String, required: true, trim: true, maxlength: 100 },
     description: { type: String, required: true, trim: true, maxlength: 500 },
     color: { type: String, default: "#3b82f6", match: /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/ },
     isActive: { type: Boolean, default: true },
@@ -26,7 +29,9 @@ const teamSchema = new Schema<ITeam>(
   { timestamps: true },
 );
 
-teamSchema.index({ isActive: 1 });
+// Name unique within an organization only
+teamSchema.index({ organizationId: 1, name: 1 }, { unique: true });
+teamSchema.index({ organizationId: 1, isActive: 1 });
 teamSchema.index({ createdBy: 1 });
 
 export const Team = mongoose.model<ITeam>("Team", teamSchema);

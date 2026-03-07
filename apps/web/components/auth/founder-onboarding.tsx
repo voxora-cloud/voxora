@@ -558,7 +558,7 @@ export function AdminOnboarding() {
           {currentStep === 1 && (
             <div className="text-center text-sm text-muted-foreground pt-4">
               Already have an account?{" "}
-              <Link href="/admin-login" className="text-primary hover:underline">
+              <Link href="/login" className="text-primary hover:underline">
                 Sign in
               </Link>
             </div>

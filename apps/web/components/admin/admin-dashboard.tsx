@@ -26,6 +26,17 @@ function AdminDashboard() {
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
     try {
+      const role = api.getOrgRole();
+      if (role !== "admin" && role !== "owner") {
+        // Agents do not have permission to view global organization stats
+        setStats({
+          overview: { totalTeams: 0, totalAgents: 0, onlineAgents: 0, pendingInvites: 0 },
+          teamStats: [],
+          recentAgents: [],
+        });
+        return;
+      }
+
       const response = await api.getDashboardStats();
       if (response.success) {
         setStats(response.data);
@@ -113,143 +124,153 @@ function AdminDashboard() {
         </Card>
       </div>
 
+      {api.getOrgRole() !== "admin" && api.getOrgRole() !== "owner" && (
+        <div className="p-6 text-center border rounded-lg border-dashed border-border mt-6">
+          <p className="text-muted-foreground text-lg mb-2">Welcome to your Agent Dashboard</p>
+          <p className="text-sm text-zinc-500">Navigate to Conversations to manage your assigned tickets.</p>
+        </div>
+      )}
+
       {/* Team Stats */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Team Performance</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => (window.location.href = "/admin/team")}
-          >
-            View All Teams
-          </Button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {isLoading ? (
-            <div className="col-span-full flex justify-center py-12">
-              <Loader size="md" />
-            </div>
-          ) : stats.teamStats.length > 0 ? (
-            stats.teamStats.map((team: TeamStat) => (
-              <Card key={team._id} className="p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
-                      style={{ backgroundColor: team.color || "#3b82f6" }}
-                    >
-                      <Users className="h-5 w-5 text-white" />
+      {(api.getOrgRole() === "admin" || api.getOrgRole() === "owner") && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Team Performance</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => (window.location.href = "/admin/team")}
+            >
+              View All Teams
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {isLoading ? (
+              <div className="col-span-full flex justify-center py-12">
+                <Loader size="md" />
+              </div>
+            ) : (stats.teamStats || []).length > 0 ? (
+              (stats.teamStats || []).map((team: TeamStat) => (
+                <Card key={team._id} className="p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center mr-3"
+                        style={{ backgroundColor: team.color || "#3b82f6" }}
+                      >
+                        <Users className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium">{team.name}</h3>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium">{team.name}</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-muted p-2 rounded">
+                      <p className="text-xs text-muted-foreground">Agents</p>
+                      <p className="font-semibold">{team.agentCount}</p>
+                    </div>
+                    <div className="bg-muted p-2 rounded">
+                      <p className="text-xs text-muted-foreground">Online</p>
+                      <p className="font-semibold text-success">
+                        {team.onlineAgents}
+                      </p>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-muted p-2 rounded">
-                    <p className="text-xs text-muted-foreground">Agents</p>
-                    <p className="font-semibold">{team.agentCount}</p>
-                  </div>
-                  <div className="bg-muted p-2 rounded">
-                    <p className="text-xs text-muted-foreground">Online</p>
-                    <p className="font-semibold text-success">
-                      {team.onlineAgents}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-3 p-6 text-center border rounded-lg border-dashed border-border">
-              <p className="text-muted-foreground">No teams created yet</p>
-              <Button
-                size="sm"
-                className="mt-2"
-                onClick={() => (window.location.href = "/admin/team")}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Create Team
-              </Button>
-            </div>
-          )}
+                </Card>
+              ))
+            ) : (
+              <div className="col-span-3 p-6 text-center border rounded-lg border-dashed border-border">
+                <p className="text-muted-foreground">No teams created yet</p>
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => (window.location.href = "/admin/team")}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create Team
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Recent Agents */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Recent Agents</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => (window.location.href = "/admin/agent")}
-          >
-            View All Agents
-          </Button>
-        </div>
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader size="md" />
+      {(api.getOrgRole() === "admin" || api.getOrgRole() === "owner") && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold">Recent Agents</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => (window.location.href = "/admin/agents")}
+            >
+              View All Agents
+            </Button>
           </div>
-        ) : stats.recentAgents.length > 0 ? (
-          <Card>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-left">
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Email</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Role</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Created At</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recentAgents.map((agent: RecentAgent) => (
-                    <tr
-                      key={agent._id}
-                      className="border-t border-border hover:bg-muted/50"
-                    >
-                      <td className="px-4 py-3">{agent.name || "No name"}</td>
-                      <td className="px-4 py-3">{agent.email}</td>
-                      <td className="px-4 py-3">{agent.role}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            agent.inviteStatus === "active"
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader size="md" />
+            </div>
+          ) : (stats.recentAgents || []).length > 0 ? (
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Email</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Role</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Created At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(stats.recentAgents || []).map((agent: RecentAgent) => (
+                      <tr
+                        key={agent._id}
+                        className="border-t border-border hover:bg-muted/50"
+                      >
+                        <td className="px-4 py-3">{agent.name || "No name"}</td>
+                        <td className="px-4 py-3">{agent.email}</td>
+                        <td className="px-4 py-3">{agent.role}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${agent.inviteStatus === "active"
                               ? "bg-success/10 text-success"
                               : agent.inviteStatus === "pending"
                                 ? "bg-warning/10 text-warning"
                                 : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {agent.inviteStatus || "Unknown"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {new Date(agent.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                              }`}
+                          >
+                            {agent.inviteStatus || "Unknown"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {new Date(agent.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : (
+            <div className="p-6 text-center border rounded-lg border-dashed border-border">
+              <p className="text-muted-foreground">No agents added yet</p>
+              <Button
+                size="sm"
+                className="mt-2"
+                onClick={() => (window.location.href = "/admin/agents")}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Invite Agent
+              </Button>
             </div>
-          </Card>
-        ) : (
-          <div className="p-6 text-center border rounded-lg border-dashed border-border">
-            <p className="text-muted-foreground">No agents added yet</p>
-            <Button
-              size="sm"
-              className="mt-2"
-              onClick={() => (window.location.href = "/admin/agent")}
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Invite Agent
-            </Button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

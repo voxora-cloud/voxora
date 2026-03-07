@@ -1,4 +1,6 @@
 export { User, IUser } from "./User";
+export { Organization, IOrganization } from "./Organization";
+export { Membership, IMembership, MembershipRole } from "./Membership";
 export { Team, ITeam } from "./Team";
 export { Conversation, IConversation, IVisitor } from "./Conversation";
 export { Message, IMessage } from "./Message";

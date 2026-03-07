@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
 
 interface DeleteConfirmDialogProps {
@@ -37,10 +37,14 @@ export default function DeleteConfirmDialog({
 
           {/* Title */}
           <div className="space-y-2">
-            <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-            <p className="text-sm text-muted-foreground">
-              {description || defaultDescription}
-            </p>
+            <DialogTitle asChild>
+              <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+            </DialogTitle>
+            <DialogDescription asChild>
+              <p className="text-sm text-muted-foreground">
+                {description || defaultDescription}
+              </p>
+            </DialogDescription>
           </div>
 
           {/* Action Buttons */}

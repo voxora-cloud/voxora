@@ -1,7 +1,9 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
+import { IOrganization } from "./Organization";
 
 export interface IMessage extends Document {
   _id: Types.ObjectId;
+  organizationId: Types.ObjectId | IOrganization;
   conversationId: Types.ObjectId;
   senderId: string;
   content: string;
@@ -17,6 +19,7 @@ export interface IMessage extends Document {
 
 const messageSchema = new Schema<IMessage>(
   {
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     conversationId: { type: Schema.Types.ObjectId, ref: "Conversation", required: true },
     senderId: { type: String },
     content: { type: String, required: true, maxlength: 5000 },
@@ -30,6 +33,7 @@ const messageSchema = new Schema<IMessage>(
   { timestamps: true },
 );
 
+messageSchema.index({ organizationId: 1, conversationId: 1, createdAt: -1 });
 messageSchema.index({ conversationId: 1, createdAt: -1 });
 messageSchema.index({ senderId: 1 });
 

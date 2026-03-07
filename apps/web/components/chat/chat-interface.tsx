@@ -16,7 +16,7 @@ import {
 interface Message {
   id: string;
   content: string;
-  sender: "user" | "support";
+  sender: "user" | "agent";
   timestamp: Date;
   senderName: string;
   avatar?: string;
@@ -24,18 +24,18 @@ interface Message {
 
 interface ChatInterfaceProps {
   conversationId?: string;
-  isSupport?: boolean;
+  isAgent?: boolean;
 }
 
 export function ChatInterface({
   conversationId,
-  isSupport = false,
+  isAgent = false,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       content: "Hello! How can I help you today?",
-      sender: "support",
+      sender: "agent",
       timestamp: new Date(Date.now() - 300000),
       senderName: "Sarah Williams",
       avatar: "/avatars/support1.jpg",
@@ -53,7 +53,7 @@ export function ChatInterface({
       id: "3",
       content:
         "I understand how frustrating that can be. Let me help you resolve this issue. Can you tell me the email address associated with your account?",
-      sender: "support",
+      sender: "agent",
       timestamp: new Date(Date.now() - 180000),
       senderName: "Sarah Williams",
     },
@@ -78,23 +78,23 @@ export function ChatInterface({
     const message: Message = {
       id: Date.now().toString(),
       content: newMessage,
-      sender: isSupport ? "support" : "user",
+      sender: isAgent ? "agent" : "user",
       timestamp: new Date(),
-      senderName: isSupport ? "Support Agent" : "You",
+      senderName: isAgent ? "Agent" : "You",
     };
 
     setMessages((prev) => [...prev, message]);
     setNewMessage("");
 
     // Simulate typing indicator for response
-    if (!isSupport) {
+    if (!isAgent) {
       setIsTyping(true);
       setTimeout(() => {
         setIsTyping(false);
         const response: Message = {
           id: (Date.now() + 1).toString(),
           content: "Thank you for your message. I'm looking into this for you.",
-          sender: "support",
+          sender: "agent",
           timestamp: new Date(),
           senderName: "Sarah Williams",
         };
@@ -119,15 +119,15 @@ export function ChatInterface({
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-primary-foreground">
-                {isSupport ? "JD" : "SW"}
+                {isAgent ? "JD" : "SW"}
               </span>
             </div>
             <div>
               <CardTitle className="text-lg">
-                {isSupport ? "John Doe" : "Sarah Williams"}
+                {isAgent ? "John Doe" : "Sarah Williams"}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                {isSupport ? "Customer" : "Support Agent"} • Online
+                {isAgent ? "Customer" : "Agent"} • Online
               </p>
             </div>
           </div>
@@ -151,14 +151,13 @@ export function ChatInterface({
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex ${message.sender === (isSupport ? "support" : "user") ? "justify-end" : "justify-start"}`}
+            className={`flex ${message.sender === (isAgent ? "agent" : "user") ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${
-                message.sender === (isSupport ? "support" : "user")
-                  ? "flex-row-reverse space-x-reverse"
-                  : ""
-              }`}
+              className={`flex items-end space-x-2 max-w-xs lg:max-w-md ${message.sender === (isAgent ? "agent" : "user")
+                ? "flex-row-reverse space-x-reverse"
+                : ""
+                }`}
             >
               <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-medium">
@@ -170,19 +169,17 @@ export function ChatInterface({
               </div>
 
               <div
-                className={`rounded-2xl px-4 py-2 ${
-                  message.sender === (isSupport ? "support" : "user")
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground"
-                }`}
+                className={`rounded-2xl px-4 py-2 ${message.sender === (isAgent ? "agent" : "user")
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground"
+                  }`}
               >
                 <p className="text-sm">{message.content}</p>
                 <p
-                  className={`text-xs mt-1 ${
-                    message.sender === (isSupport ? "support" : "user")
-                      ? "text-primary-foreground/70"
-                      : "text-muted-foreground"
-                  }`}
+                  className={`text-xs mt-1 ${message.sender === (isAgent ? "agent" : "user")
+                    ? "text-primary-foreground/70"
+                    : "text-muted-foreground"
+                    }`}
                 >
                   {formatTime(message.timestamp)}
                 </p>

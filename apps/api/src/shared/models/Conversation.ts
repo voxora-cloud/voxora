@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
+import { IOrganization } from "./Organization";
 
 export interface IVisitor {
   sessionId: string;
@@ -12,6 +13,7 @@ export interface IVisitor {
 
 export interface IConversation extends Document {
   _id: Types.ObjectId;
+  organizationId: Types.ObjectId | IOrganization;
   participants: Types.ObjectId[];
   subject?: string;
   status: "open" | "pending" | "resolved" | "closed";
@@ -29,6 +31,7 @@ export interface IConversation extends Document {
 
 const conversationSchema = new Schema<IConversation>(
   {
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     participants: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
     subject: { type: String, maxlength: 200 },
     status: { type: String, enum: ["open", "pending", "resolved", "closed"], default: "open" },
@@ -52,6 +55,8 @@ const conversationSchema = new Schema<IConversation>(
   { timestamps: true },
 );
 
+conversationSchema.index({ organizationId: 1, status: 1 });
+conversationSchema.index({ organizationId: 1, assignedTo: 1 });
 conversationSchema.index({ participants: 1 });
 conversationSchema.index({ status: 1, priority: 1 });
 conversationSchema.index({ assignedTo: 1, status: 1 });

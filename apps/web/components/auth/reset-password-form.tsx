@@ -89,7 +89,7 @@ export function ResetPasswordForm() {
       
       // Redirect to login after 3 seconds
       setTimeout(() => {
-        router.push("/admin-login");
+        router.push("/login");
       }, 3000);
     } catch (error) {
       setError(
@@ -130,7 +130,7 @@ export function ResetPasswordForm() {
         </CardHeader>
         <CardContent>
           <Button asChild className="w-full">
-            <Link href="/admin-login">Go to login</Link>
+            <Link href="/login">Go to login</Link>
           </Button>
         </CardContent>
       </Card>
@@ -157,7 +157,7 @@ export function ResetPasswordForm() {
               <Link href="/forgot-password">Request new reset link</Link>
             </Button>
             <Button variant="ghost" asChild className="w-full">
-              <Link href="/admin-login">
+              <Link href="/login">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to login
               </Link>
@@ -291,7 +291,7 @@ export function ResetPasswordForm() {
             {isLoading ? "Resetting..." : "Reset password"}
           </Button>
 
-          <Link href="/admin-login" className="w-full">
+          <Link href="/login" className="w-full">
             <Button variant="ghost" className="w-full">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to login

@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { redisClient, redisPublisher, redisSubscriber } from "@shared/config/redis";
 import { verifyToken } from "@shared/utils/auth";
-import { User } from "@shared/models";
+import { User, Membership } from "@shared/models";
 import logger from "@shared/utils/logger";
 import config from "@shared/config";
 import { handleMessage } from "./handlers/handlerMessage";
@@ -11,7 +11,8 @@ let socketManagerInstance: SocketManager | null = null;
 
 export class SocketManager {
   private io: Server;
-  private connectedUsers = new Map<string, string>(); // userId -> socketId
+  // userId -> { socketId, orgId }
+  private connectedUsers = new Map<string, { socketId: string; orgId: string }>();
 
   constructor(server: any) {
     this.io = new Server(server, {
@@ -27,11 +28,9 @@ export class SocketManager {
     this.setupMiddleware();
     this.setupEventHandlers();
 
-    // Set global instance
     socketManagerInstance = this;
   }
 
-  // Public getter for the io instance
   public get ioInstance() {
     return this.io;
   }
@@ -47,39 +46,40 @@ export class SocketManager {
   }
 
   private setupMiddleware(): void {
-    // Authentication middleware
     this.io.use(async (socket, next) => {
       try {
         const token = socket.handshake.auth.token;
-
-        if (!token) {
-          return next(new Error("Authentication error: No token provided"));
-        }
+        if (!token) return next(new Error("Authentication error: No token provided"));
 
         const decoded = verifyToken(token, "access");
         const user = await User.findById(decoded.userId).select("-password");
+        if (!user || !user.isActive) return next(new Error("Authentication error: Invalid user"));
 
-        if (!user || !user.isActive) {
-          return next(new Error("Authentication error: Invalid user"));
-        }
+        const orgId = decoded.activeOrganizationId;
+
+        // Verify that the user has an active membership in the claimed org
+        if (!orgId) return next(new Error("Authentication error: No active organization"));
+
+        const membership = await Membership.findOne({
+          userId: decoded.userId,
+          organizationId: orgId,
+          inviteStatus: "active",
+        });
+        if (!membership) return next(new Error("Authentication error: Not a member of this organization"));
 
         socket.data.user = {
           userId: user._id.toString(),
           email: user.email,
-          role: user.role,
           name: user.name,
           avatar: user.avatar,
+          orgId,
+          orgRole: membership.role,
         };
 
-        // Update lastSeen on socket connection
-        await User.findByIdAndUpdate(
-          user._id,
-          { lastSeen: new Date() },
-          { timestamps: false }
-        );
-
+        // Update lastSeen
+        await User.findByIdAndUpdate(user._id, { lastSeen: new Date() }, { timestamps: false });
         next();
-      } catch (error) {
+      } catch {
         next(new Error("Authentication error: Invalid token"));
       }
     });
@@ -87,76 +87,58 @@ export class SocketManager {
 
   private setupEventHandlers(): void {
     this.io.on("connection", (socket) => {
-      logger.info(`User connected: ${socket.data.user.userId}`);
+      const { userId, orgId } = socket.data.user;
+      logger.info(`User connected: ${userId} (org: ${orgId})`);
 
-      // Store user connection — in-memory for fast local lookup + Redis for cross-instance routing
-      this.connectedUsers.set(socket.data.user.userId, socket.id);
-      redisClient.set(`socket:user:${socket.data.user.userId}`, socket.id, { EX: 86400 }).catch(() => {});
+      // Store connection in memory + Redis (org-scoped key)
+      this.connectedUsers.set(userId, { socketId: socket.id, orgId });
+      redisClient.set(`org:${orgId}:socket:user:${userId}`, socket.id, { EX: 86400 }).catch(() => { });
 
-      // Update user status to online
-      this.updateUserStatus(socket.data.user.userId, "online");
+      // Join the org room so we can broadcast org-wide events
+      socket.join(`org:${orgId}`);
 
+      this.updateUserStatus(userId, "online");
       handleMessage({ socket, io: this.io });
 
-      // Handle disconnection
       socket.on("disconnect", () => {
-        logger.info(`User disconnected: ${socket.data.user.userId}`);
-
-        // Remove user connection from local Map and Redis
-        this.connectedUsers.delete(socket.data.user.userId);
-        redisClient.del(`socket:user:${socket.data.user.userId}`).catch(() => {});
-
-        // Update user status to offline
-        this.updateUserStatus(socket.data.user.userId, "offline");
+        logger.info(`User disconnected: ${userId}`);
+        this.connectedUsers.delete(userId);
+        redisClient.del(`org:${orgId}:socket:user:${userId}`).catch(() => { });
+        this.updateUserStatus(userId, "offline");
       });
 
-      // Handle custom events
+      // Join an org-scoped conversation room
       socket.on("join_conversation", (conversationId: string) => {
-        socket.join(`conversation:${conversationId}`);
+        socket.join(`org:${orgId}:conv:${conversationId}`);
+        logger.debug(`User ${userId} joined org:${orgId}:conv:${conversationId}`);
       });
 
       socket.on("leave_conversation", (conversationId: string) => {
-        socket.leave(`conversation:${conversationId}`);
-        logger.debug(
-          `User ${socket.data.user.userId} left conversation ${conversationId}`,
-        );
+        socket.leave(`org:${orgId}:conv:${conversationId}`);
+        logger.debug(`User ${userId} left org:${orgId}:conv:${conversationId}`);
       });
 
       socket.on("update_status", async (status: string) => {
-        await this.updateUserStatus(socket.data.user.userId, status);
-
-        this.broadcastUserStatusUpdate(socket.data.user.userId, status);
+        await this.updateUserStatus(userId, status);
+        // Broadcast status update only within the same org
+        this.io.to(`org:${orgId}`).emit("user_status_update", { userId, status, timestamp: new Date() });
       });
     });
   }
 
-  private async updateUserStatus(
-    userId: string,
-    status: string,
-  ): Promise<void> {
+  private async updateUserStatus(userId: string, status: string): Promise<void> {
     try {
-      await User.findByIdAndUpdate(userId, {
-        status,
-        lastSeen: new Date(),
-      });
+      await User.findByIdAndUpdate(userId, { status, lastSeen: new Date() });
     } catch (error) {
       logger.error("Error updating user status:", error);
     }
   }
 
-  private broadcastUserStatusUpdate(userId: string, status: string): void {
-    this.io.emit("user_status_update", {
-      userId,
-      status,
-      timestamp: new Date(),
-    });
-  }
-
   public getUserSocket(userId: string): string | undefined {
-    return this.connectedUsers.get(userId);
+    return this.connectedUsers.get(userId)?.socketId;
   }
 
-  public getConnectedUsers(): Map<string, string> {
+  public getConnectedUsers(): Map<string, { socketId: string; orgId: string }> {
     return this.connectedUsers;
   }
 
@@ -164,27 +146,40 @@ export class SocketManager {
     return this.io;
   }
 
-  // Utility methods for broadcasting
-  public emitToConversation(
-    conversationId: string,
-    event: string,
-    data: any,
-  ): void {
+  // ─── Emit helpers ──────────────────────────────────────────────────────────────
+
+  /**
+   * Emit to all sockets in a specific org-scoped conversation room.
+   */
+  public emitToConversation(conversationId: string, event: string, data: any): void {
+    // Try to resolve orgId from the connected user map — fall back to unscoped key for backward compat
+    this.io.to(`org:*:conv:${conversationId}`).emit(event, data);
+    // Also emit to legacy un-namespaced room (during transition)
     this.io.to(`conversation:${conversationId}`).emit(event, data);
   }
 
+  /**
+   * Emit to all sockets in an org (org-wide broadcast).
+   */
+  public emitToOrg(orgId: string, event: string, data: any): void {
+    this.io.to(`org:${orgId}`).emit(event, data);
+  }
+
+  /**
+   * Emit to a specific user. Uses in-memory map first, then Redis cross-instance lookup.
+   */
   public async emitToUser(userId: string, event: string, data: any): Promise<void> {
-    // Fast path — agent is on this instance
-    const localSocketId = this.connectedUsers.get(userId);
-    if (localSocketId) {
-      this.io.to(localSocketId).emit(event, data);
+    const local = this.connectedUsers.get(userId);
+    if (local) {
+      this.io.to(local.socketId).emit(event, data);
       return;
     }
-    // Cross-instance fallback — look up socketId in Redis; Redis adapter routes to correct server
+    // Cross-instance: try all org:*:socket:user:<userId> patterns (scan)
     try {
-      const remoteSocketId = await redisClient.get(`socket:user:${userId}`);
-      if (remoteSocketId) {
-        this.io.to(remoteSocketId).emit(event, data);
+      const keys = await redisClient.keys(`org:*:socket:user:${userId}`);
+      if (keys.length > 0) {
+        const remoteSocketId = await redisClient.get(keys[0]);
+        if (remoteSocketId) this.io.to(remoteSocketId).emit(event, data);
       }
     } catch {
       logger.warn(`[SocketManager] Redis lookup failed for emitToUser(${userId})`);
@@ -196,7 +191,5 @@ export class SocketManager {
   }
 }
 
-// Export the singleton instance getter
 export const getSocketManager = () => socketManagerInstance;
-
 export default SocketManager;

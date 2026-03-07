@@ -19,9 +19,9 @@ class EmailService {
       secure: config.email.secure,
       auth: config.email.auth.user
         ? {
-            user: config.email.auth.user,
-            pass: config.email.auth.pass,
-          }
+          user: config.email.auth.user,
+          pass: config.email.auth.pass,
+        }
         : undefined,
     } as any);
 
@@ -67,6 +67,19 @@ class EmailService {
   ): Promise<boolean> {
     const inviteUrl = `${config.app.frontendUrl}/accept-invite?token=${token}`;
 
+    const hasTeams = teamNames && teamNames.trim().length > 0;
+    const formattedTeams = hasTeams
+      ? teamNames.split(", ").map((name) => `<b>${name}</b>`).join(", ")
+      : "";
+
+    const titleText = hasTeams
+      ? `Join the Voxora ${formattedTeams} Teams`
+      : `Join the Voxora Organization`;
+
+    const bodyText = hasTeams
+      ? `<strong>${inviterName}</strong> has invited you to join their ${formattedTeams} Teams as an <strong>${role}</strong>.`
+      : `<strong>${inviterName}</strong> has invited you to join their organization as an <strong>${role}</strong>.`;
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -87,11 +100,11 @@ class EmailService {
         <div class="container">
           <div class="header">
             <h1>🎉 You're Invited!</h1>
-            <p>Join the Voxora ${teamNames.split(", ").map((name) => `<b>${name}</b>`).join(", ")} Teams</p>
+            <p>${titleText}</p>
           </div>
           <div class="content">
             <h2>Hello!</h2>
-            <p><strong>${inviterName}</strong> has invited you to join their <b>${teamNames.split(", ").map((name) => `<b>${name}</b>`).join(", ")}</b> Teams as a <strong>${role}</strong>.</p>
+            <p>${bodyText}</p>
             <p>Voxora is a powerful real-time chat support platform that helps teams provide exceptional customer service.</p>
             <p>Click the button below to accept your invitation and set up your account:</p>
             <a href="${inviteUrl}" class="button">Accept Invitation</a>

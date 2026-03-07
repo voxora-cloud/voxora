@@ -1,331 +1,153 @@
 import { Request, Response } from "express";
 import { AdminService } from "./admin.service";
+import { MembershipService } from "@modules/membership/membership.service";
 import { sendResponse, sendError, asyncHandler } from "@shared/utils/response";
 import { AuthenticatedRequest } from "@shared/middleware/auth";
+import { MembershipRole } from "@shared/models";
 
 const adminService = new AdminService();
 
-// Helper to ensure param is string (not string array)
-const getParamAsString = (param: string | string[] | undefined): string => {
-  if (Array.isArray(param)) return param[0];
-  return param || "";
-};
+// ─── Helpers ────────────────────────────────────────────────────────────────────
 
-// =================
-// TEAM MANAGEMENT
-// =================
+const getParam = (param: string | string[] | undefined): string =>
+  Array.isArray(param) ? param[0] : param || "";
+
+const getOrgId = (req: Request): string =>
+  (req as AuthenticatedRequest).user.activeOrganizationId;
+
+// ─── TEAM MANAGEMENT ────────────────────────────────────────────────────────────
 
 export const getTeams = asyncHandler(async (req: Request, res: Response) => {
   const { page = 1, limit = 10, search } = req.query;
-
-  try {
-    const result = await adminService.getTeams({
-      page: Number(page),
-      limit: Number(limit),
-      search: search as string,
-    });
-
-    sendResponse(res, 200, true, "Teams retrieved successfully", result);
-  } catch (error: any) {
-    sendError(res, 500, error.message);
-  }
+  const result = await adminService.getTeams(getOrgId(req), {
+    page: Number(page),
+    limit: Number(limit),
+    search: search as string,
+  });
+  sendResponse(res, 200, true, "Teams retrieved successfully", result);
 });
 
 export const getTeamById = asyncHandler(async (req: Request, res: Response) => {
-  const id = getParamAsString(req.params.id);
-
-  try {
-    const team = await adminService.getTeamById(id);
-
-    if (!team) {
-      return sendError(res, 404, "Team not found");
-    }
-
-    sendResponse(res, 200, true, "Team retrieved successfully", team);
-  } catch (error: any) {
-    sendError(res, 500, error.message);
-  }
+  const id = getParam(req.params.id);
+  const team = await adminService.getTeamById(getOrgId(req), id);
+  if (!team) return sendError(res, 404, "Team not found");
+  sendResponse(res, 200, true, "Team retrieved successfully", team);
 });
 
-export const createTeam = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const teamData = {
-        ...req.body,
-        createdBy: req.user.userId,
-      };
+export const createTeam = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const team = await adminService.createTeam(req.user.activeOrganizationId, {
+    ...req.body,
+    createdBy: req.user.userId,
+  });
+  sendResponse(res, 201, true, "Team created successfully", team);
+});
 
-      const team = await adminService.createTeam(teamData);
-      sendResponse(res, 201, true, "Team created successfully", team);
-    } catch (error: any) {
-      sendError(res, 400, error.message);
-    }
-  },
-);
+export const updateTeam = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const id = getParam(req.params.id);
+  const team = await adminService.updateTeam(req.user.activeOrganizationId, id, req.body);
+  if (!team) return sendError(res, 404, "Team not found");
+  sendResponse(res, 200, true, "Team updated successfully", team);
+});
 
-export const updateTeam = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const id = getParamAsString(req.params.id);
+export const deleteTeam = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const id = getParam(req.params.id);
+  const result = await adminService.deleteTeam(req.user.activeOrganizationId, id);
+  if (!result.success) return sendError(res, (result as any).statusCode || 400, (result as any).message || "Delete failed");
+  sendResponse(res, 200, true, "Team deleted successfully");
+});
 
-    try {
-      const updateData = {
-        ...req.body,
-        updatedBy: req.user.userId,
-      };
-
-      const team = await adminService.updateTeam(id, updateData);
-
-      if (!team) {
-        return sendError(res, 404, "Team not found");
-      }
-
-      sendResponse(res, 200, true, "Team updated successfully", team);
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
-
-export const deleteTeam = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const id = getParamAsString(req.params.id);
-
-    try {
-      const result = await adminService.deleteTeam(id, req.user.userId);
-
-      if (!result) {
-        return sendError(res, 404, "Team not found");
-      }
-
-      sendResponse(res, 200, true, "Team deleted successfully");
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
-
-// =================
-// AGENT MANAGEMENT
-// =================
+// ─── AGENT MANAGEMENT ───────────────────────────────────────────────────────────
 
 export const getAgents = asyncHandler(async (req: Request, res: Response) => {
-  const { page = 1, limit = 10, teamId, status, search } = req.query;
-
-  try {
-    const options = {
-      page: Number(page),
-      limit: Number(limit),
-      teamId: teamId as string,
-      status: status as string,
-      search: search as string,
-    };
-
-    const result = await adminService.getAgents(options);
-    sendResponse(res, 200, true, "Agents retrieved successfully", result);
-  } catch (error: any) {
-    sendError(res, 500, error.message);
-  }
+  const { page = 1, limit = 10, status, search } = req.query;
+  const result = await adminService.getAgents(getOrgId(req), {
+    page: Number(page),
+    limit: Number(limit),
+    status: status as string,
+    search: search as string,
+  });
+  sendResponse(res, 200, true, "Agents retrieved successfully", result);
 });
 
-export const getAgentById = asyncHandler(
-  async (req: Request, res: Response) => {
-    const id = getParamAsString(req.params.id);
-
-    try {
-      const agent = await adminService.getAgentById(id);
-
-      if (!agent) {
-        return sendError(res, 404, "Agent not found");
-      }
-
-      sendResponse(res, 200, true, "Agent retrieved successfully", agent);
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
-
-export const inviteAgent = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const inviteData = {
-        ...req.body,
-        invitedBy: req.user.userId,
-      };
-
-      const result = await adminService.inviteAgent(inviteData);
-
-      if (!result.success) {
-        return sendError(
-          res,
-          result.statusCode || 400,
-          result.message || "Invite failed",
-        );
-      }
-
-      sendResponse(res, 201, true, "Agent invited successfully", result.data);
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
-
-export const updateAgent = asyncHandler(async (req: Request, res: Response) => {
-  const id = getParamAsString(req.params.id);
-
-  try {
-    const result = await adminService.updateAgent(id, req.body);
-
-    if (!result.success) {
-      return sendError(
-        res,
-        result.statusCode || 400,
-        result.message || "Update failed",
-      );
-    }
-
-    sendResponse(res, 200, true, "Agent updated successfully", result.data);
-  } catch (error: any) {
-    sendError(res, 500, error.message);
-  }
+export const getAgentById = asyncHandler(async (req: Request, res: Response) => {
+  const id = getParam(req.params.id);
+  const agent = await adminService.getAgentById(getOrgId(req), id);
+  if (!agent) return sendError(res, 404, "Agent not found");
+  sendResponse(res, 200, true, "Agent retrieved successfully", agent);
 });
 
-export const deleteAgent = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const id = getParamAsString(req.params.id);
+export const inviteAgent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { email, name, role, teamIds, password } = req.body;
+  const result = await MembershipService.inviteMember(
+    req.user.userId,
+    req.user.activeOrganizationId,
+    { email, name, role: role as MembershipRole, teamIds, password },
+  );
+  sendResponse(res, 201, true, "Agent invited successfully", { membershipId: result.membership._id });
+});
 
-    try {
-      const result = await adminService.deleteAgent(id, req.user.userId);
+export const updateAgent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const id = getParam(req.params.id);
+  const result = await adminService.updateAgent(req.user.activeOrganizationId, id, req.body);
+  if (!result.success) return sendError(res, (result as any).statusCode || 400, (result as any).message || "Update failed");
+  sendResponse(res, 200, true, "Agent updated successfully", result.data);
+});
 
-      if (!result.success) {
-        return sendError(
-          res,
-          result.statusCode || 400,
-          result.message || "Delete failed",
-        );
-      }
+export const deleteAgent = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const id = getParam(req.params.id);
+  const result = await adminService.deleteAgent(req.user.activeOrganizationId, id);
+  if (!result.success) return sendError(res, (result as any).statusCode || 400, (result as any).message || "Delete failed");
+  sendResponse(res, 200, true, "Agent removed from organization");
+});
 
-      sendResponse(res, 200, true, "Agent deleted successfully");
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
+export const resendInvite = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  sendError(res, 410, "Use POST /memberships/organizations/:orgId/members/invite instead");
+});
 
-export const resendInvite = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    const id = getParamAsString(req.params.id);
+// ─── WIDGET ──────────────────────────────────────────────────────────────────────
 
-    try {
-      const result = await adminService.resendAgentInvite(id, req.user.userId);
-      if (!result.success) {
-        return sendError(
-          res,
-          result.statusCode || 400,
-          result.message || "Resend invite failed",
-        );
-      }
-      sendResponse(res, 200, true, "Invitation resent successfully");
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
+export const createWidget = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const widget = await adminService.createWidget(req.user.activeOrganizationId, req.body);
+  sendResponse(res, 201, true, "Widget created successfully", widget);
+});
 
-export const createWidget = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const widgetData = {
-        ...req.body,
-        userId: req.user.userId,
-      };
+export const getWidget = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const result = await adminService.getWidget(req.user.activeOrganizationId);
+  const widgetData: any = result.toObject ? result.toObject() : { ...result };
 
-      const widget = await adminService.createWidget(widgetData);
-      sendResponse(res, 201, true, "Widget created successfully", widget);
-    } catch (error: any) {
-      sendError(res, 400, error.message);
-    }
-  },
-);
+  if (widgetData.logoUrl) {
+    const fileKey = normalizeLogoUrl(widgetData.logoUrl)!;
+    const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
+    const host = req.get("host") || "localhost:3002";
+    widgetData.logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
+  }
 
-export const getWidget = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const result = await adminService.getWidget(req.user.userId);
-      // Resolve logoUrl to an API-proxied URL so the browser can always load it
-      // (direct MinIO URLs use internal Docker hostnames that browsers can't reach)
-      const widgetData: any = result.toObject ? result.toObject() : { ...result };
-      if (widgetData.logoUrl) {
-        // Normalize any full MinIO URL → fileKey, then proxy through the API.
-        // This handles both new records (fileKey only) and legacy records (full URL).
-        const fileKey = normalizeLogoUrl(widgetData.logoUrl)!;
-        const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
-        const host = req.get("host") || "localhost:3002";
-        widgetData.logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
-      }
-      sendResponse(res, 200, true, "Widget retrieved successfully", widgetData);
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);
+  sendResponse(res, 200, true, "Widget retrieved successfully", widgetData);
+});
 
-/**
- * If the incoming logoUrl is a full MinIO URL (presigned or plain),
- * strip it down to just the fileKey so we never store expiring URLs.
- * e.g. "http://localhost:9001/voxora-chat-dev/knowledge/uuid.png?X-Amz-..." → "knowledge/uuid.png"
- */
+export const updateWidget = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const body = { ...req.body };
+  if (body.logoUrl) body.logoUrl = normalizeLogoUrl(body.logoUrl);
+  const widget = await adminService.updateWidget(req.user.activeOrganizationId, body);
+  sendResponse(res, 200, true, "Widget updated successfully", widget);
+});
+
+// ─── DASHBOARD STATS ─────────────────────────────────────────────────────────────
+
+export const getDashboardStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const stats = await adminService.getDashboardStats(req.user.activeOrganizationId);
+  sendResponse(res, 200, true, "Dashboard stats retrieved successfully", stats);
+});
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────────
+
 function normalizeLogoUrl(logoUrl: string | undefined): string | undefined {
   if (!logoUrl) return logoUrl;
-  if (!/^https?:\/\//i.test(logoUrl)) return logoUrl; // already a fileKey
+  if (!/^https?:\/\//i.test(logoUrl)) return logoUrl;
   try {
     const url = new URL(logoUrl);
-    // pathname: /bucket/fileKey  →  split, drop empty + bucket, rejoin
-    const parts = url.pathname.split('/').filter(Boolean);
-    if (parts.length > 1) return parts.slice(1).join('/');
-  } catch {}
+    const parts = url.pathname.split("/").filter(Boolean);
+    if (parts.length > 1) return parts.slice(1).join("/");
+  } catch { }
   return logoUrl;
 }
-
-export const updateWidget = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const body = { ...req.body };
-      if (body.logoUrl) body.logoUrl = normalizeLogoUrl(body.logoUrl);
-
-      const updateData = {
-        ...body,
-        userId: req.user.userId,
-      };
-
-      const widget = await adminService.updateWidget(
-        req.user.userId,
-        updateData,
-      );
-      sendResponse(res, 200, true, "Widget updated successfully", widget);
-    } catch (error: any) {
-      sendError(res, 400, error.message);
-    }
-  },
-);
-
-// =================
-// DASHBOARD STATS
-// =================
-
-export const getDashboardStats = asyncHandler(
-  async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const stats = await adminService.getDashboardStats();
-      sendResponse(
-        res,
-        200,
-        true,
-        "Dashboard stats retrieved successfully",
-        stats,
-      );
-    } catch (error: any) {
-      sendError(res, 500, error.message);
-    }
-  },
-);

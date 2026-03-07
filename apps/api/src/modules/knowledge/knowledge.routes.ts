@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, authorize } from "@shared/middleware";
+import { authenticate, requireRole } from "@shared/middleware";
 import { validateRequest } from "@shared/middleware/validation";
 import {
   getKnowledgeItems,
@@ -16,7 +16,7 @@ import { knowledgeSchema } from "./knowledge.schema";
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(["admin"]));
+router.use(requireRole("admin"));
 
 router.get("/", getKnowledgeItems);
 router.post("/request-upload", validateRequest(knowledgeSchema.requestUpload), requestFileUpload);

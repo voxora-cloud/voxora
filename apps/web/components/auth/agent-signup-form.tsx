@@ -37,7 +37,7 @@ export function AgentSignupForm() {
 
           <div className="space-y-2 pt-4">
             <Button asChild className="w-full">
-              <Link href="/agent-login">
+              <Link href="/login">
                 Back to Login
               </Link>
             </Button>

@@ -8,8 +8,8 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="h-full flex w-full">
-      {/* Sidebar - always visible within dashboard */}
-      <div className="w-full md:w-64 shrink-0">
+      {/* Sidebar - always visible within inbox */}
+      <div className="shrink-0">
         <ConversationSidebar />
       </div>
 

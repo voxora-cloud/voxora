@@ -22,8 +22,8 @@ function AgentForm({
   isLoading?: boolean;
 }) {
   const [formData, setFormData] = useState<AgentFormData>({
-    name: agent?.name || "",
-    email: agent?.email || "",
+    name: agent?.user?.name || "",
+    email: agent?.user?.email || "",
     role: "agent", // Always agent based on interface definition
     teamIds: agent?.teams?.map((t) => t._id) || [],
     password: "",
@@ -39,21 +39,21 @@ function AgentForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const errors: { name?: string; email?: string; password?: string } = {};
-    
+
     // Validate name
     const nameError = validateName(formData.name);
     if (nameError) {
       errors.name = nameError;
     }
-    
+
     // Validate email
     const emailError = validateEmail(formData.email);
     if (emailError) {
       errors.email = emailError;
     }
-    
+
     // Validate password (required for new agents, optional but must be valid if provided for updates)
     if (!agent && !formData.password) {
       errors.password = "Password is required for new agents";
@@ -63,20 +63,20 @@ function AgentForm({
         errors.password = passwordError;
       }
     }
-    
+
     // Validate that at least one team is selected
     if (formData.teamIds.length === 0) {
       setTeamError("Please select at least one team");
     } else {
       setTeamError("");
     }
-    
+
     // Check if there are any errors
     if (Object.keys(errors).length > 0 || formData.teamIds.length === 0) {
       setValidationErrors(errors);
       return;
     }
-    
+
     setValidationErrors({});
     setTeamError("");
     onSubmit(formData);
@@ -126,7 +126,7 @@ function AgentForm({
           }}
           placeholder="Enter agent email"
           required
-          disabled={!!agent} // Disable email editing for existing agents
+          disabled={!!agent?.user?.email} // Disable email editing for existing agents
           className={validationErrors.email ? "border-red-500" : ""}
         />
         {validationErrors.email && (
@@ -226,9 +226,9 @@ function AgentForm({
       </div>
 
       <div className="flex gap-2 pt-4">
-        <Button 
-          type="submit" 
-          className="flex-1 cursor-pointer" 
+        <Button
+          type="submit"
+          className="flex-1 cursor-pointer"
           disabled={isLoading || formData.teamIds.length === 0 || teams.length === 0}
         >
           {isLoading ? (

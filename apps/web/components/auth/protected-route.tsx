@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/components/auth/auth-context";
 import { useEffect, ReactNode } from "react";
+import { apiService } from "@/lib/api";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -25,18 +26,21 @@ export function ProtectedRoute({
 
       if (requiredRole) {
         // Check if user has required role or compatible role
+        const orgRole = apiService.getOrgRole();
+        const userRole = orgRole === "owner" ? "founder" : orgRole;
+
         const hasRequiredRole =
-          user?.role === requiredRole ||
-          (requiredRole === "admin" && user?.role === "founder") ||
-          (requiredRole === "agent" && user?.role === "admin") ||
-          (requiredRole === "agent" && user?.role === "founder");
+          userRole === requiredRole ||
+          (requiredRole === "admin" && userRole === "founder") ||
+          (requiredRole === "agent" && userRole === "admin") ||
+          (requiredRole === "agent" && userRole === "founder");
 
         if (!hasRequiredRole) {
           // Redirect based on user role
-          if (user?.role === "admin" || user?.role === "founder") {
+          if (userRole === "admin" || userRole === "founder") {
             window.location.href = "/admin";
-          } else if (user?.role === "agent") {
-            window.location.href = "/dashboard";
+          } else if (userRole === "agent") {
+            window.location.href = "/conversation/inbox";
           } else {
             window.location.href = "/login";
           }

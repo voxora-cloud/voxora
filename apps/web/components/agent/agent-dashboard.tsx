@@ -70,8 +70,7 @@ export function AgentDashboard({
 
   // Use auth user data or fallback to props
   const displayName = user?.name || agentName || "Agent";
-  const userTeams = user?.teams?.map((team) => team.name) ||
-    agentTeams || ["Support"];
+  const userTeams = agentTeams || ["Support"];
 
   const [conversations] = useState<Conversation[]>([
     {
@@ -252,13 +251,8 @@ export function AgentDashboard({
     );
   }
 
-  // Auth check - redirect if not authenticated or not agent
-  if (
-    !isAuthenticated ||
-    (user?.role !== "agent" &&
-      user?.role !== "admin" &&
-      user?.role !== "founder")
-  ) {
+  // Auth check - redirect if not authenticated
+  if (!isAuthenticated) {
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }
@@ -322,9 +316,8 @@ export function AgentDashboard({
             {filteredConversations.map((conversation) => (
               <div
                 key={conversation.id}
-                className={`p-4 border-b border-border cursor-pointer hover:bg-accent transition-colors ${
-                  selectedConversation === conversation.id ? "bg-accent" : ""
-                }`}
+                className={`p-4 border-b border-border cursor-pointer hover:bg-accent transition-colors ${selectedConversation === conversation.id ? "bg-accent" : ""
+                  }`}
                 onClick={() => setSelectedConversation(conversation.id)}
               >
                 <div className="flex items-start justify-between mb-2">
@@ -527,19 +520,19 @@ export function AgentDashboard({
                         {conversations.find(
                           (c) => c.id === selectedConversation,
                         )?.notes && (
-                          <div className="bg-muted p-3 rounded-lg">
-                            <p className="text-sm text-foreground">
-                              {
-                                conversations.find(
-                                  (c) => c.id === selectedConversation,
-                                )?.notes
-                              }
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Added by Sarah Williams
-                            </p>
-                          </div>
-                        )}
+                            <div className="bg-muted p-3 rounded-lg">
+                              <p className="text-sm text-foreground">
+                                {
+                                  conversations.find(
+                                    (c) => c.id === selectedConversation,
+                                  )?.notes
+                                }
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Added by Sarah Williams
+                              </p>
+                            </div>
+                          )}
                         <div className="flex space-x-2">
                           <Input
                             value={internalNote}

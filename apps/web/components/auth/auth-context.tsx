@@ -15,8 +15,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (
     email: string,
-    password: string,
-    loginType?: "admin" | "agent",
+    password: string
   ) => Promise<void>;
   signup: (data: {
     name: string;
@@ -24,7 +23,7 @@ interface AuthContextType {
     password: string;
     companyName: string;
   }) => Promise<void>;
-  acceptInvite: (token: string) => Promise<boolean>;
+  acceptInvite: (token: string, password?: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (user: User) => void;
 }
@@ -61,42 +60,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (
     email: string,
-    password: string,
-    loginType?: "admin" | "agent",
+    password: string
   ) => {
     try {
-      let response;
-
-      // If loginType is not specified, try admin first, then agent
-      if (!loginType) {
-        try {
-          response = await apiService.adminLogin({ email, password });
-        } catch (adminError) {
-          // If admin login fails, try agent login
-          try {
-            response = await apiService.agentLogin({ email, password });
-          } catch (agentError) {
-            throw new Error("Invalid email or password");
-          }
-        }
-      } else if (loginType === "admin") {
-        response = await apiService.adminLogin({ email, password });
-      } else {
-        response = await apiService.agentLogin({ email, password });
-      }
+      // Unified login endpoint handles both admin and agent
+      const response = await apiService.login({ email, password });
 
       if (response.success && response.data) {
-        const { user, token } = response.data;
-        apiService.setToken(token);
+        if (response.data.requiresOrgSelection) {
+          // Store memberships temporarily for the /select-org page
+          if (typeof window !== "undefined") {
+            localStorage.setItem("tempAuthUser", JSON.stringify(response.data.user));
+            localStorage.setItem("tempMemberships", JSON.stringify(response.data.memberships));
+            if (response.data.selectionToken) {
+              apiService.setToken(response.data.selectionToken);
+            }
+            window.location.href = "/select-org";
+          }
+          return;
+        }
+
+        // Single org — auto-logged in
+        const { user, accessToken, role, organization } = response.data;
+        if (accessToken) apiService.setToken(accessToken);
+        if (organization?._id) apiService.setActiveOrgId(organization._id);
+        if (role) apiService.setOrgRole(role);
+
         apiService.setUser(user);
         setUser(user);
 
-        // Redirect based on role
-        if (user.role === "admin") {
-          window.location.href = "/admin";
-        } else if (user.role === "agent") {
-          window.location.href = "/support/dashboard";
-        }
+        // Redirect to unified admin dashboard for all roles
+        window.location.href = "/admin";
       } else {
         throw new Error(response.message || "Login failed");
       }
@@ -113,11 +107,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     companyName: string;
   }) => {
     try {
-      const response = await apiService.adminSignup(data);
+      const response = await apiService.adminSignup({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        organizationName: data.companyName,
+      });
 
       if (response.success && response.data) {
-        const { user, token } = response.data;
-        apiService.setToken(token);
+        const { user, accessToken, role, organization } = response.data;
+        if (accessToken) apiService.setToken(accessToken);
+        if (organization?._id) apiService.setActiveOrgId(organization._id);
+        if (role) apiService.setOrgRole(role);
+
         apiService.setUser(user);
         setUser(user);
 
@@ -133,19 +135,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
-    const userRole = user?.role;
     apiService.logout();
     setUser(null);
-    
-    // Redirect based on user role
-    if (userRole === "admin") {
-      window.location.href = "/admin-login";
-    } else if (userRole === "agent") {
-      window.location.href = "/agent-login";
-    } else {
-      // Default fallback
-      window.location.href = "/";
-    }
+    window.location.href = "/login";
   };
 
   const updateUser = (updatedUser: User) => {
@@ -153,9 +145,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     apiService.setUser(updatedUser);
   };
 
-  const acceptInvite = async (token: string) => {
+  const acceptInvite = async (token: string, password?: string) => {
     console.log("Accepting invite with token:", token);
-    const response = await apiService.acceptInvite(token);
+    const response = await apiService.acceptInvite(token, password);
     console.log("Accept invite API response:", response);
 
     if (response.success && response.data) {

@@ -99,8 +99,8 @@ export default function FilterableAgentTable({
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase().trim();
       if (
-        !agent.name.toLowerCase().includes(query) &&
-        !agent.email.toLowerCase().includes(query)
+        !agent.user?.name?.toLowerCase().includes(query) &&
+        !agent.user?.email?.toLowerCase().includes(query)
       ) {
         return false;
       }
@@ -229,36 +229,35 @@ export default function FilterableAgentTable({
             </tr>
           </thead>
           <tbody>
-            {paginatedAgents.map((agent) => (
+            {paginatedAgents.map((agent, index) => (
               <tr
-                key={agent._id}
+                key={agent.user?._id || agent.membershipId || `agent-${index}`}
                 className="border-t border-border hover:bg-muted/50 transition-colors"
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
-                      {agent.name?.charAt(0) ||
-                        agent.email.charAt(0).toUpperCase()}
+                      {agent.user?.name?.charAt(0) ||
+                        agent.user?.email?.charAt(0)?.toUpperCase() || "A"}
                     </div>
                     <div>
                       <p className="font-medium text-foreground">
-                        {agent.name || "No name"}
+                        {agent.user?.name || "No name"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {agent.email}
+                        {agent.user?.email}
                       </p>
                     </div>
                   </div>
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      agent.inviteStatus === "active"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                        : agent.inviteStatus === "pending"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                    }`}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${agent.inviteStatus === "active"
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                      : agent.inviteStatus === "pending"
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
                   >
                     {agent.inviteStatus}
                   </span>
@@ -267,12 +266,12 @@ export default function FilterableAgentTable({
                   <div className="flex items-center space-x-1">
                     {agent.teams && agent.teams.length > 0 ? (
                       <>
-                        {agent.teams.slice(0, 3).map((team) => {
+                        {agent.teams.slice(0, 3).map((team, tIdx) => {
                           const bg = team.color || "#3b82f6";
                           const textColor = getContrastColor(bg);
 
                           return (
-                            <div key={team._id} className="relative group">
+                            <div key={team._id || `team-${tIdx}`} className="relative group">
                               <div
                                 className="w-2.5 h-2.5 rounded-full cursor-pointer border border-border"
                                 style={{ backgroundColor: bg }}
@@ -321,7 +320,7 @@ export default function FilterableAgentTable({
                         variant="outline"
                         size="sm"
                         className="text-yellow-600 hover:text-yellow-700 cursor-pointer"
-                        onClick={() => onResendInvite(agent._id)}
+                        onClick={() => onResendInvite(agent.user?._id || agent._id)}
                       >
                         <Mail className="h-3 w-3 mr-1" />
                         Resend

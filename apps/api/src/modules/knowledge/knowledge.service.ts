@@ -6,8 +6,7 @@ import logger from "@shared/utils/logger";
 class KnowledgeService {
   /**
    * Step 1 of the file upload flow.
-   * Creates the DB record (status: "pending") and returns a presigned PUT URL.
-   * The client uploads the file directly to MinIO — the API server never buffers it.
+   * Creates the DB record and returns a presigned PUT URL.
    */
   async requestFileUpload(
     meta: {
@@ -21,12 +20,13 @@ class KnowledgeService {
       teamId?: string;
     },
     uploadedBy: string,
+    organizationId: string,
   ) {
-    // Delegate presigned URL + fileKey generation to StorageService
     const { uploadUrl: presignedUrl, fileKey } =
       await StorageService.generatePresignedUploadUrl(meta.fileName, meta.mimeType, 600);
 
     const doc = await Knowledge.create({
+      organizationId,
       title: meta.title,
       description: meta.description,
       catalog: meta.catalog,
@@ -42,12 +42,9 @@ class KnowledgeService {
 
     logger.info("📄 Knowledge upload requested", {
       documentId: String(doc._id),
+      organizationId,
       title: doc.title,
       fileKey,
-      fileName: meta.fileName,
-      mimeType: meta.mimeType,
-      sizeKB: (meta.fileSize / 1024).toFixed(2) + " KB",
-      uploadedBy,
     });
 
     return { documentId: String(doc._id), presignedUrl, fileKey };
@@ -55,12 +52,11 @@ class KnowledgeService {
 
   /**
    * Step 2 of the file upload flow.
-   * Called after the client successfully PUT the file to MinIO.
    * Marks the record as "queued" and enqueues the ingestion BullMQ job.
    */
-  async confirmUpload(documentId: string) {
-    const doc = await Knowledge.findByIdAndUpdate(
-      documentId,
+  async confirmUpload(documentId: string, organizationId: string) {
+    const doc = await Knowledge.findOneAndUpdate(
+      { _id: documentId, organizationId },
       { status: "queued" },
       { new: true },
     );
@@ -69,6 +65,7 @@ class KnowledgeService {
 
     await ingestionQueue.add("ingest", {
       documentId: String(doc._id),
+      organizationId,
       source: doc.source,
       fileKey: doc.fileKey!,
       mimeType: doc.mimeType!,
@@ -78,12 +75,7 @@ class KnowledgeService {
       teamId: doc.teamId,
     });
 
-    logger.info("✅ Knowledge document confirmed & queued", {
-      documentId,
-      fileKey: doc.fileKey,
-      title: doc.title,
-    });
-
+    logger.info("✅ Knowledge document confirmed & queued", { documentId, organizationId });
     return doc;
   }
 
@@ -104,8 +96,10 @@ class KnowledgeService {
       teamId?: string;
     },
     createdBy: string,
+    organizationId: string,
   ) {
     const doc = await Knowledge.create({
+      organizationId,
       title: data.title,
       description: data.description,
       catalog: data.catalog,
@@ -122,6 +116,7 @@ class KnowledgeService {
 
     await ingestionQueue.add("ingest", {
       documentId: String(doc._id),
+      organizationId,
       source: data.source,
       fileKey: "",
       mimeType: "text/plain",
@@ -136,42 +131,27 @@ class KnowledgeService {
       syncFrequency: data.syncFrequency,
     });
 
-    logger.info("📝 Knowledge text/URL entry created & queued", {
-      documentId: String(doc._id),
-      title: doc.title,
-      source: doc.source,
-      ...(data.content ? { contentLength: data.content.length } : {}),
-      ...(data.url ? { url: data.url } : {}),
-      catalog: data.catalog || "(none)",
-      createdBy,
-    });
-
+    logger.info("📝 Knowledge text/URL entry created & queued", { documentId: String(doc._id), organizationId, title: doc.title });
     return doc;
   }
 
-  async getItems(teamId?: string) {
-    const filter = teamId ? { teamId } : {};
+  async getItems(organizationId: string, teamId?: string) {
+    const filter: any = { organizationId };
+    if (teamId) filter.teamId = teamId;
     const items = await Knowledge.find(filter).sort({ createdAt: -1 }).lean();
     return { items, total: items.length };
   }
 
-  /**
-   * Get a short-lived presigned GET URL so the client can view/download the file.
-   */
-  async getViewUrl(documentId: string) {
-    const doc = await Knowledge.findById(documentId).lean();
+  async getViewUrl(documentId: string, organizationId: string) {
+    const doc = await Knowledge.findOne({ _id: documentId, organizationId }).lean();
     if (!doc || !doc.fileKey) return null;
     const url = await StorageService.generatePresignedDownloadUrl(doc.fileKey, 300);
     return { url, fileName: doc.fileName, mimeType: doc.mimeType };
   }
 
-  /**
-   * Re-enqueue an existing knowledge item for ingestion (used by "Re-index" and "Retry" actions).
-   * Sets status back to "queued" and adds a new BullMQ ingestion job.
-   */
-  async reindexItem(documentId: string) {
-    const doc = await Knowledge.findByIdAndUpdate(
-      documentId,
+  async reindexItem(documentId: string, organizationId: string) {
+    const doc = await Knowledge.findOneAndUpdate(
+      { _id: documentId, organizationId },
       { status: "queued", errorMessage: undefined },
       { new: true },
     );
@@ -179,6 +159,7 @@ class KnowledgeService {
 
     await ingestionQueue.add("ingest", {
       documentId: String(doc._id),
+      organizationId,
       source: doc.source,
       fileKey: doc.fileKey ?? "",
       mimeType: doc.mimeType ?? "text/plain",
@@ -193,101 +174,60 @@ class KnowledgeService {
       syncFrequency: doc.syncFrequency,
     });
 
-    logger.info("🔄 Knowledge item re-queued for reindex", {
-      documentId,
-      title: doc.title,
-      source: doc.source,
-    });
-
+    logger.info("🔄 Knowledge item re-queued for reindex", { documentId, organizationId });
     return doc;
   }
 
-  /**
-   * Partial-update a knowledge record (e.g. pause/resume URL sources, change syncFrequency).
-   * When isPaused=true, also cancels any queued/delayed ingestion jobs for the document
-   * so the next scheduled re-crawl doesn't fire.
-   */
   async updateItem(
     documentId: string,
-    patch: {
-      isPaused?: boolean;
-      syncFrequency?: "manual" | "1hour" | "6hours" | "daily";
-      status?: "queued" | "indexed" | "failed" | "pending";
-    },
+    organizationId: string,
+    patch: { isPaused?: boolean; syncFrequency?: "manual" | "1hour" | "6hours" | "daily"; status?: "queued" | "indexed" | "failed" | "pending" },
   ) {
-    const doc = await Knowledge.findByIdAndUpdate(documentId, { $set: patch }, { new: true });
+    const doc = await Knowledge.findOneAndUpdate(
+      { _id: documentId, organizationId },
+      { $set: patch },
+      { new: true },
+    );
     if (!doc) return null;
 
-    // When pausing, cancel any waiting/delayed re-crawl jobs so the next scheduled
-    // run doesn't fire while the source is paused.
     if (patch.isPaused === true) {
       try {
-        const [waiting, delayed] = await Promise.all([
-          ingestionQueue.getWaiting(),
-          ingestionQueue.getDelayed(),
-        ]);
-        const toCancel = [...waiting, ...delayed].filter(
-          (j) => j.data.documentId === documentId,
-        );
+        const [waiting, delayed] = await Promise.all([ingestionQueue.getWaiting(), ingestionQueue.getDelayed()]);
+        const toCancel = [...waiting, ...delayed].filter((j) => j.data.documentId === documentId);
         await Promise.all(toCancel.map((j) => j.remove()));
-        if (toCancel.length) {
-          logger.info(`⏸  Cancelled ${toCancel.length} scheduled job(s) for paused source`, {
-            documentId,
-          });
-        }
       } catch (err) {
         logger.warn("Could not cancel queued ingestion jobs on pause", { documentId, err });
       }
     }
 
-    logger.info("✏️  Knowledge item updated", { documentId, patch });
+    logger.info("✏️  Knowledge item updated", { documentId, organizationId, patch });
     return doc;
   }
 
-  /**
-   * Delete a knowledge record from MongoDB and remove its file from MinIO (if any).
-   * Also cancels any queued/delayed BullMQ ingestion jobs for this document and
-   * enqueues a "delete-vectors" job so the AI worker purges Qdrant points.
-   */
-  async deleteItem(documentId: string) {
-    const doc = await Knowledge.findByIdAndDelete(documentId);
+  async deleteItem(documentId: string, organizationId: string) {
+    const doc = await Knowledge.findOneAndDelete({ _id: documentId, organizationId });
     if (!doc) return null;
 
-    // ── 1. Remove the MinIO file if present ────────────────────────────────
     if (doc.fileKey) {
       try {
         await StorageService.deleteFile(doc.fileKey);
       } catch (err) {
-        logger.warn("Could not delete MinIO object (may already be removed)", {
-          fileKey: doc.fileKey,
-        });
+        logger.warn("Could not delete MinIO object", { fileKey: doc.fileKey });
       }
     }
 
-    // ── 2. Cancel any waiting/delayed ingestion jobs for this documentId ───
     try {
-      const [waiting, delayed] = await Promise.all([
-        ingestionQueue.getWaiting(),
-        ingestionQueue.getDelayed(),
-      ]);
-      const toCancel = [...waiting, ...delayed].filter(
-        (j) => j.data.documentId === documentId,
-      );
+      const [waiting, delayed] = await Promise.all([ingestionQueue.getWaiting(), ingestionQueue.getDelayed()]);
+      const toCancel = [...waiting, ...delayed].filter((j) => j.data.documentId === documentId);
       await Promise.all(toCancel.map((j) => j.remove()));
-      if (toCancel.length) {
-        logger.info(`🗑️  Cancelled ${toCancel.length} queued/delayed ingestion job(s)`, {
-          documentId,
-        });
-      }
     } catch (err) {
       logger.warn("Could not cancel queued ingestion jobs", { documentId, err });
     }
 
-    // ── 3. Enqueue a delete-vectors job so the AI worker purges Qdrant ─────
     await ingestionQueue.add("delete-vectors", {
       jobType: "delete-vectors",
       documentId,
-      // Dummy required fields — the worker only needs documentId for this job type
+      organizationId,
       source: doc.source,
       fileKey: "",
       mimeType: "",
@@ -295,16 +235,9 @@ class KnowledgeService {
       title: doc.title,
     });
 
-    logger.info("🗑️  Knowledge item deleted", {
-      documentId,
-      title: doc.title,
-      source: doc.source,
-      fileKey: doc.fileKey ?? "(none)",
-    });
-
+    logger.info("🗑️  Knowledge item deleted", { documentId, organizationId, title: doc.title });
     return doc;
   }
 }
 
 export default new KnowledgeService();
-

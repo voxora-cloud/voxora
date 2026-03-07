@@ -94,7 +94,7 @@ export default function AgentPage() {
     if (!selectedAgent) return;
     setIsSubmitting(true);
     try {
-      const response = await apiService.updateAgent(selectedAgent._id, {
+      const response = await apiService.updateAgent(selectedAgent.user?._id || selectedAgent._id, {
         name: data.name,
         teamIds: data.teamIds,
       });
@@ -123,7 +123,7 @@ export default function AgentPage() {
 
     setIsDeleting(true);
     try {
-      const response = await apiService.deleteAgent(agentToDelete._id);
+      const response = await apiService.deleteAgent(agentToDelete.user?._id || agentToDelete._id);
       if (response.success) {
         fetchAgents();
         setShowDeleteDialog(false);
@@ -158,10 +158,6 @@ export default function AgentPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Agents</h1>
-        <Button onClick={() => setShowCreateModal(true)} className="cursor-pointer">
-          <Plus className="h-4 w-4 mr-2" />
-          Invite Agent
-        </Button>
       </div>
 
       {loading ? (
@@ -195,12 +191,8 @@ export default function AgentPage() {
             No agents added yet
           </h3>
           <p className="text-muted-foreground mt-1">
-            Invite agents to start managing your support team
+            Build your first AI Agent to start automating support.
           </p>
-          <Button className="mt-4 cursor-pointer" onClick={() => setShowCreateModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Invite Agent
-          </Button>
         </div>
       )}
 
@@ -262,7 +254,7 @@ export default function AgentPage() {
         }}
         onConfirm={handleDeleteAgent}
         title="Delete Agent"
-        itemName={agentToDelete?.name || agentToDelete?.email}
+        itemName={agentToDelete?.user?.name || agentToDelete?.user?.email}
         isDeleting={isDeleting}
       />
     </div>

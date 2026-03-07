@@ -40,7 +40,7 @@ export function LoginForm() {
 
   const handleBlur = (field: "email" | "password") => {
     setTouched((prev) => ({ ...prev, [field]: true }));
-    
+
     if (field === "email") {
       const emailError = validateEmail(formData.email);
       setFieldErrors((prev) => ({ ...prev, email: emailError || undefined }));
@@ -118,7 +118,7 @@ export function LoginForm() {
           Welcome to Voxora
         </CardTitle>
         <CardDescription className="text-center">
-          Admin login - Sign in to manage your organization
+          Sign in to access your dashboard
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -148,11 +148,10 @@ export function LoginForm() {
                 value={formData.email}
                 onChange={handleInputChange}
                 onBlur={() => handleBlur("email")}
-                className={`pl-10 ${
-                  touched.email && fieldErrors.email
-                    ? "border-destructive focus-visible:ring-destructive"
-                    : ""
-                }`}
+                className={`pl-10 ${touched.email && fieldErrors.email
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
+                  }`}
                 required
               />
             </div>
@@ -181,11 +180,10 @@ export function LoginForm() {
                 value={formData.password}
                 onChange={handleInputChange}
                 onBlur={() => handleBlur("password")}
-                className={`pl-10 pr-10 ${
-                  touched.password && fieldErrors.password
-                    ? "border-destructive focus-visible:ring-destructive"
-                    : ""
-                }`}
+                className={`pl-10 pr-10 ${touched.password && fieldErrors.password
+                  ? "border-destructive focus-visible:ring-destructive"
+                  : ""
+                  }`}
                 required
               />
               <button
@@ -214,20 +212,13 @@ export function LoginForm() {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign in as Admin"}
+            {isLoading ? "Signing in..." : "Sign in to access your dashboard"}
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/admin-signup" className="text-primary hover:underline">
-              Sign up as Admin
-            </Link>
-          </div>
-
-          <div className="text-center text-sm text-muted-foreground">
-            Are you an agent?{" "}
-            <Link href="/agent-login" className="text-primary hover:underline">
-              Agent Login
+            Want to create a new organization?{" "}
+            <Link href="/setup" className="text-primary hover:underline">
+              Create a new account
             </Link>
           </div>
 

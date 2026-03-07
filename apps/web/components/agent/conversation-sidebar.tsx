@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
-import { useRouter } from "next/navigation";
-import { Search, Bell } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { Search, Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import io from "socket.io-client";
 
 interface Conversation {
@@ -53,8 +53,11 @@ interface Conversation {
 export function ConversationSidebar() {
   const router = useRouter();
   const { user } = useAuth();
+  const pathname = usePathname();
+  const isAdmin = pathname.startsWith("/admin");
+  const basePath = isAdmin ? "/admin/conversation/inbox" : "/conversation/inbox";
 
-  // State
+  const [isMinimized, setIsMinimized] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("open");
@@ -126,10 +129,10 @@ export function ConversationSidebar() {
             prev.map((conv) =>
               conv._id === data.conversationId
                 ? {
-                    ...conv,
-                    lastMessage: data.message,
-                    unreadCount: (conv.unreadCount || 0) + 1,
-                  }
+                  ...conv,
+                  lastMessage: data.message,
+                  unreadCount: (conv.unreadCount || 0) + 1,
+                }
                 : conv,
             ),
           );
@@ -143,14 +146,14 @@ export function ConversationSidebar() {
           prev.map((conv) =>
             conv._id === data.conversationId
               ? {
-                  ...conv,
-                  visitor: {
-                    ...conv.visitor!,
-                    name: data.visitorName,
-                    email: data.visitorEmail,
-                    isAnonymous: false,
-                  },
-                }
+                ...conv,
+                visitor: {
+                  ...conv.visitor!,
+                  name: data.visitorName,
+                  email: data.visitorEmail,
+                  isAnonymous: false,
+                },
+              }
               : conv,
           ),
         );
@@ -254,49 +257,62 @@ export function ConversationSidebar() {
   });
 
   return (
-    <div className="h-full flex flex-col bg-background border-r border-border">
+    <div className={`h-full flex flex-col bg-background border-r border-border transition-all duration-300 ${isMinimized ? "w-20" : "w-64"}`}>
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Conversations</h2>
-          {notifications.length > 0 && (
+      <div className={`p-4 border-b border-border ${isMinimized ? "flex flex-col items-center" : ""}`}>
+        <div className={`flex items-center justify-between mb-3 ${isMinimized ? "flex-col space-y-4" : ""}`}>
+          {!isMinimized && <h2 className="text-lg font-semibold truncate">Conversations</h2>}
+          <div className={`flex items-center ${isMinimized ? "flex-col space-y-2" : "space-x-1"}`}>
+            {notifications.length > 0 && (
+              <button
+                onClick={clearNotifications}
+                className="relative p-2 text-blue-600 hover:bg-blue-50 rounded-full"
+              >
+                <Bell className="h-5 w-5" />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {notifications.length}
+                </span>
+              </button>
+            )}
             <button
-              onClick={clearNotifications}
-              className="relative p-2 text-blue-600 hover:bg-blue-50 rounded-full"
+              onClick={() => setIsMinimized(!isMinimized)}
+              className="p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors"
+              title={isMinimized ? "Expand Sidebar" : "Minimize Sidebar"}
             >
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {notifications.length}
-              </span>
+              {isMinimized ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
             </button>
-          )}
+          </div>
         </div>
 
         {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+        {!isMinimized && (
+          <div className="relative mb-3">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        )}
 
         {/* Filters */}
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="w-full px-3 py-2 text-sm border border-input bg-background rounded-md"
-        >
-          <option value="open">Open</option>
-          <option value="pending">Pending</option>
-          <option value="resolved">Resolved</option>
-        </select>
+        {!isMinimized && (
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-input bg-background rounded-md"
+          >
+            <option value="open">Open</option>
+            <option value="pending">Pending</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        )}
       </div>
 
       {/* Notifications */}
-      {notifications.length > 0 && (
+      {notifications.length > 0 && !isMinimized && (
         <div className="p-2 bg-blue-50 border-b border-border">
           {notifications.slice(0, 3).map((notification) => (
             <div
@@ -316,34 +332,34 @@ export function ConversationSidebar() {
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/60 [&::-webkit-scrollbar-track]:bg-transparent">
         {loading ? (
           <div className="p-4 text-center text-muted-foreground">
-            Loading conversations...
+            {isMinimized ? "..." : "Loading conversations..."}
           </div>
         ) : filteredConversations.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
-            No conversations found
+            {!isMinimized && "No conversations found"}
           </div>
         ) : (
           filteredConversations.map((conversation) => (
             <div
               key={conversation._id}
-              className="p-4 border-b border-border hover:bg-muted cursor-pointer transition-colors"
+              className={`p-4 border-b border-border hover:bg-muted cursor-pointer transition-colors ${isMinimized ? "flex justify-center" : ""}`}
               onClick={() => {
                 // Clear notifications for this conversation
                 setNotifications((prev) =>
                   prev.filter((notif) => notif.id !== conversation._id)
                 );
-                
+
                 // Join conversation via socket when clicking
                 if (socket) {
                   socket.emit("join_conversation", conversation._id);
                 }
-                router.push(`/support/dashboard/chat/${conversation._id}`);
+                router.push(`${basePath}/chat/${conversation._id}`);
               }}
             >
-              <div className="flex items-start space-x-3">
+              <div className={`flex items-start ${isMinimized ? "" : "space-x-3"}`}>
                 {/* Avatar */}
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium bg-primary">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium bg-primary shrink-0">
                     {getCustomerName(conversation)
                       .split(" ")
                       .map((n: string) => n[0])
@@ -352,31 +368,33 @@ export function ConversationSidebar() {
                   </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  {/* Customer Name */}
-                  <h4 className="text-sm font-medium text-foreground truncate mb-1">
-                    {getCustomerName(conversation)}
-                  </h4>
+                {!isMinimized && (
+                  <div className="flex-1 min-w-0">
+                    {/* Customer Name */}
+                    <h4 className="text-sm font-medium text-foreground truncate mb-1">
+                      {getCustomerName(conversation)}
+                    </h4>
 
-                  {/* Source */}
-                  {conversation.metadata?.source && (
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Source: {conversation.metadata.source}
-                    </p>
-                  )}
-
-                  {/* Last Message */}
-                  <p className="text-xs text-muted-foreground truncate mb-2">
-                    {conversation.lastMessage?.content || "No messages yet"}
-                  </p>
-
-                  {/* Date */}
-                  <p className="text-xs text-muted-foreground">
-                    {formatTime(
-                      conversation.lastMessageAt || conversation.createdAt,
+                    {/* Source */}
+                    {conversation.metadata?.source && (
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Source: {conversation.metadata.source}
+                      </p>
                     )}
-                  </p>
-                </div>
+
+                    {/* Last Message */}
+                    <p className="text-xs text-muted-foreground truncate mb-2">
+                      {conversation.lastMessage?.content || "No messages yet"}
+                    </p>
+
+                    {/* Date */}
+                    <p className="text-xs text-muted-foreground">
+                      {formatTime(
+                        conversation.lastMessageAt || conversation.createdAt,
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           ))

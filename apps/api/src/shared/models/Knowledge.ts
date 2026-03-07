@@ -1,9 +1,11 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
+import { IOrganization } from "./Organization";
 
 export type KnowledgeSource = "pdf" | "docx" | "text" | "url";
 export type KnowledgeStatus = "pending" | "queued" | "indexing" | "indexed" | "failed";
 
 export interface IKnowledge extends Document {
+  organizationId: Types.ObjectId | IOrganization;
   title: string;
   description?: string;
   catalog?: string;
@@ -37,6 +39,7 @@ export interface IKnowledge extends Document {
 
 const KnowledgeSchema = new Schema<IKnowledge>(
   {
+    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     title: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     catalog: { type: String, trim: true },
@@ -70,7 +73,8 @@ const KnowledgeSchema = new Schema<IKnowledge>(
   { timestamps: true },
 );
 
-KnowledgeSchema.index({ teamId: 1, status: 1 });
+KnowledgeSchema.index({ organizationId: 1, teamId: 1, status: 1 });
+KnowledgeSchema.index({ organizationId: 1, catalog: 1 });
 KnowledgeSchema.index({ catalog: 1 });
 
 export const Knowledge = mongoose.model<IKnowledge>("Knowledge", KnowledgeSchema);

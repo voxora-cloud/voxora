@@ -3,15 +3,45 @@ import { DashboardStats, TeamStats } from "./interfaces/admin";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002/api/v1";
 
+// ─── Types ─────────────────────────────────────────────────────────────────────
+
+export type OrgRole = "owner" | "admin" | "agent";
+
+export interface Organization {
+  _id: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  isActive: boolean;
+}
+
+export interface OrgMembership {
+  organization: Organization;
+  role: OrgRole;
+  membershipId?: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: "user" | "agent" | "admin" | "founder";
-  companyName?: string;
-  teams?: Array<{ id: string; name: string; color?: string }>;
-  permissions?: string[];
+  avatar?: string;
   status?: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  data?: {
+    requiresOrgSelection: boolean;
+    user: User;
+    role?: OrgRole;
+    organization?: Organization;
+    accessToken?: string;
+    refreshToken?: string;
+    memberships?: OrgMembership[];
+    selectionToken?: string;
+  };
+  message?: string;
 }
 
 export interface AuthResponse {
@@ -19,6 +49,10 @@ export interface AuthResponse {
   data?: {
     user: User;
     token: string;
+    role?: OrgRole;
+    organization?: Organization;
+    accessToken?: string;
+    refreshToken?: string;
   };
   message?: string;
   statusCode?: number;
@@ -28,7 +62,7 @@ export interface AdminRegistrationData {
   name: string;
   email: string;
   password: string;
-  companyName: string;
+  organizationName: string;
 }
 
 export interface LoginData {
@@ -49,8 +83,16 @@ export interface Team {
 
 export interface Agent {
   _id: string;
-  name: string;
-  email: string;
+  membershipId?: string;
+  user: {
+    _id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+    status?: string;
+    lastSeen?: Date;
+    isActive?: boolean;
+  };
   role: "admin" | "agent";
   teams: Array<{ _id: string; name: string; color?: string }>;
   status: "online" | "offline" | "busy";
@@ -185,56 +227,8 @@ class ApiService {
     return userStr ? JSON.parse(userStr) : null;
   }
 
-  // Auth API methods
-  async adminSignup(data: AdminRegistrationData): Promise<AuthResponse> {
-    return this.makeRequest<AuthResponse>("/auth/admin/signup", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
 
-  async adminLogin(data: LoginData): Promise<AuthResponse> {
-    return this.makeRequest<AuthResponse>("/auth/admin/login", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
 
-  async agentLogin(data: LoginData): Promise<AuthResponse> {
-    return this.makeRequest<AuthResponse>("/auth/agent/login", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  async forgotPassword(email: string): Promise<{ success: boolean }> {
-    return this.makeRequest<{ success: boolean }>("/auth/forgot-password", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-  }
-
-  async resetPassword(
-    token: string,
-    newPassword: string,
-  ): Promise<AuthResponse> {
-    return this.makeRequest<AuthResponse>("/auth/reset-password", {
-      method: "POST",
-      body: JSON.stringify({ token, newPassword }),
-    });
-  }
-
-  async changePassword(
-    currentPassword: string,
-    newPassword: string,
-  ): Promise<{ success: boolean }> {
-    return this.makeRequest<{ success: boolean }>("/auth/change-password", {
-      method: "POST",
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-  }
-
-  // Team Management APIs
   async getTeams(): Promise<{
     success: boolean;
     data: {
@@ -395,12 +389,7 @@ class ApiService {
     );
   }
 
-  async acceptInvite(token: string): Promise<AuthResponse> {
-    return this.makeRequest<AuthResponse>("/auth/accept-invite", {
-      method: "POST",
-      body: JSON.stringify({ token }),
-    });
-  }
+
 
   async activateAgent(
     agentId: string,
@@ -486,20 +475,175 @@ class ApiService {
     });
   }
 
-  // Auth state methods
+  // Auth state methods (updated for multi-tenant)
   isAuthenticated(): boolean {
     return this.getToken() !== null;
   }
 
-  logout(): void {
-    this.removeToken();
-    // Redirect to login page
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
+  getActiveOrgId(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("activeOrgId");
   }
 
-  // Storage/MinIO APIs
+  setActiveOrgId(orgId: string): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("activeOrgId", orgId);
+  }
+
+  getOrgRole(): OrgRole | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("orgRole") as OrgRole | null;
+  }
+
+  setOrgRole(role: OrgRole): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("orgRole", role);
+  }
+
+  logout(): void {
+    this.removeToken();
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("activeOrgId");
+    localStorage.removeItem("orgRole");
+    window.location.href = "/login";
+  }
+
+  // ─── Bootstrap ─────────────────────────────────────────────────────────────
+
+  async checkBootstrapStatus(): Promise<{ success: boolean; data: { bootstrapRequired: boolean } }> {
+    return this.makeRequest<{ success: boolean; data: { bootstrapRequired: boolean } }>(
+      "/auth/bootstrap-status",
+      { method: "GET" },
+    );
+  }
+
+  async setup(data: AdminRegistrationData): Promise<AuthResponse> {
+    return this.makeRequest<AuthResponse>("/auth/setup", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ─── Unified Login ──────────────────────────────────────────────────────────
+
+  async login(data: LoginData): Promise<LoginResponse> {
+    return this.makeRequest<LoginResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Legacy aliases
+  async adminLogin(data: LoginData): Promise<LoginResponse> {
+    return this.login(data);
+  }
+
+  async agentLogin(data: LoginData): Promise<LoginResponse> {
+    return this.login(data);
+  }
+
+  async adminSignup(data: AdminRegistrationData): Promise<AuthResponse> {
+    return this.setup(data);
+  }
+
+  // ─── Organization Management ────────────────────────────────────────────────
+
+  async getMyOrganizations(): Promise<{ success: boolean; data: { organizations: Array<{ organization: Organization; role: OrgRole }> } }> {
+    return this.makeRequest("/organizations", { method: "GET" });
+  }
+
+  async createOrganization(data: { name: string; slug?: string }): Promise<{ success: boolean; data: { organization: Organization; role: OrgRole; accessToken: string } }> {
+    return this.makeRequest("/organizations", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async switchOrganization(orgId: string): Promise<{ success: boolean; data: { organization: Organization; role: OrgRole; accessToken: string; refreshToken: string } }> {
+    return this.makeRequest(`/organizations/${orgId}/switch`, { method: "POST" });
+  }
+
+  async updateOrganization(orgId: string, data: { name?: string; slug?: string; logoUrl?: string }): Promise<{ success: boolean; data: { organization: Organization } }> {
+    return this.makeRequest(`/organizations/${orgId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ─── Membership Management ───────────────────────────────────────────────────
+
+  async listMembers(orgId: string): Promise<{ success: boolean; data: { members: any[] } }> {
+    return this.makeRequest(`/memberships/organizations/${orgId}/members`, { method: "GET" });
+  }
+
+  async inviteMember(orgId: string, data: { email: string; name: string; role: OrgRole; teamIds?: string[] }): Promise<{ success: boolean }> {
+    return this.makeRequest(`/memberships/organizations/${orgId}/members/invite`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resendMemberInvite(orgId: string, memberId: string): Promise<{ success: boolean }> {
+    return this.makeRequest(`/memberships/organizations/${orgId}/members/${memberId}/resend-invite`, {
+      method: "POST",
+    });
+  }
+
+  async updateMemberRole(orgId: string, memberId: string, role: OrgRole): Promise<{ success: boolean }> {
+    return this.makeRequest(`/memberships/organizations/${orgId}/members/${memberId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async updateMemberStatus(orgId: string, memberId: string, status: "active" | "inactive"): Promise<{ success: boolean }> {
+    return this.makeRequest(`/memberships/organizations/${orgId}/members/${memberId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async removeMember(orgId: string, memberId: string): Promise<{ success: boolean }> {
+    return this.makeRequest(`/memberships/organizations/${orgId}/members/${memberId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async verifyInvite(token: string): Promise<{ success: boolean; data: { email: string; name: string; requiresPassword: boolean; organization: any } }> {
+    return this.makeRequest(`/memberships/verify-invite/${token}`, {
+      method: "GET",
+    });
+  }
+
+  async acceptInvite(token: string, password?: string): Promise<AuthResponse> {
+    return this.makeRequest<AuthResponse>("/memberships/accept-invite", {
+      method: "POST",
+      body: JSON.stringify({ token, password }),
+    });
+  }
+
+  async forgotPassword(email: string): Promise<{ success: boolean }> {
+    return this.makeRequest<{ success: boolean }>("/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<AuthResponse> {
+    return this.makeRequest<AuthResponse>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
+    return this.makeRequest<{ success: boolean }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+
   async generatePresignedUploadUrl(
     fileName: string,
     mimeType: string,
