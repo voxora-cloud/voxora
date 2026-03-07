@@ -48,8 +48,9 @@ services:
       # Override endpoint to internal Docker hostname — no public port needed
       MINIO_ENDPOINT: minio
       MINIO_PORT: "9001"
-      # Runtime config injection - entrypoint.sh replaces __API_URL_PRODUCTION__ placeholder
-      API_URL_PRODUCTION: ${API_URL_PRODUCTION:-https://apivoxora.voxora.cloud}
+      # Runtime config injection - entrypoint.sh replaces placeholders
+      API_URL_PRODUCTION: ${API_URL_PRODUCTION:-https://api.voxora.cloud}
+      CDN_URL_PRODUCTION: ${CDN_URL_PRODUCTION:-https://cdn.voxora.cloud}
     depends_on:
       minio:
         condition: service_healthy

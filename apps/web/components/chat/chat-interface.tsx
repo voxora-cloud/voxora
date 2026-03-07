@@ -25,11 +25,13 @@ interface Message {
 interface ChatInterfaceProps {
   conversationId?: string;
   isAgent?: boolean;
+  isSupport?: boolean;
 }
 
 export function ChatInterface({
   conversationId,
   isAgent = false,
+  isSupport = false,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {

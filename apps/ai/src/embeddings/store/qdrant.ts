@@ -33,7 +33,11 @@ class QdrantVectorStore implements VectorStore {
       vectors: { size: dimensions, distance: "Cosine" },
     });
 
-    // Index teamId and documentId fields for fast filtered search
+    // Index teamId, documentId, and organizationId fields for fast filtered search
+    await this.client.createPayloadIndex(COLLECTION, {
+      field_name: "organizationId",
+      field_schema: "keyword",
+    });
     await this.client.createPayloadIndex(COLLECTION, {
       field_name: "teamId",
       field_schema: "keyword",
@@ -67,17 +71,19 @@ class QdrantVectorStore implements VectorStore {
 
   async search(
     vector: number[],
-    options: { teamId?: string; topK?: number },
+    options: { organizationId: string; teamId?: string; topK?: number },
   ): Promise<VectorSearchResult[]> {
-    console.log(`[Qdrant] Searching collection="${COLLECTION}" vectorDim=${vector.length} teamId=${options.teamId || "(none)"} topK=${options.topK ?? 5}`);
+    console.log(`[Qdrant] Searching collection="${COLLECTION}" vectorDim=${vector.length} orgId=${options.organizationId} teamId=${options.teamId || "(none)"} topK=${options.topK ?? 5}`);
+
+    const mustConditions: any[] = [{ key: "organizationId", match: { value: options.organizationId } }];
+    if (options.teamId) {
+      mustConditions.push({ key: "teamId", match: { value: options.teamId } });
+    }
 
     const results = await this.client.search(COLLECTION, {
       vector,
       limit: options.topK ?? 5,
-      // Only filter by teamId when one is provided and non-empty
-      ...(options.teamId
-        ? { filter: { must: [{ key: "teamId", match: { value: options.teamId } }] } }
-        : {}),
+      filter: { must: mustConditions },
       with_payload: true,
     });
 
@@ -90,10 +96,13 @@ class QdrantVectorStore implements VectorStore {
     }));
   }
 
-  async deleteByDocumentId(documentId: string): Promise<void> {
+  async deleteByDocumentId(documentId: string, organizationId: string): Promise<void> {
     await this.client.delete(COLLECTION, {
       filter: {
-        must: [{ key: "documentId", match: { value: documentId } }],
+        must: [
+          { key: "organizationId", match: { value: organizationId } },
+          { key: "documentId", match: { value: documentId } }
+        ],
       },
     });
   }

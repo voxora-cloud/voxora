@@ -11,9 +11,9 @@ export const INGESTION_QUEUE = "document-ingestion";
 
 /** Milliseconds between re-crawls per syncFrequency option */
 const SYNC_DELAYS: Record<string, number> = {
-  "1hour" : 1 * 60 * 60 * 1000,
+  "1hour": 1 * 60 * 60 * 1000,
   "6hours": 6 * 60 * 60 * 1000,
-  "daily" : 24 * 60 * 60 * 1000,
+  "daily": 24 * 60 * 60 * 1000,
 };
 
 export function startIngestionWorker() {
@@ -37,7 +37,7 @@ export function startIngestionWorker() {
 
       // Delete-vectors: remove all Qdrant points for this document and stop
       if (jobType === "delete-vectors") {
-        await vectorStore.deleteByDocumentId(job.data.documentId);
+        await vectorStore.deleteByDocumentId(job.data.documentId, job.data.organizationId);
         console.log(
           `[Ingestion Worker] Deleted Qdrant vectors for documentId=${job.data.documentId}`,
         );

@@ -24,8 +24,8 @@ const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 function buildSystemPrompt(companyName?: string, hasTeam?: boolean): string {
   const company = companyName?.trim() || process.env.AI_COMPANY_NAME || "our company";
 
-  const basePrompt = 
-`You are a helpful, professional customer support assistant for **${company}**.
+  const basePrompt =
+    `You are a helpful, professional customer support assistant for **${company}**.
 
 Your responsibilities:
 - Answer customer questions accurately and concisely on behalf of **${company}**
@@ -107,6 +107,7 @@ Do NOT include any other text when escalating. The sentinel must be the entire r
  */
 export async function buildContext(
   conversationId: string,
+  organizationId: string,
   currentMessage: string,
   teamId?: string,
   companyName?: string,
@@ -121,6 +122,8 @@ export async function buildContext(
     const provider = getEmbeddingProvider();
     const queryVector = await provider.embed(currentMessage);
     const results = await vectorStore.search(queryVector, {
+      organizationId,
+      teamId,
       topK: config.embeddings.ragTopK,
     });
 

@@ -1114,9 +1114,22 @@
     <!-- Load Socket.IO from CDN since widget is now served from CDN -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" crossorigin="anonymous"></script>
     <script>
+      // Runtime configuration - placeholders replaced by entrypoint.sh in production
+      const RUNTIME_API_URL = '__API_URL_PRODUCTION__';
+      
       // Extract API URL from query params (passed from widget loader)
       const params = new URLSearchParams(window.location.search);
-      const API_BASE_URL = params.get('apiUrl') || 'http://localhost:3002';
+      
+      // Priority: query param > runtime config > fallback
+      let API_BASE_URL = params.get('apiUrl');
+      if (!API_BASE_URL && RUNTIME_API_URL && !RUNTIME_API_URL.startsWith('__')) {
+        API_BASE_URL = RUNTIME_API_URL;
+      }
+      if (!API_BASE_URL) {
+        API_BASE_URL = 'http://localhost:3002';
+      }
+      
+      console.log('[VoxoraWidget] API URL:', API_BASE_URL);
       
       // State management
       let chatId = null;

@@ -53,25 +53,25 @@ class VoxoraLoader {
     const config = parseWidgetConfig();
     if (!config) {
       console.error('[VoxoraWidget] Invalid config — widget not loaded.');
-      this.state        = { isOpen: false, unreadCount: 0, token: null, conversationId: null };
-      this.api          = null as unknown as WidgetAPI;
-      this.ui           = null as unknown as WidgetUI;
+      this.state = { isOpen: false, unreadCount: 0 };
+      this.api = null as unknown as WidgetAPI;
+      this.ui = null as unknown as WidgetUI;
       this.iframeOrigin = '';
-      this.visitorId    = '';
-      this.identity     = null;
-      this.lastPageUrl  = '';
+      this.visitorId = '';
+      this.identity = null;
+      this.lastPageUrl = '';
       return;
     }
 
-    this.state        = { isOpen: false, unreadCount: 0, token: null, conversationId: null };
-    this.api          = new WidgetAPI(config);
-    this.ui           = new WidgetUI(config, this.state);
-    this.iframeOrigin = getWidgetOrigin(config.apiUrl!, config.cdnUrl);
-    this.lastPageUrl  = window.location.href;
+    this.state = { isOpen: false, unreadCount: 0 };
+    this.api = new WidgetAPI(config);
+    this.ui = new WidgetUI(config, this.state);
+    this.iframeOrigin = getWidgetOrigin(config.apiUrl!);
+    this.lastPageUrl = window.location.href;
 
     // ONLY place customer localStorage is read. Values forwarded to iframe via INIT_WIDGET.
     this.visitorId = getOrCreateVisitorId();
-    this.identity  = getIdentity();
+    this.identity = getIdentity();
 
     this.init().catch(err => console.error('[VoxoraWidget] Init error:', err));
   }
@@ -134,12 +134,12 @@ class VoxoraLoader {
       type: 'INIT_WIDGET',
       version: PROTOCOL_VERSION,
       payload: {
-        publicKey:  this.api.getConfig().publicKey,
-        apiUrl:     this.api.getConfig().apiUrl!,
-        visitorId:  this.visitorId,
-        identity:   this.identity ?? undefined,
-        pageUrl:    window.location.href,
-        pageTitle:  document.title,
+        publicKey: this.api.getConfig().publicKey,
+        apiUrl: this.api.getConfig().apiUrl!,
+        visitorId: this.visitorId,
+        identity: this.identity ?? undefined,
+        pageUrl: window.location.href,
+        pageTitle: document.title,
         appearance: this.appearance ?? undefined,
       },
     } as InitWidgetMessage);
@@ -153,9 +153,9 @@ class VoxoraLoader {
       this.queueOrSend({ type: 'PAGE_CHANGE', version: PROTOCOL_VERSION, payload: { pageUrl: url, pageTitle: document.title } } as PageChangeMessage);
     };
     const orig = { push: history.pushState.bind(history), replace: history.replaceState.bind(history) };
-    history.pushState    = (...a: Parameters<typeof history.pushState>)    => { orig.push(...a);    report(); };
+    history.pushState = (...a: Parameters<typeof history.pushState>) => { orig.push(...a); report(); };
     history.replaceState = (...a: Parameters<typeof history.replaceState>) => { orig.replace(...a); report(); };
-    window.addEventListener('popstate',   report);
+    window.addEventListener('popstate', report);
     window.addEventListener('hashchange', report);
   }
 
@@ -168,8 +168,8 @@ class VoxoraLoader {
     else this.pendingMessages.push(msg);
   }
 
-  open()   { this.ui.open();   this.state.isOpen = true;  }
-  close()  { this.ui.close();  this.state.isOpen = false; }
+  open() { this.ui.open(); this.state.isOpen = true; }
+  close() { this.ui.close(); this.state.isOpen = false; }
   toggle() { this.state.isOpen ? this.close() : this.open(); }
 
   identify(userId: string, traits: Omit<StoredIdentity, 'userId'> = {}): void {
@@ -200,13 +200,13 @@ function boot(): void {
   widgetInstance = new VoxoraLoader();
 
   (window as any).Voxora = {
-    open:     ()                            => widgetInstance?.open(),
-    close:    ()                            => widgetInstance?.close(),
-    toggle:   ()                            => widgetInstance?.toggle(),
-    identify: (id: string, t?: object)     => widgetInstance?.identify(id, t as any),
-    reset:    ()                            => widgetInstance?.reset(),
-    track:    (n: string, p?: object)       => widgetInstance?.track(n, p as any),
-    getState: ()                            => widgetInstance?.getState(),
+    open: () => widgetInstance?.open(),
+    close: () => widgetInstance?.close(),
+    toggle: () => widgetInstance?.toggle(),
+    identify: (id: string, t?: object) => widgetInstance?.identify(id, t as any),
+    reset: () => widgetInstance?.reset(),
+    track: (n: string, p?: object) => widgetInstance?.track(n, p as any),
+    getState: () => widgetInstance?.getState(),
     destroy: () => { widgetInstance?.destroy(); widgetInstance = null; delete (window as any).Voxora; },
   };
 }

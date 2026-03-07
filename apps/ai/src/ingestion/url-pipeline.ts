@@ -9,6 +9,7 @@ import { setDocStatus } from "../shared/db";
 async function embedAndUpsertPages(
   pages: FetchedPage[],
   opts: {
+    organizationId: string;
     documentId: string;
     teamId: string;
     fileName: string | undefined;
@@ -17,7 +18,7 @@ async function embedAndUpsertPages(
     stats: { chunks: number; words: number };
   },
 ): Promise<void> {
-  const { documentId, teamId, fileName, metadata, provider, stats } = opts;
+  const { organizationId, documentId, teamId, fileName, metadata, provider, stats } = opts;
   const EMBED_BATCH = 25; // chunks sent to embedding provider at once
 
   for (const page of pages) {
@@ -34,6 +35,7 @@ async function embedAndUpsertPages(
             id: randomUUID(),
             vector,
             payload: {
+              organizationId,
               documentId,
               teamId,
               fileKey: "",
@@ -69,6 +71,7 @@ const PAGE_FLUSH_SIZE = 20;
  */
 export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
   const {
+    organizationId,
     documentId,
     sourceUrl,
     fetchMode = "single",
@@ -90,10 +93,10 @@ export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
   try {
     const provider = getEmbeddingProvider();
     await vectorStore.ensureCollection(provider.dimensions);
-    await vectorStore.deleteByDocumentId(documentId); // idempotent re-ingestion
+    await vectorStore.deleteByDocumentId(documentId, organizationId); // idempotent re-ingestion
 
     const stats = { chunks: 0, words: 0 };
-    const embedOpts = { documentId, teamId, fileName, metadata, provider, stats };
+    const embedOpts = { organizationId, documentId, teamId, fileName, metadata, provider, stats };
     let totalPages = 0;
 
     if (fetchMode === "crawl") {

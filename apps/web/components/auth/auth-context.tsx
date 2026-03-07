@@ -7,10 +7,12 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { apiService, User } from "@/lib/api";
+import { apiService, User, Organization } from "@/lib/api";
 
 interface AuthContextType {
   user: User | null;
+  organization: Organization | null;
+  setOrganization: (org: Organization | null) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (
@@ -44,18 +46,36 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const token = apiService.getToken();
-    const savedUser = apiService.getUser();
+    async function initAuth() {
+      // Check if user is already logged in
+      const token = apiService.getToken();
+      const savedUser = apiService.getUser();
 
-    if (token && savedUser) {
-      setUser(savedUser);
+      if (token && savedUser) {
+        setUser(savedUser);
+
+        // Fetch organization details if logged in
+        const activeOrgId = apiService.getActiveOrgId();
+        if (activeOrgId) {
+          try {
+            const orgResponse = await apiService.getOrganization(activeOrgId);
+            if (orgResponse.success && orgResponse.data) {
+              setOrganization(orgResponse.data.organization);
+            }
+          } catch (error) {
+            console.error("Failed to load organization in auth context:", error);
+          }
+        }
+      }
+
+      setIsLoading(false);
     }
 
-    setIsLoading(false);
+    initAuth();
   }, []);
 
   const login = async (
@@ -81,13 +101,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
 
         // Single org — auto-logged in
-        const { user, accessToken, role, organization } = response.data;
+        const { user, accessToken, role, organization: loginOrg } = response.data;
         if (accessToken) apiService.setToken(accessToken);
-        if (organization?._id) apiService.setActiveOrgId(organization._id);
+        if (loginOrg?._id) apiService.setActiveOrgId(loginOrg._id);
         if (role) apiService.setOrgRole(role);
 
         apiService.setUser(user);
         setUser(user);
+        if (loginOrg) setOrganization(loginOrg);
 
         // Redirect to unified admin dashboard for all roles
         window.location.href = "/admin";
@@ -115,13 +136,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       });
 
       if (response.success && response.data) {
-        const { user, accessToken, role, organization } = response.data;
+        const { user, accessToken, role, organization: signupOrg } = response.data;
         if (accessToken) apiService.setToken(accessToken);
-        if (organization?._id) apiService.setActiveOrgId(organization._id);
+        if (signupOrg?._id) apiService.setActiveOrgId(signupOrg._id);
         if (role) apiService.setOrgRole(role);
 
         apiService.setUser(user);
         setUser(user);
+        if (signupOrg) setOrganization(signupOrg);
 
         // Redirect to admin dashboard
         window.location.href = "/admin";
@@ -137,6 +159,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     apiService.logout();
     setUser(null);
+    setOrganization(null);
     window.location.href = "/login";
   };
 
@@ -160,6 +183,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const value: AuthContextType = {
     user,
+    organization,
+    setOrganization,
     isAuthenticated: !!user,
     isLoading,
     login,

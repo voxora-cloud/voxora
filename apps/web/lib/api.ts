@@ -563,11 +563,19 @@ class ApiService {
     return this.makeRequest(`/organizations/${orgId}/switch`, { method: "POST" });
   }
 
+  async getOrganization(orgId: string): Promise<{ success: boolean; data: { organization: Organization; role: OrgRole } }> {
+    return this.makeRequest(`/organizations/${orgId}`, { method: "GET" });
+  }
+
   async updateOrganization(orgId: string, data: { name?: string; slug?: string; logoUrl?: string }): Promise<{ success: boolean; data: { organization: Organization } }> {
     return this.makeRequest(`/organizations/${orgId}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  }
+
+  async deleteOrganization(orgId: string): Promise<{ success: boolean }> {
+    return this.makeRequest(`/organizations/${orgId}`, { method: "DELETE" });
   }
 
   // ─── Membership Management ───────────────────────────────────────────────────

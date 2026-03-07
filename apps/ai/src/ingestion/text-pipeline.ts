@@ -14,6 +14,7 @@ import { setDocStatus } from "../shared/db";
  */
 export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> {
   const {
+    organizationId,
     documentId,
     content = "",
     teamId = "",
@@ -40,7 +41,7 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
     // ── Embed + upsert ────────────────────────────────────────────────────────
     const provider = getEmbeddingProvider();
     await vectorStore.ensureCollection(provider.dimensions);
-    await vectorStore.deleteByDocumentId(documentId);
+    await vectorStore.deleteByDocumentId(documentId, organizationId);
 
     const BATCH_SIZE = 25;
 
@@ -54,6 +55,7 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
             id: randomUUID(),
             vector,
             payload: {
+              organizationId,
               documentId,
               teamId,
               fileKey: "",

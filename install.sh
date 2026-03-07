@@ -306,8 +306,9 @@ API_HOST=$API_HOST
 WEB_HOST=$WEB_HOST
 CDN_HOST=$CDN_HOST
 
-# Widget API URL (baked into the widget JS at build time)
+# Widget runtime configuration (baked into the widget JS at deployment)
 API_URL_PRODUCTION=https://$API_HOST
+CDN_URL_PRODUCTION=https://$CDN_HOST
 EOF
     
     # apps/api/.env.docker
@@ -375,8 +376,12 @@ EOF
 # ============================================================
 
 API_URL_PRODUCTION=https://$API_HOST
+CDN_URL_PRODUCTION=https://$CDN_HOST
+MINIO_ENDPOINT=minio
+MINIO_PORT=9001
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=$MINIO_PASSWORD
+MINIO_USE_SSL=false
 EOF
     
     # apps/ai/.env.docker (if exists)

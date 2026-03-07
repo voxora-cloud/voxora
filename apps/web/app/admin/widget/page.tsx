@@ -36,7 +36,7 @@ export default function CreateWidgetPage() {
   useEffect(() => {
     // Only load widget if we have a valid widget ID
     if (!formData._id) return;
-    
+
     // Prevent double initialization in React Strict Mode
     if (widgetInitialized.current) {
       console.log('Widget already initialized, skipping');
@@ -47,7 +47,7 @@ export default function CreateWidgetPage() {
     const existingScript = document.querySelector('script[data-voxora-public-key]');
     const existingButton = document.getElementById('voxora-widget-button');
     const existingIframe = document.getElementById('voxora-widget-iframe');
-    
+
     existingScript?.remove();
     existingButton?.remove();
     existingIframe?.remove();
@@ -57,24 +57,28 @@ export default function CreateWidgetPage() {
     const script = document.createElement("script");
     script.src =
       process.env.NEXT_PUBLIC_CDN_URL ||
-      "http://localhost:9001/voxora-widget/v1/voxora.js?v=2";
+      `http://localhost:9001/voxora-widget/v1/voxora.js?v=${Date.now()}`;
     script.setAttribute("data-voxora-public-key", formData._id);
-    script.setAttribute("data-voxora-env", process.env.NEXT_PUBLIC_ENV || "dev");
+
+    // Add the API URL explicitly so the widget knows where to send requests
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || "http://localhost:3002";
+    script.setAttribute("data-voxora-api-url", apiUrl);
+
     script.id = "voxora-widget-script";
     document.body.appendChild(script);
 
     // Cleanup: remove script and widget elements when component unmounts
     return () => {
       widgetInitialized.current = false;
-      
+
       const scriptEl = document.getElementById('voxora-widget-script');
       const widgetBtn = document.getElementById('voxora-widget-button');
       const widgetIframe = document.getElementById('voxora-widget-iframe');
-      
+
       scriptEl?.remove();
       widgetBtn?.remove();
       widgetIframe?.remove();
-      
+
       console.log('Widget cleanup completed');
     };
   }, [formData._id]);
@@ -84,7 +88,7 @@ export default function CreateWidgetPage() {
       ...prev,
       [field]: value,
     }));
-    
+
     // Clear validation error for this field
     if (validationErrors[field as keyof typeof validationErrors]) {
       setValidationErrors((prev) => ({
@@ -256,9 +260,8 @@ export default function CreateWidgetPage() {
                       onChange={(e) =>
                         handleInputChange("displayName", e.target.value)
                       }
-                      className={`h-12 rounded-xl border-white/10 bg-white/5 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text ${
-                        validationErrors.displayName ? "border-red-500/50" : ""
-                      }`}
+                      className={`h-12 rounded-xl border-white/10 bg-white/5 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text ${validationErrors.displayName ? "border-red-500/50" : ""
+                        }`}
                       required
                     />
                     {validationErrors.displayName && (
@@ -311,9 +314,8 @@ export default function CreateWidgetPage() {
                             handleInputChange("backgroundColor", e.target.value)
                           }
                           placeholder="#10b981"
-                          className={`flex-1 h-14 rounded-xl font-mono uppercase border-white/10 bg-black/40 backdrop-blur-sm cursor-text ${
-                            validationErrors.backgroundColor ? "border-red-500/50" : ""
-                          }`}
+                          className={`flex-1 h-14 rounded-xl font-mono uppercase border-white/10 bg-black/40 backdrop-blur-sm cursor-text ${validationErrors.backgroundColor ? "border-red-500/50" : ""
+                            }`}
                           pattern="^#[0-9A-Fa-f]{6}$"
                         />
                       </div>
@@ -396,7 +398,10 @@ export default function CreateWidgetPage() {
                     size="sm"
                     className="cursor-pointer rounded-lg border-white/10 hover:bg-white/5 transition-all w-full sm:w-auto"
                     onClick={() => {
-                      const code = `<script src="${process.env.NEXT_PUBLIC_CDN_URL}" data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}" data-voxora-env="${process.env.NEXT_PUBLIC_ENV}" async></script>`;
+                      const cdnUrl = process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:9001/voxora-widget/v1/voxora.js";
+                      const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || "http://localhost:3002";
+                      const publicKey = isExistingWidget ? formData._id : "your-widget-key";
+                      const code = `<script src="${cdnUrl}" data-voxora-public-key="${publicKey}" data-voxora-api-url="${apiUrl}" async></script>`;
                       navigator.clipboard.writeText(code);
                       setIsCopied(true);
                       toastSuccess("Code copied to clipboard!");
@@ -432,9 +437,9 @@ export default function CreateWidgetPage() {
                     <pre className="p-4 overflow-x-auto">
                       <code className="text-sm leading-relaxed text-black font-bold font-mono">
                         {`<script 
-  src="${process.env.NEXT_PUBLIC_CDN_URL}" 
-  data-voxora-public-key="${isExistingWidget ? formData._id : "will-be-generated"}"
-  data-voxora-env="${process.env.NEXT_PUBLIC_ENV}"
+  src="${process.env.NEXT_PUBLIC_CDN_URL || "http://localhost:9001/voxora-widget/v1/voxora.js"}" 
+  data-voxora-public-key="${isExistingWidget ? formData._id : "your-widget-key"}"
+  data-voxora-api-url="${process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || "http://localhost:3002"}"
   async>
 </script>`}
                       </code>

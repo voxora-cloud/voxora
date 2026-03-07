@@ -45,6 +45,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   // ── 1. Context ──────────────────────────────────────────────────────────────
   const context = await buildContext(
     conversationId,
+    job.organizationId,
     content,
     job.teamId,
     job.companyName,
@@ -84,7 +85,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
   // ── 4. Route: check for escalation or resolution sentinels ─────────────────
   const escalateMatch = response.match(ESCALATE_RE);
-  const resolveMatch  = !escalateMatch && response.match(RESOLVE_RE);
+  const resolveMatch = !escalateMatch && response.match(RESOLVE_RE);
 
   /**
    * Strip the sentinel token from the response and return any remaining text.

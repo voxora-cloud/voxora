@@ -1,4 +1,5 @@
 export interface AIJobData {
+  organizationId: string;
   conversationId: string;
   content: string;
   messageId: string;

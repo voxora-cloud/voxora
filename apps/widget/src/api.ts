@@ -66,12 +66,12 @@ export class WidgetAPI {
    * @param parentOrigin  window.location.origin of the customer page
    */
   getWidgetUrl(parentOrigin: string): string {
-    const base = getWidgetBaseUrl(this.config.apiUrl!, this.config.cdnUrl);
+    const base = getWidgetBaseUrl(this.config.apiUrl!);
 
     const params = new URLSearchParams({
-      origin:     parentOrigin,
-      publicKey:  this.config.publicKey,
-      apiUrl:     this.config.apiUrl!,
+      origin: parentOrigin,
+      publicKey: this.config.publicKey,
+      apiUrl: this.config.apiUrl!,
     });
 
     return `${base}/widget.html?${params.toString()}`;

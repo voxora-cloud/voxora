@@ -20,7 +20,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       try {
         // Fetch conversation to get visitor info
         const conversation = await Conversation.findById(conversationId);
-        
+
         if (!conversation) {
           logger.error(`Conversation ${conversationId} not found`);
           return;
@@ -28,7 +28,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
         // Determine sender metadata
         let messageMetadata = metadata || { source: "widget" };
-        
+
         // If source is widget and no metadata provided, use conversation visitor info
         if (metadata?.source === "widget") {
           messageMetadata = {
@@ -96,6 +96,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
           aiQueue
             .add("process", {
+              organizationId: conversation.organizationId!.toString(),
               conversationId,
               content,
               messageId: message._id.toString(),

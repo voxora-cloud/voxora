@@ -2,6 +2,7 @@ export interface VectorSearchResult {
   id: string | number;
   score: number;
   payload: {
+    organizationId: string;
     documentId: string;
     teamId: string;
     fileKey: string;  // empty string for text/url sources
@@ -31,9 +32,9 @@ export interface VectorStore {
   /** Semantic search — returns top-K results, optionally filtered by teamId */
   search(
     vector: number[],
-    options: { teamId?: string; topK?: number },
+    options: { organizationId: string; teamId?: string; topK?: number },
   ): Promise<VectorSearchResult[]>;
 
   /** Remove all vectors belonging to a specific document */
-  deleteByDocumentId(documentId: string): Promise<void>;
+  deleteByDocumentId(documentId: string, organizationId: string): Promise<void>;
 }

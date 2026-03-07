@@ -2,6 +2,7 @@ import { Queue, ConnectionOptions } from "bullmq";
 import config from "./index";
 
 export interface AIJobData {
+  organizationId: string;
   conversationId: string;
   content: string;
   messageId: string;

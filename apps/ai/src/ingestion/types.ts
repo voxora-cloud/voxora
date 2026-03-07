@@ -1,5 +1,6 @@
-/** Shape of a job enqueued by the API onto the "document-ingestion" BullMQ queue */
 export interface DocumentJob {
+  /** MongoDB ObjectId of the organization */
+  organizationId: string;
   /** MongoDB ObjectId of the knowledge document record */
   documentId: string;
   /** "ingest" (default) | "delete-vectors" — if delete-vectors, only documentId is needed */
