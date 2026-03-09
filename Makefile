@@ -19,10 +19,10 @@ define BANNER
 @printf "╚██╗ ██╔╝██║   ██║ ██╔██╗ ██║   ██║██╔══██╗██╔══██║\n"
 @printf " ╚████╔╝ ╚██████╔╝██╔╝ ██╗╚██████╔╝██║  ██║██║  ██║\n"
 @printf "  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝\ni"
-  printf "${NC}"
-  printf "\n${BOLD}  Development Installer${NC}  —  ${CYAN}github.com/voxora-cloud/voxora${NC}\n\n"
-	@printf "$(NC)"
-	@echo ""
+printf "${NC}"
+printf "\n${BOLD}  Development Installer${NC}  —  ${CYAN}github.com/voxora-cloud/voxora${NC}\n\n"
+@printf "$(NC)"
+@echo ""
 endef
 
 help: ## Show available commands

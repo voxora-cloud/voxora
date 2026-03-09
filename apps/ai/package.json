@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "reset:vectors": "npx tsx scripts/reset-vector-db.ts",
-    "inspect:vectors": "npx tsx scripts/inspect-vector-db.ts"
+    "inspect:vectors": "npx tsx scripts/inspect-vector-db.ts",
+    "debug:qdrant": "npx tsx src/debug-qdrant.ts"
   },
   "dependencies": {
     "@google/genai": "^0.7.0",

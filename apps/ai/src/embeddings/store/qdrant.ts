@@ -33,13 +33,9 @@ class QdrantVectorStore implements VectorStore {
       vectors: { size: dimensions, distance: "Cosine" },
     });
 
-    // Index teamId, documentId, and organizationId fields for fast filtered search
+    // Index documentId and organizationId fields for fast filtered search
     await this.client.createPayloadIndex(COLLECTION, {
       field_name: "organizationId",
-      field_schema: "keyword",
-    });
-    await this.client.createPayloadIndex(COLLECTION, {
-      field_name: "teamId",
       field_schema: "keyword",
     });
     await this.client.createPayloadIndex(COLLECTION, {
@@ -71,23 +67,61 @@ class QdrantVectorStore implements VectorStore {
 
   async search(
     vector: number[],
-    options: { organizationId: string; teamId?: string; topK?: number },
+    options: { organizationId: string; topK?: number },
   ): Promise<VectorSearchResult[]> {
-    console.log(`[Qdrant] Searching collection="${COLLECTION}" vectorDim=${vector.length} orgId=${options.organizationId} teamId=${options.teamId || "(none)"} topK=${options.topK ?? 5}`);
+    console.log(`[Qdrant] ════════════════════════════════════════════════`);
+    console.log(`[Qdrant] Starting vector search`);
+    console.log(`[Qdrant]   Collection    : "${COLLECTION}"`);
+    console.log(`[Qdrant]   Vector dim    : ${vector.length}`);
+    console.log(`[Qdrant]   Organization  : ${options.organizationId}`);
+    console.log(`[Qdrant]   Top K         : ${options.topK ?? 5}`);
 
-    const mustConditions: any[] = [{ key: "organizationId", match: { value: options.organizationId } }];
-    if (options.teamId) {
-      mustConditions.push({ key: "teamId", match: { value: options.teamId } });
+    // Check if collection exists
+    try {
+      const collectionInfo = await this.client.getCollection(COLLECTION);
+      const pointsCount = collectionInfo.points_count || 0;
+      console.log(`[Qdrant]   Collection exists: YES`);
+      console.log(`[Qdrant]   Total points: ${pointsCount}`);
+      
+      if (pointsCount === 0) {
+        console.log(`[Qdrant]   ⚠️  Collection is EMPTY - no documents ingested yet`);
+      }
+    } catch (err: any) {
+      console.log(`[Qdrant]   ❌ Collection exists: NO`);
+      console.log(`[Qdrant]   Error: ${err?.message}`);
+      throw err;
     }
 
-    const results = await this.client.search(COLLECTION, {
+    const mustConditions: any[] = [
+      { key: "organizationId", match: { value: options.organizationId } }
+    ];
+
+    console.log(`[Qdrant]   Filter: organizationId == "${options.organizationId}"`);
+
+    const searchParams = {
       vector,
       limit: options.topK ?? 5,
       filter: { must: mustConditions },
       with_payload: true,
-    });
+    };
 
-    console.log(`[Qdrant] Raw results: ${results.length}`);
+    console.log(`[Qdrant]   Executing search...`);
+    const results = await this.client.search(COLLECTION, searchParams);
+
+    console.log(`[Qdrant]   ✓ Search completed`);
+    console.log(`[Qdrant]   Results found: ${results.length}`);
+    
+    if (results.length > 0) {
+      console.log(`[Qdrant]   Top matches:`);
+      results.slice(0, 3).forEach((r, i) => {
+        const payload = r.payload as any;
+        console.log(`[Qdrant]     ${i + 1}. score=${r.score.toFixed(4)} id=${r.id} orgId=${payload?.organizationId}`);
+      });
+    } else {
+      console.log(`[Qdrant]   ⚠️  No results matched for organizationId: ${options.organizationId}`);
+      console.log(`[Qdrant]   Debug: Check if documents have been ingested for this organization`);
+    }
+    console.log(`[Qdrant] ════════════════════════════════════════════════`);
 
     return results.map((r) => ({
       id: r.id,

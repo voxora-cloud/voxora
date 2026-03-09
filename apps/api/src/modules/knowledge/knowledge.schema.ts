@@ -16,7 +16,6 @@ export const knowledgeSchema = {
       )
       .required(),
     fileSize: Joi.number().integer().positive().optional(),
-    teamId: Joi.string().trim().optional(),
   }),
 
   // POST /knowledge — text (static) or url (realtime sync)
@@ -53,6 +52,5 @@ export const knowledgeSchema = {
         then: Joi.optional().default("manual"),
         otherwise: Joi.forbidden(),
       }),
-    teamId: Joi.string().trim().optional(),
   }),
 };

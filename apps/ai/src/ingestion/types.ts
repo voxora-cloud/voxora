@@ -13,8 +13,6 @@ export interface DocumentJob {
   mimeType: string;
   /** Original file name / document title */
   fileName: string;
-  /** Team that owns this document — used to namespace Qdrant search */
-  teamId?: string;
   /** Populated when source === "url" */
   sourceUrl?: string;
   /** Populated when source === "text" */

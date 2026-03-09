@@ -17,7 +17,6 @@ class KnowledgeService {
       fileName: string;
       fileSize: number;
       mimeType: string;
-      teamId?: string;
     },
     uploadedBy: string,
     organizationId: string,
@@ -36,7 +35,6 @@ class KnowledgeService {
       fileKey,
       fileSize: meta.fileSize,
       mimeType: meta.mimeType,
-      teamId: meta.teamId,
       uploadedBy,
     });
 
@@ -72,7 +70,6 @@ class KnowledgeService {
       fileName: doc.fileName!,
       title: doc.title,
       catalog: doc.catalog,
-      teamId: doc.teamId,
     });
 
     logger.info("✅ Knowledge document confirmed & queued", { documentId, organizationId });
@@ -93,7 +90,6 @@ class KnowledgeService {
       fetchMode?: "single" | "crawl";
       crawlDepth?: number;
       syncFrequency?: string;
-      teamId?: string;
     },
     createdBy: string,
     organizationId: string,
@@ -110,7 +106,6 @@ class KnowledgeService {
       fetchMode: data.fetchMode,
       crawlDepth: data.crawlDepth,
       syncFrequency: data.syncFrequency,
-      teamId: data.teamId,
       uploadedBy: createdBy,
     });
 
@@ -123,7 +118,6 @@ class KnowledgeService {
       fileName: data.title,
       title: data.title,
       catalog: data.catalog,
-      teamId: data.teamId,
       sourceUrl: data.url,
       content: data.content,
       fetchMode: data.fetchMode,
@@ -135,9 +129,8 @@ class KnowledgeService {
     return doc;
   }
 
-  async getItems(organizationId: string, teamId?: string) {
+  async getItems(organizationId: string) {
     const filter: any = { organizationId };
-    if (teamId) filter.teamId = teamId;
     const items = await Knowledge.find(filter).sort({ createdAt: -1 }).lean();
     return { items, total: items.length };
   }
@@ -166,7 +159,6 @@ class KnowledgeService {
       fileName: doc.fileName ?? doc.title,
       title: doc.title,
       catalog: doc.catalog,
-      teamId: doc.teamId,
       sourceUrl: doc.sourceUrl,
       content: doc.content,
       fetchMode: doc.fetchMode,

@@ -273,6 +273,7 @@ export const initConversation = asyncHandler(
       }
 
       const conversation = await Conversation.create({
+        organizationId: (req as any).widgetSession.organizationId,
         participants: assignedAgentId ? [assignedAgentId] : [],
         subject: department
           ? `${department} - New conversation`

@@ -126,11 +126,11 @@ export default function OrgSwitcher({ isMinimized = false }: { isMinimized?: boo
                 className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 transition-all duration-150 cursor-pointer ${isMinimized ? "justify-center" : "justify-between"}`}
                 title={isMinimized ? currentOrg.name : undefined}
             >
-                <div className="flex items-center gap-2 overflow-hidden">
+                <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
                     <Building2 size={14} className="text-emerald-400 flex-shrink-0" />
                     {!isMinimized && (
                         <>
-                            <span className="truncate max-w-[120px]">{currentOrg.name}</span>
+                            <span className="truncate">{currentOrg.name}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold uppercase tracking-wide flex-shrink-0 ${badgeColor[currentRole] || badgeColor.agent}`}>
                                 {currentRole}
                             </span>

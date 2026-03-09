@@ -17,7 +17,6 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
     organizationId,
     documentId,
     content = "",
-    teamId = "",
     fileName,
     metadata = {},
   } = job;
@@ -57,7 +56,6 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
             payload: {
               organizationId,
               documentId,
-              teamId,
               fileKey: "",
               fileName,
               chunkIndex: chunk.index,

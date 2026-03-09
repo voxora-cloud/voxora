@@ -95,19 +95,20 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <div className="flex items-center space-x-2 flex-1 min-w-0">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shrink-0">
                 <span className="text-lg font-bold text-primary-foreground">
                   V
                 </span>
               </div>
-              <span className="text-lg font-bold text-foreground">Voxora</span>
+              <span className="text-lg font-bold text-foreground truncate">Voxora</span>
             </div>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setSidebarOpen(false)}
+              className="shrink-0"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -160,9 +161,8 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
               {conversations.map((conversation) => (
                 <Card
                   key={conversation.id}
-                  className={`cursor-pointer transition-colors hover:bg-accent ${
-                    selectedConversation === conversation.id ? "bg-accent" : ""
-                  }`}
+                  className={`cursor-pointer transition-colors hover:bg-accent ${selectedConversation === conversation.id ? "bg-accent" : ""
+                    }`}
                   onClick={() => setSelectedConversation(conversation.id)}
                 >
                   <CardContent className="p-3">
@@ -202,21 +202,21 @@ export function DashboardLayout({ isSupport = false }: DashboardLayoutProps) {
 
         {/* User Profile */}
         <div className="p-4 border-t border-border">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center space-x-3 flex-1 min-w-0">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
                 <span className="text-sm font-medium text-primary-foreground">
                   {isSupport ? "SA" : "JD"}
                 </span>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">
                   {isSupport ? "Support Agent" : "John Doe"}
                 </p>
-                <p className="text-xs text-muted-foreground">Online</p>
+                <p className="text-xs text-muted-foreground truncate">Online</p>
               </div>
             </div>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

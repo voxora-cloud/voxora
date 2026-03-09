@@ -9,8 +9,7 @@ const getUserId = (req: Request): string => (req as AuthenticatedRequest).user.u
 // GET /api/v1/knowledge
 export const getKnowledgeItems = asyncHandler(async (req: Request, res: Response) => {
   const orgId = getOrgId(req);
-  const teamId = req.query.teamId as string | undefined;
-  const result = await KnowledgeService.getItems(orgId, teamId);
+  const result = await KnowledgeService.getItems(orgId);
   sendResponse(res, 200, true, "Knowledge items fetched", result);
 });
 

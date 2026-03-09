@@ -55,7 +55,7 @@ export function startIngestionWorker() {
       }
 
       // pdf / docx
-      await runIngestionPipeline({ ...job.data, teamId: job.data.teamId ?? "" });
+      await runIngestionPipeline(job.data);
     },
     {
       connection,

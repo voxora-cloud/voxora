@@ -3,6 +3,7 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { redisClient, redisPublisher, redisSubscriber } from "@shared/config/redis";
 import { verifyToken } from "@shared/utils/auth";
 import { User, Membership } from "@shared/models";
+import jwt from "jsonwebtoken";
 import logger from "@shared/utils/logger";
 import config from "@shared/config";
 import { handleMessage } from "./handlers/handlerMessage";
@@ -51,7 +52,21 @@ export class SocketManager {
         const token = socket.handshake.auth.token;
         if (!token) return next(new Error("Authentication error: No token provided"));
 
-        const decoded = verifyToken(token, "access");
+        // Use custom jwt.verify to inspect the token type
+        const decoded = jwt.verify(token, config.jwt.secret!) as any;
+
+        if (decoded.type === "widget_session") {
+          // Widget Connection
+          socket.data.user = {
+            isWidget: true,
+            orgId: decoded.organizationId,
+            widgetKey: decoded.publicKey,
+            userId: socket.id, // Fallback userId for widget to avoid breaking things expecting a string
+          };
+          return next();
+        }
+
+        // Agent Connection
         const user = await User.findById(decoded.userId).select("-password");
         if (!user || !user.isActive) return next(new Error("Authentication error: Invalid user"));
 
@@ -68,6 +83,7 @@ export class SocketManager {
         if (!membership) return next(new Error("Authentication error: Not a member of this organization"));
 
         socket.data.user = {
+          isWidget: false,
           userId: user._id.toString(),
           email: user.email,
           name: user.name,
@@ -79,16 +95,16 @@ export class SocketManager {
         // Update lastSeen
         await User.findByIdAndUpdate(user._id, { lastSeen: new Date() }, { timestamps: false });
         next();
-      } catch {
-        next(new Error("Authentication error: Invalid token"));
+      } catch (err: any) {
+        next(new Error(`Authentication error: ${err.message}`));
       }
     });
   }
 
   private setupEventHandlers(): void {
     this.io.on("connection", (socket) => {
-      const { userId, orgId } = socket.data.user;
-      logger.info(`User connected: ${userId} (org: ${orgId})`);
+      const { userId, orgId, isWidget } = socket.data.user;
+      logger.info(`${isWidget ? 'Widget' : 'User'} connected: ${userId} (org: ${orgId})`);
 
       // Store connection in memory + Redis (org-scoped key)
       this.connectedUsers.set(userId, { socketId: socket.id, orgId });
@@ -97,31 +113,37 @@ export class SocketManager {
       // Join the org room so we can broadcast org-wide events
       socket.join(`org:${orgId}`);
 
-      this.updateUserStatus(userId, "online");
+      if (!isWidget) {
+        this.updateUserStatus(userId, "online");
+      }
       handleMessage({ socket, io: this.io });
 
       socket.on("disconnect", () => {
-        logger.info(`User disconnected: ${userId}`);
+        logger.info(`${isWidget ? 'Widget' : 'User'} disconnected: ${userId}`);
         this.connectedUsers.delete(userId);
         redisClient.del(`org:${orgId}:socket:user:${userId}`).catch(() => { });
-        this.updateUserStatus(userId, "offline");
+        if (!isWidget) {
+          this.updateUserStatus(userId, "offline");
+        }
       });
 
       // Join an org-scoped conversation room
       socket.on("join_conversation", (conversationId: string) => {
         socket.join(`org:${orgId}:conv:${conversationId}`);
-        logger.debug(`User ${userId} joined org:${orgId}:conv:${conversationId}`);
+        logger.debug(`${isWidget ? 'Widget' : 'User'} ${userId} joined org:${orgId}:conv:${conversationId}`);
       });
 
       socket.on("leave_conversation", (conversationId: string) => {
         socket.leave(`org:${orgId}:conv:${conversationId}`);
-        logger.debug(`User ${userId} left org:${orgId}:conv:${conversationId}`);
+        logger.debug(`${isWidget ? 'Widget' : 'User'} ${userId} left org:${orgId}:conv:${conversationId}`);
       });
 
       socket.on("update_status", async (status: string) => {
-        await this.updateUserStatus(userId, status);
-        // Broadcast status update only within the same org
-        this.io.to(`org:${orgId}`).emit("user_status_update", { userId, status, timestamp: new Date() });
+        if (!isWidget) {
+          await this.updateUserStatus(userId, status);
+          // Broadcast status update only within the same org
+          this.io.to(`org:${orgId}`).emit("user_status_update", { userId, status, timestamp: new Date() });
+        }
       });
     });
   }

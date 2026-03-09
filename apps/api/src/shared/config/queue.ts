@@ -6,7 +6,6 @@ export interface AIJobData {
   conversationId: string;
   content: string;
   messageId: string;
-  teamId?: string;
   /** Display name of the company whose widget initiated the conversation */
   companyName?: string;
 }
@@ -21,7 +20,6 @@ export interface IngestionJobData {
   fileKey: string;
   mimeType: string;
   fileName: string;
-  teamId?: string;
   title: string;
   catalog?: string;
   /** Populated when source === "url" */

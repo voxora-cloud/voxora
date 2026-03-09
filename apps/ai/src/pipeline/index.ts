@@ -39,7 +39,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   console.log(`\n[Pipeline] ─── NEW JOB ───────────────────────────────────`);
   console.log(`[Pipeline] conversationId : ${conversationId}`);
   console.log(`[Pipeline] messageId      : ${job.messageId}`);
-  console.log(`[Pipeline] teamId         : ${job.teamId ?? "none (AI-only mode)"}`);
+  console.log(`[Pipeline] organizationId : ${job.organizationId}`);
   console.log(`[Pipeline] content        : ${content.slice(0, 120).replace(/\n/g, " ")}`);
 
   // ── 1. Context ──────────────────────────────────────────────────────────────
@@ -47,7 +47,6 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     conversationId,
     job.organizationId,
     content,
-    job.teamId,
     job.companyName,
     job.messageId,
   );

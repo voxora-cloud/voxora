@@ -117,24 +117,44 @@ export async function buildContext(
   const hasTeam = !!teamId;
   let systemPrompt = buildSystemPrompt(companyName, hasTeam);
 
+  console.log(`[Context] ──────────────────────────────────────────────────────`);
+  console.log(`[Context] Building context for conversation: ${conversationId}`);
+  console.log(`[Context] organizationId : ${organizationId}`);
+  console.log(`[Context] teamId         : ${teamId && teamId.trim() !== "" ? teamId : "(OPTIONAL - not filtering by team)"}`);
+  console.log(`[Context] companyName    : ${companyName || "(not set)"}`);
+  console.log(`[Context] messageLength  : ${currentMessage.length} chars`);
+
   // ── 1. RAG: search knowledge base for relevant chunks ────────────────────────
   try {
+    console.log(`[Context] Starting RAG search...`);
     const provider = getEmbeddingProvider();
+    console.log(`[Context] Embedding provider: ${provider.constructor.name}, dimensions: ${provider.dimensions}`);
+    
     const queryVector = await provider.embed(currentMessage);
+    console.log(`[Context] Generated query vector (${queryVector.length}d)`);
+    console.log(`[Context] Vector sample: [${queryVector.slice(0, 5).map(v => v.toFixed(4)).join(", ")}...]`);
+    
+    console.log(`[Context] Calling vectorStore.search with:`);
+    console.log(`[Context]   - organizationId: ${organizationId}`);
+    console.log(`[Context]   - topK: ${config.embeddings.ragTopK}`);
+    
     const results = await vectorStore.search(queryVector, {
       organizationId,
-      teamId,
       topK: config.embeddings.ragTopK,
     });
 
+    console.log(`[Context] ✓ Search completed, received ${results.length} result(s)`);
+    
     if (results.length > 0) {
       const knowledgeContext = results
         .map((r, i) => `[${i + 1}] ${r.payload.text}`)
         .join("\n\n");
 
-      console.log(`[Context] RAG retrieved ${results.length} chunk(s) for query: "${currentMessage}"`);
+      console.log(`[Context] ✅ RAG retrieved ${results.length} chunk(s) successfully`);
+      console.log(`[Context] Query: "${currentMessage.slice(0, 100)}${currentMessage.length > 100 ? "..." : ""}"`);
       results.forEach((r, i) => {
-        console.log(`  [${i + 1}] score=${r.score.toFixed(4)} docId=${r.payload.documentId} | ${String(r.payload.text).slice(0, 120).replace(/\n/g, " ")}…`);
+        console.log(`[Context]   [${i + 1}] score=${r.score.toFixed(4)} orgId=${r.payload.organizationId} docId=${r.payload.documentId}`);
+        console.log(`[Context]       text: ${String(r.payload.text).slice(0, 120).replace(/\n/g, " ")}…`);
       });
 
       systemPrompt =
@@ -142,22 +162,36 @@ export async function buildContext(
         `Use the following knowledge base excerpts to answer accurately:\n\n` +
         `${knowledgeContext}\n\n` +
         `If the answer is not in the excerpts, say so honestly.`;
+      
+      console.log(`[Context] ✓ System prompt enhanced with ${results.length} knowledge chunks`);
     } else {
-      console.log(`[Context] RAG: no matching chunks found`);
+      console.log(`[Context] ⚠️  RAG search returned 0 results`);
+      console.log(`[Context]     Possible reasons:`);
+      console.log(`[Context]     1. No documents ingested for organizationId: ${organizationId}`);
+      console.log(`[Context]     2. Query doesn't semantically match indexed content`);
+      console.log(`[Context]     3. Qdrant collection empty or not created yet`);
     }
   } catch (err: any) {
+    console.error(`[Context] ❌ RAG search error:`);
+    console.error(`[Context]    Error type: ${err?.constructor?.name || typeof err}`);
+    console.error(`[Context]    Status: ${err?.status}`);
+    console.error(`[Context]    Message: ${err?.message || String(err)}`);
+    
     // Check if error is due to missing collection (404 on fresh deployment)
     if (err?.status === 404 && err?.data?.status?.error?.includes("doesn't exist")) {
-      console.log(`[Context] Qdrant collection doesn't exist yet — creating with ${getEmbeddingProvider().dimensions}d vectors`);
+      console.log(`[Context] ⚠️  Qdrant collection doesn't exist yet — creating with ${getEmbeddingProvider().dimensions}d vectors`);
       try {
         await vectorStore.ensureCollection(getEmbeddingProvider().dimensions);
-        console.log(`[Context] Collection created successfully. RAG will work after documents are ingested.`);
+        console.log(`[Context] ✓ Collection created successfully. RAG will work after documents are ingested.`);
       } catch (createErr) {
-        console.error("[Context] Failed to create collection:", createErr);
+        console.error("[Context] ❌ Failed to create collection:", createErr);
       }
     } else {
       // RAG failure is non-fatal — fall back to base system prompt
-      console.warn("[Context] RAG search failed, continuing without context:", err);
+      console.error("[Context] ⚠️  RAG search failed, continuing without context");
+      if (err?.stack) {
+        console.error(`[Context] Stack trace: ${err.stack}`);
+      }
     }
   }
 

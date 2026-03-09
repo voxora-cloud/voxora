@@ -4,7 +4,6 @@ export interface VectorSearchResult {
   payload: {
     organizationId: string;
     documentId: string;
-    teamId: string;
     fileKey: string;  // empty string for text/url sources
     fileName: string;
     chunkIndex: number;
@@ -29,10 +28,10 @@ export interface VectorStore {
     }>,
   ): Promise<void>;
 
-  /** Semantic search — returns top-K results, optionally filtered by teamId */
+  /** Semantic search — returns top-K results filtered by organizationId */
   search(
     vector: number[],
-    options: { organizationId: string; teamId?: string; topK?: number },
+    options: { organizationId: string; topK?: number },
   ): Promise<VectorSearchResult[]>;
 
   /** Remove all vectors belonging to a specific document */

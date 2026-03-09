@@ -100,14 +100,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar */}
       <div className={`bg-card shadow-lg flex flex-col h-screen sticky top-0 border-r border-border transition-all duration-300 ${isSidebarMinimized ? "w-20" : "w-64"}`}>
         {/* Logo/Header (Org Switcher) */}
-        <div className={`p-4 border-b border-border relative z-50 flex items-center ${isSidebarMinimized ? "justify-center" : "justify-between"}`}>
-          <div className={isSidebarMinimized ? "w-full" : "flex-1"}>
+        <div className={`p-4 border-b border-border relative z-50 flex items-center gap-2 ${isSidebarMinimized ? "justify-center" : "justify-between"}`}>
+          <div className={isSidebarMinimized ? "w-full min-w-0" : "flex-1 min-w-0"}>
             <OrgSwitcher isMinimized={isSidebarMinimized} />
           </div>
           {!isSidebarMinimized && (
             <button
               onClick={() => setIsSidebarMinimized(true)}
-              className="ml-2 p-1.5 text-muted-foreground hover:bg-accent rounded-md transition-colors"
+              className="p-1.5 text-muted-foreground hover:bg-accent rounded-md transition-colors shrink-0"
               title="Minimize Sidebar"
             >
               <ChevronLeft className="h-4 w-4" />

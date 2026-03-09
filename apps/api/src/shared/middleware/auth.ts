@@ -181,6 +181,8 @@ export const authenticateWidget = async (
       return;
     }
 
+    (req as any).widgetSession = decoded;
+
     next();
   } catch (error: any) {
     sendError(res, 401, "Invalid widget access token");
