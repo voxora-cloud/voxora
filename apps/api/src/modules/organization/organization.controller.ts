@@ -45,8 +45,13 @@ export class OrganizationController {
     static async getOrganization(req: Request, res: Response): Promise<void> {
         try {
             const { userId } = (req as AuthenticatedRequest).user;
-            const { orgId } = req.params;
-            const result = await OrganizationService.getOrganization(userId, orgId);
+            const { orgId } = req.params as { orgId?: string | string[] };
+            const resolvedOrgId = Array.isArray(orgId) ? orgId[0] : orgId;
+            if (!resolvedOrgId) {
+                sendError(res, 400, "Organization id is required");
+                return;
+            }
+            const result = await OrganizationService.getOrganization(userId, resolvedOrgId);
             sendResponse(res, 200, true, "Organization retrieved", result);
         } catch (error: any) {
             sendError(res, 404, error.message);
@@ -66,9 +71,14 @@ export class OrganizationController {
     static async switchOrganization(req: Request, res: Response): Promise<void> {
         try {
             const { userId, email } = (req as AuthenticatedRequest).user;
-            const { orgId } = req.params;
+            const { orgId } = req.params as { orgId?: string | string[] };
+            const resolvedOrgId = Array.isArray(orgId) ? orgId[0] : orgId;
+            if (!resolvedOrgId) {
+                sendError(res, 400, "Organization id is required");
+                return;
+            }
 
-            const result = await OrganizationService.switchOrganization(userId, email, orgId);
+            const result = await OrganizationService.switchOrganization(userId, email, resolvedOrgId);
 
             sendResponse(res, 200, true, "Switched organization successfully", {
                 organization: result.organization,

@@ -37,8 +37,13 @@ export class MembershipController {
 
     static async verifyInvite(req: Request, res: Response): Promise<void> {
         try {
-            const { token } = req.params;
-            const details = await MembershipService.verifyInvite(token);
+            const { token } = req.params as { token?: string | string[] };
+            const resolvedToken = Array.isArray(token) ? token[0] : token;
+            if (!resolvedToken) {
+                sendError(res, 400, "Invite token is required");
+                return;
+            }
+            const details = await MembershipService.verifyInvite(resolvedToken);
             sendResponse(res, 200, true, "Invite details retrieved", details);
         } catch (error: any) {
             sendError(res, 400, error.message);
@@ -71,9 +76,14 @@ export class MembershipController {
     static async resendInvite(req: Request, res: Response): Promise<void> {
         try {
             const { activeOrganizationId } = (req as AuthenticatedRequest).user;
-            const { memberId } = req.params;
+            const { memberId } = req.params as { memberId?: string | string[] };
+            const resolvedMemberId = Array.isArray(memberId) ? memberId[0] : memberId;
+            if (!resolvedMemberId) {
+                sendError(res, 400, "Member id is required");
+                return;
+            }
 
-            await MembershipService.resendInvite(activeOrganizationId, memberId);
+            await MembershipService.resendInvite(activeOrganizationId, resolvedMemberId);
 
             sendResponse(res, 200, true, "Invitation resent successfully");
         } catch (error: any) {
@@ -84,12 +94,17 @@ export class MembershipController {
     static async updateMemberRole(req: Request, res: Response): Promise<void> {
         try {
             const { userId, activeOrganizationId } = (req as AuthenticatedRequest).user;
-            const { memberId } = req.params;
+            const { memberId } = req.params as { memberId?: string | string[] };
+            const resolvedMemberId = Array.isArray(memberId) ? memberId[0] : memberId;
+            if (!resolvedMemberId) {
+                sendError(res, 400, "Member id is required");
+                return;
+            }
             const { role } = req.body;
 
             const membership = await MembershipService.updateMemberRole(
                 activeOrganizationId,
-                memberId,
+                resolvedMemberId,
                 role as MembershipRole,
                 userId,
             );
@@ -103,7 +118,12 @@ export class MembershipController {
     static async updateMemberStatus(req: Request, res: Response): Promise<void> {
         try {
             const { userId, activeOrganizationId } = (req as AuthenticatedRequest).user;
-            const { memberId } = req.params;
+            const { memberId } = req.params as { memberId?: string | string[] };
+            const resolvedMemberId = Array.isArray(memberId) ? memberId[0] : memberId;
+            if (!resolvedMemberId) {
+                sendError(res, 400, "Member id is required");
+                return;
+            }
             const { status } = req.body;
 
             if (status !== "active" && status !== "inactive") {
@@ -112,7 +132,7 @@ export class MembershipController {
 
             const membership = await MembershipService.updateMemberStatus(
                 activeOrganizationId,
-                memberId,
+                resolvedMemberId,
                 status as "active" | "inactive",
                 userId,
             );
@@ -126,9 +146,14 @@ export class MembershipController {
     static async removeMember(req: Request, res: Response): Promise<void> {
         try {
             const { userId, activeOrganizationId } = (req as AuthenticatedRequest).user;
-            const { memberId } = req.params;
+            const { memberId } = req.params as { memberId?: string | string[] };
+            const resolvedMemberId = Array.isArray(memberId) ? memberId[0] : memberId;
+            if (!resolvedMemberId) {
+                sendError(res, 400, "Member id is required");
+                return;
+            }
 
-            await MembershipService.removeMember(activeOrganizationId, memberId, userId);
+            await MembershipService.removeMember(activeOrganizationId, resolvedMemberId, userId);
             sendResponse(res, 200, true, "Member removed");
         } catch (error: any) {
             sendError(res, 400, error.message);

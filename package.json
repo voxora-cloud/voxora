@@ -21,12 +21,7 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "npm@10.9.2",
-  "workspaces": [
-    "apps/*",
-    "packages/*",
-    "api/*"
-  ],
+  "packageManager": "pnpm@9.15.0",
   "dependencies": {
     "zod": "^4.3.6"
   }

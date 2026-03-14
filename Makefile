@@ -10,18 +10,20 @@ GREEN := \033[0;32m
 YELLOW := \033[1;33m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
+BOLD := \033[1m
+CYAN := \033[0;36m
 
 define BANNER
 	@printf "$(BLUE)"
-@printf "██╗   ██╗ ██████╗ ██╗  ██╗ ██████╗ ██████╗  █████╗ \n"
-@printf "██║   ██║██╔═══██╗╚██╗██╔╝██╔═══██╗██╔══██╗██╔══██╗\n"
-@printf "██║   ██║██║   ██║ ╚███╔╝ ██║   ██║██████╔╝███████║\n"
-@printf "╚██╗ ██╔╝██║   ██║ ██╔██╗ ██║   ██║██╔══██╗██╔══██║\n"
-@printf " ╚████╔╝ ╚██████╔╝██╔╝ ██╗╚██████╔╝██║  ██║██║  ██║\n"
-@printf "  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝\ni"
-printf "${NC}"
-printf "\n${BOLD}  Development Installer${NC}  —  ${CYAN}github.com/voxora-cloud/voxora${NC}\n\n"
-@printf "$(NC)"
+	@printf "██╗   ██╗ ██████╗ ██╗  ██╗ ██████╗ ██████╗  █████╗ \n"
+	@printf "██║   ██║██╔═══██╗╚██╗██╔╝██╔═══██╗██╔══██╗██╔══██╗\n"
+	@printf "██║   ██║██║   ██║ ╚███╔╝ ██║   ██║██████╔╝███████║\n"
+	@printf "╚██╗ ██╔╝██║   ██║ ██╔██╗ ██║   ██║██╔══██╗██╔══██║\n"
+	@printf " ╚████╔╝ ╚██████╔╝██╔╝ ██╗╚██████╔╝██║  ██║██║  ██║\n"
+	@printf "  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝\n"
+	@printf "$(NC)"
+	@printf "\n$(BOLD)  Development Installer$(NC)  —  $(CYAN)github.com/voxora-cloud/voxora$(NC)\n\n"
+	@printf "$(NC)"
 @echo ""
 endef
 
@@ -75,7 +77,7 @@ check-ports: ## Check if required ports are available
 	done
 	@echo "$(GREEN)✅ Port check complete$(NC)"
 
-verify: ## Verify system requirements (git, node, npm, ports)
+verify: ## Verify system requirements (git, node, pnpm, ports)
 	@echo "$(BLUE)🔍 Verifying system requirements...$(NC)"
 	@echo ""
 	@echo "$(BLUE)📋 Checking installed tools:$(NC)"
@@ -93,11 +95,11 @@ verify: ## Verify system requirements (git, node, npm, ports)
 		echo "$(YELLOW)Please install Node.js: https://nodejs.org/$(NC)"; \
 		exit 1; \
 	}
-	@command -v npm >/dev/null 2>&1 && { \
-		echo "$(GREEN)✅ npm:$(NC) $$(npm --version)"; \
+	@command -v pnpm >/dev/null 2>&1 && { \
+		echo "$(GREEN)✅ pnpm:$(NC) $$(pnpm --version)"; \
 	} || { \
-		echo "$(RED)❌ npm is not installed!$(NC)"; \
-		echo "$(YELLOW)Please install Node.js (includes npm): https://nodejs.org/$(NC)"; \
+		echo "$(RED)❌ pnpm is not installed!$(NC)"; \
+		echo "$(YELLOW)Install pnpm: npm i -g pnpm$(NC)"; \
 		exit 1; \
 	}
 	@echo ""
@@ -147,20 +149,20 @@ use-network-ip: ## Switch all env files to a specific IP: make use-network-ip IP
 
 install: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(NC)"
-	@command -v npm >/dev/null 2>&1 || { \
-		echo "$(RED)❌ npm is not installed!$(NC)"; \
+	@command -v pnpm >/dev/null 2>&1 || { \
+		echo "$(RED)❌ pnpm is not installed!$(NC)"; \
 		echo ""; \
-		echo "$(YELLOW)Please install Node.js (includes npm):$(NC)"; \
-		echo "  https://nodejs.org/"; \
+		echo "$(YELLOW)Install pnpm:$(NC)"; \
+		echo "  npm i -g pnpm"; \
 		echo ""; \
 		exit 1; \
 	}
-	@npm install || { \
-		echo "$(RED)❌ npm install failed!$(NC)"; \
+	@pnpm install || { \
+		echo "$(RED)❌ pnpm install failed!$(NC)"; \
 		echo ""; \
 		echo "$(YELLOW)Try the following:$(NC)"; \
 		echo "  1. Delete node_modules: rm -rf node_modules apps/*/node_modules"; \
-		echo "  2. Clear npm cache: npm cache clean --force"; \
+		echo "  2. Clear pnpm store: pnpm store prune"; \
 		echo "  3. Run again: make install"; \
 		echo ""; \
 		exit 1; \
@@ -170,19 +172,19 @@ install: ## Install dependencies
 dev: ## Start development servers (api, web, ai)
 
 	@echo "$(BLUE)🚀 Starting all dev servers via Turbo (api, web, ai)...$(NC)"
-	npm run dev
+	pnpm run dev
 
 build: ## Build all applications
-	npm run build
+	pnpm run build
 
 lint: ## Run linters
-	npm run lint
+	pnpm run lint
 
 format: ## Format code
-	npm run format
+	pnpm run format
 
 check-types: ## Type check
-	npm run check-types
+	pnpm run check-types
 
 docker-start: check-docker ## Start Docker services
 	@echo "$(BLUE)🐳 Starting Docker services...$(NC)"
@@ -240,7 +242,7 @@ docker-logs: ## Show Docker logs
 
 widget-deploy: ## Build and deploy widget to MinIO
 	@echo "$(BLUE)📦 Building and deploying widget...$(NC)"
-	@cd apps/widget && npm run build && npm run deploy || { \
+	@cd apps/widget && pnpm run build && pnpm run deploy || { \
 		echo "$(RED)❌ Widget deployment failed!$(NC)"; \
 		echo ""; \
 		echo "$(YELLOW)Make sure:$(NC)"; \
