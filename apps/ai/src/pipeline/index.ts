@@ -27,19 +27,23 @@ const RESOLVE_RE = /\[RESOLVE:\s*(.+?)\]/i;
  *  5. MCP       — (TODO) invoke MCP server actions
  *  6. Publish   — push the final response to Redis Pub/Sub → API → Socket.IO
  *
- * Edge cases handled:
+ * Config-driven behaviour:
  *  A. No team / no agents configured   → AI always replies, escalation disabled
- *  B. LLM outputs [ESCALATE: reason]   → publish escalation event; consumer assigns agent
- *  C. Escalation requested but no team → publish polite "can't help further" message
- *  D. LLM provider throws              → publish graceful error message, never silent
+ *  B. fallbackToAgent === false         → escalation rules never injected; AI handles all
+ *  C. LLM outputs [ESCALATE: reason]   → publish escalation event; consumer assigns agent
+ *  D. Escalation requested but no team → publish polite "can't help further" message
+ *  E. LLM provider throws              → publish graceful error message, never silent
  */
 export async function runPipeline(job: AIJobData): Promise<void> {
   const { conversationId, content } = job;
 
-  console.log(`\n[Pipeline] ─── NEW JOB ───────────────────────────────────`);
+  console.log(`\n[Pipeline] ─── NEW JOB ───────────────────────────────────────`);
   console.log(`[Pipeline] conversationId : ${conversationId}`);
   console.log(`[Pipeline] messageId      : ${job.messageId}`);
   console.log(`[Pipeline] organizationId : ${job.organizationId}`);
+  console.log(`[Pipeline] teamId         : ${job.teamId ?? "(none)"}`);
+  console.log(`[Pipeline] fallbackToAgent: ${job.fallbackToAgent ?? true}`);
+  console.log(`[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`);
   console.log(`[Pipeline] content        : ${content.slice(0, 120).replace(/\n/g, " ")}`);
 
   // ── 1. Context ──────────────────────────────────────────────────────────────
@@ -49,6 +53,9 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     content,
     job.companyName,
     job.messageId,
+    job.teamId,
+    job.fallbackToAgent,
+    job.collectUserInfo,
   );
 
   console.log(`[Pipeline] hasTeam        : ${context.hasTeam}`);
@@ -69,11 +76,12 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     const provider = getDefaultProvider();
     response = await provider.generate(messages);
   } catch (providerErr) {
-    // Edge case D: LLM provider failure — never leave the user with silence
+    // Edge case E: LLM provider failure — never leave the user with silence
     console.error("[Pipeline] LLM provider threw an error:", providerErr);
+    const canEscalate = context.hasTeam && job.fallbackToAgent !== false;
     const fallback =
       "I'm sorry — I'm having trouble connecting right now. Please try again in a moment." +
-      (context.hasTeam
+      (canEscalate
         ? " If you need immediate help, I can connect you to a human agent."
         : "");
     await publishResponse({ conversationId, content: fallback });
@@ -88,7 +96,6 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
   /**
    * Strip the sentinel token from the response and return any remaining text.
-   * Trims blank lines left behind after removal.
    */
   function stripSentinel(text: string, re: RegExp): string {
     return text.replace(re, "").replace(/\n{3,}/g, "\n\n").trim();
@@ -97,7 +104,6 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   if (resolveMatch) {
     const reason = resolveMatch[1].trim();
     console.log(`[Pipeline] ✅ Resolution detected — reason: "${reason}"`);
-    // Publish any human-readable text that preceded/followed the sentinel
     const humanText = stripSentinel(response, RESOLVE_RE);
     if (humanText) await publishResponse({ conversationId, content: humanText });
     await publishResolution({ conversationId, reason });
@@ -107,10 +113,13 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   if (escalateMatch) {
     const reason = escalateMatch[1].trim();
     console.log(`[Pipeline] ⬆  Escalation detected — reason: "${reason}"`);
-    // Publish any human-readable text that preceded/followed the sentinel
     const humanText = stripSentinel(response, ESCALATE_RE);
 
-    if (context.hasTeam) {
+    // Safety guard: if fallbackToAgent was disabled in config the AI shouldn't
+    // have emitted [ESCALATE], but handle it defensively anyway.
+    const canEscalate = context.hasTeam && job.fallbackToAgent !== false;
+
+    if (canEscalate) {
       if (humanText) await publishResponse({ conversationId, content: humanText });
       await publishEscalation({
         conversationId,
@@ -118,13 +127,12 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         reason,
       });
     } else {
-      // Edge case C: AI wants to escalate but no human agents are configured
-      console.log("[Pipeline] Escalation blocked — no team configured; sending fallback.");
+      console.log("[Pipeline] Escalation blocked — fallbackToAgent disabled or no team; sending fallback.");
       await publishResponse({
         conversationId,
         content:
-          "I wasn't able to fully resolve this. Unfortunately I don't have a human team available right now, " +
-          "but I'd recommend reaching out through another support channel or trying again later.",
+          "I wasn't able to fully resolve this. Unfortunately I'm not able to connect you to a human agent right now, " +
+          "but please try again or reach out through another support channel.",
       });
     }
     return;

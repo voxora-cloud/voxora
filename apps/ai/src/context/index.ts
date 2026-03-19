@@ -7,21 +7,34 @@ import config from "../config";
 /** How many prior messages to include as conversation history */
 const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 
+interface CollectUserInfo {
+  name?: boolean;
+  email?: boolean;
+  phone?: boolean;
+}
+
+interface BuildSystemPromptOptions {
+  companyName?: string;
+  /** True when a human team exists for this org */
+  hasTeam: boolean;
+  /** Whether the widget config allows AI to escalate to a human */
+  fallbackToAgent: boolean;
+  /** Which visitor info fields the AI should collect during conversation */
+  collectUserInfo?: CollectUserInfo;
+}
+
 /**
  * Build the base system prompt for the given company.
- * Supports markdown in responses and knows the company it represents.
  *
- * When `hasTeam` is true, the prompt includes escalation rules so the AI can
- * hand off complex or sensitive conversations to a human agent by outputting the
- * special sentinel:  [ESCALATE: <reason>]
- *
- * When `hasTeam` is false (no teams/agents configured), escalation is disabled —
- * the AI always handles the conversation itself.
- *
- * Resolution rules ([RESOLVE: <reason>]) are always included — the AI can close
- * the loop whether or not human agents are configured.
+ * Behaviour driven by widget config:
+ *  - `fallbackToAgent === false`  → escalation rules are NEVER injected even
+ *    when `hasTeam` is true; AI always resolves on its own.
+ *  - `collectUserInfo.*`          → a user-info-collection section is injected
+ *    instructing the AI to naturally ask for the enabled fields.
+ *  - Resolution rules are always present — the AI can always close the loop.
  */
-function buildSystemPrompt(companyName?: string, hasTeam?: boolean): string {
+function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
+  const { companyName, hasTeam, fallbackToAgent, collectUserInfo } = opts;
   const company = companyName?.trim() || process.env.AI_COMPANY_NAME || "our company";
 
   const basePrompt =
@@ -40,7 +53,35 @@ Formatting guidelines:
 - Keep paragraphs short — prefer 2–3 sentences max
 - Never use raw HTML; use Markdown only`;
 
-  // Resolution rules — always available (AI can close the loop in any mode)
+  // ── User info collection rules ──────────────────────────────────────────────
+  const wantsName  = collectUserInfo?.name  === true;
+  const wantsEmail = collectUserInfo?.email === true;
+  const wantsPhone = collectUserInfo?.phone === true;
+  const wantsAny   = wantsName || wantsEmail || wantsPhone;
+
+  let userInfoSection = "";
+  if (wantsAny) {
+    const fields: string[] = [];
+    if (wantsName)  fields.push("their **name**");
+    if (wantsEmail) fields.push("their **email address** (for follow-up)");
+    if (wantsPhone) fields.push("their **phone number** (optional, for callback support)");
+
+    const fieldList = fields.join(", ");
+
+    userInfoSection = `
+
+---
+
+**Visitor information collection:**
+
+Early in the conversation — ideally within the first 1–2 exchanges — naturally ask the visitor for ${fieldList}.
+- Do this conversationally, not like a form. For example: "Before we dive in, could I get your name?" or "Happy to help! May I have your email so we can follow up if needed?"
+- Once the visitor provides the information, acknowledge it warmly and move on.
+- If the visitor declines or skips, respect that and continue helping them without pressing further.
+- Do NOT repeat the request if they've already provided it or declined.`;
+  }
+
+  // ── Resolution rules — always present ──────────────────────────────────────
   const resolutionRules = `
 
 ---
@@ -63,11 +104,24 @@ Examples of valid resolution outputs:
 
 Do NOT include any other text when resolving. The sentinel must be the entire response.`;
 
-  if (!hasTeam) {
-    return basePrompt + resolutionRules;
+  // ── Escalation rules — only when BOTH hasTeam AND fallbackToAgent are true ──
+  const canEscalate = hasTeam && fallbackToAgent;
+
+  if (!canEscalate) {
+    // No escalation available — either no team or admin disabled fallback.
+    // Tell the AI explicitly so it doesn't promise something it can't do.
+    const noEscalateNote = !fallbackToAgent
+      ? `
+
+---
+
+**Important:** Human agent escalation is disabled for this widget. You MUST handle all requests yourself.
+Do NOT offer to connect the user to a human. Do NOT output any [ESCALATE] sentinel.`
+      : ""; // hasTeam is false — original behavior, just no escalation block
+
+    return basePrompt + userInfoSection + resolutionRules + noEscalateNote;
   }
 
-  // Escalation rules — only injected when human agents are available
   const escalationRules = `
 
 ---
@@ -94,7 +148,7 @@ Examples of valid escalation outputs:
 
 Do NOT include any other text when escalating. The sentinel must be the entire response.`;
 
-  return basePrompt + resolutionRules + escalationRules;
+  return basePrompt + userInfoSection + resolutionRules + escalationRules;
 }
 
 /**
@@ -109,19 +163,30 @@ export async function buildContext(
   conversationId: string,
   organizationId: string,
   currentMessage: string,
-  teamId?: string,
   companyName?: string,
   /** _id of the message just saved — excluded from history to avoid sending it twice */
   messageId?: string,
+  teamId?: string,
+  fallbackToAgent?: boolean,
+  collectUserInfo?: CollectUserInfo,
 ): Promise<ContextResult> {
   const hasTeam = !!teamId;
-  let systemPrompt = buildSystemPrompt(companyName, hasTeam);
+  const canFallback = fallbackToAgent !== false; // default true when not explicitly set
+
+  let systemPrompt = buildSystemPrompt({
+    companyName,
+    hasTeam,
+    fallbackToAgent: canFallback,
+    collectUserInfo,
+  });
 
   console.log(`[Context] ──────────────────────────────────────────────────────`);
   console.log(`[Context] Building context for conversation: ${conversationId}`);
   console.log(`[Context] organizationId : ${organizationId}`);
   console.log(`[Context] teamId         : ${teamId && teamId.trim() !== "" ? teamId : "(OPTIONAL - not filtering by team)"}`);
   console.log(`[Context] companyName    : ${companyName || "(not set)"}`);
+  console.log(`[Context] fallbackToAgent: ${canFallback}`);
+  console.log(`[Context] collectUserInfo: ${JSON.stringify(collectUserInfo ?? {})}`);
   console.log(`[Context] messageLength  : ${currentMessage.length} chars`);
 
   // ── 1. RAG: search knowledge base for relevant chunks ────────────────────────
@@ -158,7 +223,7 @@ export async function buildContext(
       });
 
       systemPrompt =
-        `${buildSystemPrompt(companyName, hasTeam)}\n\n` +
+        `${buildSystemPrompt({ companyName, hasTeam, fallbackToAgent: canFallback, collectUserInfo })}\n\n` +
         `Use the following knowledge base excerpts to answer accurately:\n\n` +
         `${knowledgeContext}\n\n` +
         `If the answer is not in the excerpts, say so honestly.`;
@@ -205,18 +270,12 @@ export async function buildContext(
     console.log(`[History] HISTORY_LIMIT       : ${HISTORY_LIMIT}`);
 
     // Bug fix: conversationId is stored as ObjectId in MongoDB.
-    // The MessageModel uses strict:false — no type coercion — so a plain string
-    // query never matches ObjectId-stored fields. Cast explicitly.
     const convOid = new mongoose.Types.ObjectId(conversationId);
 
-    // Exclude the message that was just saved (it was persisted before the job
-    // was queued, so without this exclusion it would arrive both as history AND
-    // as currentMessage — confusing the LLM).
     const excludeFilter = messageId
       ? { _id: { $ne: new mongoose.Types.ObjectId(messageId) } }
       : {};
 
-    // Fetch the N most recent messages (newest first), then reverse for chronological order
     const rawMessages = await (MessageModel as any)
       .find({ conversationId: convOid, ...excludeFilter })
       .sort({ createdAt: -1 })
@@ -228,7 +287,6 @@ export async function buildContext(
     const chronological = (rawMessages as any[]).reverse();
 
     for (const m of chronological) {
-      // Determine role: ai-bot and metadata.source==="ai" are assistant turns
       const isAssistant =
         m.senderId === "ai-bot" || m.metadata?.source === "ai";
       const role = isAssistant ? "assistant" : "user";
@@ -240,7 +298,6 @@ export async function buildContext(
       console.log(`  [History] ${role.padEnd(9)} | senderId=${String(m.senderId).slice(0, 16).padEnd(16)} | ${String(m.content).slice(0, 80).replace(/\n/g, " ")}`);
     }
   } catch (err) {
-    // Non-fatal — proceed without history if DB is unavailable
     console.warn("[Context] Failed to fetch conversation history:", err);
   }
 

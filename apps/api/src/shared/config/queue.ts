@@ -8,6 +8,16 @@ export interface AIJobData {
   messageId: string;
   /** Display name of the company whose widget initiated the conversation */
   companyName?: string;
+  /** teamId for the conversation — used by the AI context builder */
+  teamId?: string;
+  /** Whether the widget allows escalation to a human agent */
+  fallbackToAgent?: boolean;
+  /** Which visitor info fields the AI should collect during the conversation */
+  collectUserInfo?: {
+    name?: boolean;
+    email?: boolean;
+    phone?: boolean;
+  };
 }
 
 export interface IngestionJobData {

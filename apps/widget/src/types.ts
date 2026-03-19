@@ -11,6 +11,8 @@
 export interface WidgetConfig {
   /** Public widget key — identifies the widget config; NOT a secret */
   publicKey: string;
+  /** Optional explicit CDN origin (inferred from script src when absent). */
+  cdnUrl?: string;
   /** Floating button position */
   position?: 'bottom-right' | 'bottom-left';
   /** Override button accent color */

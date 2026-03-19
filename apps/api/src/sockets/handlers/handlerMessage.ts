@@ -1,6 +1,7 @@
 import { Message, Conversation, Widget } from "@shared/models";
 import logger from "@shared/utils/logger";
 import { aiQueue } from "@shared/config/queue";
+import { getSocketManager } from "@sockets/index";
 
 export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
   socket.on(
@@ -18,7 +19,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       const { conversationId, content, type, metadata } = data;
 
       try {
-        // Fetch conversation to get visitor info
+        // Fetch conversation to get visitor info and widget config
         const conversation = await Conversation.findById(conversationId);
 
         if (!conversation) {
@@ -29,7 +30,6 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         // Determine sender metadata
         let messageMetadata = metadata || { source: "widget" };
 
-        // If source is widget and no metadata provided, use conversation visitor info
         if (metadata?.source === "widget") {
           messageMetadata = {
             senderName: metadata?.senderName || conversation.visitor?.name || "Anonymous User",
@@ -67,46 +67,108 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           },
         });
 
-        // If this is from a widget user, enqueue for AI processing and notify agents
-        if (messageMetadata.source === "widget") {
-          // Once escalated to a human OR already resolved, stop feeding messages
-          // into the AI pipeline. Use metadata flags as the source of truth since
-          // status is "open" post-escalation and "resolved" post-AI-resolution.
-          if (
-            (conversation as any).metadata?.escalatedAt ||
-            (conversation as any).status === "resolved"
-          ) {
-            return; // message was saved & broadcast above; just don't run AI
+        // Only process widget messages through the AI/routing pipeline
+        if (messageMetadata.source !== "widget") return;
+
+        // Once escalated to a human OR already resolved, stop feeding into AI pipeline.
+        if (
+          (conversation as any).metadata?.escalatedAt ||
+          (conversation as any).status === "resolved"
+        ) {
+          return; // message was saved & broadcast above; just don't run AI
+        }
+
+        // ── Resolve widget config ────────────────────────────────────────────────
+        const widgetKey: string | undefined = (conversation.metadata as any)?.widgetKey ?? undefined;
+
+        let companyName: string | undefined;
+        let aiEnabled = true;
+        let fallbackToAgent = true;
+        let collectUserInfo: { name?: boolean; email?: boolean; phone?: boolean } = {};
+        let teamId: string | undefined = (conversation.metadata as any)?.teamId ?? undefined;
+
+        if (widgetKey) {
+          try {
+            const widget = await Widget.findById(widgetKey)
+              .select("displayName ai conversation features")
+              .lean();
+
+            if (widget) {
+              companyName = (widget as any).displayName || undefined;
+              aiEnabled = (widget as any).ai?.enabled !== false; // default true
+              fallbackToAgent = (widget as any).ai?.fallbackToAgent !== false; // default true
+              collectUserInfo = (widget as any).conversation?.collectUserInfo || {};
+            }
+          } catch {
+            // Non-fatal — fall back to defaults
+            logger.warn(`[handleMessage] Could not fetch widget config for key ${widgetKey}`);
+          }
+        }
+
+        // ── Route: AI disabled → assign directly to human agent ─────────────────
+        if (!aiEnabled) {
+          logger.info(`[handleMessage] AI disabled for widget ${widgetKey} — routing ${conversationId} directly to human agent`);
+
+          // Import conversation service for agent assignment
+          const { ConversationService } = await import("../../modules/conversation/conversation.service");
+          const convService = new ConversationService();
+          const orgId = conversation.organizationId!.toString();
+          const { teamId: assignedTeamId, agentId: assignedAgentId } = await convService.autoAssignConversation(orgId);
+
+          if (assignedTeamId || assignedAgentId) {
+            await Conversation.findByIdAndUpdate(conversationId, {
+              $set: {
+                assignedTo: assignedAgentId || undefined,
+                "metadata.teamId": assignedTeamId,
+                "metadata.routedAt": new Date(),
+                "metadata.routeReason": "AI disabled — direct to agent",
+                "metadata.escalatedAt": new Date(), // prevents future AI enqueue
+              },
+              ...(assignedAgentId ? { $addToSet: { participants: assignedAgentId } } : {}),
+            });
           }
 
-          // Add to BullMQ queue — the AI service will process and respond via Redis Stream
-          const widgetKey: string | undefined = (conversation.metadata as any)?.widgetKey ?? undefined;
-
-          // Resolve company name from the Widget record so the AI prompt is personalised
-          let companyName: string | undefined;
-          if (widgetKey) {
+          // Notify agents about the new conversation
+          const sm = getSocketManager();
+          if (sm) {
+            const payload = {
+              conversationId,
+              subject: conversation.subject,
+              message: content,
+              timestamp: new Date(),
+              assignedTo: assignedAgentId,
+              teamId: assignedTeamId,
+              routeReason: "AI disabled — direct to agent",
+            };
             try {
-              const widget = await Widget.findOne({ widgetKey }).select('displayName').lean();
-              companyName = (widget as any)?.displayName || undefined;
-            } catch {
-              // Non-fatal — fall back to generic prompt
+              if (typeof sm.emitToAllUsers === "function") {
+                sm.emitToAllUsers("new_widget_conversation", payload);
+              } else if (sm.ioInstance) {
+                sm.ioInstance.emit("new_widget_conversation", payload);
+              }
+            } catch (emitErr: any) {
+              logger.error(`[handleMessage] Failed to emit new_widget_conversation: ${emitErr?.message}`);
             }
           }
 
-          aiQueue
-            .add("process", {
-              organizationId: conversation.organizationId!.toString(),
-              conversationId,
-              content,
-              messageId: message._id.toString(),
-              companyName,
-            })
-            .catch((err) =>
-              logger.error("Failed to enqueue AI job:", err),
-            );
-          // Note: no broadcast to agents while AI is handling the conversation.
-          // Agents only see the conversation after it is escalated to them.
+          return; // Don't enqueue AI job
         }
+
+        // ── Route: AI enabled → enqueue AI job with full config ─────────────────
+        aiQueue
+          .add("process", {
+            organizationId: conversation.organizationId!.toString(),
+            conversationId,
+            content,
+            messageId: message._id.toString(),
+            companyName,
+            teamId,
+            fallbackToAgent,
+            collectUserInfo,
+          })
+          .catch((err) =>
+            logger.error("Failed to enqueue AI job:", err),
+          );
       } catch (error) {
         logger.error("Error handling send_message:", error);
       }
@@ -117,16 +179,12 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
   socket.on("join_conversation", async (conversationId: string) => {
     try {
       const roomName = `conversation:${conversationId}`;
-
-      // Join the socket to the conversation room
       socket.join(roomName);
 
-      // If the joiner is an agent (has user data), update the conversation
       if (
         socket.data?.user?.role === "agent" ||
         socket.data?.user?.role === "admin"
       ) {
-        // Update conversation with agent assignment
         await Conversation.findByIdAndUpdate(conversationId, {
           $set: {
             assignedTo: socket.data.user.userId,
@@ -134,7 +192,6 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           },
         });
 
-        // Notify everyone in the conversation that an agent joined
         io.to(roomName).emit("conversation_assigned", {
           conversationId,
           agentId: socket.data.user.userId,
@@ -166,7 +223,6 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
     const { conversationId } = data;
     const roomName = `conversation:${conversationId}`;
 
-    // Determine if it's an agent or customer typing
     if (
       socket.data?.user?.role === "agent" ||
       socket.data?.user?.role === "admin"

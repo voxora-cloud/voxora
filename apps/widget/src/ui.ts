@@ -12,6 +12,8 @@ export class WidgetUI {
   private iframe: HTMLIFrameElement | null = null;
   private badge: HTMLElement | null = null;
   private onToggle?: (isOpen: boolean) => void;
+  private customSize: { width: number; height: number } | null = null;
+  private centered = false;
 
   constructor(config: WidgetConfig, state: WidgetState) {
     this.config = config;
@@ -210,6 +212,21 @@ export class WidgetUI {
   }
 
   /**
+   * Apply an explicit iframe size requested by the child widget UI.
+   */
+  resizeFromIframe(width: number, height: number, centered = false): void {
+    if (!this.iframe) return;
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+
+    this.customSize = {
+      width: Math.max(320, Math.round(width)),
+      height: Math.max(420, Math.round(height)),
+    };
+    this.centered = centered;
+    this.applyResponsiveLayout();
+  }
+
+  /**
    * Toggle widget open/close
    */
   toggle(): void {
@@ -306,34 +323,60 @@ export class WidgetUI {
    * Setup responsive behavior
    */
   private setupResponsive(): void {
-    const handleResize = () => {
-      if (!this.iframe) return;
+    window.addEventListener('resize', () => this.applyResponsiveLayout());
+    this.applyResponsiveLayout();
+  }
 
-      const isLeft = this.config.position === 'bottom-left';
+  private applyResponsiveLayout(): void {
+    if (!this.iframe) return;
 
-      if (window.innerWidth <= 480) {
-        Object.assign(this.iframe.style, {
-          width: 'calc(100vw - 24px)',
-          height: 'calc(100vh - 120px)',
-          right: isLeft ? 'auto' : '12px',
-          left: isLeft ? '12px' : 'auto',
-          bottom: '80px',
-          borderRadius: '12px'
-        });
-      } else {
-        Object.assign(this.iframe.style, {
-          width: '380px',
-          height: '600px',
-          right: isLeft ? 'auto' : '24px',
-          left: isLeft ? '24px' : 'auto',
-          bottom: '100px',
-          borderRadius: '16px'
-        });
-      }
-    };
+    const isLeft = this.config.position === 'bottom-left';
 
-    window.addEventListener('resize', handleResize);
-    handleResize();
+    if (window.innerWidth <= 480) {
+      this.centered = false;
+      Object.assign(this.iframe.style, {
+        width: 'calc(100vw - 24px)',
+        height: 'calc(100vh - 120px)',
+        right: isLeft ? 'auto' : '12px',
+        left: isLeft ? '12px' : 'auto',
+        bottom: '80px',
+        top: 'auto',
+        borderRadius: '12px'
+      });
+      return;
+    }
+
+    if (this.customSize) {
+      const maxWidth = Math.max(320, window.innerWidth - 48);
+      const maxHeight = Math.max(420, window.innerHeight - 80);
+      const width = Math.min(this.customSize.width, maxWidth);
+      const height = Math.min(this.customSize.height, maxHeight);
+      const centeredLeft = `${Math.max(24, Math.round((window.innerWidth - width) / 2))}px`;
+      const centeredTop = `${Math.max(24, Math.round((window.innerHeight - height) / 2))}px`;
+
+      Object.assign(this.iframe.style, {
+        width: `${width}px`,
+        height: `${height}px`,
+        right: this.centered ? 'auto' : (isLeft ? 'auto' : '24px'),
+        left: this.centered ? centeredLeft : (isLeft ? '24px' : 'auto'),
+        top: this.centered ? centeredTop : 'auto',
+        bottom: this.centered ? 'auto' : '100px',
+        borderRadius: '16px'
+      });
+      this.iframe.style.transformOrigin = this.centered ? 'center center' : (isLeft ? 'bottom left' : 'bottom right');
+      return;
+    }
+
+    Object.assign(this.iframe.style, {
+      width: '380px',
+      height: '600px',
+      right: isLeft ? 'auto' : '24px',
+      left: isLeft ? '24px' : 'auto',
+      top: 'auto',
+      bottom: '100px',
+      borderRadius: '16px'
+    });
+    this.iframe.style.transformOrigin = isLeft ? 'bottom left' : 'bottom right';
   }
 
   /**

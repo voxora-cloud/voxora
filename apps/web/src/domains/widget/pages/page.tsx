@@ -298,7 +298,7 @@ export function WidgetPage() {
 
   const handleCopyInstallCode = () => {
     const publicKey = isExistingWidget ? formData._id : "your-widget-key";
-    const code = `<script src=\\"${CDN_URL}\\" data-voxora-public-key=\\"${publicKey}\\" data-voxora-api-url=\\"${API_ROOT}\\" async></script>`;
+    const code = `<script src="${CDN_URL}" data-voxora-public-key="${publicKey}" async></script>`;
     navigator.clipboard.writeText(code);
     setIsCopied(true);
     toast.success("Code copied to clipboard!");
@@ -321,39 +321,38 @@ export function WidgetPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
-            <WidgetAppearanceForm
-              formData={formData}
-              validationErrors={validationErrors}
-              onInputChange={handleInputChange}
-              onSubmit={handleSubmit}
-              onUploadSuccess={handleUploadSuccess}
-              onUploadError={handleUploadError}
-              onFileRemove={handleFileRemove}
-              existingWidget={existingWidget}
-              savedLogoUrl={savedLogoUrl}
-            />
+        <div className="lg:col-span-8 space-y-6">
+          <WidgetAppearanceForm
+            formData={formData}
+            validationErrors={validationErrors}
+            onInputChange={handleInputChange}
+            onSubmit={handleSubmit}
+            onUploadSuccess={handleUploadSuccess}
+            onUploadError={handleUploadError}
+            onFileRemove={handleFileRemove}
+            existingWidget={existingWidget}
+            savedLogoUrl={savedLogoUrl}
+          />
+        </div>
 
-            <WidgetInstallationCode
-              isExistingWidget={isExistingWidget}
-              widgetId={formData._id}
-              cdnUrl={CDN_URL}
-              apiRoot={API_ROOT}
-              isCopied={isCopied}
-              onCopy={handleCopyInstallCode}
-            />
-          </div>
-
-          <div className="lg:col-span-4 space-y-6">
-            <WidgetActionsPanel
-              isSaving={saveWidget.isPending}
-              isExistingWidget={isExistingWidget}
-              onSave={() => handleSubmit()}
-              onReset={handleResetDefaults}
-            />
-            <WidgetProTip />
-          </div>
+        <div className="lg:col-span-4 space-y-6">
+          <WidgetActionsPanel
+            isSaving={saveWidget.isPending}
+            isExistingWidget={isExistingWidget}
+            onSave={() => handleSubmit()}
+            onReset={handleResetDefaults}
+          />
+          <WidgetProTip />
+        </div>
       </div>
+
+      <WidgetInstallationCode
+        isExistingWidget={isExistingWidget}
+        widgetId={formData._id}
+        cdnUrl={CDN_URL}
+        isCopied={isCopied}
+        onCopy={handleCopyInstallCode}
+      />
 
       <WidgetAdvancedConfigForm
         formData={formData}
