@@ -79,18 +79,43 @@
         opacity: 0.9;
       }
 
-      .minimize-btn {
-        background: none;
-        border: none;
-        color: white;
-        cursor: pointer;
-        padding: 8px;
-        border-radius: 6px;
-        transition: background 0.2s;
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
       }
 
-      .minimize-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
+      .header-action-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.85);
+        cursor: pointer;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease;
+        flex-shrink: 0;
+      }
+
+      .header-action-btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        transform: scale(1.08);
+      }
+
+      .header-action-btn:active {
+        transform: scale(0.95);
+      }
+
+      .header-action-btn svg {
+        width: 14px;
+        height: 14px;
+        display: block;
+        pointer-events: none;
       }
 
       /* Chat Container */
@@ -152,6 +177,10 @@
         color: #6b7280;
         font-size: 14px;
         line-height: 1.4;
+      }
+
+      .welcome-copy {
+        color: var(--vx-text-color-soft, #6b7280);
       }
 
       .start-chat-form {
@@ -864,6 +893,7 @@
         flex: 1;
         display: -webkit-box;
         -webkit-line-clamp: 1;
+        line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
@@ -874,6 +904,7 @@
         margin-bottom: 4px;
         display: -webkit-box;
         -webkit-line-clamp: 2;
+        line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
         line-height: 1.3;
@@ -1006,21 +1037,27 @@
         <div class="avatar" id="vx-avatar">V</div>
         <div class="header-info">
           <h3 id="vx-title">Voxora Support</h3>
-          <p>We typically reply instantly</p>
+          <p id="vx-subtitle">We typically reply instantly</p>
         </div>
       </div>
-  <button class="minimize-btn" id="vx-minimize">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-      </button>
+      <div class="header-actions">
+        <!-- Maximize / Restore -->
+        <button class="header-action-btn" id="vx-maximize" title="Maximize">
+          <!-- expand icon (default) -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+        </button>
+        <!-- Minimize / Close -->
+        <button class="header-action-btn" id="vx-minimize" title="Minimize">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
     </div>
 
   <!-- Chat Container -->
@@ -1155,6 +1192,8 @@
 
       // Timer that re-enables the input if INIT_WIDGET never arrives.
       let _connectTimeout = null;
+      let _isMaximized = false;
+      let _uiConfig = { appearance: {} };
 
       // Protocol version — must match the loader's PROTOCOL_VERSION.
       const PROTO_VERSION = '1';
@@ -1165,6 +1204,7 @@
       const messageInput = document.getElementById("messageInput");
       const sendBtn = document.getElementById("sendBtn");
       const typingIndicator = document.getElementById("typingIndicator");
+      const maximizeBtn = document.getElementById("vx-maximize");
 
       // View elements
       const conversationsView = document.getElementById('conversationsView');
@@ -1552,7 +1592,7 @@
         messageInput.focus();
         // Welcome messages for fresh conversation
         setTimeout(function() { addMessage('Hi there! 👋', 'agent', 'Support Team'); }, 150);
-        setTimeout(function() { addMessage('How can we help you today?', 'agent', 'Support Team'); }, 500);
+        setTimeout(function() { addMessage(getConfiguredWelcomeMessage(), 'agent', 'Support Team'); }, 500);
       });
 
       // Initialize socket connection for widget users
@@ -1724,7 +1764,7 @@
                 messageInput.focus();
                 sendBtn.disabled = true;
                 setTimeout(function() { addMessage('Hi there! 👋', 'agent', 'Support Team'); }, 150);
-                setTimeout(function() { addMessage('How can we help you today?', 'agent', 'Support Team'); }, 500);
+                setTimeout(function() { addMessage(getConfiguredWelcomeMessage(), 'agent', 'Support Team'); }, 500);
               });
             }
           } else if (status === 'pending') {
@@ -1971,6 +2011,7 @@
           case 'PAGE_CHANGE':
             // SPA navigation on the host page
             window.__voxoraPageUrl = msg.payload.pageUrl;
+            window.__voxoraPageTitle = msg.payload.pageTitle || '';
             break;
 
           default:
@@ -1990,7 +2031,8 @@
         // API_BASE_URL is already set from the URL param `apiUrl` at page load
         // (see const API_BASE_URL below). We just keep publicKey in sync.
         voxoraPublicKey  = payload.publicKey;
-        window.__voxoraPageUrl = payload.pageUrl;
+        window.__voxoraPageUrl   = payload.pageUrl;
+        window.__voxoraPageTitle = payload.pageTitle || '';
 
         // Apply branding forwarded by the loader (avoids a duplicate API call)
         if (payload.appearance) {
@@ -2021,44 +2063,74 @@
 
       function applyWidgetAppearance(cfg) {
         if (!cfg) return;
+        _uiConfig = cfg || { appearance: {} };
+
         var header       = document.getElementById('vx-header');
         var title        = document.getElementById('vx-title');
+        var subtitle     = document.getElementById('vx-subtitle');
         var avatar       = document.getElementById('vx-avatar');
-        var welcomeIcon  = document.getElementById('vx-welcome-icon');
+        var appearance   = cfg.appearance || {};
 
-        if (cfg.backgroundColor && header) {
-          header.style.setProperty('--vx-bg', cfg.backgroundColor);
-          document.documentElement.style.setProperty('--vx-accent', cfg.backgroundColor);
-          document.documentElement.style.setProperty('--vx-accent-color', cfg.backgroundColor);
+        const primaryColor = appearance.primaryColor || cfg.backgroundColor || cfg.primaryColor;
+        if (primaryColor && header) {
+          header.style.setProperty('--vx-bg', primaryColor);
+          document.documentElement.style.setProperty('--vx-accent', primaryColor);
+          document.documentElement.style.setProperty('--vx-accent-color', primaryColor);
         }
+
+        if (appearance.textColor) {
+          document.documentElement.style.setProperty('--vx-text-color-soft', appearance.textColor);
+          if (title) title.style.color = appearance.textColor;
+          if (subtitle) subtitle.style.color = appearance.textColor;
+        }
+
         if (cfg.displayName && title) {
           title.textContent = cfg.displayName;
         }
-        if (cfg.logoUrl) {
+
+        if (appearance.launcherText && subtitle) {
+          subtitle.textContent = appearance.launcherText;
+        }
+
+        const finalLogoUrl = appearance.logoUrl || cfg.logoUrl;
+        if (finalLogoUrl) {
           if (avatar) {
             avatar.innerHTML = '';
             var img = document.createElement('img');
-            img.src = cfg.logoUrl;
+            img.src = finalLogoUrl;
             img.alt = (cfg.displayName || 'Logo') + ' logo';
             img.onerror = function() {
               avatar.textContent = cfg.displayName ? cfg.displayName[0].toUpperCase() : 'V';
             };
             avatar.appendChild(img);
           }
-          if (welcomeIcon) {
-            welcomeIcon.innerHTML = '';
-            var wimg = document.createElement('img');
-            wimg.src = cfg.logoUrl;
-            wimg.alt = (cfg.displayName || 'Logo') + ' logo';
-            wimg.onerror = function() {
-              welcomeIcon.textContent = cfg.displayName ? cfg.displayName[0].toUpperCase() : 'V';
-            };
-            welcomeIcon.appendChild(wimg);
-          }
         } else if (cfg.displayName) {
           var initials = cfg.displayName.split(' ').map(function(s){return s[0];}).join('').slice(0,2).toUpperCase();
           if (avatar) avatar.textContent = initials;
-          if (welcomeIcon) welcomeIcon.textContent = (cfg.displayName[0] || 'V').toUpperCase();
+        }
+
+        applyFeatureConfig(cfg);
+      }
+
+      function getConfiguredWelcomeMessage() {
+        return (
+          _uiConfig?.appearance?.welcomeMessage ||
+          "How can we help you today?"
+        );
+      }
+
+      function applyFeatureConfig(cfg) {
+        const acceptMediaFiles =
+          cfg?.features?.acceptMediaFiles ?? cfg?.acceptMediaFiles ?? true;
+        const attachBtn = document.getElementById('attachBtn');
+        const fileInput = document.getElementById('fileInput');
+
+        if (attachBtn) {
+          attachBtn.style.display = acceptMediaFiles ? 'flex' : 'none';
+          attachBtn.disabled = !acceptMediaFiles;
+        }
+        if (fileInput) {
+          fileInput.disabled = !acceptMediaFiles;
         }
       }
 
@@ -2077,6 +2149,10 @@
         // Bind minimize button
         var minBtn = document.getElementById('vx-minimize');
         if (minBtn) minBtn.addEventListener('click', minimizeWidget);
+        if (maximizeBtn) {
+          maximizeBtn.addEventListener('click', toggleMaximizeWidget);
+          renderMaximizeIcon();
+        }
 
         adjustTextareaHeight();
         chatInterface.style.display = 'flex';
@@ -2588,6 +2664,52 @@
         });
       }
 
+      /**
+       * Async function that builds the page context suffix to append to outgoing
+       * messages when "Host-page DOM access" is enabled in the widget config.
+       *
+       * Flow:
+       *  1. Send REQUEST_PAGE_HTML postMessage to the loader (parent)
+       *  2. Loader captures document.body.outerHTML (stripped, capped at 16 KB)
+       *     and responds with PAGE_HTML_RESPONSE
+       *  3. We wait up to 600 ms; fall back to URL+Title-only on timeout
+       */
+      function getPageContext() {
+        var domAccessEnabled = _uiConfig && _uiConfig.features && _uiConfig.features.endUserDomAccess;
+        if (!domAccessEnabled) return Promise.resolve('');
+
+        return new Promise(function(resolve) {
+          var timeout = setTimeout(function() {
+            window.removeEventListener('message', handler);
+            // Fallback: URL + title only
+            var parts = [];
+            if (window.__voxoraPageUrl)   parts.push('Page URL: '   + window.__voxoraPageUrl);
+            if (window.__voxoraPageTitle) parts.push('Page Title: ' + window.__voxoraPageTitle);
+            resolve(parts.length ? '\n\n[PAGE_CONTEXT]\n' + parts.join('\n') : '');
+          }, 600);
+
+          function handler(event) {
+            if (!event.data || event.data.type !== 'PAGE_HTML_RESPONSE') return;
+            clearTimeout(timeout);
+            window.removeEventListener('message', handler);
+            var html = (event.data.payload && event.data.payload.html) || '';
+            var parts = [];
+            if (window.__voxoraPageUrl)   parts.push('Page URL: '   + window.__voxoraPageUrl);
+            if (window.__voxoraPageTitle) parts.push('Page Title: ' + window.__voxoraPageTitle);
+            if (html)                     parts.push('Page HTML:\n' + html);
+            resolve(parts.length ? '\n\n[PAGE_CONTEXT]\n' + parts.join('\n') : '');
+          }
+
+          window.addEventListener('message', handler);
+
+          // Ask the loader for the HTML
+          window.parent.postMessage({
+            type: 'REQUEST_PAGE_HTML',
+            version: '1'
+          }, '*');
+        });
+      }
+
       async function sendMessage() {
         const text = messageInput.value.trim();
         if (!text) return;
@@ -2615,7 +2737,7 @@
               // Field names must match widget schema: visitorName / visitorEmail
               visitorName: userName || undefined,
               visitorEmail: userEmail || undefined,
-              message: text,
+              message: text + (await getPageContext()),
               voxoraPublicKey: voxoraPublicKey,
               sessionId: currentSessionId,
             };
@@ -2646,7 +2768,7 @@
               if (socket && chatId) {
                 socket.emit('send_message', {
                   conversationId: chatId,
-                  content: text,
+                  content: text + (await getPageContext()),
                   type: 'text',
                   metadata: {
                     senderName: userName,
@@ -2677,7 +2799,7 @@
         if (socket && chatId) {
           socket.emit('send_message', {
             conversationId: chatId,
-            content: text,
+            content: text + (await getPageContext()),
             type: 'text',
             metadata: {
               senderName: userName,
@@ -2744,6 +2866,57 @@
         messageInput.style.height = "auto";
         messageInput.style.height =
           Math.min(messageInput.scrollHeight, 100) + "px";
+      }
+
+      function renderMaximizeIcon() {
+        if (!maximizeBtn) return;
+        if (_isMaximized) {
+          maximizeBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="4 14 10 14 10 20"></polyline>
+              <polyline points="20 10 14 10 14 4"></polyline>
+              <line x1="10" y1="14" x2="3" y2="21"></line>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+            </svg>
+          `;
+          maximizeBtn.title = "Restore";
+        } else {
+          maximizeBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <polyline points="9 21 3 21 3 15"></polyline>
+              <line x1="21" y1="3" x2="14" y2="10"></line>
+              <line x1="3" y1="21" x2="10" y2="14"></line>
+            </svg>
+          `;
+          maximizeBtn.title = "Maximize";
+        }
+      }
+
+      function requestResize(width, height, centered) {
+        const target = parentOrigin || '*';
+        if (!window.parent) return;
+        window.parent.postMessage(
+          {
+            type: 'RESIZE_WIDGET',
+            version: PROTO_VERSION,
+            payload: { width, height, centered: !!centered }
+          },
+          target
+        );
+      }
+
+      function toggleMaximizeWidget() {
+        _isMaximized = !_isMaximized;
+        if (_isMaximized) {
+          // Landscape: wider than tall, centered floating panel
+          const width = Math.min(1100, Math.max(760, window.innerWidth - 80));
+          const height = Math.min(680, Math.max(520, window.innerHeight - 100));
+          requestResize(width, height, true);
+        } else {
+          requestResize(380, 600, false);
+        }
+        renderMaximizeIcon();
       }
 
       function minimizeWidget() {

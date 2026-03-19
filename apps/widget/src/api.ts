@@ -10,7 +10,7 @@
  * The loader is intentionally kept thin.
  */
 
-import { WidgetConfig } from './types';
+import { WidgetConfig, WidgetConfigApiResponse, WidgetServerConfig } from './types';
 import { getWidgetBaseUrl } from './config';
 
 export class WidgetAPI {
@@ -34,7 +34,7 @@ export class WidgetAPI {
    *   a) Apply branding to the floating button before the iframe loads.
    *   b) Forward the appearance via INIT_WIDGET to the iframe.
    */
-  async fetchConfig(): Promise<Record<string, string> | null> {
+  async fetchConfig(): Promise<WidgetServerConfig | null> {
     try {
       const url = `${this.config.apiUrl}/api/v1/widget/config?voxoraPublicKey=${encodeURIComponent(this.config.publicKey)}`;
       const response = await fetch(url, { credentials: 'omit' });
@@ -44,8 +44,8 @@ export class WidgetAPI {
         return null;
       }
 
-      const data = await response.json();
-      return (data?.data?.config as Record<string, string>) ?? null;
+      const data = (await response.json()) as WidgetConfigApiResponse;
+      return data?.data?.config ?? null;
     } catch (err) {
       console.warn('[VoxoraWidget] Config fetch error:', err);
       return null;
@@ -66,7 +66,7 @@ export class WidgetAPI {
    * @param parentOrigin  window.location.origin of the customer page
    */
   getWidgetUrl(parentOrigin: string): string {
-    const base = getWidgetBaseUrl(this.config.apiUrl!);
+    const base = getWidgetBaseUrl(this.config.apiUrl!, this.config.cdnUrl);
 
     const params = new URLSearchParams({
       origin: parentOrigin,

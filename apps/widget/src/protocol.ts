@@ -43,6 +43,37 @@ export interface WidgetAppearance {
   logoUrl?: string;
   primaryColor?: string;
   backgroundColor?: string;
+  appearance?: {
+    primaryColor?: string;
+    textColor?: string;
+    position?: 'bottom-right' | 'bottom-left';
+    launcherText?: string;
+    welcomeMessage?: string;
+    logoUrl?: string;
+  };
+  behavior?: {
+    autoOpen?: boolean;
+    showOnMobile?: boolean;
+    showOnDesktop?: boolean;
+  };
+  ai?: {
+    enabled?: boolean;
+    model?: string;
+    fallbackToAgent?: boolean;
+    autoAssign?: boolean;
+    assignmentStrategy?: 'round-robin' | 'least-loaded';
+  };
+  conversation?: {
+    collectUserInfo?: {
+      name?: boolean;
+      email?: boolean;
+      phone?: boolean;
+    };
+  };
+  features?: {
+    acceptMediaFiles?: boolean;
+    endUserDomAccess?: boolean;
+  };
 }
 
 // ─── Parent → Iframe messages ─────────────────────────────────────────────────
@@ -108,11 +139,24 @@ export interface CustomEventMessage {
   };
 }
 
+/**
+ * PAGE_HTML_RESPONSE — loader responds to REQUEST_PAGE_HTML with a
+ * trimmed snapshot of the host page's body HTML (capped at 16 KB).
+ */
+export interface PageHtmlResponseMessage {
+  type: 'PAGE_HTML_RESPONSE';
+  version: typeof PROTOCOL_VERSION;
+  payload: {
+    html: string;
+  };
+}
+
 export type ParentToIframeMessage =
   | InitWidgetMessage
   | UserIdentityMessage
   | PageChangeMessage
-  | CustomEventMessage;
+  | CustomEventMessage
+  | PageHtmlResponseMessage;
 
 // ─── Iframe → Parent messages ─────────────────────────────────────────────────
 
@@ -165,7 +209,18 @@ export interface ResizeWidgetMessage {
   payload: {
     width: number;
     height: number;
+    centered?: boolean;
   };
+}
+
+/**
+ * REQUEST_PAGE_HTML — iframe asks the loader script to capture
+ * the host page's document.body.outerHTML and return it.
+ * Only honoured when endUserDomAccess is enabled in the widget config.
+ */
+export interface RequestPageHtmlMessage {
+  type: 'REQUEST_PAGE_HTML';
+  version: typeof PROTOCOL_VERSION;
 }
 
 export type IframeToParentMessage =
@@ -173,7 +228,8 @@ export type IframeToParentMessage =
   | CloseWidgetMessage
   | OpenWidgetMessage
   | UnreadCountMessage
-  | ResizeWidgetMessage;
+  | ResizeWidgetMessage
+  | RequestPageHtmlMessage;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

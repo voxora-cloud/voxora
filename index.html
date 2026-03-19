@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Product Page</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 40px auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .product-image img {
+      width: 100%;
+      border-radius: 12px;
+    }
+
+    .product-details {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    .price {
+      font-size: 24px;
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    .description {
+      color: #4b5563;
+      line-height: 1.6;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      padding: 12px 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .add-cart {
+      background: #111827;
+      color: white;
+    }
+
+    .buy-now {
+      background: #10b981;
+      color: white;
+    }
+
+    .reviews {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 20px;
+    }
+
+    .review {
+      background: white;
+      padding: 16px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <!-- Product Image -->
+    <div class="product-image">
+      <img src="https://m.media-amazon.com/images/I/61RahTQtAqL._AC_UF1000,1000_QL80_.jpg" alt="Product"/>
+    </div>
+
+    <!-- Product Details -->
+    <div class="product-details">
+      <div class="title">Wireless Headphones</div>
+      <div class="price">₹2,999</div>
+
+      <div class="description">
+        Experience premium sound quality with these wireless headphones.
+        Featuring noise cancellation, long battery life, and a sleek design.
+      </div>
+
+      <div class="btn-group">
+        <button class="add-cart">Add to Cart</button>
+        <button class="buy-now">Buy Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reviews -->
+  <div class="reviews">
+    <h2>Customer Reviews</h2>
+
+    <div class="review">
+      ⭐⭐⭐⭐⭐ - Amazing sound quality!
+    </div>
+
+    <div class="review">
+      ⭐⭐⭐⭐ - Comfortable and good battery life.
+    </div>
+
+    <div class="review">
+      ⭐⭐⭐⭐⭐ - Totally worth the price.
+    </div>
+  </div>
+
+  <!-- Voxora Widget -->
+  <script 
+    src="http://localhost:9001/voxora-widget/v1/voxora.js"
+    data-voxora-public-key="69bbed69e2c2293341fd7542"
+    async>
+  </script>
+
+</body>
+</html>

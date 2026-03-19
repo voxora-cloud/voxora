@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "deploy": "npm run build && node deploy-to-minio.js",
@@ -17,8 +19,12 @@
     "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "@types/node": "^20.11.0",
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.48.0",
     "vite": "^5.0.12"
   }
 }

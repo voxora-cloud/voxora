@@ -6,7 +6,6 @@
  * ```html
  * <script src="https://widget.voxora.ai/v1/voxora.js" 
  *         data-voxora-public-key="your-key"
- *         data-voxora-api-url="https://api.voxora.ai"
  *         async>
  * </script>
  * ```
@@ -32,6 +31,7 @@ import {
   IframeToParentMessage,
   isIframeMessage,
   WidgetAppearance,
+  PageHtmlResponseMessage,
 } from './protocol';
 
 type QueuedMessage = InitWidgetMessage | UserIdentityMessage | PageChangeMessage | CustomEventMessage;
@@ -44,10 +44,11 @@ class VoxoraLoader {
   private iframe: HTMLIFrameElement | null = null;
   private iframeReady = false;
   private pendingMessages: QueuedMessage[] = [];
-  private readonly visitorId: string;
+  private visitorId: string;
   private identity: StoredIdentity | null;
   private lastPageUrl: string;
   private appearance: WidgetAppearance | null = null;
+  private allowHostDomAccess = true;
 
   constructor() {
     const config = parseWidgetConfig();
@@ -66,12 +67,10 @@ class VoxoraLoader {
     this.state = { isOpen: false, unreadCount: 0 };
     this.api = new WidgetAPI(config);
     this.ui = new WidgetUI(config, this.state);
-    this.iframeOrigin = getWidgetOrigin(config.apiUrl!);
-    this.lastPageUrl = window.location.href;
-
-    // ONLY place customer localStorage is read. Values forwarded to iframe via INIT_WIDGET.
-    this.visitorId = getOrCreateVisitorId();
-    this.identity = getIdentity();
+    this.iframeOrigin = getWidgetOrigin(config.apiUrl!, config.cdnUrl);
+    this.lastPageUrl = "";
+    this.visitorId = "";
+    this.identity = null;
 
     this.init().catch(err => console.error('[VoxoraWidget] Init error:', err));
   }
@@ -79,8 +78,25 @@ class VoxoraLoader {
   private async init(): Promise<void> {
     const cfg = await this.api.fetchConfig().catch(() => null);
     if (cfg) {
-      this.appearance = cfg as WidgetAppearance;
+      this.appearance = cfg;
       this.ui.applyServerConfig(this.appearance);
+    }
+
+    const behavior = this.appearance?.behavior;
+    if (!this.shouldRenderForCurrentDevice(behavior)) {
+      return;
+    }
+
+    // DOM access (localStorage/history/title/page URL tracking) is gated by config.
+    this.allowHostDomAccess = this.appearance?.features?.endUserDomAccess !== false;
+    if (this.allowHostDomAccess) {
+      this.visitorId = getOrCreateVisitorId();
+      this.identity = getIdentity();
+      this.lastPageUrl = window.location.href;
+    } else {
+      this.visitorId = this.generateEphemeralVisitorId();
+      this.identity = null;
+      this.lastPageUrl = "";
     }
 
     // Register message handler BEFORE creating the iframe.
@@ -93,6 +109,10 @@ class VoxoraLoader {
 
     this.ui.createButton();
     this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
+
+    if (behavior?.autoOpen) {
+      this.open();
+    }
   }
 
   private setupMessageHandlers(): void {
@@ -119,7 +139,34 @@ class VoxoraLoader {
           this.ui.setUnreadCount(msg.payload.count);
           break;
         case 'RESIZE_WIDGET':
+          this.ui.resizeFromIframe(
+            msg.payload.width,
+            msg.payload.height,
+            msg.payload.centered === true,
+          );
           break;
+        case 'REQUEST_PAGE_HTML': {
+          // Only service the request when DOM access is permitted by config
+          if (this.appearance?.features?.endUserDomAccess) {
+            const MAX_HTML_BYTES = 16_384; // 16 KB cap
+            let html = document.body?.outerHTML ?? '';
+            // Strip script and style content to keep payload lean and safe
+            html = html
+              .replace(/<script[\s\S]*?<\/script>/gi, '')
+              .replace(/<style[\s\S]*?<\/style>/gi, '')
+              .trim();
+            if (html.length > MAX_HTML_BYTES) {
+              html = html.slice(0, MAX_HTML_BYTES) + '<!-- [TRUNCATED] -->';
+            }
+            const reply: PageHtmlResponseMessage = {
+              type: 'PAGE_HTML_RESPONSE',
+              version: PROTOCOL_VERSION,
+              payload: { html },
+            };
+            this.iframe?.contentWindow?.postMessage(reply, this.iframeOrigin);
+          }
+          break;
+        }
         default:
           break;
       }
@@ -138,14 +185,16 @@ class VoxoraLoader {
         apiUrl: this.api.getConfig().apiUrl!,
         visitorId: this.visitorId,
         identity: this.identity ?? undefined,
-        pageUrl: window.location.href,
-        pageTitle: document.title,
+        pageUrl: this.getCurrentPageUrl(),
+        pageTitle: this.getCurrentPageTitle(),
         appearance: this.appearance ?? undefined,
       },
     } as InitWidgetMessage);
   }
 
   private setupPageChangeDetection(): void {
+    if (!this.allowHostDomAccess) return;
+
     const report = () => {
       const url = window.location.href;
       if (url === this.lastPageUrl) return;
@@ -175,18 +224,53 @@ class VoxoraLoader {
   identify(userId: string, traits: Omit<StoredIdentity, 'userId'> = {}): void {
     const identity: StoredIdentity = { userId, ...traits };
     this.identity = identity;
-    setIdentity(identity);
+    if (this.allowHostDomAccess) setIdentity(identity);
     this.queueOrSend({ type: 'USER_IDENTITY', version: PROTOCOL_VERSION, payload: identity } as UserIdentityMessage);
   }
 
   reset(): void {
     this.identity = null;
-    clearIdentity();
+    if (this.allowHostDomAccess) clearIdentity();
     this.queueOrSend({ type: 'USER_IDENTITY', version: PROTOCOL_VERSION, payload: {} } as UserIdentityMessage);
   }
 
   track(name: string, properties: Record<string, string | number | boolean> = {}): void {
     this.queueOrSend({ type: 'CUSTOM_EVENT', version: PROTOCOL_VERSION, payload: { name, properties } } as CustomEventMessage);
+  }
+
+  private getCurrentPageUrl(): string {
+    try {
+      return window.location.href || "";
+    } catch {
+      return "";
+    }
+  }
+
+  private getCurrentPageTitle(): string {
+    try {
+      return document.title || "";
+    } catch {
+      return "";
+    }
+  }
+
+  private isMobileView(): boolean {
+    return window.matchMedia("(max-width: 768px)").matches;
+  }
+
+  private shouldRenderForCurrentDevice(
+    behavior: WidgetAppearance["behavior"] | undefined,
+  ): boolean {
+    if (!behavior) return true;
+    if (this.isMobileView()) return behavior.showOnMobile !== false;
+    return behavior.showOnDesktop !== false;
+  }
+
+  private generateEphemeralVisitorId(): string {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return `v_${crypto.randomUUID().replace(/-/g, "")}`;
+    }
+    return `v_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
   }
 
   getState(): Readonly<WidgetState> { return { ...this.state }; }
