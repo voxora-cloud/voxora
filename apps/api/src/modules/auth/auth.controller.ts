@@ -13,9 +13,15 @@ export const bootstrapCheck = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const adminSignup = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, password, organizationName } = req.body;
+  const { name, email, password, organizationName, companyName } = req.body;
+  const normalizedOrganizationName = organizationName || companyName;
 
-  const result = await authService.adminSignup({ name, email, password, organizationName });
+  const result = await authService.adminSignup({
+    name,
+    email,
+    password,
+    organizationName: normalizedOrganizationName,
+  });
 
   if (!result.success) {
     return sendError(res, result.statusCode || 400, result.message || "Signup failed");

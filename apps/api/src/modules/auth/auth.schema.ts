@@ -10,8 +10,9 @@ export const authSchema = {
     name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
-    companyName: Joi.string().min(2).max(100).required(),
-  }),
+    companyName: Joi.string().min(2).max(100),
+    organizationName: Joi.string().min(2).max(100),
+  }).or("companyName", "organizationName"),
 
   acceptInvite: Joi.object({
     token: Joi.string().required(),

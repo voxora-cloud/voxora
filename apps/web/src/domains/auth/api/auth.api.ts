@@ -21,12 +21,34 @@ class AuthApi {
   }
 
   async signup(data: SignupPayload): Promise<SignupResponse> {
-    return apiClient.post<SignupResponse>("/auth/admin/signup", {
+    const response = await apiClient.post<SignupResponse>("/auth/setup", {
       name: data.name,
       email: data.email,
       password: data.password,
-      organizationName: data.companyName,
+      companyName: data.companyName,
     });
+
+    // Normalize bootstrap response shape from API (`organization.id`) to app shape (`organization._id`).
+    if (response?.success && response.data?.organization) {
+      const org = response.data.organization as unknown as {
+        _id?: string;
+        id?: string;
+        name: string;
+        slug: string;
+        isActive?: boolean;
+        logoUrl?: string;
+      };
+
+      if (!org._id && org.id) {
+        response.data.organization = {
+          ...org,
+          _id: org.id,
+          isActive: org.isActive ?? true,
+        } as typeof response.data.organization;
+      }
+    }
+
+    return response;
   }
 
   async acceptInvite(token: string, password?: string): Promise<AcceptInviteResponse> {
