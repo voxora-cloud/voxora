@@ -28,8 +28,9 @@ export function GeneralSettingsPage() {
           setOrg(response.data.organization);
           setName(response.data.organization.name);
         }
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to load organization");
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Failed to load organization";
+        toast.error(message);
       } finally {
         setIsLoading(false);
       }
@@ -52,8 +53,9 @@ export function GeneralSettingsPage() {
           setOrganization(response.data.organization);
         }
       }
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to update organization");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update organization";
+      toast.error(message);
     } finally {
       setIsSaving(false);
     }
@@ -68,10 +70,10 @@ export function GeneralSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">General Settings</h1>
-        <p className="text-muted-foreground mt-2">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">General Settings</h1>
+        <p className="text-muted-foreground mt-1">
           Manage your organization&apos;s basic information and identifier.
         </p>
       </div>

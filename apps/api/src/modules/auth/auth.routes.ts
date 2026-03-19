@@ -11,6 +11,7 @@ router.get("/bootstrap-status", AuthController.bootstrapCheck);
 router.post(
   "/setup",
   authRateLimit,
+  validateRequest(authSchema.adminSignup),
   AuthController.adminSignup,
 );
 
@@ -22,17 +23,11 @@ router.post(
   AuthController.login,
 );
 
-// Legacy aliases (kept for backward compat)
-router.post("/admin/signup", authRateLimit, AuthController.adminSignup);
-router.post("/admin/login", authRateLimit, validateRequest(authSchema.login), AuthController.adminLogin);
-router.post("/agent/login", authRateLimit, validateRequest(authSchema.login), AuthController.agentLogin);
 
 // ─── Password Reset ───────────────────────────────────────────────────────────
 router.post("/forgot-password", AuthController.forgotPassword);
 router.post("/reset-password", AuthController.resetPassword);
 
-// ─── Deprecated / Redirected ──────────────────────────────────────────────────
-router.post("/accept-invite", AuthController.acceptInvite);
 router.post("/refresh-token", AuthController.refreshToken);
 
 // ─── Protected ────────────────────────────────────────────────────────────────

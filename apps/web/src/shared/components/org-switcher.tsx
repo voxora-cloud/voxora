@@ -17,9 +17,10 @@ interface OrgMembership {
 
 interface OrgSwitcherProps {
   isMinimized?: boolean;
+  onExpandSidebar?: () => void;
 }
 
-export function OrgSwitcher({ isMinimized = false }: OrgSwitcherProps) {
+export function OrgSwitcher({ isMinimized = false, onExpandSidebar }: OrgSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<OrgMembership[]>([]);
@@ -107,13 +108,13 @@ export function OrgSwitcher({ isMinimized = false }: OrgSwitcherProps) {
   };
 
   const badgeColor: Record<string, string> = {
-    owner: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    admin: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    agent: "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+    owner: "bg-primary/15 text-primary border-primary/30",
+    admin: "bg-secondary text-secondary-foreground border-border",
+    agent: "bg-muted text-muted-foreground border-border",
   };
 
   if (loading) {
-    return <div className="animate-pulse h-10 bg-zinc-800 rounded-lg w-full"></div>;
+    return <div className="animate-pulse h-10 bg-muted rounded-lg w-full"></div>;
   }
 
   // Show component even if we don't have org data - prevents blank UI
@@ -136,12 +137,19 @@ export function OrgSwitcher({ isMinimized = false }: OrgSwitcherProps) {
   return (
     <div className="relative w-full" ref={ref}>
       <button
-        onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 transition-all duration-150 cursor-pointer ${isMinimized ? "justify-center" : "justify-between"}`}
+        onClick={() => {
+          if (isMinimized && onExpandSidebar) {
+            setOpen(false);
+            onExpandSidebar();
+            return;
+          }
+          setOpen((v) => !v);
+        }}
+        className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-foreground bg-card hover:bg-accent border border-border transition-all duration-150 cursor-pointer ${isMinimized ? "justify-center" : "justify-between"}`}
         title={isMinimized ? displayOrg.name : undefined}
       >
         <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
-          <Building2 size={14} className="text-emerald-400 shrink-0" />
+          <Building2 size={14} className="text-primary shrink-0" />
           {!isMinimized && (
             <>
               <span className="truncate">{displayOrg.name}</span>
@@ -154,28 +162,28 @@ export function OrgSwitcher({ isMinimized = false }: OrgSwitcherProps) {
         {!isMinimized && (
           <ChevronDown
             size={14}
-            className={`text-zinc-400 transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
+            className={`text-muted-foreground transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
           />
         )}
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-2 w-full rounded-xl bg-zinc-900 border border-zinc-700 shadow-2xl shadow-black/40 z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-2 w-full rounded-xl bg-popover border border-border shadow-xl z-50 overflow-hidden">
           <div className="p-1 max-h-75 overflow-y-auto">
-            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            <div className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
               Your Organizations
             </div>
 
             {/* Current org */}
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-zinc-800 mb-1">
-              <div className="size-7 rounded-md bg-emerald-600 flex items-center justify-center text-xs font-bold text-white shrink-0">
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-accent mb-1">
+              <div className="size-7 rounded-md bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground shrink-0">
                 {displayOrg.name?.[0]?.toUpperCase() ?? "?"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-100 truncate">{displayOrg.name}</p>
-                <p className="text-[11px] text-zinc-400 capitalize">{displayRole}</p>
+                <p className="text-sm font-medium text-foreground truncate">{displayOrg.name}</p>
+                <p className="text-[11px] text-muted-foreground capitalize">{displayRole}</p>
               </div>
-              <Check size={14} className="text-emerald-400 shrink-0" />
+              <Check size={14} className="text-primary shrink-0" />
             </div>
 
             {/* Other orgs */}
@@ -186,27 +194,27 @@ export function OrgSwitcher({ isMinimized = false }: OrgSwitcherProps) {
                   key={m.organization._id}
                   onClick={() => handleSwitch(m.organization._id)}
                   disabled={!!switching}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  <div className="size-7 rounded-md bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-300 shrink-0">
+                  <div className="size-7 rounded-md bg-muted flex items-center justify-center text-xs font-bold text-foreground shrink-0">
                     {m.organization.name?.[0]?.toUpperCase() ?? "?"}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="text-sm font-medium text-zinc-200 truncate">{m.organization.name}</p>
-                    <p className="text-[11px] text-zinc-500 capitalize">{m.role}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{m.organization.name}</p>
+                    <p className="text-[11px] text-muted-foreground capitalize">{m.role}</p>
                   </div>
                   {switching === m.organization._id && (
-                    <div className="size-3 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                    <div className="size-3 border-2 border-primary border-t-transparent rounded-full animate-spin shrink-0" />
                   )}
                 </button>
               ))}
 
-            <div className="h-px bg-zinc-800 my-1" />
+            <div className="h-px bg-border my-1" />
             <button
-              onClick={() => { setOpen(false); navigate("/auth/setup"); }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-200 cursor-pointer"
+              onClick={() => { setOpen(false); navigate("/organizations/create"); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
             >
-              <div className="size-7 rounded-md border-2 border-dashed border-zinc-600 flex items-center justify-center shrink-0">
+              <div className="size-7 rounded-md border-2 border-dashed border-border flex items-center justify-center shrink-0">
                 <Plus size={12} />
               </div>
               <span className="text-sm">Create organization</span>

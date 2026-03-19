@@ -4,7 +4,6 @@ import LoginPage from "../domains/auth/pages/login/page";
 import SetupPage from "../domains/auth/pages/setup/page";
 import PasswordRecoveryPage from "../domains/auth/pages/password-recovery/page";
 import AcceptInvitePage from "../domains/auth/pages/accept-invite/page";
-import { DashboardLayout } from "../shared/layouts/dashboard-layout";
 import { SelectOrgPage } from "@/domains/auth/pages/select-org/page";
 import { DashboardHomePage } from "@/domains/dashboard/pages/page";
 import { TeamsPage } from "@/domains/teams/pages/page";
@@ -16,14 +15,13 @@ import { ContactSegmentsPage } from "@/domains/contacts/pages/segments-page";
 import { WidgetPage } from "@/domains/widget/pages/page";
 import { ConversationLayout } from "@/domains/conversation/components/conversation-layout";
 import { ConversationsInboxPage } from "@/domains/conversation/pages/inbox-page";
-import { ConversationsUnassignedPage } from "@/domains/conversation/pages/unassigned-page";
-import { ConversationsArchivedPage } from "@/domains/conversation/pages/archived-page";
 import { ConversationChatPage } from "@/domains/conversation/pages/chat-page";
 import { KnowledgeStaticPage } from "@/domains/knowledge/pages/static-page";
 import { KnowledgeRealtimePage } from "@/domains/knowledge/pages/realtime-page";
 import { GeneralSettingsPage } from "@/domains/settings/pages/general-page";
-import { SecuritySettingsPage } from "@/domains/settings/pages/security-page";
 import { DangerZonePage } from "@/domains/settings/pages/danger-zone-page";
+import { CreateOrganizationPage } from "@/domains/organization/pages/create-organization-page";
+import { DashboardLayout } from "@/shared/layouts/dashboard-layout";
 
 const router = createBrowserRouter([
     {
@@ -49,6 +47,10 @@ const router = createBrowserRouter([
     {
         path: "/select-org",
         element: <SelectOrgPage />,
+    },
+    {
+        path: "/organizations/create",
+        element: <CreateOrganizationPage />,
     },
     {
         path: "/dashboard",
@@ -82,26 +84,6 @@ const router = createBrowserRouter([
             <DashboardLayout>
                 <ConversationLayout>
                     <ConversationChatPage />
-                </ConversationLayout>
-            </DashboardLayout>
-        ),
-    },
-    {
-        path: "/dashboard/conversations/unassigned",
-        element: (
-            <DashboardLayout>
-                <ConversationLayout>
-                    <ConversationsUnassignedPage />
-                </ConversationLayout>
-            </DashboardLayout>
-        ),
-    },
-    {
-        path: "/dashboard/conversations/archived",
-        element: (
-            <DashboardLayout>
-                <ConversationLayout>
-                    <ConversationsArchivedPage />
                 </ConversationLayout>
             </DashboardLayout>
         ),
@@ -195,20 +177,16 @@ const router = createBrowserRouter([
         ),
     },
     {
-        path: "/dashboard/settings/security",
-        element: (
-            <DashboardLayout>
-                <SecuritySettingsPage />
-            </DashboardLayout>
-        ),
-    },
-    {
         path: "/dashboard/settings/danger-zone",
         element: (
             <DashboardLayout>
                 <DangerZonePage />
             </DashboardLayout>
         ),
+    },
+    {
+        path: "/dashboard/organizations/create",
+        element: <Navigate to="/organizations/create" replace />,
     },
     {
         path: "/dashboard/*",

@@ -38,9 +38,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   sendResponse(res, 200, true, "Login successful", result.data);
 });
 
-// Keep these aliases for backward compat with existing routes
-export const adminLogin = login;
-export const agentLogin = login;
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
@@ -77,15 +74,6 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   sendResponse(res, 200, true, "Password reset successful");
 });
 
-// ─── Legacy stubs (removed — use membership module instead) ───────────────────
-
-export const acceptInvite = asyncHandler(async (req: Request, res: Response) => {
-  sendError(res, 410, "Use POST /memberships/accept-invite instead");
-});
-
-export const register = asyncHandler(async (req: Request, res: Response) => {
-  sendError(res, 410, "Open registration is disabled. Use the invite flow.");
-});
 
 export const refreshToken = asyncHandler(async (req: Request, res: Response) => {
   sendError(res, 501, "Refresh token endpoint not yet implemented");

@@ -20,90 +20,92 @@ import { useLogout } from "@/domains/auth/hooks/useLogout";
 export function DangerZonePage() {
   const { organization: currentOrg } = useAuth();
   const { mutate: logout } = useLogout();
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const [confirmSlug, setConfirmSlug] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleDeactivate = async () => {
+  const requiredConfirmText = (currentOrg?.slug || currentOrg?.name || "").trim();
+  const isConfirmMatched =
+    requiredConfirmText.length > 0 && confirmText.trim() === requiredConfirmText;
+
+  const handleDelete = async () => {
     if (!currentOrg?._id) return;
-    if (confirmSlug !== currentOrg.slug) {
-      toast.error("Organization slug does not match");
+    if (!isConfirmMatched) {
+      toast.error("Confirmation text does not match");
       return;
     }
 
-    setIsDeactivating(true);
+    setIsDeleting(true);
     try {
       const response = await settingsApi.deleteOrganization(currentOrg._id);
       if (response.success) {
-        toast.success("Organization has been deactivated");
+        toast.success("Organization has been deleted");
         logout();
       }
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to deactivate organization");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete organization";
+      toast.error(message);
     } finally {
-      setIsDeactivating(false);
+      setIsDeleting(false);
       setIsDialogOpen(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Danger Zone</h1>
-        <p className="text-muted-foreground mt-2">
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Danger Zone</h1>
+        <p className="text-muted-foreground mt-1">
           Sensitive operations that can permanently affect your organization.
         </p>
       </div>
 
-      <div className="space-y-6">
-        <div className="bg-card rounded-xl border border-red-500/20 overflow-hidden shadow-sm">
+      <div className="bg-card rounded-xl border border-red-500/20 overflow-hidden shadow-sm">
           <div className="p-6">
             <div className="flex items-center gap-3 text-red-500 mb-4">
               <AlertTriangle className="h-5 w-5" />
-              <h3 className="font-bold text-lg">Deactivate Organization</h3>
+              <h3 className="font-bold text-lg">Delete Organization</h3>
             </div>
 
             <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-              Deactivating your organization will disable all members, stop all active chat widgets, and
-              prevent anyone from accessing the data. This action can be reversed by contacting support,
-              but it will immediately disrupt your operations.
+              Deleting your organization will permanently remove members, conversations, and settings.
+              This action is irreversible and cannot be undone.
             </p>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="destructive" className="cursor-pointer">
-                  Deactivate &quot;{currentOrg?.name}&quot;
+                  Delete &quot;{currentOrg?.name}&quot;
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
+              <DialogContent className="sm:max-w-106.25">
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 text-red-500">
                     <AlertTriangle className="h-5 w-5" />
                     Are you absolutely sure?
                   </DialogTitle>
                   <DialogDescription className="pt-2">
-                    This will immediately take your organization offline. All active conversations will be
-                    disconnected.
+                    This will permanently delete your organization and all related data.
                   </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-4 space-y-4">
                   <div className="space-y-2">
                     <Label
-                      htmlFor="slug-confirm"
+                      htmlFor="delete-confirm"
                       className="text-xs font-semibold uppercase text-muted-foreground"
                     >
-                      Type the organization slug{" "}
+                      Type this text exactly{" "}
                       <span className="text-foreground font-mono bg-muted px-1 rounded">
-                        {currentOrg?.slug}
+                        {requiredConfirmText}
                       </span>{" "}
                       to confirm:
                     </Label>
                     <Input
-                      id="slug-confirm"
-                      value={confirmSlug}
-                      onChange={(e) => setConfirmSlug(e.target.value)}
-                      placeholder={currentOrg?.slug}
+                      id="delete-confirm"
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      placeholder={requiredConfirmText}
                       className="cursor-text"
                       autoFocus
                     />
@@ -114,18 +116,18 @@ export function DangerZonePage() {
                   <Button
                     variant="ghost"
                     onClick={() => setIsDialogOpen(false)}
-                    disabled={isDeactivating}
+                    disabled={isDeleting}
                     className="cursor-pointer"
                   >
                     Cancel
                   </Button>
                   <Button
                     variant="destructive"
-                    onClick={handleDeactivate}
-                    disabled={isDeactivating || confirmSlug !== currentOrg?.slug}
+                    onClick={handleDelete}
+                    disabled={isDeleting || !isConfirmMatched}
                     className="cursor-pointer"
                   >
-                    {isDeactivating ? "Deactivating..." : "Confirm Deactivation"}
+                    {isDeleting ? "Deleting..." : "Confirm Deletion"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -137,19 +139,6 @@ export function DangerZonePage() {
               Only organization owners can perform this action
             </p>
           </div>
-        </div>
-
-        <div className="bg-card p-6 rounded-xl border border-border shadow-sm opacity-60">
-          <h3 className="font-semibold text-foreground flex items-center gap-2 mb-2">
-            Transfer Ownership
-          </h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Transfer this organization to another member. You will lose owner permissions.
-          </p>
-          <Button variant="outline" size="sm" disabled>
-            Transfer Ownership
-          </Button>
-        </div>
       </div>
     </div>
   );

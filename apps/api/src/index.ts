@@ -39,10 +39,7 @@ class Application {
   private setupMiddleware(): void {
     // Security middleware
     this.app.use(
-      helmet({
-        crossOriginEmbedderPolicy: false, // required for widget iframe embedding via MinIO
-        contentSecurityPolicy: false,     // API serves only JSON — no HTML, no CSP needed
-      }),
+      helmet()
     );
 
 

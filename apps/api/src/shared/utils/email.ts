@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
+import sendgridMail from "@sendgrid/mail";
 import config from "@shared/config";
 import logger from "./logger";
 
@@ -9,7 +11,13 @@ export interface EmailOptions {
   text?: string;
 }
 
-class EmailService {
+interface EmailAdapter {
+  send(options: EmailOptions): Promise<{ messageId?: string }>;
+}
+
+type EmailProvider = "smtp" | "resend" | "sendgrid";
+
+class SmtpEmailAdapter implements EmailAdapter {
   private transporter: nodemailer.Transporter;
 
   constructor() {
@@ -29,22 +37,175 @@ class EmailService {
     this.transporter.set("debug", false);
   }
 
+  async send(options: EmailOptions): Promise<{ messageId?: string }> {
+    const info = await this.transporter.sendMail({
+      from: `"${config.email.from.name}" <${config.email.from.email}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    });
+
+    return { messageId: info.messageId };
+  }
+}
+
+class ResendEmailAdapter implements EmailAdapter {
+  private client: Resend;
+
+  constructor() {
+    if (!config.email.resendApiKey) {
+      throw new Error("RESEND_API_KEY is required for EMAIL_PROVIDER=resend");
+    }
+    this.client = new Resend(config.email.resendApiKey);
+  }
+
+  async send(options: EmailOptions): Promise<{ messageId?: string }> {
+    const response = await this.client.emails.send({
+      from: `"${config.email.from.name}" <${config.email.from.email}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    });
+
+    if ((response as any).error) {
+      throw new Error((response as any).error.message || "Resend send failed");
+    }
+
+    return { messageId: (response as any).data?.id };
+  }
+}
+
+class SendgridEmailAdapter implements EmailAdapter {
+  constructor() {
+    if (!config.email.sendgridApiKey) {
+      throw new Error("SENDGRID_API_KEY is required for EMAIL_PROVIDER=sendgrid");
+    }
+    sendgridMail.setApiKey(config.email.sendgridApiKey);
+  }
+
+  async send(options: EmailOptions): Promise<{ messageId?: string }> {
+    const [response] = await sendgridMail.send({
+      from: {
+        email: config.email.from.email,
+        name: config.email.from.name,
+      },
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    });
+
+    return {
+      messageId:
+        (response.headers &&
+          (response.headers["x-message-id"] as string | undefined)) ||
+        undefined,
+    };
+  }
+}
+
+class DisabledEmailAdapter implements EmailAdapter {
+  async send(): Promise<{ messageId?: string }> {
+    throw new Error("No usable email provider is configured");
+  }
+}
+
+function hasResendConfig(): boolean {
+  return Boolean(config.email.resendApiKey);
+}
+
+function hasSendgridConfig(): boolean {
+  return Boolean(config.email.sendgridApiKey);
+}
+
+function getCandidateProviders(): EmailProvider[] {
+  const configured = config.email.provider;
+  const candidates: EmailProvider[] = [];
+
+  if (configured !== "auto") {
+    if (configured === "smtp" || configured === "resend" || configured === "sendgrid") {
+      candidates.push(configured);
+    }
+  }
+
+  if (hasResendConfig() && !candidates.includes("resend")) {
+    candidates.push("resend");
+  }
+  if (hasSendgridConfig() && !candidates.includes("sendgrid")) {
+    candidates.push("sendgrid");
+  }
+  if (!candidates.includes("smtp")) {
+    candidates.push("smtp");
+  }
+
+  return candidates;
+}
+
+function buildAdapter(provider: EmailProvider): EmailAdapter {
+  switch (provider) {
+    case "resend":
+      return new ResendEmailAdapter();
+    case "sendgrid":
+      return new SendgridEmailAdapter();
+    case "smtp":
+      return new SmtpEmailAdapter();
+  }
+}
+
+function createEmailAdapter(): { adapter: EmailAdapter; provider: EmailProvider | "disabled" } {
+  const candidates = getCandidateProviders();
+
+  for (const provider of candidates) {
+    try {
+      const adapter = buildAdapter(provider);
+      logger.info("Email provider initialized", {
+        provider,
+        configuredProvider: config.email.provider,
+      });
+      return { adapter, provider };
+    } catch (error) {
+      logger.warn("Email provider initialization failed, trying next provider", {
+        provider,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  logger.warn("No usable email provider found. Emails will be disabled.", {
+    configuredProvider: config.email.provider,
+  });
+
+  return { adapter: new DisabledEmailAdapter(), provider: "disabled" };
+}
+
+class EmailService {
+  private adapter: EmailAdapter;
+  private activeProvider: EmailProvider | "disabled";
+
+  constructor() {
+    const selection = createEmailAdapter();
+    this.adapter = selection.adapter;
+    this.activeProvider = selection.provider;
+  }
+
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
       const mailOptions = {
-        from: `"${config.email.from.name}" <${config.email.from.email}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text || this.stripHtml(options.html),
       };
 
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.adapter.send(mailOptions);
 
       logger.info("Email sent successfully", {
         to: options.to,
         subject: options.subject,
-        messageId: info.messageId,
+        provider: this.activeProvider,
+        messageId: info.messageId || "n/a",
       });
 
       return true;
@@ -65,7 +226,7 @@ class EmailService {
     token: string,
     teamNames: string,
   ): Promise<boolean> {
-    const inviteUrl = `${config.app.frontendUrl}/accept-invite?token=${token}`;
+    const inviteUrl = `${config.app.clientUrl}/accept-invite?token=${token}`;
 
     const hasTeams = teamNames && teamNames.trim().length > 0;
     const formattedTeams = hasTeams
@@ -131,7 +292,7 @@ class EmailService {
     name: string,
     token: string,
   ): Promise<boolean> {
-    const resetUrl = `${config.app.frontendUrl}/reset-password?token=${token}`;
+    const resetUrl = `${config.app.clientUrl}/reset-password?token=${token}`;
 
     const html = `
       <!DOCTYPE html>
@@ -179,7 +340,7 @@ class EmailService {
   }
 
   async sendWelcomeEmail(to: string, name: string, role: string): Promise<boolean> {
-    const loginUrl = `${config.app.frontendUrl}/auth/login`;
+    const loginUrl = `${config.app.clientUrl}/auth/login`;
 
     const html = `
       <!DOCTYPE html>

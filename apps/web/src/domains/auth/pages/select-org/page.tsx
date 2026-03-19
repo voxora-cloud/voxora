@@ -141,7 +141,7 @@ export function SelectOrgPage() {
         {/* Create new org */}
         <div className="mt-6 text-center">
           <button
-            onClick={() => navigate("/auth/setup")}
+            onClick={() => navigate("/organizations/create")}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             <Plus size={14} />

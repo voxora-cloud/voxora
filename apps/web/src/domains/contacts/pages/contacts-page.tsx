@@ -31,6 +31,7 @@ import {
   MessagesSquare,
   Sparkles,
 } from "lucide-react";
+import { AddContactForm } from "@/domains/contacts/components/add-contact-form";
 
 const TAG_OPTIONS = ["VIP", "Enterprise", "Trial", "Billing", "At Risk"];
 const STATUS_OPTIONS = ["active", "inactive", "blocked"] as const;
@@ -53,6 +54,7 @@ const FILTER_CONVERSATIONS = [
   { value: "3-10", label: "3-10 conversations" },
   { value: "10+", label: "10+ conversations" },
 ];
+
 
 interface ContactNote {
   id: string;
@@ -485,33 +487,36 @@ export function ContactsPage() {
           <p className="text-muted-foreground">
             Manage customer profiles, tags, and conversation context in one workspace.
           </p>
+          <p className="text-xs text-muted-foreground mt-1">Use the sidebar theme toggle to preview this page globally.</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="cursor-pointer">
-              <Plus className="h-4 w-4 mr-2" />
-              Add contact
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[520px]">
-            <DialogHeader>
-              <DialogTitle>Add new contact</DialogTitle>
-              <DialogDescription>
-                Capture customer details so agents can provide faster, more personal support.
-              </DialogDescription>
-            </DialogHeader>
-            <AddContactForm onSubmit={handleAddContact} />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-                className="cursor-pointer"
-              >
-                Cancel
+        <div className="flex items-center gap-2">
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="cursor-pointer">
+                <Plus className="h-4 w-4 mr-2" />
+                Add contact
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-180">
+              <DialogHeader>
+                <DialogTitle>Add new contact</DialogTitle>
+                <DialogDescription>
+                  Capture customer details so agents can provide faster, more personal support.
+                </DialogDescription>
+              </DialogHeader>
+              <AddContactForm onSubmit={handleAddContact} tagOptions={TAG_OPTIONS} />
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAddDialogOpen(false)}
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_360px] gap-6">
@@ -873,7 +878,7 @@ export function ContactsPage() {
                     placeholder="Add internal note for this customer"
                     value={noteDraft}
                     onChange={(event) => setNoteDraft(event.target.value)}
-                    className="min-h-[80px] cursor-text"
+                    className="min-h-20 cursor-text"
                   />
                   <Button
                     size="sm"
@@ -961,106 +966,6 @@ export function ContactsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function AddContactForm({
-  onSubmit,
-}: {
-  onSubmit: (payload: {
-    name: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    tags: string[];
-  }) => void;
-}) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [company, setCompany] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-2">
-        <Label>Name</Label>
-        <Input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder="Full name"
-          className="cursor-text"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label>Email</Label>
-        <Input
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="email@company.com"
-          className="cursor-text"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label>Phone</Label>
-        <Input
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder="+1 (555) 000-0000"
-          className="cursor-text"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label>Company</Label>
-        <Input
-          value={company}
-          onChange={(event) => setCompany(event.target.value)}
-          placeholder="Company name"
-          className="cursor-text"
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label>Tags</Label>
-        <div className="flex flex-wrap gap-2">
-          {TAG_OPTIONS.map((tag) => (
-            <button
-              key={tag}
-              onClick={() =>
-                setTags((prev) =>
-                  prev.includes(tag)
-                    ? prev.filter((item) => item !== tag)
-                    : [...prev, tag],
-                )
-              }
-              className={`rounded-full border px-3 py-1 text-xs transition-colors cursor-pointer ${
-                tags.includes(tag)
-                  ? "bg-primary text-primary-foreground border-transparent"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      </div>
-      <DialogFooter>
-        <Button
-          onClick={() =>
-            onSubmit({
-              name,
-              email: email || undefined,
-              phone: phone || undefined,
-              company: company || undefined,
-              tags,
-            })
-          }
-          disabled={!name.trim()}
-          className="cursor-pointer"
-        >
-          Create contact
-        </Button>
-      </DialogFooter>
     </div>
   );
 }

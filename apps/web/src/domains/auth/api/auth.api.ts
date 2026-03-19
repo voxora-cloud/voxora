@@ -10,7 +10,8 @@ import type {
   VerifyInviteResponse,
   ForgotPasswordResponse,
   ResetPasswordResponse,
-  ChangePasswordResponse
+  ChangePasswordResponse,
+  CreateOrganizationResponse,
 } from "../types/types";
 
 
@@ -103,6 +104,10 @@ class AuthApi {
 
   async switchOrganization(orgId: string): Promise<any> {
     return apiClient.post(`/organizations/${orgId}/switch`, { organizationId: orgId });
+  }
+
+  async createOrganization(name: string): Promise<CreateOrganizationResponse> {
+    return apiClient.post<CreateOrganizationResponse>("/organizations", { name });
   }
 
   async verifyInvite(token: string): Promise<VerifyInviteResponse> {

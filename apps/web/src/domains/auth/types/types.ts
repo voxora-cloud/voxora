@@ -73,3 +73,14 @@ export interface ChangePasswordResponse {
   success: boolean;
   message?: string;
 }
+
+export interface CreateOrganizationResponse {
+  success: boolean;
+  data?: {
+    organization: Organization;
+    role: OrgRole;
+    accessToken: string;
+    refreshToken: string;
+  };
+  message?: string;
+}

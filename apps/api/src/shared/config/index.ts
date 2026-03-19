@@ -8,7 +8,6 @@ interface Config {
     env: string;
     apiUrl: string;
     clientUrl: string;
-    frontendUrl: string;
   };
   database: {
     mongoUri: string;
@@ -26,6 +25,7 @@ interface Config {
     refreshExpiresIn: string | number;
   };
   email: {
+    provider: "auto" | "smtp" | "resend" | "sendgrid";
     host: string;
     port: number;
     secure: boolean;
@@ -33,6 +33,8 @@ interface Config {
       user?: string;
       pass?: string;
     };
+    resendApiKey?: string;
+    sendgridApiKey?: string;
     from: {
       name: string;
       email: string;
@@ -59,13 +61,20 @@ interface Config {
   };
 }
 
+function parseEmailProvider(value?: string): Config["email"]["provider"] {
+  const normalized = (value || "auto").toLowerCase();
+  if (normalized === "smtp" || normalized === "resend" || normalized === "sendgrid" || normalized === "auto") {
+    return normalized;
+  }
+  return "auto";
+}
+
 const config: Config = {
   app: {
     port: parseInt(process.env.PORT || "3001", 10),
     env: process.env.NODE_ENV || "development",
     apiUrl: process.env.API_URL || "http://localhost:3001",
-    clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
-    frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
+    clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
   },
   database: {
     mongoUri:
@@ -84,6 +93,7 @@ const config: Config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d",
   },
   email: {
+    provider: parseEmailProvider(process.env.EMAIL_PROVIDER),
     host: process.env.EMAIL_HOST || "localhost",
     port: parseInt(process.env.EMAIL_PORT || "1025", 10),
     secure: process.env.EMAIL_PORT === "465" ? true : false,
@@ -91,6 +101,8 @@ const config: Config = {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    resendApiKey: process.env.RESEND_API_KEY,
+    sendgridApiKey: process.env.SENDGRID_API_KEY,
     from: {
       name: process.env.EMAIL_FROM_NAME || "Voxora Support",
       email: process.env.EMAIL_FROM_EMAIL || "noreply@voxora.com",

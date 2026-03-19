@@ -148,7 +148,7 @@ export const useAuthStore = create<AuthState>()(
           organization: null, 
           isAuthenticated: false 
         });
-        window.location.href = "/login";
+        window.location.href = "/auth/login";
       },
 
       updateUser: (user: User) => {

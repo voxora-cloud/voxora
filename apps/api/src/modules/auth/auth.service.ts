@@ -161,18 +161,6 @@ export class AuthService {
     };
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  //  AGENT LOGIN  (kept for widget / agent portal backward compat)
-  // ─────────────────────────────────────────────────────────────────
-
-  async agentLogin(loginData: { email: string; password: string }) {
-    return this.login(loginData);
-  }
-
-  // Legacy alias
-  async adminLogin(loginData: { email: string; password: string }) {
-    return this.login(loginData);
-  }
 
   // ─────────────────────────────────────────────────────────────────
   //  LOGOUT
