@@ -298,12 +298,24 @@ importers:
         specifier: ^4.7.2
         version: 4.8.3
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.1
+        version: 9.39.4
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.37
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.6.1)
+      globals:
+        specifier: ^16.5.0
+        version: 16.5.0
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.48.0
+        version: 8.57.0(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^5.0.12
         version: 5.4.21(@types/node@20.19.37)(lightningcss@1.31.1)

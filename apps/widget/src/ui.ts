@@ -3,7 +3,7 @@
  * Handles button, iframe, and UI interactions
  */
 
-import { WidgetConfig, WidgetState } from './types';
+import { WidgetConfig, WidgetServerConfig, WidgetState } from './types';
 
 export class WidgetUI {
   private config: WidgetConfig;
@@ -22,12 +22,26 @@ export class WidgetUI {
    * Merge server-provided config fields (e.g. logoUrl, displayName) into local config.
    * Must be called before createButton() so the button picks up the logo.
    */
-  applyServerConfig(serverConfig: Record<string, any> | null): void {
+  applyServerConfig(serverConfig: WidgetServerConfig | null): void {
     if (!serverConfig) return;
-    if (serverConfig.logoUrl)        this.config.logoUrl        = serverConfig.logoUrl;
-    if (serverConfig.displayName)    this.config.displayName    = serverConfig.displayName;
+
+    const appearance = serverConfig.appearance || {};
+
+    if (serverConfig.logoUrl || appearance.logoUrl) {
+      this.config.logoUrl = appearance.logoUrl || serverConfig.logoUrl;
+    }
+    if (serverConfig.displayName) this.config.displayName = serverConfig.displayName;
     if (serverConfig.backgroundColor) this.config.backgroundColor = serverConfig.backgroundColor;
-    if (serverConfig.primaryColor)   this.config.primaryColor   = serverConfig.primaryColor;
+    if (appearance.primaryColor || serverConfig.primaryColor) {
+      this.config.primaryColor = appearance.primaryColor || serverConfig.primaryColor;
+    }
+    if (appearance.position) this.config.position = appearance.position;
+
+    this.config.appearance = appearance;
+    this.config.behavior = serverConfig.behavior;
+    this.config.ai = serverConfig.ai;
+    this.config.conversation = serverConfig.conversation;
+    this.config.features = serverConfig.features;
   }
 
   /**

@@ -19,7 +19,48 @@ export interface WidgetConfig {
   displayName?: string;
   logoUrl?: string;
   backgroundColor?: string;
+  appearance?: WidgetServerAppearanceConfig;
+  behavior?: WidgetServerBehaviorConfig;
+  ai?: WidgetServerAiConfig;
+  conversation?: WidgetServerConversationConfig;
+  features?: WidgetServerFeatureConfig;
   apiUrl?: string;
+}
+
+export interface WidgetServerAppearanceConfig {
+  primaryColor?: string;
+  textColor?: string;
+  position?: "bottom-right" | "bottom-left";
+  launcherText?: string;
+  welcomeMessage?: string;
+  logoUrl?: string;
+}
+
+export interface WidgetServerBehaviorConfig {
+  autoOpen?: boolean;
+  showOnMobile?: boolean;
+  showOnDesktop?: boolean;
+}
+
+export interface WidgetServerAiConfig {
+  enabled?: boolean;
+  model?: string;
+  fallbackToAgent?: boolean;
+  autoAssign?: boolean;
+  assignmentStrategy?: "round-robin" | "least-loaded";
+}
+
+export interface WidgetServerConversationConfig {
+  collectUserInfo?: {
+    name?: boolean;
+    email?: boolean;
+    phone?: boolean;
+  };
+}
+
+export interface WidgetServerFeatureConfig {
+  acceptMediaFiles?: boolean;
+  endUserDomAccess?: boolean;
 }
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -46,9 +87,16 @@ export interface WidgetConfigApiResponse {
       backgroundColor?: string;
       logoUrl?: string;
       primaryColor?: string;
+      appearance?: WidgetServerAppearanceConfig;
+      behavior?: WidgetServerBehaviorConfig;
+      ai?: WidgetServerAiConfig;
+      conversation?: WidgetServerConversationConfig;
+      features?: WidgetServerFeatureConfig;
     };
   };
 }
+
+export type WidgetServerConfig = NonNullable<WidgetConfigApiResponse["data"]>["config"];
 
 
 export interface WidgetAuthResponse {

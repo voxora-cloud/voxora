@@ -6,6 +6,40 @@ import logger from "@shared/utils/logger";
 import config from "@shared/config";
 import jwt from "jsonwebtoken";
 
+const DEFAULT_WIDGET_CONFIG = {
+  appearance: {
+    primaryColor: "#10b981",
+    textColor: "#111827",
+    position: "bottom-right" as const,
+    launcherText: "Chat with us",
+    welcomeMessage: "Hi there! How can we help you today?",
+    logoUrl: "",
+  },
+  behavior: {
+    autoOpen: false,
+    showOnMobile: true,
+    showOnDesktop: true,
+  },
+  ai: {
+    enabled: true,
+    model: "gpt-4o-mini",
+    fallbackToAgent: true,
+    autoAssign: true,
+    assignmentStrategy: "least-loaded" as const,
+  },
+  conversation: {
+    collectUserInfo: {
+      name: true,
+      email: true,
+      phone: false,
+    },
+  },
+  features: {
+    acceptMediaFiles: true,
+    endUserDomAccess: false,
+  },
+};
+
 // ========================
 // WIDGET AUTH & CONFIG
 // ========================
@@ -77,7 +111,7 @@ export const getWidgetConfig = asyncHandler(
       }
 
       const widget = await Widget.findById(voxoraPublicKey)
-        .select("displayName logoUrl backgroundColor")
+        .select("displayName logoUrl backgroundColor appearance behavior ai conversation features")
         .lean();
 
       if (!widget) {
@@ -102,11 +136,53 @@ export const getWidgetConfig = asyncHandler(
         logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
       }
 
+      let appearanceLogoUrl = (widget as any).appearance?.logoUrl as string | undefined;
+      if (appearanceLogoUrl) {
+        let fileKey = appearanceLogoUrl;
+        if (/^https?:\/\//i.test(appearanceLogoUrl)) {
+          try {
+            const u = new URL(appearanceLogoUrl);
+            const parts = u.pathname.split('/').filter(Boolean);
+            if (parts.length > 1) fileKey = parts.slice(1).join('/');
+          } catch { }
+        }
+        const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
+        const host = req.get("host") || "localhost:3002";
+        appearanceLogoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
+      }
+
       return sendResponse(res, 200, true, "Widget config fetched", {
         config: {
           displayName: (widget as any).displayName,
           backgroundColor: (widget as any).backgroundColor,
           logoUrl,
+          appearance: {
+            ...DEFAULT_WIDGET_CONFIG.appearance,
+            ...(widget as any).appearance,
+            primaryColor:
+              (widget as any).appearance?.primaryColor ||
+              (widget as any).backgroundColor ||
+              DEFAULT_WIDGET_CONFIG.appearance.primaryColor,
+            logoUrl: appearanceLogoUrl || logoUrl || "",
+          },
+          behavior: {
+            ...DEFAULT_WIDGET_CONFIG.behavior,
+            ...((widget as any).behavior || {}),
+          },
+          ai: {
+            ...DEFAULT_WIDGET_CONFIG.ai,
+            ...((widget as any).ai || {}),
+          },
+          conversation: {
+            collectUserInfo: {
+              ...DEFAULT_WIDGET_CONFIG.conversation.collectUserInfo,
+              ...((widget as any).conversation?.collectUserInfo || {}),
+            },
+          },
+          features: {
+            ...DEFAULT_WIDGET_CONFIG.features,
+            ...((widget as any).features || {}),
+          },
         },
       });
     } catch (error: any) {

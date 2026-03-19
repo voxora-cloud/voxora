@@ -6,8 +6,8 @@ import { validateWidgetForm } from "@/shared/lib/validation";
 import { toast } from "sonner";
 import {
   WidgetActionsPanel,
+  WidgetAdvancedConfigForm,
   WidgetAppearanceForm,
-  WidgetFeatures,
   WidgetHeader,
   WidgetInstallationCode,
   WidgetProTip,
@@ -22,6 +22,79 @@ const API_ROOT =
     "",
   );
 
+const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
+  displayName: "",
+  backgroundColor: "#10b981",
+  logoUrl: "",
+  appearance: {
+    primaryColor: "#10b981",
+    textColor: "#111827",
+    position: "bottom-right",
+    launcherText: "Chat with us",
+    welcomeMessage: "Hi there! How can we help you today?",
+    logoUrl: "",
+  },
+  behavior: {
+    autoOpen: false,
+    showOnMobile: true,
+    showOnDesktop: true,
+  },
+  ai: {
+    enabled: true,
+    model: "gpt-4o-mini",
+    fallbackToAgent: true,
+    autoAssign: true,
+    assignmentStrategy: "least-loaded",
+  },
+  conversation: {
+    collectUserInfo: {
+      name: true,
+      email: true,
+      phone: false,
+    },
+  },
+  features: {
+    acceptMediaFiles: true,
+    endUserDomAccess: false,
+  },
+};
+
+function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined): CreateWidgetData {
+  if (!data) return { ...DEFAULT_WIDGET_FORM_DATA };
+
+  return {
+    ...DEFAULT_WIDGET_FORM_DATA,
+    ...data,
+    appearance: {
+      ...DEFAULT_WIDGET_FORM_DATA.appearance,
+      ...data.appearance,
+      logoUrl: data.appearance?.logoUrl || data.logoUrl || "",
+      primaryColor:
+        data.appearance?.primaryColor ||
+        data.backgroundColor ||
+        DEFAULT_WIDGET_FORM_DATA.appearance.primaryColor,
+    },
+    behavior: {
+      ...DEFAULT_WIDGET_FORM_DATA.behavior,
+      ...data.behavior,
+    },
+    ai: {
+      ...DEFAULT_WIDGET_FORM_DATA.ai,
+      ...data.ai,
+    },
+    conversation: {
+      collectUserInfo: {
+        ...DEFAULT_WIDGET_FORM_DATA.conversation.collectUserInfo,
+        ...data.conversation?.collectUserInfo,
+      },
+    },
+    features: {
+      ...DEFAULT_WIDGET_FORM_DATA.features,
+      ...data.features,
+    },
+  };
+}
+
 export function WidgetPage() {
   const [isExistingWidget, setIsExistingWidget] = useState(false);
   const [existingWidget, setExistingWidget] = useState<CreateWidgetData | null>(
@@ -35,11 +108,9 @@ export function WidgetPage() {
     displayName?: string;
     backgroundColor?: string;
   }>({});
-  const [formData, setFormData] = useState<CreateWidgetData>({
-    displayName: "",
-    backgroundColor: "#ffffff",
-    logoUrl: "",
-  });
+  const [formData, setFormData] = useState<CreateWidgetData>(
+    DEFAULT_WIDGET_FORM_DATA,
+  );
   const { data: widgetData } = useWidget();
   const saveWidget = useSaveWidget();
 
@@ -86,6 +157,12 @@ export function WidgetPage() {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
+      appearance:
+        field === "logoUrl"
+          ? { ...prev.appearance, logoUrl: value }
+          : field === "backgroundColor"
+            ? { ...prev.appearance, primaryColor: value }
+            : prev.appearance,
     }));
 
     if (validationErrors[field as keyof typeof validationErrors]) {
@@ -98,7 +175,7 @@ export function WidgetPage() {
 
   useEffect(() => {
     if (!widgetData?._id) return;
-    setFormData(widgetData);
+    setFormData(withWidgetDefaults(widgetData));
     setExistingWidget(widgetData);
     setUploadedFileKey(widgetData.logoFileKey || "");
     setSavedLogoUrl(widgetData.logoUrl || "");
@@ -111,7 +188,14 @@ export function WidgetPage() {
     fileName: string;
   }) => {
     setUploadedFileKey(data.fileKey);
-    handleInputChange("logoUrl", data.downloadUrl);
+    setFormData((prev) => ({
+      ...prev,
+      logoUrl: data.downloadUrl,
+      appearance: {
+        ...prev.appearance,
+        logoUrl: data.downloadUrl,
+      },
+    }));
     toast.success("Logo uploaded successfully!");
   };
 
@@ -121,7 +205,14 @@ export function WidgetPage() {
 
   const handleFileRemove = () => {
     setUploadedFileKey("");
-    handleInputChange("logoUrl", "");
+    setFormData((prev) => ({
+      ...prev,
+      logoUrl: "",
+      appearance: {
+        ...prev.appearance,
+        logoUrl: "",
+      },
+    }));
   };
 
   const handleSubmit = async (e?: FormEvent) => {
@@ -151,6 +242,15 @@ export function WidgetPage() {
         displayName: formData.displayName,
         backgroundColor: formData.backgroundColor,
         logoUrl: formData.logoUrl || "",
+        appearance: {
+          ...formData.appearance,
+          logoUrl: formData.logoUrl || formData.appearance.logoUrl || "",
+          primaryColor: formData.appearance.primaryColor || formData.backgroundColor,
+        },
+        behavior: formData.behavior,
+        ai: formData.ai,
+        conversation: formData.conversation,
+        features: formData.features,
       };
 
       const response = await saveWidget.mutateAsync({
@@ -208,11 +308,7 @@ export function WidgetPage() {
   };
 
   const handleResetDefaults = () => {
-    setFormData({
-      displayName: "",
-      backgroundColor: "#10b981",
-      logoUrl: "",
-    });
+    setFormData(DEFAULT_WIDGET_FORM_DATA);
     setUploadedFileKey("");
     setIsExistingWidget(false);
   };
@@ -255,10 +351,14 @@ export function WidgetPage() {
               onSave={() => handleSubmit()}
               onReset={handleResetDefaults}
             />
-            <WidgetFeatures />
             <WidgetProTip />
           </div>
       </div>
+
+      <WidgetAdvancedConfigForm
+        formData={formData}
+        onChange={setFormData}
+      />
     </div>
   );
 }

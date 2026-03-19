@@ -43,6 +43,37 @@ export interface WidgetAppearance {
   logoUrl?: string;
   primaryColor?: string;
   backgroundColor?: string;
+  appearance?: {
+    primaryColor?: string;
+    textColor?: string;
+    position?: 'bottom-right' | 'bottom-left';
+    launcherText?: string;
+    welcomeMessage?: string;
+    logoUrl?: string;
+  };
+  behavior?: {
+    autoOpen?: boolean;
+    showOnMobile?: boolean;
+    showOnDesktop?: boolean;
+  };
+  ai?: {
+    enabled?: boolean;
+    model?: string;
+    fallbackToAgent?: boolean;
+    autoAssign?: boolean;
+    assignmentStrategy?: 'round-robin' | 'least-loaded';
+  };
+  conversation?: {
+    collectUserInfo?: {
+      name?: boolean;
+      email?: boolean;
+      phone?: boolean;
+    };
+  };
+  features?: {
+    acceptMediaFiles?: boolean;
+    endUserDomAccess?: boolean;
+  };
 }
 
 // ─── Parent → Iframe messages ─────────────────────────────────────────────────

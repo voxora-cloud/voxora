@@ -3,6 +3,63 @@ import crypto from "crypto";
 import { Team, Widget, Membership, MembershipRole } from "@shared/models";
 import logger from "@shared/utils/logger";
 
+const DEFAULT_WIDGET_SETTINGS = {
+  appearance: {
+    primaryColor: "#10b981",
+    textColor: "#111827",
+    position: "bottom-right" as const,
+    launcherText: "Chat with us",
+    welcomeMessage: "Hi there! How can we help you today?",
+    logoUrl: "",
+  },
+  behavior: {
+    autoOpen: false,
+    showOnMobile: true,
+    showOnDesktop: true,
+  },
+  ai: {
+    enabled: true,
+    model: "gpt-4o-mini",
+    fallbackToAgent: true,
+    autoAssign: true,
+    assignmentStrategy: "least-loaded" as const,
+  },
+  conversation: {
+    collectUserInfo: {
+      name: true,
+      email: true,
+      phone: false,
+    },
+  },
+  features: {
+    acceptMediaFiles: true,
+    endUserDomAccess: false,
+  },
+};
+
+function withWidgetConfigDefaults(input: any): any {
+  const output = { ...input };
+  output.appearance = {
+    ...DEFAULT_WIDGET_SETTINGS.appearance,
+    ...(input.appearance || {}),
+    logoUrl: input.appearance?.logoUrl ?? input.logoUrl ?? "",
+    primaryColor:
+      input.appearance?.primaryColor ??
+      input.backgroundColor ??
+      DEFAULT_WIDGET_SETTINGS.appearance.primaryColor,
+  };
+  output.behavior = { ...DEFAULT_WIDGET_SETTINGS.behavior, ...(input.behavior || {}) };
+  output.ai = { ...DEFAULT_WIDGET_SETTINGS.ai, ...(input.ai || {}) };
+  output.conversation = {
+    collectUserInfo: {
+      ...DEFAULT_WIDGET_SETTINGS.conversation.collectUserInfo,
+      ...(input.conversation?.collectUserInfo || {}),
+    },
+  };
+  output.features = { ...DEFAULT_WIDGET_SETTINGS.features, ...(input.features || {}) };
+  return output;
+}
+
 export class AdminService {
   // ═══════════════════════════════════════════════════
   //  TEAM MANAGEMENT
@@ -208,19 +265,20 @@ export class AdminService {
   // ═══════════════════════════════════════════════════
 
   async createWidget(organizationId: string, widgetData: any) {
+    const normalizedWidgetData = withWidgetConfigDefaults(widgetData || {});
     const existingWidget = await Widget.findOne({ organizationId });
 
     if (existingWidget) {
       const updated = await Widget.findOneAndUpdate(
         { organizationId },
-        { ...widgetData, organizationId },
+        { ...normalizedWidgetData, organizationId },
         { new: true, runValidators: true },
       );
       return updated;
     }
 
     const widget = new Widget({
-      ...widgetData,
+      ...normalizedWidgetData,
       organizationId,
     });
 
@@ -243,20 +301,43 @@ export class AdminService {
         organizationId,
         displayName: "Support Chat",
         backgroundColor: "#10b981",
+        ...DEFAULT_WIDGET_SETTINGS,
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();
       logger.info(`Auto-created default widget for org ${organizationId}`);
+    } else {
+      const normalizedExisting = withWidgetConfigDefaults(widget.toObject());
+      const needsBackfill =
+        !widget.appearance ||
+        !widget.behavior ||
+        !widget.ai ||
+        !widget.conversation ||
+        !widget.features;
+
+      if (needsBackfill) {
+        await Widget.updateOne({ _id: widget._id }, normalizedExisting, {
+          runValidators: true,
+        });
+        const refreshedWidget = await Widget.findById(widget._id);
+        if (refreshedWidget) widget = refreshedWidget;
+      }
     }
 
     return widget;
   }
 
   async updateWidget(organizationId: string, updateData: any) {
+    const normalizedUpdateData = withWidgetConfigDefaults(updateData || {});
     const allowedUpdates = {
-      displayName: updateData.displayName,
-      logoUrl: updateData.logoUrl,
-      backgroundColor: updateData.backgroundColor,
+      displayName: normalizedUpdateData.displayName,
+      logoUrl: normalizedUpdateData.logoUrl,
+      backgroundColor: normalizedUpdateData.backgroundColor,
+      appearance: normalizedUpdateData.appearance,
+      behavior: normalizedUpdateData.behavior,
+      ai: normalizedUpdateData.ai,
+      conversation: normalizedUpdateData.conversation,
+      features: normalizedUpdateData.features,
     };
 
     const cleanUpdates = Object.fromEntries(
@@ -271,9 +352,14 @@ export class AdminService {
     if (!widget) {
       widget = new Widget({
         organizationId,
-        displayName: updateData.displayName || "Support Chat",
-        backgroundColor: updateData.backgroundColor || "#10b981",
-        logoUrl: updateData.logoUrl,
+        displayName: normalizedUpdateData.displayName || "Support Chat",
+        backgroundColor: normalizedUpdateData.backgroundColor || "#10b981",
+        logoUrl: normalizedUpdateData.logoUrl,
+        appearance: normalizedUpdateData.appearance,
+        behavior: normalizedUpdateData.behavior,
+        ai: normalizedUpdateData.ai,
+        conversation: normalizedUpdateData.conversation,
+        features: normalizedUpdateData.features,
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();
