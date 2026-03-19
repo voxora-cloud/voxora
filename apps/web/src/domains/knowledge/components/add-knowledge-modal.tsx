@@ -20,7 +20,7 @@ import type {
 interface AddKnowledgeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: AddKnowledgeFormData) => void;
+  onSubmit: (data: AddKnowledgeFormData) => Promise<void> | void;
   isSubmitting: boolean;
 }
 
@@ -136,7 +136,7 @@ export function AddKnowledgeModal({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateStep3() || !selectedSource) return;
 
     const submitData: AddKnowledgeFormData = {
@@ -152,7 +152,8 @@ export function AddKnowledgeModal({
       submitData.file = selectedFile!;
     }
 
-    onSubmit(submitData);
+    await onSubmit(submitData);
+    handleClose();
   };
 
   const wordCount = formData.content?.trim().split(/\s+/).length || 0;

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
-import type { AddLiveSourceFormData, KnowledgeBase } from "../types";
+import type { AddLiveSourceFormData, KnowledgeBase, KnowledgeListResponse } from "../types";
 
 export const useCreateLiveSource = () => {
   const queryClient = useQueryClient();
@@ -21,10 +21,18 @@ export const useCreateLiveSource = () => {
       return created;
     },
     onSuccess: (newItem: KnowledgeBase) => {
-      queryClient.setQueryData<KnowledgeBase[]>(["knowledge-items"], (prev = []) => [
-        newItem,
-        ...prev,
-      ]);
+      queryClient.setQueryData<KnowledgeListResponse>(["knowledge-items"], (prev) => {
+        const items = prev?.data.items ?? [];
+        const total = prev?.data.total ?? items.length;
+
+        return {
+          success: prev?.success ?? true,
+          data: {
+            items: [newItem, ...items],
+            total: total + 1,
+          },
+        };
+      });
     },
   });
 };

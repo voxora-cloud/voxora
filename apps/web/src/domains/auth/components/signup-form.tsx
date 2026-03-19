@@ -1,16 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
 import { Eye, EyeOff, Mail, Lock, User, AlertCircle, Building } from "lucide-react";
 import { Link } from "react-router";
 import { Alert } from "@/shared/ui/alert";
+import { Label } from "@/shared/ui/label";
 import {
   validateEmail,
   validateName,
@@ -19,7 +13,6 @@ import {
 } from "@/shared/lib/validation";
 import { useSignup } from "../hooks";
 import type { SignupPayload } from "../types/types";
-import Logo from "@/shared/components/logo";
 
 export function SignupForm() {
   const { mutate: signup, isPending, isError, error } = useSignup();
@@ -77,9 +70,9 @@ export function SignupForm() {
         break;
       case "companyName":
         if (!formData.companyName) {
-          error = "Company name is required";
+          error = "Organization is required";
         } else if (formData.companyName.length < 2) {
-          error = "Company name must be at least 2 characters";
+          error = "Organization name must be at least 2 characters";
         }
         break;
     }
@@ -117,9 +110,9 @@ export function SignupForm() {
     if (confirmError) errors.confirmPassword = confirmError;
     
     if (!formData.companyName) {
-      errors.companyName = "Company name is required";
+      errors.companyName = "Organization is required";
     } else if (formData.companyName.length < 2) {
-      errors.companyName = "Company name must be at least 2 characters";
+      errors.companyName = "Organization name must be at least 2 characters";
     }
 
     if (Object.keys(errors).length > 0) {
@@ -151,19 +144,14 @@ export function SignupForm() {
   };
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <div className="flex items-center justify-center mb-4">
-          <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center">
-            <Logo size={48} />
-          </div>
-        </div>
-        <CardTitle className="text-2xl text-center">Create Account</CardTitle>
-        <CardDescription className="text-center">
+    <div className="w-full">
+      <div className="space-y-1 mb-6">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Create Account</h2>
+        <p className="text-sm text-muted-foreground">
           Start your journey with Voxora
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
+      <div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {isError && (
             <Alert variant="destructive">
@@ -173,9 +161,9 @@ export function SignupForm() {
           )}
 
           <div className="space-y-2">
-            <label htmlFor="name" className="text-sm font-medium">
+            <Label htmlFor="name">
               Full Name
-            </label>
+            </Label>
             <div className="relative">
               <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -196,9 +184,9 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
+            <Label htmlFor="email">
               Email
-            </label>
+            </Label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -219,16 +207,16 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="companyName" className="text-sm font-medium">
-              Company Name
-            </label>
+            <Label htmlFor="companyName">
+              Organization Name
+            </Label>
             <div className="relative">
               <Building className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 id="companyName"
                 name="companyName"
                 type="text"
-                placeholder="Enter your company name"
+                placeholder="Enter your organization name"
                 value={formData.companyName}
                 onChange={handleInputChange}
                 onBlur={() => handleBlur("companyName")}
@@ -242,9 +230,9 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium">
+            <Label htmlFor="password">
               Password
-            </label>
+            </Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -276,9 +264,9 @@ export function SignupForm() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="confirmPassword" className="text-sm font-medium">
+            <Label htmlFor="confirmPassword">
               Confirm Password
-            </label>
+            </Label>
             <div className="relative">
               <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -326,7 +314,7 @@ export function SignupForm() {
             </Link>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

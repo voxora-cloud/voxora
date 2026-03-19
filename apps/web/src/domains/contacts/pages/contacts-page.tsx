@@ -9,7 +9,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -501,19 +500,14 @@ export function ContactsPage() {
               <DialogHeader>
                 <DialogTitle>Add new contact</DialogTitle>
                 <DialogDescription>
-                  Capture customer details so agents can provide faster, more personal support.
-                </DialogDescription>
+                  Capture customer details so agents can provide faster, more personal sup
+port.                                                                                                     </DialogDescription>
               </DialogHeader>
-              <AddContactForm onSubmit={handleAddContact} tagOptions={TAG_OPTIONS} />
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAddDialogOpen(false)}
-                  className="cursor-pointer"
-                >
-                  Cancel
-                </Button>
-              </DialogFooter>
+              <AddContactForm 
+                onSubmit={handleAddContact} 
+                onCancel={() => setIsAddDialogOpen(false)}
+                tagOptions={TAG_OPTIONS} 
+              />
             </DialogContent>
           </Dialog>
         </div>

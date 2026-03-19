@@ -56,8 +56,11 @@ export const useUpdateTeam = () => {
       }
       toast.error("Failed to update team");
     },
-    onSuccess: () => {
-      toast.success("Team updated successfully");
+    onSuccess: (_data, variables) => {
+      const name = variables.data.name;
+      toast.success(
+        name ? `Team "${name}" updated successfully` : "Team updated successfully"
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });

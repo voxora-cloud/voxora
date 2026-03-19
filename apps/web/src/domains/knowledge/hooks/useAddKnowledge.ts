@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
 import { storageApi } from "@/shared/lib/storage.api";
-import type { AddKnowledgeFormData, KnowledgeBase } from "../types";
+import type { AddKnowledgeFormData, KnowledgeBase, KnowledgeListResponse } from "../types";
 
 export const useAddKnowledge = () => {
   const queryClient = useQueryClient();
@@ -42,10 +42,18 @@ export const useAddKnowledge = () => {
       return created;
     },
     onSuccess: (newItem: KnowledgeBase) => {
-      queryClient.setQueryData<KnowledgeBase[]>(["knowledge-items"], (prev = []) => [
-        newItem,
-        ...prev,
-      ]);
+      queryClient.setQueryData<KnowledgeListResponse>(["knowledge-items"], (prev) => {
+        const items = prev?.data.items ?? [];
+        const total = prev?.data.total ?? items.length;
+
+        return {
+          success: prev?.success ?? true,
+          data: {
+            items: [newItem, ...items],
+            total: total + 1,
+          },
+        };
+      });
     },
   });
 };
