@@ -500,8 +500,8 @@ export function ContactsPage() {
               <DialogHeader>
                 <DialogTitle>Add new contact</DialogTitle>
                 <DialogDescription>
-                  Capture customer details so agents can provide faster, more personal sup
-port.                                                                                                     </DialogDescription>
+                  Capture customer details so agents can provide faster, more personal support.
+                </DialogDescription>
               </DialogHeader>
               <AddContactForm 
                 onSubmit={handleAddContact} 
