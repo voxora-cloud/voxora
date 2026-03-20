@@ -140,6 +140,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               teamId: assignedTeamId,
               routeReason: "AI disabled — direct to agent",
             };
+
             try {
               if (typeof sm.emitToAllUsers === "function") {
                 sm.emitToAllUsers("new_widget_conversation", payload);

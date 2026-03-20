@@ -12,10 +12,11 @@ interface AddContactFormProps {
     company?: string;
     tags: string[];
   }) => void;
+  onCancel: () => void;
   tagOptions: string[];
 }
 
-export function AddContactForm({ onSubmit, tagOptions }: AddContactFormProps) {
+export function AddContactForm({ onSubmit, onCancel, tagOptions }: AddContactFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -56,11 +57,11 @@ export function AddContactForm({ onSubmit, tagOptions }: AddContactFormProps) {
         </div>
 
         <div className="grid gap-2">
-          <Label>Company</Label>
+          <Label>Organization</Label>
           <Input
             value={company}
             onChange={(event) => setCompany(event.target.value)}
-            placeholder="Company name"
+            placeholder="Organization name"
             className="cursor-text"
           />
         </div>
@@ -92,7 +93,14 @@ export function AddContactForm({ onSubmit, tagOptions }: AddContactFormProps) {
         </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          className="cursor-pointer"
+        >
+          Cancel
+        </Button>
         <Button
           onClick={() =>
             onSubmit({

@@ -9,6 +9,7 @@ interface AuthState {
   organization: Organization | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isAdminRegistered: boolean;
   
   // Actions
   login: (loginPayload: LoginPayload) => Promise<void>;
@@ -18,6 +19,7 @@ interface AuthState {
   updateUser: (user: User) => void;
   setOrganization: (org: Organization | null) => void;
   initializeAuth: () => Promise<void>;
+  setAdminRegistered: (isRegistered: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -27,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
       organization: null,
       isLoading: false,
       isAuthenticated: false,
+      isAdminRegistered: false,
 
       initializeAuth: async () => {
         set({ isLoading: true });
@@ -108,7 +111,8 @@ export const useAuthStore = create<AuthState>()(
             set({ 
               user, 
               organization: signupOrg, 
-              isAuthenticated: true 
+              isAuthenticated: true,
+              isAdminRegistered: true
             });
 
             // Redirect to dashboard
@@ -162,6 +166,10 @@ export const useAuthStore = create<AuthState>()(
           authApi.setActiveOrgId(org._id);
         }
       },
+
+      setAdminRegistered: (isRegistered: boolean) => {
+        set({ isAdminRegistered: isRegistered });
+      },
     }),
     {
       name: "auth-storage",
@@ -169,6 +177,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         organization: state.organization,
         isAuthenticated: state.isAuthenticated,
+        isAdminRegistered: state.isAdminRegistered,
       }),
       onRehydrateStorage: () => (state) => {
         // Sync organization ID to localStorage after rehydration

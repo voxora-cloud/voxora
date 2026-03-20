@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
-import type { KnowledgeBase } from "../types";
+import type { KnowledgeListResponse } from "../types";
 
 export const useReindexKnowledgeItem = () => {
   const queryClient = useQueryClient();
@@ -10,12 +10,19 @@ export const useReindexKnowledgeItem = () => {
     mutationFn: (documentId: string) => knowledgeApi.reindexKnowledgeItem(documentId),
     onMutate: async (documentId: string) => {
       await queryClient.cancelQueries({ queryKey: ["knowledge-items"] });
-      const previous = queryClient.getQueryData<KnowledgeBase[]>(["knowledge-items"]);
-      queryClient.setQueryData<KnowledgeBase[]>(["knowledge-items"], (prev = []) =>
-        prev.map((item) =>
-          item._id === documentId ? { ...item, status: "queued" } : item,
-        ),
-      );
+      const previous = queryClient.getQueryData<KnowledgeListResponse>(["knowledge-items"]);
+      queryClient.setQueryData<KnowledgeListResponse>(["knowledge-items"], (prev) => {
+        const items = prev?.data.items ?? [];
+        return {
+          success: prev?.success ?? true,
+          data: {
+            items: items.map((item) =>
+              item._id === documentId ? { ...item, status: "queued" } : item,
+            ),
+            total: prev?.data.total ?? items.length,
+          },
+        };
+      });
       return { previous };
     },
     onError: (_err, _id, context) => {
@@ -24,11 +31,18 @@ export const useReindexKnowledgeItem = () => {
       }
     },
     onSuccess: (response) => {
-      queryClient.setQueryData<KnowledgeBase[]>(["knowledge-items"], (prev = []) =>
-        prev.map((item) =>
-          item._id === response.data._id ? { ...item, ...response.data } : item,
-        ),
-      );
+      queryClient.setQueryData<KnowledgeListResponse>(["knowledge-items"], (prev) => {
+        const items = prev?.data.items ?? [];
+        return {
+          success: prev?.success ?? true,
+          data: {
+            items: items.map((item) =>
+              item._id === response.data._id ? { ...item, ...response.data } : item,
+            ),
+            total: prev?.data.total ?? items.length,
+          },
+        };
+      });
     },
   });
 };

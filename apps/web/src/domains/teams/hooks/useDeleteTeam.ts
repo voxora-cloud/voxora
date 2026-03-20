@@ -33,8 +33,14 @@ export const useDeleteTeam = () => {
       // Snapshot previous value
       const previousData = queryClient.getQueryData<TeamsResponse>(["teams"]);
 
+      let deletedTeamName: string | undefined;
+
       // Optimistically remove
       if (previousData?.data?.teams) {
+        const deletedTeam = previousData.data.teams.find(
+          (team) => team._id === teamId
+        );
+        deletedTeamName = deletedTeam?.name;
         const updatedTeams = previousData.data.teams.filter(
           (team) => team._id !== teamId
         );
@@ -47,7 +53,7 @@ export const useDeleteTeam = () => {
         });
       }
 
-      return { previousData };
+      return { previousData, deletedTeamName };
     },
     onError: (_err, _variables, context) => {
       // Rollback on error
@@ -56,8 +62,12 @@ export const useDeleteTeam = () => {
       }
       toast.error("Failed to delete team");
     },
-    onSuccess: () => {
-      toast.success("Team deleted successfully");
+    onSuccess: (_data, _variables, context) => {
+      toast.success(
+        context?.deletedTeamName
+          ? `Team "${context.deletedTeamName}" deleted successfully`
+          : "Team deleted successfully"
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });

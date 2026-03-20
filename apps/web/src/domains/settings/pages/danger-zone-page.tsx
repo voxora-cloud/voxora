@@ -78,28 +78,41 @@ export function DangerZonePage() {
                   Delete &quot;{currentOrg?.name}&quot;
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-106.25">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2 text-red-500">
-                    <AlertTriangle className="h-5 w-5" />
-                    Are you absolutely sure?
+              <DialogContent className="sm:max-w-[520px]">
+                <DialogHeader className="space-y-3">
+                  <DialogTitle className="text-xl font-semibold text-foreground">
+                    Delete <span className="text-red-500">{currentOrg?.name}</span>?
                   </DialogTitle>
-                  <DialogDescription className="pt-2">
-                    This will permanently delete your organization and all related data.
+                  <DialogDescription>
+                    This will permanently delete your organization, members, conversations, and
+                    settings. You won’t be able to undo this action.
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="py-4 space-y-4">
+                <div className="space-y-5 pt-2">
+                  <div className="rounded-lg border border-border bg-muted/40 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Confirmation required
+                    </p>
+                    <p className="mt-2 text-sm text-foreground">
+                      Type the organization identifier below to confirm deletion.
+                    </p>
+                    <div className="mt-3 inline-flex select-none items-center rounded-md bg-muted px-2 py-1 font-mono text-xs text-foreground">
+                      <span
+                        onCopy={(event) => event.preventDefault()}
+                        onCut={(event) => event.preventDefault()}
+                      >
+                        {requiredConfirmText || "Organization name"}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label
                       htmlFor="delete-confirm"
                       className="text-xs font-semibold uppercase text-muted-foreground"
                     >
-                      Type this text exactly{" "}
-                      <span className="text-foreground font-mono bg-muted px-1 rounded">
-                        {requiredConfirmText}
-                      </span>{" "}
-                      to confirm:
+                      Enter confirmation text
                     </Label>
                     <Input
                       id="delete-confirm"
@@ -109,10 +122,13 @@ export function DangerZonePage() {
                       className="cursor-text"
                       autoFocus
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Ensure it matches exactly or the delete button will stay disabled.
+                    </p>
                   </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <Button
                     variant="ghost"
                     onClick={() => setIsDialogOpen(false)}
@@ -127,7 +143,7 @@ export function DangerZonePage() {
                     disabled={isDeleting || !isConfirmMatched}
                     className="cursor-pointer"
                   >
-                    {isDeleting ? "Deleting..." : "Confirm Deletion"}
+                    {isDeleting ? "Deleting..." : "Yes, delete organization"}
                   </Button>
                 </DialogFooter>
               </DialogContent>

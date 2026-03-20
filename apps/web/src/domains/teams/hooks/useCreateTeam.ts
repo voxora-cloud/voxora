@@ -63,8 +63,8 @@ export const useCreateTeam = () => {
       }
       toast.error("An error occurred while creating the team");
     },
-    onSuccess: () => {
-      toast.success("Team created successfully");
+    onSuccess: (_data, variables) => {
+      toast.success(`Team "${variables.name}" created successfully`);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["teams"] });
