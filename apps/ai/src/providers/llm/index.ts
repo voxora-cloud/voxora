@@ -1,7 +1,6 @@
 import { LLMProvider } from "./types";
-import { GeminiProvider } from "./providers/gemini";
+import { GeminiProvider } from "./gemini.provider";
 
-// ─── Provider registry ────────────────────────────────────────────────────────
 const providers = new Map<string, LLMProvider>();
 
 export function registerProvider(provider: LLMProvider): void {
@@ -24,10 +23,6 @@ export function getDefaultProvider(): LLMProvider {
   return getProvider(name);
 }
 
-// ─── Register built-in providers ─────────────────────────────────────────────
-// Add new providers here as they are implemented, e.g.:
-//   registerProvider(new OpenAIProvider());
-//   registerProvider(new AnthropicProvider());
 registerProvider(new GeminiProvider());
 
 export type { LLMProvider, LLMMessage, LLMOptions } from "./types";

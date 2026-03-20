@@ -1,7 +1,7 @@
 import { Worker, ConnectionOptions } from "bullmq";
-import config from "./config/index";
-import { runPipeline } from "./pipeline";
-import { AIJobData } from "./pipeline/types";
+import config from "../../config";
+import { runPipeline } from "../../pipelines/reply.pipeline";
+import { AIJobData } from "../../pipelines/types";
 
 const QUEUE_NAME = "ai-processing";
 

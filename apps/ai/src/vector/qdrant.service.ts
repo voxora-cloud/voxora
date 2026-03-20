@@ -1,6 +1,6 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
-import config from "../../config";
-import { VectorStore, VectorSearchResult } from "./types";
+import config from "../config";
+import { VectorStore, VectorSearchResult } from "./vector.types";
 
 const COLLECTION = "voxora_knowledge";
 

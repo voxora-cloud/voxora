@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { DocumentJob } from "./types";
 import { chunkText } from "./chunker";
-import { getEmbeddingProvider, vectorStore } from "../embeddings";
+import { getEmbeddingProvider } from "../providers/embedding";
+import { vectorStore } from "../vector";
 import { setDocStatus } from "../shared/db";
 
 /**
