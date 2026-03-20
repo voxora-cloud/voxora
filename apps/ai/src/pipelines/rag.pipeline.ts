@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-import { ContextResult, ContextMessage } from "./types";
-import { getEmbeddingProvider, vectorStore } from "../embeddings";
+import { ContextResult, ContextMessage } from "./context.types";
+import { getEmbeddingProvider } from "../providers/embedding";
+import { vectorStore } from "../vector";
 import { connectDB, MessageModel } from "../shared/db";
 import config from "../config";
 

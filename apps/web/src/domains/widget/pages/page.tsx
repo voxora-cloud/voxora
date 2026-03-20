@@ -136,7 +136,6 @@ export function WidgetPage() {
     const script = document.createElement("script");
     script.src = `${CDN_URL}?v=${Date.now()}`;
     script.setAttribute("data-voxora-public-key", formData._id);
-    script.setAttribute("data-voxora-api-url", API_ROOT);
     script.id = "voxora-widget-script";
     document.body.appendChild(script);
 
