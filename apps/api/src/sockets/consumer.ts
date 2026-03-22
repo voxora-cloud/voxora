@@ -120,6 +120,26 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
     }
   });
 
+  // ── AI stream channel ──────────────────────────────────────────────────────
+  await subscriber.subscribe("ai:stream", async (raw) => {
+    try {
+      const { conversationId, chunk, isThought } = JSON.parse(raw) as {
+        conversationId: string;
+        chunk: string;
+        isThought: boolean;
+      };
+
+      // Emit chunk directly to active clients without DB persistence
+      socketManager.emitToConversation(conversationId, "ai_stream_chunk", {
+        conversationId,
+        chunk,
+        isThought,
+      });
+    } catch (err) {
+      logger.error("Failed to handle AI stream chunk:", err);
+    }
+  });
+
   // ── AI escalation channel ────────────────────────────────────────────────────
   await subscriber.subscribe(ESCALATION_CHANNEL, async (raw) => {
     try {
