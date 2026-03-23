@@ -1,8 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { startWorker } from "./workers/reply/worker";
-import { startIngestionWorker } from "./workers/ingestion/worker";
+import { startWorker } from "./workers/reply.worker";
+import { startIngestionWorker } from "./workers/ingestion.worker";
 
 console.log("[Voxora AI] Starting AI service...");
 

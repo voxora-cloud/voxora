@@ -399,6 +399,80 @@
       .message-bubble .md hr         { border: none; border-top: 1px solid rgba(0,0,0,0.12); margin: 8px 0; }
       .message-bubble .md a          { color: inherit; text-decoration: underline; }
 
+      details.thought-box {
+        background: rgba(0,0,0,0.03);
+        border: 1px solid rgba(0,0,0,0.08);
+        border-radius: 8px;
+        margin-bottom: 8px;
+        overflow: hidden;
+      }
+      details.thought-box summary {
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #4b5563;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        list-style: none;
+        user-select: none;
+      }
+      details.thought-box summary::-webkit-details-marker {
+        display: none;
+      }
+      details.thought-box[open] summary {
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+      }
+      .thought-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid #d1d5db;
+        border-top-color: #6b7280;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+      .thought-spinner.done {
+        animation: none;
+        border-color: transparent;
+        border-top-color: transparent;
+      }
+      .thought-spinner.done::after {
+        content: '✓';
+        color: #10b981;
+        font-size: 14px;
+        line-height: 10px;
+        position: relative;
+        top: -2px;
+        left: -1px;
+      }
+      .thought-content {
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #6b7280;
+        background: #ffffff;
+      }
+      @keyframes spin { 100% { transform: rotate(360deg); } }
+
+      .typing-dots-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      .typing-dots-inline span {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: #9ca3af;
+        animation: typing 1.4s infinite ease-in-out both;
+      }
+      .typing-dots-inline span:nth-child(1) { animation-delay: -0.32s; }
+      .typing-dots-inline span:nth-child(2) { animation-delay: -0.16s; }
+
+
       .typing-indicator {
         display: none;
         padding: 16px 20px;
@@ -1178,9 +1252,10 @@
       let socket = null;
       let typingTimeout = null;
       let isTyping = false;
-      // One-shot flag: true once the human-agent handoff card has been shown.
-      // Lives at module scope so it survives multiple initializeSocket() calls.
       let _escalationShown = false;
+      let _streamBubbleEl = null;
+      let _streamText = "";
+      let _thoughtText = "";
 
       // Cross-origin security: the parent page's origin, read from URL param.
       // All outbound postMessages are targeted at this origin (never '*').
@@ -1678,8 +1753,85 @@
             return;
           }
 
-          // Use animated typing effect for all incoming agent / AI messages
-          typeMessage(data.message.content);
+          // If we were streaming, swap to the final message instantly without typing animation
+          if (_streamBubbleEl) {
+            const inlineDots = _streamBubbleEl.querySelector('.typing-dots-inline');
+            if (inlineDots) inlineDots.style.display = 'none';
+            const spinner = _streamBubbleEl.querySelector('.thought-spinner');
+            if (spinner) spinner.classList.add('done');
+            
+            const thoughtBox = _streamBubbleEl.querySelector('.thought-box');
+            if (thoughtBox) thoughtBox.open = false;
+            
+            const responseContent = _streamBubbleEl.querySelector('.response-content');
+            if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
+            
+            _streamBubbleEl = null;
+            _streamText = "";
+            _thoughtText = "";
+            
+            if (window.parent) {
+              unreadCount++;
+              window.parent.postMessage({ type: 'UNREAD_COUNT', version: PROTO_VERSION, payload: { count: unreadCount } }, parentOrigin || '*');
+            }
+          } else {
+            // Use animated typing effect for regular incoming messages
+            typeMessage(data.message.content);
+          }
+        });
+
+        socket.on('ai_stream_chunk', (data) => {
+          if (data.conversationId !== chatId) return;
+          removeTypingDots();
+          
+          if (!_streamBubbleEl) {
+            _streamBubbleEl = document.createElement('div');
+            _streamBubbleEl.className = 'message agent';
+            _streamBubbleEl.innerHTML = `
+              <div class="message-bubble" style="min-width: 250px;">
+                <details class="thought-box" style="display: none;">
+                  <summary>
+                    <span class="thought-spinner"></span>
+                    <span class="thought-title">Thinking...</span>
+                  </summary>
+                  <div class="thought-content md"></div>
+                </details>
+                <div class="response-content md" style="display: inline;"></div>
+                <div class="typing-dots-inline" style="display: none;">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="message-time"></div>
+              </div>`;
+            messagesContainer.appendChild(_streamBubbleEl);
+          }
+          
+          const thoughtBox = _streamBubbleEl.querySelector('.thought-box');
+          const thoughtContent = _streamBubbleEl.querySelector('.thought-content');
+          const responseContent = _streamBubbleEl.querySelector('.response-content');
+          const inlineDots = _streamBubbleEl.querySelector('.typing-dots-inline');
+          
+          if (data.isThought) {
+            _thoughtText += data.chunk;
+            thoughtBox.style.display = 'block';
+            thoughtBox.open = true; // Auto open while thinking
+            thoughtContent.innerHTML = parseMarkdown(_thoughtText);
+            inlineDots.style.display = 'none';
+          } else {
+            _streamText += data.chunk;
+            const spinner = thoughtBox.querySelector('.thought-spinner');
+            if (spinner) spinner.classList.add('done');
+            thoughtBox.open = false; // Collapse thoughts once response starts
+            
+            responseContent.innerHTML = parseMarkdown(_streamText);
+            inlineDots.style.display = 'inline-flex'; // Show typing dots at end
+          }
+          
+          const timeContainer = _streamBubbleEl.querySelector('.message-time');
+          if (timeContainer && !timeContainer.textContent) {
+            timeContainer.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          }
+          
+          scrollToBottom();
         });
 
         socket.on('agent_typing', (data) => {

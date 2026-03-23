@@ -1,150 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Product Page</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IronPulse Fitness</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-    }
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
 
-    .container {
-      max-width: 1100px;
-      margin: 40px auto;
-      padding: 20px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 40px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-    }
+        header {
+            background: #020617;
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    .product-image img {
-      width: 100%;
-      border-radius: 12px;
-    }
+        header h1 {
+            color: #22c55e;
+        }
 
-    .product-details {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+        nav a {
+            margin-left: 20px;
+            text-decoration: none;
+            color: #cbd5f5;
+            transition: 0.3s;
+        }
 
-    .title {
-      font-size: 28px;
-      font-weight: bold;
-      color: #111827;
-    }
+        nav a:hover {
+            color: #22c55e;
+        }
 
-    .price {
-      font-size: 24px;
-      color: #10b981;
-      font-weight: bold;
-    }
+        .hero {
+            height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                url('https://nitrro.in/wp-content/uploads/2024/10/7-1024x576.jpg');
+            background-size: cover;
+        }
 
-    .description {
-      color: #4b5563;
-      line-height: 1.6;
-    }
+        .hero h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
 
-    .btn-group {
-      display: flex;
-      gap: 12px;
-    }
+        .hero button {
+            padding: 12px 25px;
+            background: #22c55e;
+            border: none;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+        }
 
-    button {
-      padding: 12px 18px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 16px;
-    }
+        section {
+            padding: 60px 50px;
+        }
 
-    .add-cart {
-      background: #111827;
-      color: white;
-    }
+        h2.section-title {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #22c55e;
+        }
 
-    .buy-now {
-      background: #10b981;
-      color: white;
-    }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
 
-    .reviews {
-      max-width: 1100px;
-      margin: 20px auto;
-      padding: 20px;
-    }
+        .card {
+            background: #020617;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
 
-    .review {
-      background: white;
-      padding: 16px;
-      margin-bottom: 10px;
-      border-radius: 8px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-    }
+        .card h3 {
+            margin-bottom: 10px;
+        }
 
-    @media (max-width: 768px) {
-      .container {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+        .price {
+            font-size: 2rem;
+            margin: 15px 0;
+            color: #22c55e;
+        }
+
+        .trainer img {
+            width: 100%;
+            border-radius: 10px;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .schedule table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .schedule th,
+        .schedule td {
+            padding: 10px;
+            border: 1px solid #1e293b;
+            text-align: center;
+        }
+
+        .testimonial {
+            background: #020617;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        footer {
+            background: #020617;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        }
+
+        .contact input,
+        .contact textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+        }
+
+        .contact button {
+            background: #22c55e;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
 
-  <div class="container">
-    <!-- Product Image -->
-    <div class="product-image">
-      <img src="https://m.media-amazon.com/images/I/61RahTQtAqL._AC_UF1000,1000_QL80_.jpg" alt="Product"/>
-    </div>
+    <header>
+        <h1>IronPulse Fitness</h1>
+        <nav>
+            <a href="#">Home</a>
+            <a href="#">Plans</a>
+            <a href="#">Trainers</a>
+            <a href="#">Schedule</a>
+            <a href="#">Contact</a>
+        </nav>
+    </header>
 
-    <!-- Product Details -->
-    <div class="product-details">
-      <div class="title">Wireless Headphones</div>
-      <div class="price">₹2,999</div>
+    <section class="hero">
+        <div>
+            <h2>Build Your Body, Build Your Mind</h2>
+            <p>Premium fitness center with expert trainers and modern equipment</p>
+            <br>
+            <button>Join Now</button>
+        </div>
+    </section>
 
-      <div class="description">
-        Experience premium sound quality with these wireless headphones.
-        Featuring noise cancellation, long battery life, and a sleek design.
-      </div>
+    <section>
+        <h2 class="section-title">Membership Plans</h2>
+        <div class="cards">
+            <div class="card">
+                <h3>Basic</h3>
+                <p class="price">₹999/month</p>
+                <p>Gym Access</p>
+                <p>Free Locker</p>
+                <p>1 Trainer Session</p>
+            </div>
+            <div class="card">
+                <h3>Pro</h3>
+                <p class="price">₹1999/month</p>
+                <p>All Basic Features</p>
+                <p>Diet Plan</p>
+                <p>Weekly Trainer Sessions</p>
+            </div>
+            <div class="card">
+                <h3>Elite</h3>
+                <p class="price">₹3499/month</p>
+                <p>Personal Trainer</p>
+                <p>Custom Diet Plan</p>
+                <p>24/7 Access</p>
+            </div>
+        </div>
+    </section>
 
-      <div class="btn-group">
-        <button class="add-cart">Add to Cart</button>
-        <button class="buy-now">Buy Now</button>
-      </div>
-    </div>
-  </div>
+    <section>
+        <h2 class="section-title">Our Trainers</h2>
+        <div class="cards">
+            <div class="card trainer">
+                <img src="https://images.unsplash.com/photo-1605296867424-35fc25c9212a">
+                <h3>Rahul Sharma</h3>
+                <p>Strength Coach (8 yrs exp)</p>
+            </div>
+            <div class="card trainer">
+                <img src="https://images.unsplash.com/photo-1594737625785-a6cbdabd333c">
+                <h3>Priya Mehta</h3>
+                <p>Yoga & Flexibility Expert</p>
+            </div>
+            <div class="card trainer">
+                <img src="https://images.unsplash.com/photo-1550345332-09e3ac987658">
+                <h3>Arjun Patel</h3>
+                <p>Bodybuilding Specialist</p>
+            </div>
+        </div>
+    </section>
 
-  <!-- Reviews -->
-  <div class="reviews">
-    <h2>Customer Reviews</h2>
+    <section class="schedule">
+        <h2 class="section-title">Weekly Schedule</h2>
+        <table>
+            <tr>
+                <th>Day</th>
+                <th>Morning</th>
+                <th>Evening</th>
+            </tr>
+            <tr>
+                <td>Monday</td>
+                <td>Cardio</td>
+                <td>Strength Training</td>
+            </tr>
+            <tr>
+                <td>Tuesday</td>
+                <td>Yoga</td>
+                <td>HIIT</td>
+            </tr>
+            <tr>
+                <td>Wednesday</td>
+                <td>CrossFit</td>
+                <td>Boxing</td>
+            </tr>
+            <tr>
+                <td>Thursday</td>
+                <td>Stretching</td>
+                <td>Weight Training</td>
+            </tr>
+            <tr>
+                <td>Friday</td>
+                <td>Cardio</td>
+                <td>Functional Training</td>
+            </tr>
+        </table>
+    </section>
 
-    <div class="review">
-      ⭐⭐⭐⭐⭐ - Amazing sound quality!
-    </div>
+    <section>
+        <h2 class="section-title">Testimonials</h2>
+        <div class="cards">
+            <div class="testimonial">
+                <p>"Lost 12kg in 3 months! Amazing trainers."</p>
+                <strong>- Sneha K.</strong>
+            </div>
+            <div class="testimonial">
+                <p>"Best gym environment in Pune. Highly recommended."</p>
+                <strong>- Amit R.</strong>
+            </div>
+            <div class="testimonial">
+                <p>"My strength doubled after joining here."</p>
+                <strong>- Karan S.</strong>
+            </div>
+        </div>
+    </section>
 
-    <div class="review">
-      ⭐⭐⭐⭐ - Comfortable and good battery life.
-    </div>
+    <section class="contact">
+        <h2 class="section-title">Contact Us</h2>
+        <form>
+            <input type="text" placeholder="Your Name" required>
+            <input type="email" placeholder="Your Email" required>
+            <textarea rows="4" placeholder="Your Message"></textarea>
+            <button type="submit">Send Message</button>
+        </form>
+    </section>
 
-    <div class="review">
-      ⭐⭐⭐⭐⭐ - Totally worth the price.
-    </div>
-  </div>
+    <footer>
+        <p>© 2026 IronPulse Fitness | Pune, India</p>
+    </footer>
 
-  <!-- Voxora Widget -->
-  <script 
-    src="http://localhost:9001/voxora-widget/v1/voxora.js"
-    data-voxora-public-key="69bbed69e2c2293341fd7542"
-    async>
-  </script>
-
+    <script src="http://localhost:9001/voxora-widget/v1/voxora.js?v=2" data-voxora-public-key="69bbed69e2c2293341fd7542"
+        async></script>
+    <script src="http://localhost:9001/voxora-widget/v1/voxora.js?v=2" data-voxora-public-key="69bbed69e2c2293341fd7542"
+        async></script>
 </body>
+
 </html>

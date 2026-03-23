@@ -22,7 +22,7 @@ const messageSchema = new Schema<IMessage>(
     organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     conversationId: { type: Schema.Types.ObjectId, ref: "Conversation", required: true },
     senderId: { type: String },
-    content: { type: String, required: true, maxlength: 5000 },
+    content: { type: String, required: true, maxlength: 50000 },
     type: { type: String, enum: ["text", "file", "image", "system"], default: "text" },
     metadata: {
       senderName: String,

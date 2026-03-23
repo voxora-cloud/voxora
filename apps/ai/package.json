@@ -22,6 +22,7 @@
     "mammoth": "^1.11.0",
     "minio": "^8.0.6",
     "mongoose": "^8.23.0",
+    "p-limit": "^7.3.0",
     "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
