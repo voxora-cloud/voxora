@@ -5,12 +5,15 @@
 
 import { WidgetConfig, WidgetServerConfig, WidgetState } from './types';
 
+const DEFAULT_FLOATING_ICON_URL = 'https://i.postimg.cc/MGnnrRZg/Untitled-design-3-removebg-preview.png';
+
 export class WidgetUI {
   private config: WidgetConfig;
   private state: WidgetState;
   private button: HTMLElement | null = null;
   private iframe: HTMLIFrameElement | null = null;
   private badge: HTMLElement | null = null;
+  private launcherLabel: HTMLElement | null = null;
   private onToggle?: (isOpen: boolean) => void;
   private customSize: { width: number; height: number } | null = null;
   private centered = false;
@@ -51,18 +54,23 @@ export class WidgetUI {
    * Shows the brand logo if available, otherwise falls back to the chat SVG.
    */
   private buttonIdleContent(): string {
-    if (this.config.logoUrl) {
-      // Inline onerror so broken images silently fall back to the SVG
-      const fallbackSvg = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
+    // Use configured logo first; otherwise fall back to the default brand icon URL.
+    const iconUrl = this.config.logoUrl || DEFAULT_FLOATING_ICON_URL;
+    if (iconUrl) {
       return `<img
-        src="${this.config.logoUrl}"
+        src="${iconUrl}"
+        data-default-icon="${DEFAULT_FLOATING_ICON_URL}"
         alt="logo"
-        style="width:34px;height:34px;object-fit:contain;border-radius:4px;display:block;"
-        onerror="this.replaceWith((function(){var s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('width','24');s.setAttribute('height','24');s.setAttribute('viewBox','0 0 24 24');s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','2');var p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z');s.appendChild(p);return s;})())"
+        style="width:34px;height:34px;object-fit:contain;border-radius:6px;display:block;"
+        onerror="if(this.dataset.vxRetriedDefault!=='1'){this.dataset.vxRetriedDefault='1';var d=this.getAttribute('data-default-icon');if(d&&this.src!==d){this.src=d;return;}}this.replaceWith((function(){var s=document.createElementNS('http://www.w3.org/2000/svg','svg');s.setAttribute('width','24');s.setAttribute('height','24');s.setAttribute('viewBox','0 0 24 24');s.setAttribute('fill','none');s.setAttribute('stroke','currentColor');s.setAttribute('stroke-width','1.9');s.setAttribute('stroke-linecap','round');s.setAttribute('stroke-linejoin','round');var p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d','M12 3c-4.97 0-9 3.58-9 8 0 2.42 1.2 4.58 3.1 6.05V21l3.45-2.18c.78.24 1.6.36 2.45.36 4.97 0 9-3.58 9-8s-4.03-8-9-8z');var c1=document.createElementNS('http://www.w3.org/2000/svg','circle');c1.setAttribute('cx','9');c1.setAttribute('cy','11.5');c1.setAttribute('r','1');var c2=document.createElementNS('http://www.w3.org/2000/svg','circle');c2.setAttribute('cx','12');c2.setAttribute('cy','11.5');c2.setAttribute('r','1');var c3=document.createElementNS('http://www.w3.org/2000/svg','circle');c3.setAttribute('cx','15');c3.setAttribute('cy','11.5');c3.setAttribute('r','1');s.appendChild(p);s.appendChild(c1);s.appendChild(c2);s.appendChild(c3);return s;})())"
       />`;
     }
-    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3c-4.97 0-9 3.58-9 8 0 2.42 1.2 4.58 3.1 6.05V21l3.45-2.18c.78.24 1.6.36 2.45.36 4.97 0 9-3.58 9-8s-4.03-8-9-8z"></path>
+      <circle cx="9" cy="11.5" r="1"></circle>
+      <circle cx="12" cy="11.5" r="1"></circle>
+      <circle cx="15" cy="11.5" r="1"></circle>
     </svg>`;
   }
 
@@ -73,9 +81,12 @@ export class WidgetUI {
     this.button = document.createElement('div');
     this.button.id = 'voxora-chat-button';
     this.button.setAttribute('role', 'button');
-    this.button.setAttribute('aria-label', 'Open chat');
+    const launcherText = this.config.appearance?.launcherText?.trim();
+    this.button.setAttribute('aria-label', launcherText || 'Open chat');
+    this.button.setAttribute('title', launcherText || this.config.displayName || 'Open chat');
     
-    const bgColor = this.config.backgroundColor || this.config.primaryColor || '#667eea';
+    const bgColor = this.config.primaryColor || this.config.backgroundColor || '#667eea';
+    const buttonTextColor = this.config.appearance?.textColor || 'white';
     // Derive shadow colour from the background for a cohesive look
     const shadowColor = bgColor.startsWith('#') ? `${bgColor}66` : 'rgba(102,126,234,0.4)';
     
@@ -95,7 +106,7 @@ export class WidgetUI {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      color: 'white',
+      color: buttonTextColor,
       zIndex: '2147483646', // Maximum safe z-index
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       transform: 'scale(0)',
@@ -152,6 +163,36 @@ export class WidgetUI {
     });
     
     this.button.appendChild(this.badge);
+
+    const launcherLabelText = this.config.appearance?.launcherText?.trim();
+    if (launcherLabelText) {
+      this.launcherLabel = document.createElement('div');
+      this.launcherLabel.textContent = launcherLabelText;
+      Object.assign(this.launcherLabel.style, {
+        position: 'fixed',
+        bottom: '34px',
+        right: this.config.position === 'bottom-left' ? 'auto' : '96px',
+        left: this.config.position === 'bottom-left' ? '96px' : 'auto',
+        background: '#111827',
+        color: 'white',
+        borderRadius: '999px',
+        padding: '8px 12px',
+        fontSize: '13px',
+        lineHeight: '1',
+        zIndex: '2147483645',
+        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.24)',
+        maxWidth: '220px',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        pointerEvents: 'none',
+        opacity: '0',
+        transform: 'translateY(6px)',
+        transition: 'all 0.25s ease',
+      });
+      document.body.appendChild(this.launcherLabel);
+    }
+
     document.body.appendChild(this.button);
 
     // Animate in
@@ -159,6 +200,10 @@ export class WidgetUI {
       if (this.button) {
         this.button.style.transform = 'scale(1)';
         this.button.style.opacity = '1';
+      }
+      if (this.launcherLabel) {
+        this.launcherLabel.style.opacity = '1';
+        this.launcherLabel.style.transform = 'translateY(0)';
       }
     });
 
@@ -255,6 +300,11 @@ export class WidgetUI {
     `;
     this.button.style.transform = 'scale(1) rotate(90deg)';
     this.button.setAttribute('aria-label', 'Close chat');
+    this.button.setAttribute('title', 'Close chat');
+    if (this.launcherLabel) {
+      this.launcherLabel.style.opacity = '0';
+      this.launcherLabel.style.transform = 'translateY(6px)';
+    }
 
     // Animate widget in
     requestAnimationFrame(() => {
@@ -281,7 +331,13 @@ export class WidgetUI {
     // Restore logo / chat icon
     this.button.innerHTML = this.buttonIdleContent();
     this.button.style.transform = 'scale(1) rotate(0deg)';
-    this.button.setAttribute('aria-label', 'Open chat');
+    const launcherText = this.config.appearance?.launcherText?.trim();
+    this.button.setAttribute('aria-label', launcherText || 'Open chat');
+    this.button.setAttribute('title', launcherText || this.config.displayName || 'Open chat');
+    if (this.launcherLabel) {
+      this.launcherLabel.style.opacity = '1';
+      this.launcherLabel.style.transform = 'translateY(0)';
+    }
 
     // Animate widget out
     this.iframe.style.transform = 'scale(0.8) translateY(20px)';
@@ -398,6 +454,7 @@ export class WidgetUI {
    */
   destroy(): void {
     if (this.button) this.button.remove();
+    if (this.launcherLabel) this.launcherLabel.remove();
     if (this.iframe) this.iframe.remove();
   }
 }

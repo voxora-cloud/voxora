@@ -23,11 +23,11 @@ export class WebCrawlTool implements Tool {
         }
       });
       let html = await response.text();
-      
+
       const scriptRegex = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
       const styleRegex = /<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi;
       const navRegex = /<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi;
-      
+
       let text = html
         .replace(scriptRegex, " ")
         .replace(styleRegex, " ")
@@ -35,7 +35,7 @@ export class WebCrawlTool implements Tool {
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim();
-        
+
       if (text.length > 8000) {
         text = text.slice(0, 8000) + "... (truncated)";
       }
