@@ -1,0 +1,244 @@
+import { state, PROTO_VERSION, DEFAULT_WIDGET_ICON_URL, API_BASE_URL } from './config';
+import { elements, adjustTextareaHeight, renderMaximizeIcon, addMessage, showTyping, hideTyping } from './ui';
+import { bootstrapSession } from './api';
+import { initializeSocket } from './socket';
+import { setupEventListeners } from './events';
+import { clearStoredSession } from './utils/session';
+
+function applyWidgetAppearance(cfg: any) {
+  if (!cfg) return;
+  state._uiConfig = cfg || { appearance: {} };
+
+  var title = document.getElementById('vx-title') || document.querySelector('.assistant-header h2');
+  var subtitle = document.getElementById('vx-subtitle');
+  var avatar = document.getElementById('vx-avatar') || document.querySelector('.assistant-header .avatar');
+  var appRoot = document.getElementById('app');
+  var sendButton = document.getElementById('sendBtn');
+  var input = document.getElementById('messageInput') as HTMLInputElement;
+  var historyButton = document.getElementById('historyBtn');
+  var appearance = cfg.appearance || {};
+
+  const primaryColor = appearance.primaryColor || cfg.backgroundColor || cfg.primaryColor;
+  if (primaryColor) {
+    document.documentElement.style.setProperty('--vx-accent', primaryColor);
+    document.documentElement.style.setProperty('--vx-accent-color', primaryColor);
+    if (sendButton) {
+      sendButton.style.background = primaryColor;
+      sendButton.style.boxShadow = `0 2px 8px ${primaryColor}55`;
+    }
+    if (input) {
+      input.style.borderColor = `${primaryColor}55`;
+      input.style.boxShadow = `0 0 0 1px ${primaryColor}33`;
+    }
+    if (avatar) {
+      avatar.style.background = primaryColor;
+      avatar.style.boxShadow = `0 4px 12px ${primaryColor}55`;
+    }
+  }
+
+  if (appearance.textColor) {
+    document.documentElement.style.setProperty('--vx-text-color-soft', appearance.textColor);
+    if (appRoot) appRoot.style.color = appearance.textColor;
+    if (title) title.style.color = appearance.textColor;
+    if (subtitle) subtitle.style.color = appearance.textColor;
+    if (sendButton) sendButton.style.color = appearance.textColor;
+    if (historyButton) historyButton.style.color = appearance.textColor;
+  }
+
+  if (cfg.displayName && title) {
+    title.textContent = appearance.welcomeMessage || cfg.displayName;
+  }
+  if (appearance.launcherText && subtitle) {
+    subtitle.textContent = appearance.launcherText;
+  }
+  if (appearance.launcherText && input && !input.value) {
+    input.placeholder = appearance.launcherText;
+  }
+
+  const finalLogoUrl = appearance.logoUrl || cfg.logoUrl || DEFAULT_WIDGET_ICON_URL;
+  if (finalLogoUrl) {
+    if (avatar) {
+      avatar.innerHTML = '';
+      var img = document.createElement('img');
+      img.src = finalLogoUrl;
+      img.alt = (cfg.displayName || 'Logo') + ' logo';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '999px';
+      img.onerror = function() {
+        if (img.src !== DEFAULT_WIDGET_ICON_URL) {
+          img.src = DEFAULT_WIDGET_ICON_URL;
+          return;
+        }
+        avatar!.textContent = 'V';
+      };
+      avatar.appendChild(img);
+    }
+  } else {
+    if (avatar) avatar.textContent = 'V';
+  }
+
+  const acceptMediaFiles = cfg?.features?.acceptMediaFiles ?? cfg?.acceptMediaFiles ?? true;
+  if (elements.attachBtn) {
+    elements.attachBtn.style.display = acceptMediaFiles ? 'flex' : 'none';
+    elements.attachBtn.disabled = !acceptMediaFiles;
+  }
+  if (elements.fileInput) elements.fileInput.disabled = !acceptMediaFiles;
+}
+
+function requestResize(width: number, height: number, centered: boolean) {
+  const target = state.parentOrigin || '*';
+  if (!window.parent) return;
+  window.parent.postMessage(
+    { type: 'RESIZE_WIDGET', version: PROTO_VERSION, payload: { width, height, centered: !!centered } },
+    target
+  );
+}
+
+function toggleMaximizeWidget() {
+  state._isMaximized = !state._isMaximized;
+  if (state._isMaximized) {
+    const width = Math.min(1100, Math.max(760, window.innerWidth - 80));
+    const height = Math.min(680, Math.max(520, window.innerHeight - 100));
+    requestResize(width, height, true);
+  } else {
+    requestResize(380, 600, false);
+  }
+  renderMaximizeIcon();
+}
+
+function minimizeWidget() {
+  const target = state.parentOrigin || '*';
+  if (window.parent) {
+    window.parent.postMessage({ type: 'CLOSE_WIDGET', version: PROTO_VERSION }, target);
+  }
+}
+
+async function handleInitWidget(payload: any) {
+  if (state._connectTimeout) { clearTimeout(state._connectTimeout); state._connectTimeout = null; }
+
+  state.voxoraPublicKey = payload.publicKey;
+  (window as any).__voxoraPageUrl = payload.pageUrl;
+  (window as any).__voxoraPageTitle = payload.pageTitle || '';
+
+  if (payload.appearance) applyWidgetAppearance(payload.appearance);
+
+  await bootstrapSession(payload, function(token: string, sessionId: string) {
+    state.widgetToken = token;
+    state.currentSessionId = sessionId;
+
+    initializeSocket();
+
+    if (elements.messageInput) {
+      elements.messageInput.disabled = false;
+      elements.messageInput.placeholder = 'Type your message...';
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  setupEventListeners();
+
+  const defaultAvatar = document.querySelector('.assistant-header .avatar') as HTMLElement;
+  if (defaultAvatar) {
+    defaultAvatar.innerHTML = '';
+    const defaultImg = document.createElement('img');
+    defaultImg.src = DEFAULT_WIDGET_ICON_URL;
+    defaultImg.alt = 'Widget icon';
+    defaultImg.style.width = '100%';
+    defaultImg.style.height = '100%';
+    defaultImg.style.objectFit = 'cover';
+    defaultImg.style.borderRadius = '999px';
+    defaultImg.onerror = function() {
+      defaultAvatar.textContent = 'V';
+    };
+    defaultAvatar.appendChild(defaultImg);
+  }
+
+  if (elements.minimizeBtn) elements.minimizeBtn.addEventListener('click', minimizeWidget);
+  if (elements.maximizeBtn) {
+    elements.maximizeBtn.addEventListener('click', toggleMaximizeWidget);
+    renderMaximizeIcon();
+  }
+
+  adjustTextareaHeight();
+
+  if (elements.messageInput && elements.sendBtn) {
+    elements.messageInput.disabled = true;
+    elements.messageInput.placeholder = 'Connecting...';
+    elements.sendBtn.disabled = true;
+  }
+
+  state._connectTimeout = setTimeout(function() {
+    if (elements.messageInput && elements.messageInput.disabled) {
+      elements.messageInput.disabled = false;
+      elements.messageInput.placeholder = 'Connection failed — try refreshing';
+      console.warn('[VoxoraWidget] INIT_WIDGET not received within 12s — unblocking input');
+    }
+  }, 12000) as unknown as number;
+
+  if (window.parent) {
+    window.parent.postMessage({ type: 'WIDGET_READY', version: PROTO_VERSION }, state.parentOrigin || '*');
+  }
+});
+
+window.addEventListener('message', function(event) {
+  if (state.parentOrigin && event.origin !== state.parentOrigin) return;
+  const msg = event.data;
+  if (!msg || !msg.type || msg.version !== PROTO_VERSION) return;
+
+  switch (msg.type) {
+    case 'INIT_WIDGET':
+      handleInitWidget(msg.payload);
+      break;
+
+    case 'USER_IDENTITY':
+      if (state.voxoraPublicKey && API_BASE_URL) {
+        const refreshPayload = {
+          publicKey: state.voxoraPublicKey,
+          apiUrl: API_BASE_URL,
+          visitorId: msg.payload.visitorId || '',
+          identity: msg.payload,
+          pageUrl: (window as any).__voxoraPageUrl || '',
+        };
+        clearStoredSession(state.voxoraPublicKey);
+        bootstrapSession(refreshPayload, function(token: string, sessionId: string) {
+          state.widgetToken = token;
+          state.currentSessionId = sessionId;
+          if (state.socket) {
+            state.socket.disconnect();
+            state.socket = null;
+          }
+          initializeSocket();
+        });
+      }
+      break;
+
+    case 'PAGE_CHANGE':
+      (window as any).__voxoraPageUrl = msg.payload.pageUrl;
+      (window as any).__voxoraPageTitle = msg.payload.pageTitle || '';
+      break;
+  }
+});
+
+(window as any).chatWidget = {
+  addMessage,
+  showTyping,
+  hideTyping,
+  sendMessage: (message: string) => {
+    if (state.socket && state.chatId) {
+      state.socket.emit('send_message', {
+        conversationId: state.chatId,
+        content: message,
+        type: 'text',
+        metadata: { senderName: state.userName, senderEmail: state.userEmail, source: 'widget' }
+      });
+    }
+  },
+  joinConversation: (conversationId: string) => {
+    if (state.socket) {
+      state.socket.emit('join_conversation', conversationId);
+    }
+  }
+};

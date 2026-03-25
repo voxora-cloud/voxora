@@ -2,25 +2,16 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
+  base: './',
   build: {
-    lib: {
-      entry: path.resolve(__dirname, 'src/index.ts'),
-      name: 'VoxoraWidget',
-      fileName: () => 'voxora.js',
-      formats: ['iife']
-    },
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        // Inline all dependencies in a single file
-        inlineDynamicImports: true,
-        // Global variable name when loaded via script tag
-        name: 'VoxoraWidget'
-      }
-    },
-    // Optimize for production (esbuild is faster and built-in)
+    sourcemap: true,
     minify: 'esbuild',
-    sourcemap: true
-  },
+    rollupOptions: {
+      input: {
+        widget: path.resolve(__dirname, 'widget.html')
+      }
+    }
+  }
 });

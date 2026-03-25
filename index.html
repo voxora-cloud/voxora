@@ -6,148 +6,175 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IronPulse Fitness</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-        }
+      * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
 
-        body {
-            background: #0f172a;
-            color: #e2e8f0;
-        }
+body {
+    background: #f8fafc;
+    color: #0f172a;
+}
 
-        header {
-            background: #020617;
-            padding: 20px 50px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+/* HEADER */
+header {
+    background: #ffffff;
+    padding: 20px 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+}
 
-        header h1 {
-            color: #22c55e;
-        }
+header h1 {
+    color: #0ea5e9;
+}
 
-        nav a {
-            margin-left: 20px;
-            text-decoration: none;
-            color: #cbd5f5;
-            transition: 0.3s;
-        }
+nav a {
+    margin-left: 20px;
+    text-decoration: none;
+    color: #0f172a;
+    font-weight: 500;
+    transition: 0.3s;
+}
 
-        nav a:hover {
-            color: #22c55e;
-        }
+nav a:hover {
+    color: #0ea5e9;
+}
 
-        .hero {
-            height: 90vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-                url('https://nitrro.in/wp-content/uploads/2024/10/7-1024x576.jpg');
-            background-size: cover;
-        }
+/* HERO */
+.hero {
+    height: 90vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)),
+        url('https://nitrro.in/wp-content/uploads/2024/10/7-1024x576.jpg');
+    background-size: cover;
+    color: #ffffff;
+}
 
-        .hero h2 {
-            font-size: 3rem;
-            margin-bottom: 20px;
-        }
+.hero h2 {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
 
-        .hero button {
-            padding: 12px 25px;
-            background: #22c55e;
-            border: none;
-            color: black;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-        }
+.hero button {
+    padding: 12px 25px;
+    background: #0ea5e9;
+    border: none;
+    color: #ffffff;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: 0.3s;
+}
 
-        section {
-            padding: 60px 50px;
-        }
+.hero button:hover {
+    background: #0284c7;
+}
 
-        h2.section-title {
-            text-align: center;
-            margin-bottom: 40px;
-            color: #22c55e;
-        }
+/* SECTIONS */
+section {
+    padding: 60px 50px;
+}
 
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        }
+h2.section-title {
+    text-align: center;
+    margin-bottom: 40px;
+    color: #0ea5e9;
+}
 
-        .card {
-            background: #020617;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }
+/* CARDS */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
 
-        .card h3 {
-            margin-bottom: 10px;
-        }
+.card {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    transition: 0.3s;
+}
 
-        .price {
-            font-size: 2rem;
-            margin: 15px 0;
-            color: #22c55e;
-        }
+.card:hover {
+    transform: translateY(-5px);
+}
 
-        .trainer img {
-            width: 100%;
-            border-radius: 10px;
-            height: 250px;
-            object-fit: cover;
-        }
+.card h3 {
+    margin-bottom: 10px;
+}
 
-        .schedule table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+.price {
+    font-size: 2rem;
+    margin: 15px 0;
+    color: #0ea5e9;
+}
 
-        .schedule th,
-        .schedule td {
-            padding: 10px;
-            border: 1px solid #1e293b;
-            text-align: center;
-        }
+/* TRAINER */
+.trainer img {
+    width: 100%;
+    border-radius: 10px;
+    height: 250px;
+    object-fit: cover;
+}
 
-        .testimonial {
-            background: #020617;
-            padding: 20px;
-            border-radius: 10px;
-        }
+/* SCHEDULE */
+.schedule table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #ffffff;
+}
 
-        footer {
-            background: #020617;
-            text-align: center;
-            padding: 20px;
-            margin-top: 40px;
-        }
+.schedule th,
+.schedule td {
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
 
-        .contact input,
-        .contact textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: none;
-        }
+/* TESTIMONIAL */
+.testimonial {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
 
-        .contact button {
-            background: #22c55e;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-            font-weight: bold;
-        }
+/* CONTACT */
+.contact input,
+.contact textarea {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: 1px solid #cbd5f5;
+}
+
+.contact button {
+    background: #0ea5e9;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    color: white;
+}
+
+/* FOOTER */
+footer {
+    background: #0f172a;
+    color: white;
+    text-align: center;
+    padding: 20px;
+    margin-top: 40px;
+}
     </style>
 </head>
 
@@ -289,8 +316,6 @@
         <p>© 2026 IronPulse Fitness | Pune, India</p>
     </footer>
 
-    <script src="http://localhost:9001/voxora-widget/v1/voxora.js?v=2" data-voxora-public-key="69bbed69e2c2293341fd7542"
-        async></script>
     <script src="http://localhost:9001/voxora-widget/v1/voxora.js?v=2" data-voxora-public-key="69bbed69e2c2293341fd7542"
         async></script>
 </body>

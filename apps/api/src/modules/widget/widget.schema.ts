@@ -3,7 +3,7 @@ import Joi from "joi";
 export const widgetSchema = {
   createConversation: Joi.object({
     voxoraPublicKey: Joi.string().required(),
-    message: Joi.string().max(10000).required(),
+    message: Joi.string().required(),
     visitorName: Joi.string().min(1).max(100).optional(),
     visitorEmail: Joi.string().email().optional(),
     sessionId: Joi.string().optional(),
