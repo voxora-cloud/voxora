@@ -49,6 +49,7 @@ class VoxoraLoader {
   private lastPageUrl: string;
   private appearance: WidgetAppearance | null = null;
   private allowHostDomAccess = true;
+  private fullscreenMode = false;
 
   constructor() {
     const config = parseWidgetConfig();
@@ -68,6 +69,7 @@ class VoxoraLoader {
     this.api = new WidgetAPI(config);
     this.ui = new WidgetUI(config, this.state);
     this.iframeOrigin = getWidgetOrigin(config.apiUrl!, config.cdnUrl);
+    this.fullscreenMode = config.fullscreen === true;
     this.lastPageUrl = "";
     this.visitorId = "";
     this.identity = null;
@@ -107,10 +109,13 @@ class VoxoraLoader {
     this.setupMessageHandlers();
     this.setupPageChangeDetection();
 
-    this.ui.createButton();
+    if (!this.fullscreenMode) {
+      this.ui.createButton();
+    }
     this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
 
-    if (behavior?.autoOpen) {
+    const shouldAutoOpen = this.api.getConfig().autoOpen ?? behavior?.autoOpen;
+    if (this.fullscreenMode || shouldAutoOpen) {
       this.open();
     }
   }
@@ -127,6 +132,9 @@ class VoxoraLoader {
           this.onIframeReady();
           break;
         case 'CLOSE_WIDGET':
+          if (this.fullscreenMode) {
+            break;
+          }
           this.ui.close();
           this.state.isOpen = false;
           break;

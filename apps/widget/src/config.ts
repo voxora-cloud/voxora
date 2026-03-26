@@ -15,6 +15,25 @@ function isInjectedValue(value: string): boolean {
   return !!value && !value.startsWith("__");
 }
 
+function toBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return undefined;
+}
+
+interface WindowVoxoraConfig {
+  publicKey?: string;
+  voxoraPublicKey?: string;
+  apiUrl?: string;
+  cdnUrl?: string;
+  fullscreen?: boolean;
+  autoOpen?: boolean;
+}
+
 export function getApiUrl(customUrl?: string): string {
   // 1. Explicit override from script tag
   if (customUrl) return customUrl;
@@ -63,24 +82,33 @@ export function getWidgetBaseUrl(apiUrl: string, cdnUrl?: string): string {
  */
 export function parseWidgetConfig(): WidgetConfig | null {
   try {
-    const script = document.querySelector(
-      "script[data-voxora-public-key]",
-    ) as HTMLScriptElement | null;
+    const globalConfig = ((window as Window & { voxoraConfig?: WindowVoxoraConfig }).voxoraConfig) || {};
 
-    if (!script) {
-      console.error("[VoxoraWidget] Script tag with data-voxora-public-key not found");
-      return null;
-    }
+    const script =
+      (document.querySelector("script[data-voxora-public-key]") as HTMLScriptElement | null) ||
+      (document.currentScript as HTMLScriptElement | null) ||
+      Array.from(document.scripts).find((candidate) => candidate.src.includes("voxora.js")) ||
+      null;
 
-    const publicKey = script.getAttribute("data-voxora-public-key");
+    const publicKey =
+      globalConfig.publicKey ||
+      globalConfig.voxoraPublicKey ||
+      script?.getAttribute("data-voxora-public-key") ||
+      script?.getAttribute("data-voxora-publickey") ||
+      null;
+
     if (!publicKey) {
-      console.error("[VoxoraWidget] data-voxora-public-key is required");
+      console.error("[VoxoraWidget] publicKey is required (window.voxoraConfig.publicKey or data-voxora-public-key)");
       return null;
     }
 
     // Optional CDN override from attribute; fallback to script src origin.
-    let cdnUrl = script.getAttribute("data-voxora-cdn-url") || undefined;
-    if (!cdnUrl && script.src) {
+    let cdnUrl =
+      globalConfig.cdnUrl ||
+      script?.getAttribute("data-voxora-cdn-url") ||
+      undefined;
+
+    if (!cdnUrl && script?.src) {
       try {
         cdnUrl = new URL(script.src).origin;
       } catch {
@@ -88,12 +116,28 @@ export function parseWidgetConfig(): WidgetConfig | null {
       }
     }
 
-    const apiUrl = getApiUrl(script.getAttribute("data-voxora-api-url") || undefined);
+    const apiUrl = getApiUrl(
+      globalConfig.apiUrl ||
+      script?.getAttribute("data-voxora-api-url") ||
+      undefined,
+    );
+
+    const fullscreen =
+      toBoolean(globalConfig.fullscreen) ??
+      toBoolean(script?.getAttribute("data-voxora-fullscreen")) ??
+      false;
+
+    const autoOpen =
+      toBoolean(globalConfig.autoOpen) ??
+      toBoolean(script?.getAttribute("data-voxora-auto-open")) ??
+      false;
 
     const config: WidgetConfig = {
       publicKey,
       apiUrl,
       cdnUrl,
+      fullscreen,
+      autoOpen,
     };
 
     return config;

@@ -72,6 +72,7 @@ export class WidgetAPI {
       origin: parentOrigin,
       publicKey: this.config.publicKey,
       apiUrl: this.config.apiUrl!,
+      _vx: `${Date.now()}`,
     });
 
     return `${base}/widget.html?${params.toString()}`;

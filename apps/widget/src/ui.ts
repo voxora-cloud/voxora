@@ -18,6 +18,10 @@ export class WidgetUI {
   private customSize: { width: number; height: number } | null = null;
   private centered = false;
 
+  private get isFullscreen(): boolean {
+    return this.config.fullscreen === true;
+  }
+
   constructor(config: WidgetConfig, state: WidgetState) {
     this.config = config;
     this.state = state;
@@ -78,6 +82,10 @@ export class WidgetUI {
    * Create and mount chat button
    */
   createButton(): HTMLElement {
+    if (this.isFullscreen) {
+      throw new Error('[VoxoraWidget] createButton() should not be called in fullscreen mode');
+    }
+
     this.button = document.createElement('div');
     this.button.id = 'voxora-chat-button';
     this.button.setAttribute('role', 'button');
@@ -222,33 +230,60 @@ export class WidgetUI {
     // Use sandbox for security - allow scripts, forms, popups, and same-origin (for localStorage)
     this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-same-origin');
 
-    const isLeft = this.config.position === 'bottom-left';
+    if (this.isFullscreen) {
+      Object.assign(this.iframe.style, {
+        position: 'fixed',
+        top: '0',
+        right: '0',
+        bottom: '0',
+        left: '0',
+        width: '100vw',
+        height: '100vh',
+        maxWidth: '100vw',
+        maxHeight: '100vh',
+        border: 'none',
+        borderRadius: '0',
+        boxShadow: 'none',
+        overflow: 'hidden',
+        zIndex: '2147483647',
+        background: 'white',
+        transition: 'opacity 0.2s ease',
+        transform: 'none',
+        opacity: '0',
+        transformOrigin: 'center center',
+        display: 'none',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      });
+    } else {
+      const isLeft = this.config.position === 'bottom-left';
 
-    Object.assign(this.iframe.style, {
-      position: 'fixed',
-      bottom: '100px',
-      right: isLeft ? 'auto' : '24px',
-      left: isLeft ? '24px' : 'auto',
-      width: '380px',
-      height: '600px',
-      maxWidth: 'calc(100vw - 48px)',
-      maxHeight: 'calc(100vh - 140px)',
-      border: 'none',
-      borderRadius: '16px',
-      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-      overflow: 'hidden',
-      zIndex: '2147483645', // One below button
-      background: 'white',
-      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-      transform: 'scale(0.8) translateY(20px)',
-      opacity: '0',
-      transformOrigin: isLeft ? 'bottom left' : 'bottom right',
-      display: 'none',
-      // Prevent the host page from getting a selection highlight when the
-      // user double-clicks inside the iframe area.
-      userSelect: 'none',
-      WebkitUserSelect: 'none',
-    });
+      Object.assign(this.iframe.style, {
+        position: 'fixed',
+        bottom: '100px',
+        right: isLeft ? 'auto' : '24px',
+        left: isLeft ? '24px' : 'auto',
+        width: '380px',
+        height: '700px',
+        maxWidth: 'calc(100vw - 48px)',
+        maxHeight: 'calc(100vh - 120px)',
+        border: 'none',
+        borderRadius: '16px',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+        overflow: 'hidden',
+        zIndex: '2147483645', // One below button
+        background: 'white',
+        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        transform: 'scale(0.8) translateY(20px)',
+        opacity: '0',
+        transformOrigin: isLeft ? 'bottom left' : 'bottom right',
+        display: 'none',
+        // Prevent the host page from getting a selection highlight when the
+        // user double-clicks inside the iframe area.
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+      });
+    }
 
     document.body.appendChild(this.iframe);
     this.setupResponsive();
@@ -286,30 +321,34 @@ export class WidgetUI {
    * Open widget
    */
   open(): void {
-    if (!this.iframe || !this.button) return;
+    if (!this.iframe) return;
 
     this.state.isOpen = true;
     this.iframe.style.display = 'block';
 
-    // Update button to close icon
-    this.button.innerHTML = `
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="18" y1="6" x2="6" y2="18"></line>
-        <line x1="6" y1="6" x2="18" y2="18"></line>
-      </svg>
-    `;
-    this.button.style.transform = 'scale(1) rotate(90deg)';
-    this.button.setAttribute('aria-label', 'Close chat');
-    this.button.setAttribute('title', 'Close chat');
-    if (this.launcherLabel) {
-      this.launcherLabel.style.opacity = '0';
-      this.launcherLabel.style.transform = 'translateY(6px)';
+    if (this.button) {
+      // Update button to close icon
+      this.button.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+      this.button.style.transform = 'scale(1) rotate(90deg)';
+      this.button.setAttribute('aria-label', 'Close chat');
+      this.button.setAttribute('title', 'Close chat');
+      if (this.launcherLabel) {
+        this.launcherLabel.style.opacity = '0';
+        this.launcherLabel.style.transform = 'translateY(6px)';
+      }
     }
 
     // Animate widget in
     requestAnimationFrame(() => {
       if (this.iframe) {
-        this.iframe.style.transform = 'scale(1) translateY(0)';
+        if (!this.isFullscreen) {
+          this.iframe.style.transform = 'scale(1) translateY(0)';
+        }
         this.iframe.style.opacity = '1';
       }
     });
@@ -324,23 +363,27 @@ export class WidgetUI {
    * Close widget
    */
   close(): void {
-    if (!this.iframe || !this.button) return;
+    if (!this.iframe) return;
 
     this.state.isOpen = false;
 
-    // Restore logo / chat icon
-    this.button.innerHTML = this.buttonIdleContent();
-    this.button.style.transform = 'scale(1) rotate(0deg)';
-    const launcherText = this.config.appearance?.launcherText?.trim();
-    this.button.setAttribute('aria-label', launcherText || 'Open chat');
-    this.button.setAttribute('title', launcherText || this.config.displayName || 'Open chat');
-    if (this.launcherLabel) {
-      this.launcherLabel.style.opacity = '1';
-      this.launcherLabel.style.transform = 'translateY(0)';
+    if (this.button) {
+      // Restore logo / chat icon
+      this.button.innerHTML = this.buttonIdleContent();
+      this.button.style.transform = 'scale(1) rotate(0deg)';
+      const launcherText = this.config.appearance?.launcherText?.trim();
+      this.button.setAttribute('aria-label', launcherText || 'Open chat');
+      this.button.setAttribute('title', launcherText || this.config.displayName || 'Open chat');
+      if (this.launcherLabel) {
+        this.launcherLabel.style.opacity = '1';
+        this.launcherLabel.style.transform = 'translateY(0)';
+      }
     }
 
     // Animate widget out
-    this.iframe.style.transform = 'scale(0.8) translateY(20px)';
+    if (!this.isFullscreen) {
+      this.iframe.style.transform = 'scale(0.8) translateY(20px)';
+    }
     this.iframe.style.opacity = '0';
 
     setTimeout(() => {
@@ -386,6 +429,23 @@ export class WidgetUI {
   private applyResponsiveLayout(): void {
     if (!this.iframe) return;
 
+    if (this.isFullscreen) {
+      Object.assign(this.iframe.style, {
+        top: '0',
+        right: '0',
+        bottom: '0',
+        left: '0',
+        width: '100vw',
+        height: '100vh',
+        maxWidth: '100vw',
+        maxHeight: '100vh',
+        borderRadius: '0',
+        boxShadow: 'none',
+      });
+      this.iframe.style.transformOrigin = 'center center';
+      return;
+    }
+
     const isLeft = this.config.position === 'bottom-left';
 
     if (window.innerWidth <= 480) {
@@ -425,7 +485,7 @@ export class WidgetUI {
 
     Object.assign(this.iframe.style, {
       width: '380px',
-      height: '600px',
+      height: '700px',
       right: isLeft ? 'auto' : '24px',
       left: isLeft ? '24px' : 'auto',
       top: 'auto',

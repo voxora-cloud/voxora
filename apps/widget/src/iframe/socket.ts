@@ -3,6 +3,9 @@ import { state, API_BASE_URL, PROTO_VERSION } from './config';
 import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, renderThoughtSteps } from './ui';
 import { extractThoughtSteps, parseMarkdown } from './utils/markdown';
 
+let authRetryCount = 0;
+const MAX_AUTH_RETRIES = 3;
+
 export function initializeSocket() {
   if (!state.widgetToken) {
     console.error('Missing widget token, cannot connect');
@@ -17,11 +20,19 @@ export function initializeSocket() {
   state.socket.on('connect_error', (err: any) => {
     console.error('Socket connection error:', err.message);
     if (err.message.includes('Authentication error') && state.voxoraPublicKey) {
-      fetch(`${API_BASE_URL}/api/v1/widget/auth/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ voxoraPublicKey: state.voxoraPublicKey, origin: window.location.origin })
-      })
+      if (authRetryCount >= MAX_AUTH_RETRIES) {
+        console.error('Socket: Max auth retries reached. Stopping reconnection loop.');
+        return;
+      }
+      authRetryCount++;
+      const backoffDelay = Math.min(1000 * Math.pow(2, authRetryCount - 1), 8000);
+      
+      setTimeout(() => {
+        fetch(`${API_BASE_URL}/api/v1/widget/auth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ voxoraPublicKey: state.voxoraPublicKey, origin: window.location.origin })
+        })
       .then(response => response.json())
       .then(data => {
         if (data.success && data.data.token) {
@@ -37,6 +48,7 @@ export function initializeSocket() {
         }
       })
       .catch(() => {});
+      }, backoffDelay);
     }
   });
 
@@ -48,6 +60,7 @@ function bindSocketEvents() {
   const socket = state.socket;
 
   socket.on('connect', () => {
+    authRetryCount = 0;
     console.log('Socket connected for widget user with ID:', socket.id);
     if (state.chatId) {
       socket.emit('join_conversation', state.chatId);

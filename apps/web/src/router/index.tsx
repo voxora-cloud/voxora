@@ -22,6 +22,8 @@ import { GeneralSettingsPage } from "@/domains/settings/pages/general-page";
 import { DangerZonePage } from "@/domains/settings/pages/danger-zone-page";
 import { CreateOrganizationPage } from "@/domains/organization/pages/create-organization-page";
 import { DashboardLayout } from "@/shared/layouts/dashboard-layout";
+import QRCodeGeneratorPage from "@/domains/widget/pages/qr-generator-page";
+import QRScannerLandingPage from "@/domains/widget/pages/qr-scanner-landing-page";
 
 const router = createBrowserRouter([
     {
@@ -135,6 +137,18 @@ const router = createBrowserRouter([
                 <WidgetPage />
             </DashboardLayout>
         ),
+    },
+    {
+        path: "/dashboard/widget/qr",
+        element: (
+            <DashboardLayout>
+                <QRCodeGeneratorPage />
+            </DashboardLayout>
+        ),
+    },
+    {
+        path: "/c/:publicKey",
+        element: <QRScannerLandingPage />,
     },
     {
         path: "/dashboard/knowledge",

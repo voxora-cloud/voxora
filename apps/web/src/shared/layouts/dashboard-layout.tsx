@@ -13,6 +13,7 @@ import {
   Minimize2,
   Moon,
   Search,
+  QrCode,
   Settings,
   Sun,
   TriangleAlert,
@@ -71,6 +72,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     if (orgRole === "owner") {
       base.push(
+        { label: "QR Codes", to: "/dashboard/widget/qr" },
         { label: "General Settings", to: "/dashboard/settings/general" },
         { label: "Danger Zone", to: "/dashboard/settings/danger-zone" }
       );
@@ -279,6 +281,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   <span className="flex-1 text-left">Widget</span>
                 </Button>
               </Link>
+
+              {orgRole === "owner" && (
+                <Link to="/dashboard/widget/qr">
+                  <Button
+                    variant="ghost"
+                    className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/widget/qr", true)
+                      ? "bg-primary/10 text-primary border-r-2 border-primary"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
+                  >
+                    <QrCode className="h-5 w-5 mr-3" />
+                    <span className="flex-1 text-left">QR Codes</span>
+                  </Button>
+                </Link>
+              )}
             </div>
           )}
 
