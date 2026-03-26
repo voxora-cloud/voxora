@@ -9,16 +9,16 @@ function applyWidgetAppearance(cfg: any) {
   if (!cfg) return;
   state._uiConfig = cfg || { appearance: {} };
 
-  var title = document.getElementById('vx-title') || document.querySelector('.assistant-header h2');
-  var subtitle = document.getElementById('vx-subtitle');
-  var avatar = document.getElementById('vx-avatar') || document.querySelector('.assistant-header .avatar');
-  var appRoot = document.getElementById('app');
-  var sendButton = document.getElementById('sendBtn');
-  var input = document.getElementById('messageInput') as HTMLInputElement;
-  var historyButton = document.getElementById('historyBtn');
-  var appearance = cfg.appearance || {};
+  const title = document.getElementById('vx-title') || document.querySelector('.assistant-header h2');
+  const subtitle = document.getElementById('vx-subtitle');
+  const avatar = document.getElementById('vx-avatar') || document.querySelector('.assistant-header .avatar');
+  const appRoot = document.getElementById('app');
+  const sendButton = document.getElementById('sendBtn');
+  const input = document.getElementById('messageInput') as HTMLInputElement;
+  const historyButton = document.getElementById('historyBtn');
+  const appearance = cfg.appearance || {};
 
-  const primaryColor = appearance.primaryColor || cfg.backgroundColor || cfg.primaryColor;
+  const primaryColor = appearance.primaryColor || cfg.primaryColor;
   if (primaryColor) {
     document.documentElement.style.setProperty('--vx-accent', primaryColor);
     document.documentElement.style.setProperty('--vx-accent-color', primaryColor);
@@ -26,23 +26,43 @@ function applyWidgetAppearance(cfg: any) {
       sendButton.style.background = primaryColor;
       sendButton.style.boxShadow = `0 2px 8px ${primaryColor}55`;
     }
-    if (input) {
-      input.style.borderColor = `${primaryColor}55`;
-      input.style.boxShadow = `0 0 0 1px ${primaryColor}33`;
-    }
     if (avatar) {
       avatar.style.background = primaryColor;
       avatar.style.boxShadow = `0 4px 12px ${primaryColor}55`;
     }
   }
 
+  const bgColor = cfg.backgroundColor || appearance.backgroundColor;
+  if (bgColor) {
+    if (appRoot) appRoot.style.backgroundColor = bgColor;
+    const inputArea = document.querySelector('.input-area') as HTMLElement;
+    if (inputArea) inputArea.style.backgroundColor = bgColor;
+    const historyOverlay = document.querySelector('.history-overlay') as HTMLElement;
+    if (historyOverlay) historyOverlay.style.background = bgColor;
+  }
+
   if (appearance.textColor) {
-    document.documentElement.style.setProperty('--vx-text-color-soft', appearance.textColor);
-    if (appRoot) appRoot.style.color = appearance.textColor;
-    if (title) title.style.color = appearance.textColor;
-    if (subtitle) subtitle.style.color = appearance.textColor;
-    if (sendButton) sendButton.style.color = appearance.textColor;
-    if (historyButton) historyButton.style.color = appearance.textColor;
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+      .widget-app, .widget-topbar-title, .history-header h3, .history-item-preview,
+      .assistant-header h2, .suggestion-btn, .message-bubble, #messageInput,
+      .message.user .message-bubble, .message.agent .message-bubble,
+      .message-bubble .md p, .message-bubble .md strong, .message-bubble .md li,
+      .history-state, details.thought-box summary, .thought-content, .thought-step-label,
+      .topbar-action-btn, .close-history-btn, #sendBtn, #sendBtn svg {
+        color: ${appearance.textColor} !important;
+      }
+      .suggestion-btn svg, .history-item-date, .history-header p,
+      .thought-step.thinking .thought-step-label {
+        color: ${appearance.textColor} !important;
+        opacity: 0.7;
+      }
+      #messageInput::placeholder {
+        color: ${appearance.textColor} !important;
+        opacity: 0.5;
+      }
+    `;
+    document.head.appendChild(styleEl);
   }
 
   if (cfg.displayName && title) {
@@ -59,7 +79,7 @@ function applyWidgetAppearance(cfg: any) {
   if (finalLogoUrl) {
     if (avatar) {
       avatar.innerHTML = '';
-      var img = document.createElement('img');
+      const img = document.createElement('img');
       img.src = finalLogoUrl;
       img.alt = (cfg.displayName || 'Logo') + ' logo';
       img.style.width = '100%';

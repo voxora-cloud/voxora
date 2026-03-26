@@ -77,6 +77,23 @@ function getContentType(filePath) {
   }
 }
 
+function getCacheControl(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+
+  // HTML should never be immutable; always allow fetching latest shell.
+  if (ext === '.html') {
+    return 'no-cache, no-store, must-revalidate';
+  }
+
+  // Versioned but unhashed assets: short cache to balance freshness and performance.
+  if (ext === '.js' || ext === '.mjs' || ext === '.css') {
+    return 'public, max-age=300';
+  }
+
+  // Default for static binary assets.
+  return 'public, max-age=86400';
+}
+
 async function uploadFile(localPath, remotePath) {
   const contentType = getContentType(localPath);
   const fileStream = fs.createReadStream(localPath);
@@ -84,7 +101,7 @@ async function uploadFile(localPath, remotePath) {
   
   const metadata = {
     'Content-Type': contentType,
-    'Cache-Control': 'public, max-age=31536000, immutable', 
+    'Cache-Control': getCacheControl(localPath),
     'Cross-Origin-Resource-Policy': 'cross-origin',
   };
   

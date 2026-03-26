@@ -99,16 +99,22 @@ export function setupEventListeners() {
       }
     });
   }
+
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && window.parent) {
+      window.parent.postMessage({ type: 'CLOSE_WIDGET', version: PROTO_VERSION }, state.parentOrigin || '*');
+    }
+  });
 }
 
 function getPageContext(): Promise<string> {
-  var domAccessEnabled = state._uiConfig && state._uiConfig.features && state._uiConfig.features.endUserDomAccess;
+  const domAccessEnabled = state._uiConfig && state._uiConfig.features && state._uiConfig.features.endUserDomAccess;
   if (!domAccessEnabled) return Promise.resolve('');
 
   return new Promise(function(resolve) {
-    var timeout = setTimeout(function() {
+    const timeout = setTimeout(function() {
       window.removeEventListener('message', handler);
-      var parts = [];
+      const parts = [];
       if ((window as any).__voxoraPageUrl)   parts.push('Page URL: '   + (window as any).__voxoraPageUrl);
       if ((window as any).__voxoraPageTitle) parts.push('Page Title: ' + (window as any).__voxoraPageTitle);
       resolve(parts.length ? '\\n\\n[PAGE_CONTEXT]\\n' + parts.join('\\n') : '');
@@ -118,8 +124,8 @@ function getPageContext(): Promise<string> {
       if (!event.data || event.data.type !== 'PAGE_HTML_RESPONSE') return;
       clearTimeout(timeout);
       window.removeEventListener('message', handler);
-      var html = (event.data.payload && event.data.payload.html) || '';
-      var parts = [];
+      const html = (event.data.payload && event.data.payload.html) || '';
+      const parts = [];
       if ((window as any).__voxoraPageUrl)   parts.push('Page URL: '   + (window as any).__voxoraPageUrl);
       if ((window as any).__voxoraPageTitle) parts.push('Page Title: ' + (window as any).__voxoraPageTitle);
       if (html)                     parts.push('Page HTML:\\n' + html);

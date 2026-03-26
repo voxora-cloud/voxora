@@ -241,7 +241,10 @@ export function renderThoughtSteps(stepsEl: Element, steps: string[], thinkingIn
       if (isThinking) {
         return `
           <div class="thought-step thinking open" data-step-index="${idx}">
-            <span class="thought-step-label">Thinking &gt;<span class="thought-ellipsis"></span></span>
+            <div class="thought-step-toggle interacting">
+              <svg class="vx-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              Thinking Process
+            </div>
             <div class="thought-step-detail md">${parseMarkdown(step)}</div>
           </div>`;
       }
@@ -249,7 +252,8 @@ export function renderThoughtSteps(stepsEl: Element, steps: string[], thinkingIn
       return `
         <div class="thought-step completed" data-step-index="${idx}">
           <button type="button" class="thought-step-toggle" data-step-index="${idx}" aria-expanded="false" title="Show thought detail">
-            ✔ Thought &gt;
+            <svg class="vx-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            Thought Process
           </button>
           <div class="thought-step-detail md">${parseMarkdown(step)}</div>
         </div>`;
