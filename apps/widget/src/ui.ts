@@ -22,6 +22,10 @@ export class WidgetUI {
     return this.config.fullscreen === true;
   }
 
+  private isMobileSheet(): boolean {
+    return !this.isFullscreen && window.innerWidth <= 768;
+  }
+
   constructor(config: WidgetConfig, state: WidgetState) {
     this.config = config;
     this.state = state;
@@ -390,7 +394,9 @@ export class WidgetUI {
     // Animate widget in
     requestAnimationFrame(() => {
       if (this.iframe) {
-        if (!this.isFullscreen) {
+        if (this.isMobileSheet()) {
+          this.iframe.style.transform = 'translateY(0)';
+        } else if (!this.isFullscreen) {
           this.iframe.style.transform = 'scale(1) translateY(0)';
         }
         this.iframe.style.opacity = '1';
@@ -424,7 +430,9 @@ export class WidgetUI {
     }
 
     // Animate widget out
-    if (!this.isFullscreen) {
+    if (this.isMobileSheet()) {
+      this.iframe.style.transform = 'translateY(110%)';
+    } else if (!this.isFullscreen) {
       this.iframe.style.transform = 'scale(0.8) translateY(20px)';
     }
     this.iframe.style.opacity = '0';
@@ -494,17 +502,23 @@ export class WidgetUI {
 
     const isLeft = this.config.position === 'bottom-left';
 
-    if (window.innerWidth <= 480) {
+    if (this.isMobileSheet()) {
       this.centered = false;
       Object.assign(this.iframe.style, {
-        width: 'calc(100vw - 24px)',
-        height: 'calc(100vh - 120px)',
-        right: isLeft ? 'auto' : '12px',
-        left: isLeft ? '12px' : 'auto',
-        bottom: '80px',
+        width: '100vw',
+        height: '90vh',
+        maxWidth: '100vw',
+        maxHeight: '90vh',
+        right: '0',
+        left: '0',
+        bottom: '0',
         top: 'auto',
-        borderRadius: '12px'
+        borderRadius: '18px 18px 0 0',
+        boxShadow: '0 -16px 48px rgba(0, 0, 0, 0.28)',
+        transition: 'transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s ease',
       });
+      this.iframe.style.transformOrigin = 'bottom center';
+      this.iframe.style.transform = this.state.isOpen ? 'translateY(0)' : 'translateY(110%)';
       return;
     }
 
@@ -519,26 +533,36 @@ export class WidgetUI {
       Object.assign(this.iframe.style, {
         width: `${width}px`,
         height: `${height}px`,
+        maxWidth: 'calc(100vw - 48px)',
+        maxHeight: 'calc(100vh - 80px)',
         right: this.centered ? 'auto' : (isLeft ? 'auto' : '24px'),
         left: this.centered ? centeredLeft : (isLeft ? '24px' : 'auto'),
         top: this.centered ? centeredTop : 'auto',
         bottom: this.centered ? 'auto' : '100px',
-        borderRadius: '16px'
+        borderRadius: '16px',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
       });
       this.iframe.style.transformOrigin = this.centered ? 'center center' : (isLeft ? 'bottom left' : 'bottom right');
+      this.iframe.style.transform = this.state.isOpen ? 'scale(1) translateY(0)' : 'scale(0.8) translateY(20px)';
       return;
     }
 
     Object.assign(this.iframe.style, {
       width: '380px',
       height: '700px',
+      maxWidth: 'calc(100vw - 48px)',
+      maxHeight: 'calc(100vh - 120px)',
       right: isLeft ? 'auto' : '24px',
       left: isLeft ? '24px' : 'auto',
       top: 'auto',
       bottom: '100px',
-      borderRadius: '16px'
+      borderRadius: '16px',
+      boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+      transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
     });
     this.iframe.style.transformOrigin = isLeft ? 'bottom left' : 'bottom right';
+    this.iframe.style.transform = this.state.isOpen ? 'scale(1) translateY(0)' : 'scale(0.8) translateY(20px)';
   }
 
   /**
