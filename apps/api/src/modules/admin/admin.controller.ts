@@ -151,9 +151,13 @@ export const getDashboardStats = asyncHandler(async (req: AuthenticatedRequest, 
 
 function normalizeLogoUrl(logoUrl: string | undefined): string | undefined {
   if (!logoUrl) return logoUrl;
-  if (!/^https?:\/\//i.test(logoUrl)) return logoUrl;
+  if (!/^https?:\/\//i.test(logoUrl)) return logoUrl; // already a raw fileKey
   try {
     const url = new URL(logoUrl);
+    // API storage proxy URL: /api/v1/storage/file?key=<fileKey>
+    const key = url.searchParams.get("key");
+    if (key) return key;
+    // Direct MinIO object URL: /<bucket>/<fileKey...>
     const parts = url.pathname.split("/").filter(Boolean);
     if (parts.length > 1) return parts.slice(1).join("/");
   } catch { }

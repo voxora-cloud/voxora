@@ -1,29 +1,14 @@
-import { minioClient, VOXORA_BUCKET } from "@shared/config/minio";
 import { v4 as uuidv4 } from "uuid";
 import logger from "@shared/utils/logger";
-import config from "@shared/config";
-
-/**
- * Rewrites internal MinIO hostname in presigned URLs to the public URL.
- * 
- * IMPORTANT: This should NOT be used when MINIO_SERVER_URL is properly configured,
- * because MinIO already generates presigned URLs with the correct public hostname,
- * and replacing it will break the AWS signature validation.
- * 
- * This function is kept for backward compatibility but should be phased out.
- */
-function toPublicUrl(url: string): string {
-  // If MINIO_SERVER_URL (publicUrl) is configured, MinIO already generates
-  // URLs with the correct host. Return as-is to preserve the signature.
-  const publicBase = config.minio.publicUrl.replace(/\/$/, "");
-  if (publicBase && url.includes(publicBase)) {
-    return url; // Already has public URL, don't modify (preserves signature)
-  }
-  
-  // Fallback: replace internal hostname with public URL
-  // This only happens if MINIO_SERVER_URL is not configured properly
-  return url.replace(/^https?:\/\/[^/]+/, publicBase);
-}
+import {
+  getPublicUrl,
+  getPresignedUploadUrl,
+  getPresignedDownloadUrl,
+  statObject,
+  removeObject,
+  objectExists,
+  listObjects,
+} from "@shared/utils/storage";
 
 export interface PresignedUrlResponse {
   uploadUrl: string;
@@ -41,17 +26,16 @@ export interface FileMetadata {
 }
 
 class StorageService {
+  // ── Public URL ─────────────────────────────────────────────────────────────
+  // Use for permanently public assets (widget logos, avatars).
+  // Bucket has a public-read policy applied at boot — no signing required.
+
   getPublicUrl(objectKey: string): string {
-    const publicUrl = config.minio.publicUrl;
-    if (publicUrl) {
-      return `${publicUrl.replace(/\/$/, "")}/${VOXORA_BUCKET}/${objectKey}`;
-    }
-    const minioEndpoint = process.env.MINIO_ENDPOINT || "localhost";
-    const minioPort = process.env.MINIO_PORT || "9001";
-    const useSSL = process.env.MINIO_USE_SSL === "true";
-    const protocol = useSSL ? "https" : "http";
-    return `${protocol}://${minioEndpoint}:${minioPort}/${VOXORA_BUCKET}/${objectKey}`;
+    return getPublicUrl(objectKey);
   }
+
+  // ── Presigned upload URLs ──────────────────────────────────────────────────
+  // Let clients upload directly to MinIO without passing data through the API.
 
   async generatePresignedUploadUrl(
     fileName: string,
@@ -59,23 +43,11 @@ class StorageService {
     expiresIn: number = 900,
   ): Promise<PresignedUrlResponse> {
     try {
-      const fileExtension = fileName.split(".").pop();
-      const fileKey = `knowledge/${uuidv4()}.${fileExtension}`;
-
-      const uploadUrl = toPublicUrl(await minioClient.presignedPutObject(
-        VOXORA_BUCKET,
-        fileKey,
-        expiresIn,
-      ));
-
+      const ext = fileName.split(".").pop();
+      const fileKey = `knowledge/${uuidv4()}.${ext}`;
+      const uploadUrl = await getPresignedUploadUrl(fileKey, expiresIn);
       logger.info(`Generated presigned upload URL for: ${fileName}`);
-
-      return {
-        uploadUrl,
-        fileKey,
-        fileName,
-        expiresIn,
-      };
+      return { uploadUrl, fileKey, fileName, expiresIn };
     } catch (error) {
       logger.error("Error generating presigned upload URL:", error);
       throw new Error("Failed to generate upload URL");
@@ -88,19 +60,15 @@ class StorageService {
     expiresIn: number = 300,
   ): Promise<PresignedUrlResponse> {
     try {
-      const fileExtension = fileName.split(".").pop();
-      const fileKey = `conversations/${uuidv4()}.${fileExtension}`;
-      const uploadUrl = toPublicUrl(await minioClient.presignedPutObject(
-        VOXORA_BUCKET,
-        fileKey,
-        expiresIn,
-      ));
-      // 7-day presigned download URL so clients open files directly from MinIO
-      const downloadUrl = toPublicUrl(await minioClient.presignedGetObject(
-        VOXORA_BUCKET,
-        fileKey,
-        604800,
-      ));
+      const ext = fileName.split(".").pop();
+      const fileKey = `conversations/${uuidv4()}.${ext}`;
+
+      // Upload + 7-day download URL generated together
+      const [uploadUrl, downloadUrl] = await Promise.all([
+        getPresignedUploadUrl(fileKey, expiresIn),
+        getPresignedDownloadUrl(fileKey, 604800), // 7 days — stored in message metadata
+      ]);
+
       logger.info(`Generated conversation upload URL for: ${fileName}`);
       return { uploadUrl, downloadUrl, fileKey, fileName, expiresIn };
     } catch (error) {
@@ -109,28 +77,28 @@ class StorageService {
     }
   }
 
+  // ── Presigned download URLs ────────────────────────────────────────────────
+  // Use for access-controlled content (knowledge docs, private attachments).
+
   async generatePresignedDownloadUrl(
     fileKey: string,
     expiresIn: number = 3600,
   ): Promise<string> {
     try {
-      const downloadUrl = toPublicUrl(await minioClient.presignedGetObject(
-        VOXORA_BUCKET,
-        fileKey,
-        expiresIn,
-      ));
-
+      const url = await getPresignedDownloadUrl(fileKey, expiresIn);
       logger.info(`Generated presigned download URL for: ${fileKey}`);
-      return downloadUrl;
+      return url;
     } catch (error) {
       logger.error("Error generating presigned download URL:", error);
       throw new Error("Failed to generate download URL");
     }
   }
 
+  // ── Object management ──────────────────────────────────────────────────────
+
   async deleteFile(fileKey: string): Promise<void> {
     try {
-      await minioClient.removeObject(VOXORA_BUCKET, fileKey);
+      await removeObject(fileKey);
       logger.info(`Deleted file from storage: ${fileKey}`);
     } catch (error) {
       logger.error("Error deleting file:", error);
@@ -140,7 +108,7 @@ class StorageService {
 
   async getFileMetadata(fileKey: string): Promise<any> {
     try {
-      const stat = await minioClient.statObject(VOXORA_BUCKET, fileKey);
+      const stat = await statObject(fileKey);
       return {
         size: stat.size,
         etag: stat.etag,
@@ -154,33 +122,12 @@ class StorageService {
   }
 
   async fileExists(fileKey: string): Promise<boolean> {
-    try {
-      await minioClient.statObject(VOXORA_BUCKET, fileKey);
-      return true;
-    } catch (error) {
-      return false;
-    }
+    return objectExists(fileKey);
   }
 
   async listFiles(prefix: string = "knowledge/"): Promise<string[]> {
     try {
-      const objectsList: string[] = [];
-      const stream = minioClient.listObjects(VOXORA_BUCKET, prefix, true);
-
-      return new Promise((resolve, reject) => {
-        stream.on("data", (obj) => {
-          if (obj.name) {
-            objectsList.push(obj.name);
-          }
-        });
-        stream.on("error", (err) => {
-          logger.error("Error listing files:", err);
-          reject(err);
-        });
-        stream.on("end", () => {
-          resolve(objectsList);
-        });
-      });
+      return await listObjects(prefix);
     } catch (error) {
       logger.error("Error listing files:", error);
       throw new Error("Failed to list files");
@@ -189,3 +136,4 @@ class StorageService {
 }
 
 export default new StorageService();
+

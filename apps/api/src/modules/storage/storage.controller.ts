@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import StorageService from "./storage.service";
-import { minioClient, VOXORA_BUCKET } from "@shared/config/minio";
+import { downloadStream, statObject } from "@shared/utils/storage";
+import { VOXORA_BUCKET } from "@shared/config/minio";
 import logger from "@shared/utils/logger";
 
 // Helper to ensure param is string (not string array)
@@ -211,7 +212,7 @@ export const storageController = {
       return;
     }
     try {
-      const stat = await minioClient.statObject(VOXORA_BUCKET, fileKey);
+      const stat = await statObject(fileKey);
       const contentType =
         (stat.metaData as any)?.["content-type"] ||
         (stat.metaData as any)?.["Content-Type"] ||
@@ -220,7 +221,7 @@ export const storageController = {
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       // Allow cross-origin embedding (iframes on different origins loading this image).
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-      const stream = await minioClient.getObject(VOXORA_BUCKET, fileKey);
+      const stream = await downloadStream(fileKey);
       stream.pipe(res);
     } catch (err: any) {
       logger.warn(`proxyFile: object not found for key=${fileKey}`);

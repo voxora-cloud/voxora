@@ -14,7 +14,7 @@ export interface EmailJobData {
   text?: string;
 }
 
-export const EMAIL_QUEUE = "platform:email";
+export const EMAIL_QUEUE = "platform-email";
 
 // ── Adapters ─────────────────────────────────────────────────────────────────
 

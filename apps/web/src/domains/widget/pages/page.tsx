@@ -11,6 +11,7 @@ import {
   WidgetHeader,
   WidgetInstallationCode,
   WidgetProTip,
+  WidgetSuggestionsForm,
 } from "@/domains/widget/components";
 
 const CDN_URL =
@@ -57,6 +58,12 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
     acceptMediaFiles: true,
     endUserDomAccess: false,
   },
+  suggestions: [
+    { text: "What can you help me with?", showOutside: true },
+    { text: "I need help with my order", showOutside: false },
+    { text: "Talk to a human agent", showOutside: true },
+    { text: "What are your business hours?", showOutside: false },
+  ],
 };
 
 function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined): CreateWidgetData {
@@ -92,6 +99,7 @@ function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined):
       ...DEFAULT_WIDGET_FORM_DATA.features,
       ...data.features,
     },
+    suggestions: Array.isArray(data.suggestions) ? data.suggestions : DEFAULT_WIDGET_FORM_DATA.suggestions,
   };
 }
 
@@ -250,6 +258,7 @@ export function WidgetPage() {
         ai: formData.ai,
         conversation: formData.conversation,
         features: formData.features,
+        suggestions: formData.suggestions,
       };
 
       const response = await saveWidget.mutateAsync({
@@ -331,6 +340,10 @@ export function WidgetPage() {
             onFileRemove={handleFileRemove}
             existingWidget={existingWidget}
             savedLogoUrl={savedLogoUrl}
+          />
+          <WidgetSuggestionsForm
+            suggestions={formData.suggestions}
+            onChange={(suggestions) => setFormData((prev) => ({ ...prev, suggestions }))}
           />
         </div>
 

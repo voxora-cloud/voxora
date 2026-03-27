@@ -35,6 +35,12 @@ const DEFAULT_WIDGET_SETTINGS = {
     acceptMediaFiles: true,
     endUserDomAccess: false,
   },
+  suggestions: [
+    { text: "What can you help me with?", showOutside: true },
+    { text: "I need help with my order", showOutside: false },
+    { text: "Talk to a human agent", showOutside: true },
+    { text: "What are your business hours?", showOutside: false },
+  ],
 };
 
 function withWidgetConfigDefaults(input: any): any {
@@ -57,6 +63,15 @@ function withWidgetConfigDefaults(input: any): any {
     },
   };
   output.features = { ...DEFAULT_WIDGET_SETTINGS.features, ...(input.features || {}) };
+  // suggestions: use caller's value if provided (even empty array), otherwise keep defaults
+  if (Array.isArray(input.suggestions)) {
+    output.suggestions = input.suggestions.slice(0, 4).map((s: any) => ({
+      text: String(s.text || "").trim(),
+      showOutside: Boolean(s.showOutside),
+    })).filter((s: any) => s.text.length > 0);
+  } else if (!output.suggestions) {
+    output.suggestions = DEFAULT_WIDGET_SETTINGS.suggestions;
+  }
   return output;
 }
 
@@ -338,6 +353,7 @@ export class AdminService {
       ai: normalizedUpdateData.ai,
       conversation: normalizedUpdateData.conversation,
       features: normalizedUpdateData.features,
+      suggestions: normalizedUpdateData.suggestions,
     };
 
     const cleanUpdates = Object.fromEntries(
