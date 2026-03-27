@@ -29,7 +29,14 @@ export class MembershipController {
                 password,
             });
 
-            sendResponse(res, 201, true, "Invitation sent", { membershipId: result.membership._id });
+            const inviteLink = !result.emailSent
+              ? `${process.env.CLIENT_URL}/accept-invite?token=${result.inviteToken}`
+              : undefined;
+
+            sendResponse(res, 201, true,
+              result.emailSent ? "Invitation sent" : "Member created — share the invite link manually (email is not configured)",
+              { membershipId: result.membership._id, emailSent: result.emailSent, inviteLink },
+            );
         } catch (error: any) {
             sendError(res, 400, error.message);
         }
@@ -83,9 +90,16 @@ export class MembershipController {
                 return;
             }
 
-            await MembershipService.resendInvite(activeOrganizationId, resolvedMemberId);
+            const result = await MembershipService.resendInvite(activeOrganizationId, resolvedMemberId);
 
-            sendResponse(res, 200, true, "Invitation resent successfully");
+            const inviteLink = !result.emailSent
+              ? `${process.env.CLIENT_URL}/accept-invite?token=${result.inviteToken}`
+              : undefined;
+
+            sendResponse(res, 200, true,
+              result.emailSent ? "Invitation resent successfully" : "Invite renewed — share the link manually (email is not configured)",
+              { emailSent: result.emailSent, inviteLink },
+            );
         } catch (error: any) {
             sendError(res, 400, error.message);
         }

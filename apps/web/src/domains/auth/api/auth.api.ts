@@ -52,7 +52,7 @@ class AuthApi {
   }
 
   async acceptInvite(token: string, password?: string): Promise<AcceptInviteResponse> {
-    return apiClient.post<AcceptInviteResponse>("/auth/accept-invite", { token, password });
+    return apiClient.post<AcceptInviteResponse>("/memberships/accept-invite", { token, password });
   }
 
   async getOrganization(orgId: string): Promise<OrganizationResponse> {

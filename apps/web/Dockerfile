@@ -1,16 +1,15 @@
 # Multi-stage build for Next.js
 FROM node:20-alpine AS builder
 
+RUN corepack enable pnpm
+
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
-
-# Remove workspace dependencies that don't exist in npm
-RUN sed -i '/@repo\//d' package.json || true
+COPY package.json ./
 
 # Install dependencies
-RUN npm install
+RUN pnpm install
 
 # Copy source code
 COPY . .

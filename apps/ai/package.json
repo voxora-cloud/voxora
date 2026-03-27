@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Voxora AI processing service — BullMQ worker + Redis Streams",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",

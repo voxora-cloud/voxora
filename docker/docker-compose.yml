@@ -127,6 +127,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  worker:
+    image: ompharate/voxora-worker:latest
+    restart: unless-stopped
+    env_file:
+      - ../apps/worker/.env.docker
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - voxora-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   mongodb:
     image: mongo:7
     restart: unless-stopped

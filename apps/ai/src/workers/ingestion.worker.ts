@@ -1,6 +1,6 @@
 import { Worker, Queue, ConnectionOptions } from "bullmq";
 import config from "../config";
-import { DocumentJob } from "../modules/ingestion/engine/ingestion.types";
+import { DocumentJob } from "../modules/ingestion/ingestion.types";
 import { runIngestionPipeline } from "../modules/ingestion/pipelines/file.pipeline";
 import { runUrlIngestionPipeline } from "../modules/ingestion/pipelines/url.pipeline";
 import { runTextIngestionPipeline } from "../modules/ingestion/pipelines/text.pipeline";

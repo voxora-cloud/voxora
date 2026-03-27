@@ -1,0 +1,30 @@
+{
+  "name": "@voxora/worker",
+  "version": "1.0.0",
+  "description": "Voxora platform worker — BullMQ consumers for email and other background jobs",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.1018.0",
+    "@sendgrid/mail": "^8.1.4",
+    "@types/nodemailer": "^6.4.17",
+    "bullmq": "^5.0.0",
+    "dotenv": "^16.3.1",
+    "ioredis": "^5.3.2",
+    "nodemailer": "^7.0.5",
+    "resend": "^4.6.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}
