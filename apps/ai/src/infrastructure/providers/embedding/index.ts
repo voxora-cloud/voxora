@@ -23,4 +23,5 @@ export function getEmbeddingProvider(name?: string): EmbeddingProvider {
 
 registerEmbeddingProvider(new GeminiEmbeddingProvider());
 
+
 export type { EmbeddingProvider } from "./types";
