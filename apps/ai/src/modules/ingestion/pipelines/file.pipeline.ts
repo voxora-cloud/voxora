@@ -1,6 +1,6 @@
-import { DocumentJob } from "../engine/ingestion.types";
+import { DocumentJob } from "../ingestion.types";
 import { loadDocumentStream } from "../sources/loader";
-import { processIngestion } from "../engine/process-ingestion";
+import { processIngestion } from "../services/process-ingestion";
 import { setDocStatus } from "../../../shared/db/db";
 
 /**

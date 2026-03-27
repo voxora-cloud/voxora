@@ -1,30 +1,34 @@
 # Multi-stage build for smaller image size
 FROM node:20-alpine AS builder
 
+RUN corepack enable pnpm
+
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm install
+RUN pnpm install
 
 # Copy source code
 COPY . .
 
 # Build TypeScript
-RUN npm run build
+RUN pnpm run build
 
 # Production stage
 FROM node:20-alpine
 
+RUN corepack enable pnpm
+
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json ./
 
 # Install only production dependencies
-RUN npm install --omit=dev && npm cache clean --force
+RUN pnpm install --prod
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist

@@ -1,6 +1,6 @@
-import { DocumentJob } from "../engine/ingestion.types";
-import { streamFromCrawl, streamFromSingleUrl } from "../engine/content-stream";
-import { processIngestion } from "../engine/process-ingestion";
+import { DocumentJob } from "../ingestion.types";
+import { streamFromCrawl, streamFromSingleUrl } from "../services/content-stream";
+import { processIngestion } from "../services/process-ingestion";
 import { setDocStatus } from "../../../shared/db/db";
 
 /**

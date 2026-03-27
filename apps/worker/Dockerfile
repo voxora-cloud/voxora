@@ -1,4 +1,4 @@
-# Multi-stage build for AI worker
+# Multi-stage build for platform worker
 FROM node:20-alpine AS builder
 
 RUN corepack enable pnpm

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Voxora embeddable chat widget",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/voxora.js",
   "scripts": {
     "dev": "vite",
@@ -11,8 +14,8 @@
     "lint:fix": "eslint . --fix",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
-    "deploy": "npm run build && node deploy-to-minio.js",
-    "deploy:prod": "NODE_ENV=production npm run deploy"
+    "deploy": "pnpm run build && node deploy-to-minio.js",
+    "deploy:prod": "NODE_ENV=production pnpm run deploy"
   },
   "dependencies": {
     "minio": "^8.0.0",

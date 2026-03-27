@@ -3,12 +3,12 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev:full": "npm run docker:start && turbo run dev --filter=!./apps/widget",
+    "dev:full": "pnpm run docker:start && turbo run dev --filter=!./apps/widget",
     "dev": "turbo run dev --filter=!./apps/widget",
     "docker:start": "cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio qdrant",
     "docker:stop": "cd docker && docker-compose -f docker-compose.dev.yml down",
-    "widget:deploy": "cd apps/widget && npm run deploy",
-    "widget:deploy:prod": "cd apps/widget && npm run deploy:prod",
+    "widget:deploy": "cd apps/widget && pnpm run deploy",
+    "widget:deploy:prod": "cd apps/widget && pnpm run deploy:prod",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"
@@ -19,7 +19,7 @@
     "typescript": "5.8.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "packageManager": "pnpm@9.15.0",
   "dependencies": {

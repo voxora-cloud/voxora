@@ -3,7 +3,7 @@ import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import { StringDecoder } from "string_decoder";
 import config from "../../../config";
-import { ContentStreamItem } from "../engine/content-stream";
+import { ContentStreamItem } from "../services/content-stream";
 
 const minio = new MinioClient({
   endPoint: config.minio.endpoint,

@@ -1,7 +1,8 @@
 import { User, Organization, Membership, MembershipRole } from "@shared/models";
 import { generateTokens } from "@shared/utils/auth";
 import { redisClient } from "@shared/config/redis";
-import emailService from "@shared/utils/email";
+import { isEmailEnabled } from "@shared/utils/email";
+import { enqueuePasswordResetEmail } from "@shared/queues/email.queue";
 import { OrganizationService } from "@modules/organization/organization.service";
 import crypto from "crypto";
 
@@ -113,7 +114,7 @@ export class AuthService {
 
     user.status = "online";
     user.lastSeen = new Date();
-    await user.save();
+    await User.findByIdAndUpdate(user._id, { status: "online", lastSeen: new Date() });
 
     // Single org — auto-select and return tokens
     if (memberships.length === 1) {
@@ -176,6 +177,13 @@ export class AuthService {
   // ─────────────────────────────────────────────────────────────────
 
   async forgotPassword(email: string) {
+    if (!isEmailEnabled()) {
+      return {
+        success: false,
+        message: "Password reset is unavailable — no email provider is configured. Contact your administrator.",
+      };
+    }
+
     const user = await User.findOne({ email: email.toLowerCase(), isActive: true });
 
     if (user) {
@@ -183,7 +191,7 @@ export class AuthService {
       user.resetPasswordToken = resetToken;
       user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000);
       await user.save();
-      await emailService.sendPasswordResetEmail(email, user.name, resetToken);
+      await enqueuePasswordResetEmail(email, user.name, resetToken);
     }
 
     return { success: true };

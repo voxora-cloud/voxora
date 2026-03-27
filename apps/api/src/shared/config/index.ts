@@ -25,7 +25,7 @@ interface Config {
     refreshExpiresIn: string | number;
   };
   email: {
-    provider: "auto" | "smtp" | "resend" | "sendgrid";
+    provider: "smtp" | "mailhog" | "resend" | "sendgrid" | "ses";
     host: string;
     port: number;
     secure: boolean;
@@ -35,6 +35,11 @@ interface Config {
     };
     resendApiKey?: string;
     sendgridApiKey?: string;
+    ses: {
+      accessKeyId?: string;
+      secretAccessKey?: string;
+      region?: string;
+    };
     from: {
       name: string;
       email: string;
@@ -62,11 +67,11 @@ interface Config {
 }
 
 function parseEmailProvider(value?: string): Config["email"]["provider"] {
-  const normalized = (value || "auto").toLowerCase();
-  if (normalized === "smtp" || normalized === "resend" || normalized === "sendgrid" || normalized === "auto") {
+  const normalized = (value || "").toLowerCase();
+  if (normalized === "smtp" || normalized === "mailhog" || normalized === "resend" || normalized === "sendgrid" || normalized === "ses") {
     return normalized;
   }
-  return "auto";
+  return "mailhog";
 }
 
 const config: Config = {
@@ -103,6 +108,11 @@ const config: Config = {
     },
     resendApiKey: process.env.RESEND_API_KEY,
     sendgridApiKey: process.env.SENDGRID_API_KEY,
+    ses: {
+      accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY,
+      region: process.env.AWS_SES_REGION,
+    },
     from: {
       name: process.env.EMAIL_FROM_NAME || "Voxora Support",
       email: process.env.EMAIL_FROM_EMAIL || "noreply@voxora.com",

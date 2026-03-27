@@ -1,6 +1,6 @@
 import { Membership, User, MembershipRole, IMembership } from "@shared/models";
 import { Types } from "mongoose";
-import emailService from "@shared/utils/email";
+import { enqueueInviteEmail } from "@shared/queues/email.queue";
 import crypto from "crypto";
 
 export class MembershipService {
@@ -85,16 +85,16 @@ export class MembershipService {
             emailVerificationToken: inviteToken,
         });
 
-        // Send invite email
-        await emailService.sendInviteEmail(
-            data.email,
-            "Your Organization",
-            data.role,
-            inviteToken,
-            (data.teamIds ?? []).join(", "),
+        // Enqueue invite email — fires and forgets; worker handles delivery
+        const emailSent = await enqueueInviteEmail(
+          data.email,
+          "Your Organization",
+          data.role,
+          inviteToken,
+          (data.teamIds ?? []).join(", "),
         );
 
-        return { membership, inviteToken };
+        return { membership, inviteToken, emailSent };
     }
 
     /**
@@ -186,16 +186,16 @@ export class MembershipService {
         user.emailVerificationToken = inviteToken;
         await user.save();
 
-        // Send invite email
-        await emailService.sendInviteEmail(
-            user.email,
-            "Your Organization",
-            membership.role,
-            inviteToken,
-            (membership.teams ?? []).join(", "),
+        // Enqueue invite email — fires and forgets; worker handles delivery
+        const emailSent = await enqueueInviteEmail(
+          user.email,
+          "Your Organization",
+          membership.role,
+          inviteToken,
+          (membership.teams ?? []).join(", "),
         );
 
-        return { success: true };
+        return { success: true, inviteToken, emailSent };
     }
 
     static async updateMemberRole(

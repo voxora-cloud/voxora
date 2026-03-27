@@ -1,4 +1,4 @@
-import { Chunk } from "../engine/ingestion.types";
+import { Chunk } from "../ingestion.types";
 
 const DEFAULT_CHUNK_SIZE = 1000;    // characters per chunk
 const DEFAULT_OVERLAP    = 200;     // overlap between consecutive chunks
