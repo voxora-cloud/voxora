@@ -5,6 +5,7 @@ import { getSocketManager } from "@sockets/index";
 import logger from "@shared/utils/logger";
 import config from "@shared/config";
 import jwt from "jsonwebtoken";
+import { getPublicUrl } from "@shared/utils/storage";
 
 const DEFAULT_WIDGET_CONFIG = {
   appearance: {
@@ -111,7 +112,7 @@ export const getWidgetConfig = asyncHandler(
       }
 
       const widget = await Widget.findById(voxoraPublicKey)
-        .select("displayName logoUrl backgroundColor appearance behavior ai conversation features")
+        .select("displayName logoUrl backgroundColor appearance behavior ai conversation features suggestions")
         .lean();
 
       if (!widget) {
@@ -120,35 +121,12 @@ export const getWidgetConfig = asyncHandler(
 
       let logoUrl = (widget as any).logoUrl as string | undefined;
       if (logoUrl) {
-        // Normalize any full MinIO URL (presigned or plain) down to just the fileKey,
-        // then proxy through the API. This handles both new records (fileKey only)
-        // and legacy records that stored a full presigned URL.
-        let fileKey = logoUrl;
-        if (/^https?:\/\//i.test(logoUrl)) {
-          try {
-            const u = new URL(logoUrl);
-            const parts = u.pathname.split('/').filter(Boolean);
-            if (parts.length > 1) fileKey = parts.slice(1).join('/');
-          } catch { }
-        }
-        const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
-        const host = req.get("host") || "localhost:3002";
-        logoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
+        logoUrl = getPublicUrl(extractFileKey(logoUrl));
       }
 
       let appearanceLogoUrl = (widget as any).appearance?.logoUrl as string | undefined;
       if (appearanceLogoUrl) {
-        let fileKey = appearanceLogoUrl;
-        if (/^https?:\/\//i.test(appearanceLogoUrl)) {
-          try {
-            const u = new URL(appearanceLogoUrl);
-            const parts = u.pathname.split('/').filter(Boolean);
-            if (parts.length > 1) fileKey = parts.slice(1).join('/');
-          } catch { }
-        }
-        const scheme = req.get("x-forwarded-proto") || req.protocol || "http";
-        const host = req.get("host") || "localhost:3002";
-        appearanceLogoUrl = `${scheme}://${host}/api/v1/storage/file?key=${encodeURIComponent(fileKey)}`;
+        appearanceLogoUrl = getPublicUrl(extractFileKey(appearanceLogoUrl));
       }
 
       return sendResponse(res, 200, true, "Widget config fetched", {
@@ -183,6 +161,14 @@ export const getWidgetConfig = asyncHandler(
             ...DEFAULT_WIDGET_CONFIG.features,
             ...((widget as any).features || {}),
           },
+          suggestions: Array.isArray((widget as any).suggestions)
+            ? (widget as any).suggestions
+            : [
+                { text: "What can you help me with?", showOutside: true },
+                { text: "I need help with my order", showOutside: false },
+                { text: "Talk to a human agent", showOutside: true },
+                { text: "What are your business hours?", showOutside: false },
+              ],
         },
       });
     } catch (error: any) {
@@ -731,3 +717,31 @@ export const getConversationMessages = asyncHandler(
     }
   },
 );
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Normalize a stored logo URL / fileKey to a bare fileKey.
+ *
+ * Handles three forms that may exist in the database:
+ *   1. Raw fileKey:            "knowledge/uuid.jpg"           → returned as-is
+ *   2. API proxy URL:          "http://host/api/v1/storage/file?key=knowledge%2Fuuid.jpg"
+ *                              → extracts via `?key=` param
+ *   3. Direct MinIO URL / presigned URL:
+ *      "http://minio:9001/bucket/knowledge/uuid.jpg?X-Amz-..."
+ *                              → strips bucket prefix via pathname
+ */
+function extractFileKey(value: string): string {
+  if (!value) return value;
+  if (!/^https?:\/\//i.test(value)) return value; // already a raw fileKey
+  try {
+    const u = new URL(value);
+    // API proxy pattern: /api/v1/storage/file?key=<fileKey>
+    const key = u.searchParams.get("key");
+    if (key) return key;
+    // Direct MinIO / presigned URL: /<bucket>/<fileKey...>
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts.length > 1) return parts.slice(1).join("/");
+  } catch { }
+  return value;
+}

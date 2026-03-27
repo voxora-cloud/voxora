@@ -30,6 +30,7 @@ export interface WidgetConfig {
   ai?: WidgetServerAiConfig;
   conversation?: WidgetServerConversationConfig;
   features?: WidgetServerFeatureConfig;
+  suggestions?: Array<{ text: string; showOutside: boolean }>;
   apiUrl?: string;
 }
 
@@ -98,6 +99,7 @@ export interface WidgetConfigApiResponse {
       ai?: WidgetServerAiConfig;
       conversation?: WidgetServerConversationConfig;
       features?: WidgetServerFeatureConfig;
+      suggestions?: Array<{ text: string; showOutside: boolean }>;
     };
   };
 }

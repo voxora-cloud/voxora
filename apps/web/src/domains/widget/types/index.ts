@@ -34,6 +34,11 @@ export interface WidgetFeatureSettings {
   endUserDomAccess: boolean;
 }
 
+export interface WidgetSuggestion {
+  text: string;
+  showOutside: boolean;
+}
+
 export interface CreateWidgetData {
   _id?: string;
   displayName: string;
@@ -45,6 +50,7 @@ export interface CreateWidgetData {
   ai: WidgetAiSettings;
   conversation: WidgetConversationSettings;
   features: WidgetFeatureSettings;
+  suggestions: WidgetSuggestion[];
 }
 
 export interface UpdateWidgetData {
@@ -56,6 +62,7 @@ export interface UpdateWidgetData {
   ai?: WidgetAiSettings;
   conversation?: WidgetConversationSettings;
   features?: WidgetFeatureSettings;
+  suggestions?: WidgetSuggestion[];
 }
 
 export interface Widget extends CreateWidgetData {

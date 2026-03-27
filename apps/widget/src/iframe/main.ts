@@ -68,6 +68,8 @@ function applyWidgetAppearance(cfg: any) {
   if (cfg.displayName && title) {
     title.textContent = appearance.welcomeMessage || cfg.displayName;
   }
+  const topbarTitle = document.querySelector('.widget-topbar-title') as HTMLElement | null;
+  if (topbarTitle && cfg.displayName) topbarTitle.textContent = cfg.displayName;
   if (appearance.launcherText && subtitle) {
     subtitle.textContent = appearance.launcherText;
   }
@@ -105,6 +107,32 @@ function applyWidgetAppearance(cfg: any) {
     elements.attachBtn.disabled = !acceptMediaFiles;
   }
   if (elements.fileInput) elements.fileInput.disabled = !acceptMediaFiles;
+
+  // Render dynamic suggestion buttons
+  const suggestionsContainer = document.getElementById('suggestions');
+  if (suggestionsContainer) {
+    const suggestions: Array<{ text: string; showOutside: boolean }> = Array.isArray(cfg.suggestions)
+      ? cfg.suggestions
+      : [];
+    suggestionsContainer.innerHTML = '';
+    suggestions.forEach((s) => {
+      if (!s.text) return;
+      const btn = document.createElement('button');
+      btn.className = 'suggestion-btn';
+      btn.dataset['text'] = s.text;
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>${s.text}</span>`;
+      btn.addEventListener('click', () => {
+        const input = document.getElementById('messageInput') as HTMLInputElement | null;
+        if (!input) return;
+        input.value = s.text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        // Auto-send
+        const sendBtn = document.getElementById('sendBtn') as HTMLButtonElement | null;
+        if (sendBtn && !sendBtn.disabled) sendBtn.click();
+      });
+      suggestionsContainer.appendChild(btn);
+    });
+  }
 }
 
 function requestResize(width: number, height: number, centered: boolean) {
@@ -159,22 +187,6 @@ async function handleInitWidget(payload: any) {
 
 document.addEventListener("DOMContentLoaded", function () {
   setupEventListeners();
-
-  const defaultAvatar = document.querySelector('.assistant-header .avatar') as HTMLElement;
-  if (defaultAvatar) {
-    defaultAvatar.innerHTML = '';
-    const defaultImg = document.createElement('img');
-    defaultImg.src = DEFAULT_WIDGET_ICON_URL;
-    defaultImg.alt = 'Widget icon';
-    defaultImg.style.width = '100%';
-    defaultImg.style.height = '100%';
-    defaultImg.style.objectFit = 'cover';
-    defaultImg.style.borderRadius = '999px';
-    defaultImg.onerror = function() {
-      defaultAvatar.textContent = 'V';
-    };
-    defaultAvatar.appendChild(defaultImg);
-  }
 
   if (elements.minimizeBtn) elements.minimizeBtn.addEventListener('click', minimizeWidget);
   if (elements.maximizeBtn) {
@@ -239,6 +251,19 @@ window.addEventListener('message', function(event) {
       (window as any).__voxoraPageUrl = msg.payload.pageUrl;
       (window as any).__voxoraPageTitle = msg.payload.pageTitle || '';
       break;
+
+    case 'SUGGESTION_CLICK': {
+      const text: string = msg.payload?.text;
+      if (!text) break;
+      const input = document.getElementById('messageInput') as HTMLInputElement | null;
+      if (input) {
+        input.value = text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const sendBtn = document.getElementById('sendBtn') as HTMLButtonElement | null;
+      if (sendBtn && !sendBtn.disabled) sendBtn.click();
+      break;
+    }
   }
 });
 

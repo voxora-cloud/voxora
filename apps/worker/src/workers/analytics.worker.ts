@@ -1,7 +1,7 @@
 import { Worker, ConnectionOptions } from "bullmq";
 import config from "../config";
 
-export const ANALYTICS_QUEUE = "platform:analytics";
+export const ANALYTICS_QUEUE = "platform-analytics";
 
 export interface AnalyticsJobData {
   event: string;

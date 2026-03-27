@@ -13,7 +13,7 @@ export class WidgetUI {
   private button: HTMLElement | null = null;
   private iframe: HTMLIFrameElement | null = null;
   private badge: HTMLElement | null = null;
-  private launcherLabel: HTMLElement | null = null;
+  private outsideChipsContainer: HTMLElement | null = null;
   private onToggle?: (isOpen: boolean) => void;
   private customSize: { width: number; height: number } | null = null;
   private centered = false;
@@ -51,6 +51,7 @@ export class WidgetUI {
     this.config.ai = serverConfig.ai;
     this.config.conversation = serverConfig.conversation;
     this.config.features = serverConfig.features;
+    this.config.suggestions = serverConfig.suggestions;
   }
 
   /**
@@ -172,35 +173,6 @@ export class WidgetUI {
     
     this.button.appendChild(this.badge);
 
-    const launcherLabelText = this.config.appearance?.launcherText?.trim();
-    if (launcherLabelText) {
-      this.launcherLabel = document.createElement('div');
-      this.launcherLabel.textContent = launcherLabelText;
-      Object.assign(this.launcherLabel.style, {
-        position: 'fixed',
-        bottom: '34px',
-        right: this.config.position === 'bottom-left' ? 'auto' : '96px',
-        left: this.config.position === 'bottom-left' ? '96px' : 'auto',
-        background: '#111827',
-        color: 'white',
-        borderRadius: '999px',
-        padding: '8px 12px',
-        fontSize: '13px',
-        lineHeight: '1',
-        zIndex: '2147483645',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.24)',
-        maxWidth: '220px',
-        whiteSpace: 'nowrap',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        pointerEvents: 'none',
-        opacity: '0',
-        transform: 'translateY(6px)',
-        transition: 'all 0.25s ease',
-      });
-      document.body.appendChild(this.launcherLabel);
-    }
-
     document.body.appendChild(this.button);
 
     // Animate in
@@ -209,13 +181,89 @@ export class WidgetUI {
         this.button.style.transform = 'scale(1)';
         this.button.style.opacity = '1';
       }
-      if (this.launcherLabel) {
-        this.launcherLabel.style.opacity = '1';
-        this.launcherLabel.style.transform = 'translateY(0)';
-      }
     });
 
+    this.renderOutsideChips();
     return this.button;
+  }
+
+  /**
+   * Render floating chips above the launcher button for suggestions with showOutside=true.
+   * Called after createButton(). Hidden when widget is open.
+   */
+  private renderOutsideChips(): void {
+    const outside = (this.config.suggestions || []).filter((s) => s.showOutside && s.text);
+    if (outside.length === 0) return;
+
+    const isLeft = this.config.position === 'bottom-left';
+    const accentColor = this.config.primaryColor || this.config.backgroundColor || '#10b981';
+
+    this.outsideChipsContainer = document.createElement('div');
+    this.outsideChipsContainer.id = 'voxora-outside-chips';
+    Object.assign(this.outsideChipsContainer.style, {
+      position: 'fixed',
+      bottom: '100px',
+      right: isLeft ? 'auto' : '16px',
+      left: isLeft ? '16px' : 'auto',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: isLeft ? 'flex-start' : 'flex-end',
+      gap: '8px',
+      zIndex: '2147483644',
+    });
+
+    outside.forEach((s) => {
+      const chip = document.createElement('button');
+      chip.textContent = s.text;
+      Object.assign(chip.style, {
+        background: '#fff',
+        color: '#111',
+        border: `1.5px solid ${accentColor}`,
+        borderRadius: '999px',
+        padding: '8px 16px',
+        fontSize: '13px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+        whiteSpace: 'nowrap',
+        maxWidth: '220px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        transition: 'all 0.2s ease',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
+      });
+      chip.addEventListener('mouseenter', () => {
+        chip.style.background = accentColor;
+        chip.style.color = '#fff';
+      });
+      chip.addEventListener('mouseleave', () => {
+        chip.style.background = '#fff';
+        chip.style.color = '#111';
+      });
+      chip.addEventListener('click', () => {
+        // Open the widget, then send the suggestion via postMessage to iframe
+        if (!this.state.isOpen) {
+          this.open();
+          // Give iframe time to be ready, then send text
+          setTimeout(() => this._sendSuggestionToIframe(s.text), 600);
+        } else {
+          this._sendSuggestionToIframe(s.text);
+        }
+      });
+      this.outsideChipsContainer!.appendChild(chip);
+    });
+
+    document.body.appendChild(this.outsideChipsContainer);
+  }
+
+  /** Post the suggestion text to the iframe so it fills + sends the message. */
+  private _sendSuggestionToIframe(text: string): void {
+    if (this.iframe?.contentWindow) {
+      this.iframe.contentWindow.postMessage(
+        { type: 'SUGGESTION_CLICK', version: '1', payload: { text } },
+        '*',
+      );
+    }
   }
 
   /**
@@ -337,10 +385,6 @@ export class WidgetUI {
       this.button.style.transform = 'scale(1) rotate(90deg)';
       this.button.setAttribute('aria-label', 'Close chat');
       this.button.setAttribute('title', 'Close chat');
-      if (this.launcherLabel) {
-        this.launcherLabel.style.opacity = '0';
-        this.launcherLabel.style.transform = 'translateY(6px)';
-      }
     }
 
     // Animate widget in
@@ -355,6 +399,9 @@ export class WidgetUI {
 
     // Clear unread count
     this.setUnreadCount(0);
+
+    // Hide outside chips while widget is open
+    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
 
     if (this.onToggle) this.onToggle(true);
   }
@@ -374,10 +421,6 @@ export class WidgetUI {
       const launcherText = this.config.appearance?.launcherText?.trim();
       this.button.setAttribute('aria-label', launcherText || 'Open chat');
       this.button.setAttribute('title', launcherText || this.config.displayName || 'Open chat');
-      if (this.launcherLabel) {
-        this.launcherLabel.style.opacity = '1';
-        this.launcherLabel.style.transform = 'translateY(0)';
-      }
     }
 
     // Animate widget out
@@ -389,6 +432,9 @@ export class WidgetUI {
     setTimeout(() => {
       if (this.iframe) this.iframe.style.display = 'none';
     }, 300);
+
+    // Restore outside chips
+    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'flex';
 
     if (this.onToggle) this.onToggle(false);
   }
@@ -514,7 +560,7 @@ export class WidgetUI {
    */
   destroy(): void {
     if (this.button) this.button.remove();
-    if (this.launcherLabel) this.launcherLabel.remove();
+    if (this.outsideChipsContainer) this.outsideChipsContainer.remove();
     if (this.iframe) this.iframe.remove();
   }
 }

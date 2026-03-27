@@ -8,7 +8,7 @@ import {
   type EmailOptions,
 } from "@shared/utils/email";
 
-export const EMAIL_QUEUE = "platform:email";
+export const EMAIL_QUEUE = "platform-email";
 
 const connection: ConnectionOptions = {
   host: config.redis.host,

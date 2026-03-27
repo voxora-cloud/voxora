@@ -37,6 +37,10 @@ export interface IWidget extends Document {
     acceptMediaFiles: boolean;
     endUserDomAccess: boolean;
   };
+  suggestions: Array<{
+    text: string;
+    showOutside: boolean;
+  }>;
   publicKey?: string;
 }
 
@@ -87,6 +91,20 @@ const WidgetSchema = new Schema<IWidget>(
     features: {
       acceptMediaFiles: { type: Boolean, default: true },
       endUserDomAccess: { type: Boolean, default: false },
+    },
+    suggestions: {
+      type: [
+        {
+          text: { type: String, required: true },
+          showOutside: { type: Boolean, default: false },
+        },
+      ],
+      default: [
+        { text: "What can you help me with?", showOutside: true },
+        { text: "I need help with my order", showOutside: false },
+        { text: "Talk to a human agent", showOutside: true },
+        { text: "What are your business hours?", showOutside: false },
+      ],
     },
     publicKey: { type: String, default: null },
   },
