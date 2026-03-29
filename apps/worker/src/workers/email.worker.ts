@@ -1,8 +1,6 @@
 import { Worker, ConnectionOptions } from "bullmq";
 import nodemailer, { Transporter } from "nodemailer";
 import { Resend } from "resend";
-import sendgridMail from "@sendgrid/mail";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import config, { type EmailProvider } from "../config";
 
 // ── Job payload ──────────────────────────────────────────────────────────────
@@ -12,6 +10,10 @@ export interface EmailJobData {
   subject: string;
   html: string;
   text?: string;
+  from?: {
+    name: string;
+    email: string;
+  };
 }
 
 export const EMAIL_QUEUE = "platform-email";
@@ -22,7 +24,7 @@ interface EmailAdapter {
   send(options: EmailJobData): Promise<void>;
 }
 
-class SmtpEmailAdapter implements EmailAdapter {
+class MailhogEmailAdapter implements EmailAdapter {
   private transporter: Transporter;
 
   constructor() {
@@ -33,35 +35,16 @@ class SmtpEmailAdapter implements EmailAdapter {
       auth: config.email.auth.user
         ? { user: config.email.auth.user, pass: config.email.auth.pass }
         : undefined,
-    } as any);
-  }
-
-  async send(options: EmailJobData): Promise<void> {
-    await this.transporter.sendMail({
-      from: `"${config.email.from.name}" <${config.email.from.email}>`,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-    });
-  }
-}
-
-class MailhogEmailAdapter implements EmailAdapter {
-  private transporter: Transporter;
-
-  constructor() {
-    this.transporter = nodemailer.createTransport({
-      host: "localhost",
-      port: 1025,
-      secure: false,
       ignoreTLS: true,
     } as any);
   }
 
   async send(options: EmailJobData): Promise<void> {
+    const fromName = options.from?.name || config.email.from.name;
+    const fromEmail = options.from?.email || config.email.from.email;
+
     await this.transporter.sendMail({
-      from: `"${config.email.from.name}" <${config.email.from.email}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -79,59 +62,17 @@ class ResendEmailAdapter implements EmailAdapter {
   }
 
   async send(options: EmailJobData): Promise<void> {
+    const fromName = options.from?.name || config.email.from.name;
+    const fromEmail = options.from?.email || config.email.from.email;
+
     const { error } = await this.client.emails.send({
-      from: `${config.email.from.name} <${config.email.from.email}>`,
+      from: `${fromName} <${fromEmail}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
     });
     if (error) throw new Error(`Resend error: ${error.message}`);
-  }
-}
-
-class SendgridEmailAdapter implements EmailAdapter {
-  constructor() {
-    if (!config.email.sendgridApiKey) throw new Error("SENDGRID_API_KEY is required for SendGrid provider");
-    sendgridMail.setApiKey(config.email.sendgridApiKey);
-  }
-
-  async send(options: EmailJobData): Promise<void> {
-    await sendgridMail.send({
-      from: { name: config.email.from.name, email: config.email.from.email },
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-    });
-  }
-}
-
-class SesEmailAdapter implements EmailAdapter {
-  private client: SESClient;
-
-  constructor() {
-    const { accessKeyId, secretAccessKey, region } = config.email.ses;
-    if (!accessKeyId || !secretAccessKey) throw new Error("AWS SES credentials are required");
-    this.client = new SESClient({
-      region: region || "us-east-1",
-      credentials: { accessKeyId, secretAccessKey },
-    });
-  }
-
-  async send(options: EmailJobData): Promise<void> {
-    const command = new SendEmailCommand({
-      Source: `${config.email.from.name} <${config.email.from.email}>`,
-      Destination: { ToAddresses: [options.to] },
-      Message: {
-        Subject: { Data: options.subject, Charset: "UTF-8" },
-        Body: {
-          Html: { Data: options.html, Charset: "UTF-8" },
-          ...(options.text ? { Text: { Data: options.text, Charset: "UTF-8" } } : {}),
-        },
-      },
-    });
-    await this.client.send(command);
   }
 }
 
@@ -142,15 +83,18 @@ class DisabledEmailAdapter implements EmailAdapter {
 }
 
 function buildAdapter(provider: EmailProvider): EmailAdapter {
-  switch (provider) {
-    case "smtp":    return new SmtpEmailAdapter();
-    case "mailhog": return new MailhogEmailAdapter();
-    case "resend":  return new ResendEmailAdapter();
-    case "sendgrid":return new SendgridEmailAdapter();
-    case "ses":     return new SesEmailAdapter();
-    case "disabled":return new DisabledEmailAdapter();
-    default:        return new DisabledEmailAdapter();
+  const providers: Record<EmailProvider, () => EmailAdapter> = {
+    mailhog: () => new MailhogEmailAdapter(),
+    resend: () => new ResendEmailAdapter(),
+    disabled: () => new DisabledEmailAdapter(),
+  };
+
+  const factory = providers[provider];
+  if (!factory) {
+    return new DisabledEmailAdapter();
   }
+
+  return factory();
 }
 
 // ── Worker ───────────────────────────────────────────────────────────────────

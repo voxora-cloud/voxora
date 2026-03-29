@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.ts",
     "build": "tsc && tsc-alias",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "seed:email-templates": "ts-node -r tsconfig-paths/register src/scripts/seed-email-templates.ts"
   },
   "keywords": [
     "chat",

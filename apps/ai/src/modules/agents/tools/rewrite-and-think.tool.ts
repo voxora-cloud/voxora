@@ -1,4 +1,4 @@
-import { Tool, ToolParameterSchema } from "../agent.types";
+import { Tool, ToolExecutionContext, ToolParameterSchema } from "../agent.types";
 
 export class RewriteAndThinkTool implements Tool {
   readonly name = "rewrite_and_think";
@@ -17,7 +17,7 @@ export class RewriteAndThinkTool implements Tool {
     }
   };
 
-  async execute(args: Record<string, unknown>): Promise<unknown> {
+  async execute(args: Record<string, unknown>, _context?: ToolExecutionContext): Promise<unknown> {
     return JSON.stringify({
       status: "success",
       message: "Thoughts recorded successfully. Now answer the user based on these thoughts."

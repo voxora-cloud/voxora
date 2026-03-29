@@ -1,5 +1,6 @@
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
+import { useWidget } from "@/domains/widget/hooks/useWidget";
 import {
   BarChart3,
   Bell,
@@ -38,18 +39,46 @@ interface DashboardLayoutProps {
 
 type OrgRole = "owner" | "admin" | "agent";
 
+const CDN_URL =
+  (import.meta.env.VITE_CDN_URL as string | undefined) ||
+  "http://localhost:9001/voxora-widget/v1/voxora.js";
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const logoutMutation = useLogout();
+  const { data: widgetData } = useWidget();
 
   const orgRole: OrgRole | null = isAuthenticated ? authApi.getOrgRole() : null;
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isContentFullscreen, setIsContentFullscreen] = useState(false);
+  const searchContainerRef = useRef<HTMLFormElement | null>(null);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
+  const widgetScriptInjected = useRef(false);
+
+  // Inject widget script once for the entire dashboard session so the
+  // floating button persists across page navigations.
+  useEffect(() => {
+    const widgetId = widgetData?._id;
+    if (!widgetId || widgetScriptInjected.current) return;
+
+    // Remove any stale widget elements before injecting fresh script.
+    document.getElementById("voxora-widget-script")?.remove();
+    document.getElementById("voxora-widget-button")?.remove();
+    document.getElementById("voxora-widget-iframe")?.remove();
+
+    const script = document.createElement("script");
+    script.src = `${CDN_URL}?v=${Date.now()}`;
+    script.setAttribute("data-voxora-public-key", widgetId);
+    script.id = "voxora-widget-script";
+    document.body.appendChild(script);
+    widgetScriptInjected.current = true;
+  }, [widgetData?._id]);
 
   const searchableRoutes = useMemo(() => {
     const base = [
@@ -121,12 +150,32 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     logoutMutation.mutate();
   };
 
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+
+      if (searchContainerRef.current && !searchContainerRef.current.contains(target)) {
+        setShowSearchResults(false);
+      }
+
+      if (notificationsRef.current && !notificationsRef.current.contains(target)) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const firstMatch = searchResults[0];
     if (firstMatch) {
       navigate(firstMatch.to);
       setSearchQuery("");
+      setShowSearchResults(false);
     }
   };
 
@@ -273,7 +322,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <Link to="/dashboard/widget">
                 <Button
                   variant="ghost"
-                  className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/widget")
+                  className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/widget", true)
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
                 >
@@ -402,15 +451,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
 
                   <div className="flex items-center gap-2 lg:gap-3">
-                    <form className="relative w-full max-w-xs" onSubmit={handleSearchSubmit}>
+                    <form
+                      ref={searchContainerRef}
+                      className="relative w-full max-w-xs"
+                      onSubmit={handleSearchSubmit}
+                    >
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setShowSearchResults(true);
+                        }}
+                        onFocus={() => setShowSearchResults(true)}
                         placeholder="Search anywhere..."
                         className="pl-9 cursor-text"
                       />
-                      {searchResults.length > 0 && (
+                      {showSearchResults && searchResults.length > 0 && (
                         <div className="absolute mt-2 w-full rounded-lg border border-border bg-popover shadow-lg z-50 overflow-hidden">
                           {searchResults.map((result) => (
                             <button
@@ -419,6 +476,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                               onClick={() => {
                                 navigate(result.to);
                                 setSearchQuery("");
+                                setShowSearchResults(false);
                               }}
                               className="w-full cursor-pointer px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
                             >
@@ -429,7 +487,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       )}
                     </form>
 
-                    <div className="relative">
+                    <div ref={notificationsRef} className="relative">
                       <Button
                         type="button"
                         variant="outline"

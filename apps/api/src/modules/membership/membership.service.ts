@@ -92,6 +92,7 @@ export class MembershipService {
           data.role,
           inviteToken,
           (data.teamIds ?? []).join(", "),
+                    organizationId,
         );
 
         return { membership, inviteToken, emailSent };
@@ -193,6 +194,7 @@ export class MembershipService {
           membership.role,
           inviteToken,
           (membership.teams ?? []).join(", "),
+                    organizationId,
         );
 
         return { success: true, inviteToken, emailSent };

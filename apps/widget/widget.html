@@ -36,13 +36,30 @@
 
       <!-- History Overlay -->
       <div id="historyOverlay" class="history-overlay">
+        <!-- Header -->
         <div class="history-header">
-          <div>
-            <h3>Conversation History</h3>
-            <p>Jump back into previous chats</p>
+          <div class="history-header-left">
+            <button id="closeHistoryBtn" class="history-back-btn" title="Back to chat">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <div>
+              <h3>Past Conversations</h3>
+              <p>Pick up where you left off</p>
+            </div>
           </div>
-          <button id="closeHistoryBtn" class="close-history-btn" title="Close history"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+          <button id="newConversationBtn" class="new-conversation-btn" title="Start new conversation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New chat
+          </button>
         </div>
+
+        <!-- Search -->
+        <div class="history-search-wrapper">
+          <svg class="history-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="historySearch" class="history-search" type="text" placeholder="Search conversations…" autocomplete="off" />
+        </div>
+
+        <!-- List -->
         <div id="historyList" class="history-list"></div>
       </div>
       <!-- Messages Area (Hidden initially or if no messages) -->

@@ -15,7 +15,7 @@ export class GeminiProvider implements LLMProvider {
   }
 
   async generate(messages: LLMMessage[], options: LLMOptions = {}): Promise<string> {
-    const { model = this.defaultModel, tools = [], onStream } = options;
+        const { model = this.defaultModel, tools = [], toolContext, onStream } = options;
 
     let systemInstruction = messages.find((m) => m.role === "system")?.content;
     let turns = messages.filter((m) => m.role !== "system");
@@ -52,7 +52,14 @@ export class GeminiProvider implements LLMProvider {
                 for (const [k, v] of Object.entries(t.parameters)) {
                     const paramDef = v as any;
                     const { required, ...rest } = paramDef;
-                    props[k] = { ...rest, type: String(paramDef.type).toUpperCase() };
+                    const normalized: any = { ...rest, type: String(paramDef.type).toUpperCase() };
+                    if (paramDef.items?.type) {
+                        normalized.items = {
+                            ...paramDef.items,
+                            type: String(paramDef.items.type).toUpperCase(),
+                        };
+                    }
+                    props[k] = normalized;
                 }
                 return {
                     name: t.name,
@@ -122,7 +129,7 @@ export class GeminiProvider implements LLMProvider {
                     }
                 }
                 try {
-                    const result = await tool.execute(call.args);
+                    const result = await tool.execute(call.args, toolContext);
                     functionResponses.push({
                         role: "user", // The sdk treats functionResponse as coming from 'user' role
                         parts: [{

@@ -1,181 +1,162 @@
 import config from "@shared/config";
+import {
+  EmailTemplate,
+  type EmailTemplateType,
+} from "@shared/models";
+import { DEFAULT_EMAIL_TEMPLATES } from "@shared/seeds/emailTemplates.seed";
 
 export interface EmailOptions {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  from?: {
+    name: string;
+    email: string;
+  };
 }
 
 export interface BuiltEmail {
   subject: string;
   html: string;
+  text?: string;
 }
+
+type TemplateVars = Record<string, string>;
+
+const DEFAULT_TEMPLATES = DEFAULT_EMAIL_TEMPLATES.reduce(
+  (acc, template) => {
+    acc[template.type] = {
+      subjectTemplate: template.subjectTemplate,
+      htmlTemplate: template.htmlTemplate,
+      textTemplate: template.textTemplate,
+    };
+    return acc;
+  },
+  {} as Record<EmailTemplateType, { subjectTemplate: string; htmlTemplate: string; textTemplate?: string }>,
+);
 
 /**
  * Returns true when EMAIL_PROVIDER is set to a real provider.
  * Used by callers to decide whether to enqueue an email job at all.
  */
 export function isEmailEnabled(): boolean {
-  return config.email.provider !== ("disabled" as string);
+  return config.email.provider === "resend" || config.email.provider === "mailhog";
+}
+
+function renderTemplate(template: string, vars: TemplateVars): string {
+  return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_, key: string) => {
+    return vars[key] ?? "";
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+async function getTemplate(type: EmailTemplateType): Promise<{
+  subjectTemplate: string;
+  htmlTemplate: string;
+  textTemplate?: string;
+}> {
+  const template = await EmailTemplate.findOne({ type, isActive: true })
+    .select("subjectTemplate htmlTemplate textTemplate")
+    .lean();
+
+  if (template) {
+    return {
+      subjectTemplate: template.subjectTemplate,
+      htmlTemplate: template.htmlTemplate,
+      textTemplate: template.textTemplate,
+    };
+  }
+
+  return DEFAULT_TEMPLATES[type];
+}
+
+async function buildFromTemplate(type: EmailTemplateType, vars: TemplateVars): Promise<BuiltEmail> {
+  try {
+    const template = await getTemplate(type);
+
+    return {
+      subject: renderTemplate(template.subjectTemplate, vars),
+      html: renderTemplate(template.htmlTemplate, vars),
+      text: template.textTemplate ? renderTemplate(template.textTemplate, vars) : undefined,
+    };
+  } catch {
+    // Database read/write failed; keep mail flow working with in-memory defaults.
+    const defaults = DEFAULT_TEMPLATES[type];
+    return {
+      subject: renderTemplate(defaults.subjectTemplate, vars),
+      html: renderTemplate(defaults.htmlTemplate, vars),
+      text: defaults.textTemplate ? renderTemplate(defaults.textTemplate, vars) : undefined,
+    };
+  }
 }
 
 // ── Template builders ────────────────────────────────────────────────────────
 
-export function buildInviteEmail(
+export async function buildInviteEmail(
   inviterName: string,
   role: string,
   inviteToken: string,
   teamNames: string,
-): BuiltEmail {
+): Promise<BuiltEmail> {
   const inviteUrl = `${config.app.clientUrl}/auth/accept-invite?token=${inviteToken}`;
 
+  const safeInviterName = escapeHtml(inviterName);
+  const safeRole = escapeHtml(role);
   const hasTeams = teamNames && teamNames.trim().length > 0;
   const formattedTeams = hasTeams
-    ? teamNames.split(", ").map((name) => `<b>${name}</b>`).join(", ")
+    ? teamNames
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name) => `<b>${escapeHtml(name)}</b>`)
+        .join(", ")
     : "";
 
   const titleText = hasTeams
     ? `Join the Voxora ${formattedTeams} Teams`
-    : `Join the Voxora Organization`;
+    : "Join the Voxora Organization";
 
   const bodyText = hasTeams
-    ? `<strong>${inviterName}</strong> has invited you to join their ${formattedTeams} Teams as an <strong>${role}</strong>.`
-    : `<strong>${inviterName}</strong> has invited you to join their organization as an <strong>${role}</strong>.`;
+    ? `<strong>${safeInviterName}</strong> has invited you to join their ${formattedTeams} Teams as an <strong>${safeRole}</strong>.`
+    : `<strong>${safeInviterName}</strong> has invited you to join their organization as an <strong>${safeRole}</strong>.`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>You're Invited to Join Voxora</title>
-      <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-        .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-        .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; border-radius: 0 0 8px 8px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🎉 You're Invited!</h1>
-          <p>${titleText}</p>
-        </div>
-        <div class="content">
-          <h2>Hello!</h2>
-          <p>${bodyText}</p>
-          <p>Voxora is a powerful real-time chat support platform that helps teams provide exceptional customer service.</p>
-          <p>Click the button below to accept your invitation and set up your account:</p>
-          <a href="${inviteUrl}" class="button">Accept Invitation</a>
-          <p><strong>Note:</strong> This invitation will expire in 7 days.</p>
-        </div>
-        <div class="footer">
-          <p>© 2025 Voxora. All rights reserved.</p>
-          <p>If you didn't expect this invitation, you can safely ignore this email.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return { subject: `You're invited to join Voxora as a ${role}`, html };
+  return buildFromTemplate("invite", {
+    inviterName: safeInviterName,
+    role: safeRole,
+    inviteUrl,
+    titleText,
+    bodyText,
+    teamNames: hasTeams ? formattedTeams : "",
+  });
 }
 
-export function buildPasswordResetEmail(name: string, resetToken: string): BuiltEmail {
+export async function buildPasswordResetEmail(
+  name: string,
+  resetToken: string,
+): Promise<BuiltEmail> {
   const resetUrl = `${config.app.clientUrl}/auth/reset-password?token=${resetToken}`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reset Your Voxora Password</title>
-      <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-        .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-        .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; border-radius: 0 0 8px 8px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🔐 Password Reset</h1>
-          <p>Reset your Voxora password</p>
-        </div>
-        <div class="content">
-          <h2>Hello ${name}!</h2>
-          <p>We received a request to reset your password for your Voxora account.</p>
-          <p>Click the button below to reset your password:</p>
-          <a href="${resetUrl}" class="button">Reset Password</a>
-          <p><strong>Note:</strong> This link will expire in 10 minutes for security reasons.</p>
-          <p>If you didn't request this password reset, you can safely ignore this email.</p>
-        </div>
-        <div class="footer">
-          <p>© 2025 Voxora. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return { subject: "Reset your Voxora password", html };
+  return buildFromTemplate("password_reset", {
+    name: escapeHtml(name),
+    resetUrl,
+  });
 }
 
-export function buildWelcomeEmail(name: string, role: string): BuiltEmail {
+export async function buildWelcomeEmail(name: string, role: string): Promise<BuiltEmail> {
   const loginUrl = `${config.app.clientUrl}/auth/login`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Welcome to Voxora!</title>
-      <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }
-        .button { display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-        .footer { background: #f9fafb; padding: 20px; text-align: center; color: #6b7280; border-radius: 0 0 8px 8px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🎉 Welcome to Voxora!</h1>
-          <p>Your account is ready</p>
-        </div>
-        <div class="content">
-          <h2>Hello ${name}!</h2>
-          <p>Welcome to Voxora! Your account has been successfully created as a <strong>${role}</strong>.</p>
-          <p>You can now access your dashboard and start providing excellent customer support.</p>
-          <a href="${loginUrl}" class="button">Login to Dashboard</a>
-          <h3>Getting Started:</h3>
-          <ul>
-            <li>Complete your profile setup</li>
-            <li>Familiarize yourself with the chat interface</li>
-            <li>Review support guidelines and best practices</li>
-            <li>Join your assigned teams</li>
-          </ul>
-          <p>If you have any questions, don't hesitate to reach out to your team lead or administrator.</p>
-        </div>
-        <div class="footer">
-          <p>© 2025 Voxora. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  return { subject: "Welcome to Voxora - Your account is ready!", html };
+  return buildFromTemplate("welcome", {
+    name: escapeHtml(name),
+    role: escapeHtml(role),
+    loginUrl,
+  });
 }
-

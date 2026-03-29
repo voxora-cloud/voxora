@@ -77,6 +77,11 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     const provider = getDefaultProvider();
     response = await provider.generate(messages, {
       tools: getAllTools(),
+      toolContext: {
+        organizationId: job.organizationId,
+        conversationId: job.conversationId,
+        messageId: job.messageId,
+      },
       onStream: (chunk, isThought = false) => {
         // Fire-and-forget publish
         publishStreamChunk({ conversationId, chunk, isThought }).catch((err) =>

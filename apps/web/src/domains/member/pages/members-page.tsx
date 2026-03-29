@@ -137,7 +137,11 @@ export function MembersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Organization Members</h1>
-        <Button onClick={() => setShowInviteModal(true)} className="cursor-pointer">
+        <Button
+          type="button"
+          onClick={() => setShowInviteModal(true)}
+          className="relative z-10 cursor-pointer"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Invite Member
         </Button>
@@ -182,7 +186,11 @@ export function MembersPage() {
           <p className="text-muted-foreground mt-1">
             Invite colleagues to start collaborating in your organization.
           </p>
-          <Button className="mt-4 cursor-pointer" onClick={() => setShowInviteModal(true)}>
+          <Button
+            type="button"
+            className="mt-4 relative z-10 cursor-pointer"
+            onClick={() => setShowInviteModal(true)}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Invite Member
           </Button>

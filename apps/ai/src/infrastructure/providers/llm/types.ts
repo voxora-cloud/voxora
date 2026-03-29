@@ -1,4 +1,4 @@
-import { Tool } from "../../../modules/agents/agent.types";
+import { Tool, ToolExecutionContext } from "../../../modules/agents/agent.types";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -11,6 +11,7 @@ export interface LLMOptions {
   temperature?: number;
   maxTokens?: number;
   tools?: Tool[];
+  toolContext?: ToolExecutionContext;
   onStream?: (chunk: string, isThought?: boolean) => void;
 }
 

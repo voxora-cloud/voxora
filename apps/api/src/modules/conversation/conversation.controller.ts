@@ -13,13 +13,13 @@ const getOrgId = (req: Request): string => (req as AuthenticatedRequest).user.ac
 
 export const getConversations = asyncHandler(async (req: Request, res: Response) => {
   const { status, limit = 50, offset = 0 } = req.query;
-  const userId = (req as AuthenticatedRequest).user?.userId;
+  const { userId, orgRole } = (req as AuthenticatedRequest).user;
 
   const result = await conversationService.getConversations(getOrgId(req), {
     status: status as string,
     limit: Number(limit),
     offset: Number(offset),
-    assignedTo: userId,
+    assignedTo: orgRole === "agent" ? userId : undefined,
   });
 
   sendResponse(res, 200, true, "Conversations fetched successfully", result);

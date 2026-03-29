@@ -6,6 +6,116 @@ import { extractThoughtSteps, parseMarkdown } from './utils/markdown';
 let authRetryCount = 0;
 const MAX_AUTH_RETRIES = 3;
 
+type ConversationVisualState = 'human' | 'resolved' | 'closed' | 'pending' | 'open';
+
+function getInputArea(): HTMLElement | null {
+  return document.querySelector('.input-area') as HTMLElement | null;
+}
+
+function getStateBanner(): HTMLElement | null {
+  return document.getElementById('conversationStateBanner');
+}
+
+function removeStateBanner() {
+  const banner = getStateBanner();
+  if (banner) banner.remove();
+}
+
+function showStateBanner(stateType: ConversationVisualState, title: string, subtitle?: string) {
+  const app = document.getElementById('app');
+  const topbar = document.querySelector('.widget-topbar');
+  if (!app || !topbar) return;
+
+  let banner = getStateBanner();
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'conversationStateBanner';
+    banner.className = 'conversation-state-banner';
+    topbar.insertAdjacentElement('afterend', banner);
+  }
+
+  banner.className = `conversation-state-banner state-${stateType}`;
+  banner.innerHTML = `
+    <div class="state-main">
+      <span class="state-dot"></span>
+      <span class="state-title">${title}</span>
+    </div>
+    ${subtitle ? `<div class="state-subtitle">${subtitle}</div>` : ''}
+  `;
+}
+
+function setComposerEnabled(enabled: boolean, placeholder?: string) {
+  const inputArea = getInputArea();
+  if (inputArea) inputArea.classList.toggle('is-disabled', !enabled);
+
+  if (elements.messageInput) {
+    elements.messageInput.disabled = !enabled;
+    if (placeholder) elements.messageInput.placeholder = placeholder;
+  }
+
+  if (elements.sendBtn) {
+    if (!enabled) {
+      elements.sendBtn.disabled = true;
+    } else {
+      elements.sendBtn.disabled = !elements.messageInput?.value.trim();
+    }
+  }
+
+  if (elements.attachBtn) elements.attachBtn.disabled = !enabled;
+}
+
+function clearOutcomePanel() {
+  const panel = document.getElementById('conv-closed-banner');
+  if (panel) panel.remove();
+}
+
+function resetConversationToNew() {
+  clearOutcomePanel();
+  removeStateBanner();
+  state.chatId = null;
+  state.isConnected = false;
+  state._escalationShown = false;
+  state._streamBubbleEl = null;
+  state._streamText = '';
+  state._thoughtText = '';
+  state._thoughtSteps = [];
+
+  if (elements.messagesContainer) {
+    elements.messagesContainer.innerHTML = '';
+  }
+
+  setComposerEnabled(true, 'Type your message...');
+  if (elements.messageInput) {
+    elements.messageInput.value = '';
+    elements.messageInput.focus();
+  }
+
+  addSystemNotice('Started a new conversation. Ask anything and we will help you.');
+}
+
+function showOutcomePanel(status: 'resolved' | 'closed') {
+  clearOutcomePanel();
+  const messagesContainer = elements.messagesContainer;
+  if (!messagesContainer) return;
+
+  const panel = document.createElement('div');
+  panel.className = `conv-outcome-panel ${status === 'resolved' ? 'resolved' : 'closed'}`;
+  panel.id = 'conv-closed-banner';
+  panel.innerHTML = `
+    <div class="outcome-icon">${status === 'resolved' ? '✅' : '🔒'}</div>
+    <div class="outcome-content">
+      <div class="outcome-title">${status === 'resolved' ? 'Conversation resolved' : 'Conversation closed'}</div>
+      <div class="outcome-sub">You can start a fresh chat anytime if you need more help.</div>
+    </div>
+    <button class="outcome-cta" id="bannerNewChatBtn">Start new chat</button>
+  `;
+
+  messagesContainer.appendChild(panel);
+  scrollToBottom();
+
+  document.getElementById('bannerNewChatBtn')?.addEventListener('click', resetConversationToNew, { once: true });
+}
+
 export function initializeSocket() {
   if (!state.widgetToken) {
     console.error('Missing widget token, cannot connect');
@@ -59,6 +169,7 @@ function bindSocketEvents() {
   if (!state.socket) return;
   const socket = state.socket;
 
+  socket.off('connect');
   socket.on('connect', () => {
     authRetryCount = 0;
     console.log('Socket connected for widget user with ID:', socket.id);
@@ -67,10 +178,12 @@ function bindSocketEvents() {
     }
   });
 
+  socket.off('disconnect');
   socket.on('disconnect', () => {
     console.log('Socket disconnected');
   });
 
+  socket.off('new_message');
   socket.on('new_message', (data: any) => {
     if (data.conversationId !== state.chatId) return;
     if (data.message?.metadata?.source === 'widget') return;
@@ -112,6 +225,7 @@ function bindSocketEvents() {
     }
   });
 
+  socket.off('ai_stream_chunk');
   socket.on('ai_stream_chunk', (data: any) => {
     if (data.conversationId !== state.chatId) return;
     removeTypingDots();
@@ -174,10 +288,12 @@ function bindSocketEvents() {
     scrollToBottom();
   });
 
+  socket.off('agent_typing');
   socket.on('agent_typing', (data: any) => {
     if (data.conversationId === state.chatId) showTyping();
   });
 
+  socket.off('agent_stopped_typing');
   socket.on('agent_stopped_typing', (data: any) => {
     if (data.conversationId === state.chatId) hideTyping();
   });
@@ -186,20 +302,17 @@ function bindSocketEvents() {
   socket.on('conversation_escalated', (data: any) => {
     if (data.conversationId !== state.chatId) return;
     removeTypingDots();
-    if (elements.sendBtn) elements.sendBtn.disabled = false;
+    clearOutcomePanel();
+    setComposerEnabled(true, data.agent?.name ? `Reply to ${data.agent.name}...` : 'Reply to support...');
     if (data.agent?.name) {
       state._escalationShown = true;
       const name = data.agent.name;
-      const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
-      const agentBadgeInitial = document.getElementById('agentBadgeInitial');
-      const agentBadgeName = document.getElementById('agentBadgeName');
-      const agentBadge = document.getElementById('agentBadge');
-      if (agentBadgeInitial) agentBadgeInitial.textContent = initials;
-      if (agentBadgeName) agentBadgeName.textContent = name;
-      if (agentBadge) agentBadge.style.display = 'flex';
+      showStateBanner('human', 'Live human support connected', `You are now chatting with ${name}`);
+      addSystemNotice(`👋 ${name} joined the conversation and will assist you directly.`);
     }
   });
 
+  socket.off('message_sent');
   socket.on('message_sent', () => {
     if (elements.sendBtn) elements.sendBtn.disabled = false;
   });
@@ -208,47 +321,23 @@ function bindSocketEvents() {
   socket.on('status_updated', (data: any) => {
     if (data.conversationId?.toString() !== state.chatId?.toString()) return;
     const status = data.status;
-    const inputArea = document.querySelector('.input-area') as HTMLElement;
 
     if (status === 'resolved' || status === 'closed') {
       addSystemNotice(status === 'resolved' ? '✅ This conversation has been resolved' : '🔒 This conversation has been closed');
-      if (inputArea && !document.getElementById('conv-closed-banner')) {
-        inputArea.style.display = 'none';
-        const banner = document.createElement('div');
-        banner.className = 'conv-closed-banner';
-        banner.id = 'conv-closed-banner';
-        banner.innerHTML =
-          '<span class="banner-icon">' + (status === 'resolved' ? '✅' : '🔒') + '</span>' +
-          '<span class="banner-title">' + (status === 'resolved' ? 'Conversation resolved' : 'Conversation closed') + '</span>' +
-          '<span class="banner-sub">Start a new chat if you have more questions</span>' +
-          '<button class="banner-new-btn" id="bannerNewChatBtn">Start new chat</button>';
-        inputArea.parentNode?.insertBefore(banner, inputArea.nextSibling);
-        
-        document.getElementById('bannerNewChatBtn')?.addEventListener('click', () => {
-          banner.remove();
-          inputArea.style.display = '';
-          if (elements.messagesContainer) elements.messagesContainer.innerHTML = '';
-          state.chatId = null;
-          state.isConnected = false;
-          state._escalationShown = false;
-          const agentBadge = document.getElementById('agentBadge');
-          if (agentBadge) agentBadge.style.display = 'none';
-          if (elements.messageInput) {
-            elements.messageInput.disabled = false;
-            elements.messageInput.placeholder = 'Type your message...';
-            elements.messageInput.focus();
-          }
-          if (elements.sendBtn) elements.sendBtn.disabled = true;
-          setTimeout(() => addMessage('Hi there! 👋', 'agent', 'Support Team'), 150);
-        });
-      }
+      showStateBanner(status === 'resolved' ? 'resolved' : 'closed', status === 'resolved' ? 'Conversation resolved' : 'Conversation closed', 'Start a new chat if you need more help');
+      setComposerEnabled(false, status === 'resolved' ? 'Conversation resolved. Start a new chat.' : 'Conversation closed. Start a new chat.');
+      showOutcomePanel(status === 'resolved' ? 'resolved' : 'closed');
     } else if (status === 'pending') {
+      showStateBanner('pending', 'Waiting for support team', 'Your chat is in queue. We will be with you shortly.');
       addSystemNotice("⏳ Your query is pending review — we'll be right with you");
     } else if (status === 'open') {
-      const banner = document.getElementById('conv-closed-banner');
-      if (banner) { banner.remove(); if(inputArea) inputArea.style.display = ''; }
-      if (elements.messageInput) elements.messageInput.disabled = false;
-      if (elements.sendBtn && elements.messageInput) elements.sendBtn.disabled = !elements.messageInput.value.trim();
+      clearOutcomePanel();
+      setComposerEnabled(true, state._escalationShown ? 'Reply to your support agent...' : 'Type your message...');
+      if (state._escalationShown) {
+        showStateBanner('human', 'Live human support connected');
+      } else {
+        removeStateBanner();
+      }
       addSystemNotice('🔄 This conversation has been reopened');
     }
   });

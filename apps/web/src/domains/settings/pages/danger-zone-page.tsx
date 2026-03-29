@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { settingsApi } from "@/domains/settings/api/settings.api";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -15,12 +14,11 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { useAuth } from "@/domains/auth/hooks";
-import { useLogout } from "@/domains/auth/hooks/useLogout";
+import { useDeleteOrganization } from "@/domains/settings/hooks";
 
 export function DangerZonePage() {
   const { organization: currentOrg } = useAuth();
-  const { mutate: logout } = useLogout();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const deleteOrgMutation = useDeleteOrganization();
   const [confirmText, setConfirmText] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -35,18 +33,9 @@ export function DangerZonePage() {
       return;
     }
 
-    setIsDeleting(true);
     try {
-      const response = await settingsApi.deleteOrganization(currentOrg._id);
-      if (response.success) {
-        toast.success("Organization has been deleted");
-        logout();
-      }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to delete organization";
-      toast.error(message);
+      await deleteOrgMutation.mutateAsync(currentOrg._id);
     } finally {
-      setIsDeleting(false);
       setIsDialogOpen(false);
     }
   };
@@ -85,7 +74,7 @@ export function DangerZonePage() {
                   </DialogTitle>
                   <DialogDescription>
                     This will permanently delete your organization, members, conversations, and
-                    settings. You won’t be able to undo this action.
+                    settings. You won't be able to undo this action.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -132,7 +121,7 @@ export function DangerZonePage() {
                   <Button
                     variant="ghost"
                     onClick={() => setIsDialogOpen(false)}
-                    disabled={isDeleting}
+                    disabled={deleteOrgMutation.isPending}
                     className="cursor-pointer"
                   >
                     Cancel
@@ -140,10 +129,10 @@ export function DangerZonePage() {
                   <Button
                     variant="destructive"
                     onClick={handleDelete}
-                    disabled={isDeleting || !isConfirmMatched}
+                    disabled={deleteOrgMutation.isPending || !isConfirmMatched}
                     className="cursor-pointer"
                   >
-                    {isDeleting ? "Deleting..." : "Yes, delete organization"}
+                    {deleteOrgMutation.isPending ? "Deleting..." : "Yes, delete organization"}
                   </Button>
                 </DialogFooter>
               </DialogContent>

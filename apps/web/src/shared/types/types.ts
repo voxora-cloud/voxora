@@ -1,11 +1,18 @@
 export type OrgRole = "owner" | "admin" | "agent";
 
+export interface OrganizationEmailSender {
+  fromEmail?: string;
+  fromName?: string;
+  domain?: string;
+  verified: boolean;
+}
 
 export interface Organization {
   _id: string;
   name: string;
   slug: string;
   logoUrl?: string;
+  emailSender?: OrganizationEmailSender;
   isActive: boolean;
 }
 

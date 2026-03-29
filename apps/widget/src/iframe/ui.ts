@@ -13,6 +13,7 @@ export const elements = {
   historyOverlay: document.getElementById("historyOverlay"),
   closeHistoryBtn: document.getElementById("closeHistoryBtn"),
   historyList: document.getElementById("historyList"),
+  historySearch: document.getElementById("historySearch") as HTMLInputElement | null,
   maximizeBtn: document.getElementById("vx-maximize"),
   minimizeBtn: document.getElementById("vx-minimize"),
   attachBtn: document.getElementById('attachBtn') as HTMLButtonElement,

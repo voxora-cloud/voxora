@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -31,6 +31,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { AddContactForm } from "@/domains/contacts/components/add-contact-form";
+import { contactsApi, type ContactListItem } from "@/domains/contacts/api/contacts.api";
 
 const TAG_OPTIONS = ["VIP", "Enterprise", "Trial", "Billing", "At Risk"];
 const STATUS_OPTIONS = ["active", "inactive", "blocked"] as const;
@@ -271,6 +272,49 @@ const CONTACTS_SEED: Contact[] = [
   },
 ];
 
+const toContactViewModel = (item: ContactListItem): Contact => ({
+  id: item.id,
+  name: item.name,
+  email: item.email,
+  phone: item.phone,
+  company: item.company,
+  tags: item.tags || [],
+  status: item.status,
+  lastActivity: item.lastActivity,
+  createdAt: item.createdAt,
+  isOnline: false,
+  conversationCount: item.conversationCount,
+  notes: item.notes || [],
+  conversations:
+    item.conversations && item.conversations.length > 0
+      ? item.conversations
+      : [
+          {
+            id: `conv-${item.id}`,
+            status: "open",
+            lastMessage: "Conversation context is still syncing.",
+            updatedAt: item.updatedAt,
+          },
+        ],
+  timeline:
+    item.timeline && item.timeline.length > 0
+      ? item.timeline
+      : [
+          {
+            id: `timeline-${item.id}`,
+            label: `Contact captured via ${item.source.toUpperCase()}`,
+            timestamp: item.updatedAt,
+          },
+        ],
+  insights: {
+    summary:
+      item.insights?.summary ||
+      "No insights yet. Continue conversations to generate AI insights.",
+    sentiment: item.insights?.sentiment || "neutral",
+    topics: item.insights?.topics || [],
+  },
+});
+
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
     month: "short",
@@ -294,10 +338,8 @@ const isRecentlyActive = (iso: string) => {
 };
 
 export function ContactsPage() {
-  const [contacts, setContacts] = useState<Contact[]>(CONTACTS_SEED);
-  const [selectedContactId, setSelectedContactId] = useState<string>(
-    CONTACTS_SEED[0]?.id,
-  );
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState<string>("");
   const [searchValue, setSearchValue] = useState("");
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
@@ -308,6 +350,44 @@ export function ContactsPage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [newTag, setNewTag] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [loadError, setLoadError] = useState<string>("");
+
+  useEffect(() => {
+    let mounted = true;
+    const loadContacts = async (silent = false) => {
+      try {
+        if (!silent) {
+          setIsLoadingContacts(true);
+        }
+        setLoadError("");
+        const items = await contactsApi.getContacts();
+        if (!mounted) return;
+        const mapped = items.map(toContactViewModel);
+        setContacts(mapped);
+        setSelectedContactId((prev) =>
+          mapped.some((contact) => contact.id === prev) ? prev : mapped[0]?.id || "",
+        );
+      } catch (error) {
+        if (!mounted) return;
+        setLoadError(error instanceof Error ? error.message : "Failed to load contacts");
+        setContacts((prev) => (prev.length > 0 ? prev : CONTACTS_SEED));
+        setSelectedContactId((prev) => prev || CONTACTS_SEED[0]?.id || "");
+      } finally {
+        if (!silent && mounted) setIsLoadingContacts(false);
+      }
+    };
+
+    loadContacts(false);
+    const refreshInterval = window.setInterval(() => {
+      loadContacts(true);
+    }, 8000);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+      mounted = false;
+    };
+  }, []);
 
   const selectedContact = contacts.find((contact) => contact.id === selectedContactId);
 
@@ -486,7 +566,13 @@ export function ContactsPage() {
           <p className="text-muted-foreground">
             Manage customer profiles, tags, and conversation context in one workspace.
           </p>
-          <p className="text-xs text-muted-foreground mt-1">Use the sidebar theme toggle to preview this page globally.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {isLoadingContacts
+              ? "Syncing contacts from database..."
+              : loadError
+              ? `Showing fallback sample data: ${loadError}`
+              : "Live contact data is synced from your organization database."}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
