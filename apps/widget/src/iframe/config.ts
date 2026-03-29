@@ -36,4 +36,5 @@ export const state = {
   _isMaximized: false,
   _uiConfig: { appearance: {}, features: {} } as any,
   currentSessionId: null as string | null,
+  _historyCached: [] as any[],
 };

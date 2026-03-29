@@ -50,7 +50,11 @@ export interface ConversationListItem {
       startedAt?: string;
     };
     customerName?: string;
+    escalatedAt?: string;
+    escalationReason?: string;
+    pendingEscalation?: boolean;
   };
+  assignedTo?: { _id: string; name: string; email: string };
   unreadCount: number;
   createdAt: string;
   lastMessageAt?: string;

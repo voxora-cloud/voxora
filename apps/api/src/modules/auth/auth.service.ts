@@ -191,7 +191,20 @@ export class AuthService {
       user.resetPasswordToken = resetToken;
       user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000);
       await user.save();
-      await enqueuePasswordResetEmail(email, user.name, resetToken);
+
+      const activeMembership = await Membership.findOne({
+        userId: user._id,
+        inviteStatus: "active",
+      })
+        .select("organizationId")
+        .lean();
+
+      await enqueuePasswordResetEmail(
+        email,
+        user.name,
+        resetToken,
+        activeMembership?.organizationId?.toString(),
+      );
     }
 
     return { success: true };

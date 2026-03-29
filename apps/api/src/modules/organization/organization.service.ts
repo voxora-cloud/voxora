@@ -90,14 +90,67 @@ export class OrganizationService {
      */
     static async updateOrganization(
         orgId: string,
-        data: { name?: string; slug?: string; logoUrl?: string },
+        data: {
+            name?: string;
+            slug?: string;
+            logoUrl?: string;
+            emailSender?: {
+                fromEmail?: string;
+                fromName?: string;
+                domain?: string;
+                verified?: boolean;
+            };
+        },
     ) {
         if (data.slug) {
             const existing = await Organization.findOne({ slug: data.slug, _id: { $ne: orgId } });
             if (existing) throw new Error(`Slug "${data.slug}" is already taken`);
         }
 
-        const org = await Organization.findByIdAndUpdate(orgId, { $set: data }, { new: true });
+        const existingOrg = await Organization.findById(orgId);
+        if (!existingOrg) throw new Error("Organization not found");
+
+        const updateFields: Record<string, unknown> = {};
+        if (typeof data.name !== "undefined") updateFields.name = data.name;
+        if (typeof data.slug !== "undefined") updateFields.slug = data.slug;
+        if (typeof data.logoUrl !== "undefined") updateFields.logoUrl = data.logoUrl;
+
+        if (data.emailSender) {
+            const current = existingOrg.emailSender || { verified: false };
+
+            const nextFromEmail =
+                typeof data.emailSender.fromEmail !== "undefined"
+                    ? data.emailSender.fromEmail?.trim().toLowerCase()
+                    : current.fromEmail;
+
+            const nextFromName =
+                typeof data.emailSender.fromName !== "undefined"
+                    ? data.emailSender.fromName?.trim()
+                    : current.fromName;
+
+            const nextDomain =
+                typeof data.emailSender.domain !== "undefined"
+                    ? data.emailSender.domain?.trim().toLowerCase()
+                    : current.domain;
+
+            const identityChanged =
+                (current.fromEmail || "") !== (nextFromEmail || "")
+                || (current.fromName || "") !== (nextFromName || "")
+                || (current.domain || "") !== (nextDomain || "");
+
+            // Never allow clients to self-verify sender. Verification can only
+            // remain true when identity is unchanged and already verified.
+            const verified = !!current.verified && !identityChanged;
+
+            updateFields.emailSender = {
+                fromEmail: nextFromEmail,
+                fromName: nextFromName,
+                domain: nextDomain,
+                verified,
+            };
+        }
+
+        const org = await Organization.findByIdAndUpdate(orgId, { $set: updateFields }, { new: true });
         if (!org) throw new Error("Organization not found");
         return org;
     }

@@ -1,12 +1,16 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-type EmailProvider = "smtp" | "mailhog" | "resend" | "sendgrid" | "ses" | "disabled";
+type EmailProvider = "mailhog" | "resend" | "disabled";
 
 function parseEmailProvider(value?: string): EmailProvider {
   const normalized = (value || "").toLowerCase() as EmailProvider;
-  const valid: EmailProvider[] = ["smtp", "mailhog", "resend", "sendgrid", "ses", "disabled"];
-  return valid.includes(normalized) ? normalized : "mailhog";
+  const valid: EmailProvider[] = ["mailhog", "resend", "disabled"];
+  return valid.includes(normalized)
+    ? normalized
+    : process.env.NODE_ENV === "development"
+      ? "mailhog"
+      : "disabled";
 }
 
 const config = {
@@ -28,15 +32,12 @@ const config = {
       pass: process.env.EMAIL_PASS || undefined,
     },
     resendApiKey: process.env.RESEND_API_KEY || undefined,
-    sendgridApiKey: process.env.SENDGRID_API_KEY || undefined,
-    ses: {
-      accessKeyId: process.env.AWS_SES_ACCESS_KEY_ID || undefined,
-      secretAccessKey: process.env.AWS_SES_SECRET_ACCESS_KEY || undefined,
-      region: process.env.AWS_SES_REGION || "us-east-1",
-    },
     from: {
       name: process.env.EMAIL_FROM_NAME || "Voxora",
-      email: process.env.EMAIL_FROM_ADDRESS || "noreply@voxora.app",
+      email:
+        process.env.EMAIL_FROM_EMAIL
+        || process.env.EMAIL_FROM_ADDRESS
+        || "noreply@voxora.app",
     },
   },
 };

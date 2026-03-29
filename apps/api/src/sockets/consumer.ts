@@ -96,7 +96,21 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       }
 
       // Resolve org from conversation record
-      const conv = await Conversation.findById(conversationId).select("organizationId").lean();
+      const conv = await Conversation.findById(conversationId)
+        .select("organizationId status metadata.escalatedAt metadata.humanJoinedAt")
+        .lean();
+
+      if (!conv) return;
+
+      if (
+        (conv as any).metadata?.escalatedAt
+        || (conv as any).metadata?.humanJoinedAt
+        || ["resolved", "closed"].includes((conv as any).status)
+      ) {
+        logger.info(`[AI Response] Skipping ${conversationId} because conversation is escalated or closed`);
+        return;
+      }
+
       const organizationId = conv?.organizationId?.toString() || "";
 
       const msg = new Message({
@@ -157,7 +171,20 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
 
       logger.info(`[Escalation] Received for conversation ${conversationId} — reason: "${reason}"`);
 
-      const conv = await Conversation.findById(conversationId).select("organizationId").lean();
+      const conv = await Conversation.findById(conversationId)
+        .select("organizationId status metadata.escalatedAt metadata.humanJoinedAt")
+        .lean();
+      if (!conv) return;
+
+      if (
+        (conv as any).metadata?.escalatedAt
+        || (conv as any).metadata?.humanJoinedAt
+        || ["resolved", "closed"].includes((conv as any).status)
+      ) {
+        logger.info(`[Resolution] Skipping ${conversationId} because conversation is escalated or already closed`);
+        return;
+      }
+
       const organizationId = conv?.organizationId?.toString() || "";
 
       const assignment = await findBestAgent(organizationId, teamId);
@@ -177,6 +204,26 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
           conversationId,
           message: { _id: fallbackMsg._id, senderId: fallbackMsg.senderId, content: fallbackMsg.content, type: fallbackMsg.type, metadata: fallbackMsg.metadata, createdAt: fallbackMsg.createdAt },
         });
+
+        // Mark conversation as pending + flag it for admin inbox "Unassigned" view
+        await Conversation.findByIdAndUpdate(conversationId, {
+          $set: {
+            status: "pending",
+            "metadata.pendingEscalation": true,
+            "metadata.escalatedAt": new Date(),
+            "metadata.escalationReason": reason,
+          },
+        });
+
+        // Notify visitor that they are in the queue
+        socketManager.emitToConversation(conversationId, "status_updated", {
+          conversationId,
+          status: "pending",
+          updatedBy: "system",
+          reason: "No agents available — in queue",
+          timestamp: new Date(),
+        });
+
         return;
       }
 

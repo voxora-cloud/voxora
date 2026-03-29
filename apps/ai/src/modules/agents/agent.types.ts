@@ -3,6 +3,15 @@ export interface ToolParameterSchema {
   description: string;
   required?: boolean;
   enum?: unknown[];
+  items?: {
+    type: "string" | "number" | "boolean" | "object" | "array";
+  };
+}
+
+export interface ToolExecutionContext {
+  organizationId?: string;
+  conversationId?: string;
+  messageId?: string;
 }
 
 export interface Tool {
@@ -12,5 +21,5 @@ export interface Tool {
   readonly description: string;
   /** JSON-schema-style parameter definitions */
   readonly parameters: Record<string, ToolParameterSchema>;
-  execute(args: Record<string, unknown>): Promise<unknown>;
+  execute(args: Record<string, unknown>, context?: ToolExecutionContext): Promise<unknown>;
 }

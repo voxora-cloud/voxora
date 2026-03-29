@@ -73,7 +73,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         // Once escalated to a human OR already resolved, stop feeding into AI pipeline.
         if (
           (conversation as any).metadata?.escalatedAt ||
-          (conversation as any).status === "resolved"
+          (conversation as any).metadata?.humanJoinedAt ||
+          ["resolved", "closed"].includes((conversation as any).status)
         ) {
           return; // message was saved & broadcast above; just don't run AI
         }
@@ -184,13 +185,19 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
       if (
         socket.data?.user?.role === "agent" ||
-        socket.data?.user?.role === "admin"
+        socket.data?.user?.role === "admin" ||
+        socket.data?.user?.role === "owner"
       ) {
         await Conversation.findByIdAndUpdate(conversationId, {
           $set: {
             assignedTo: socket.data.user.userId,
             status: "active",
+            "metadata.humanJoinedAt": new Date(),
+            "metadata.escalatedAt": new Date(),
+            "metadata.pendingEscalation": false,
+            "metadata.routeReason": "Human agent joined conversation",
           },
+          $addToSet: { participants: socket.data.user.userId },
         });
 
         io.to(roomName).emit("conversation_assigned", {
@@ -226,7 +233,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
     if (
       socket.data?.user?.role === "agent" ||
-      socket.data?.user?.role === "admin"
+      socket.data?.user?.role === "admin" ||
+      socket.data?.user?.role === "owner"
     ) {
       socket.to(roomName).emit("agent_typing", {
         conversationId,
@@ -243,7 +251,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
     if (
       socket.data?.user?.role === "agent" ||
-      socket.data?.user?.role === "admin"
+      socket.data?.user?.role === "admin" ||
+      socket.data?.user?.role === "owner"
     ) {
       socket.to(roomName).emit("agent_stopped_typing", { conversationId });
     } else {

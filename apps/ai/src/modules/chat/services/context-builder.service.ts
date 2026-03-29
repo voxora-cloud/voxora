@@ -81,6 +81,7 @@ Tool usage:
 Early in the conversation — ideally within the first 1–2 exchanges — naturally ask the visitor for ${fieldList}.
 - Do this conversationally, not like a form. For example: "Before we dive in, could I get your name?" or "Happy to help! May I have your email so we can follow up if needed?"
 - Once the visitor provides the information, acknowledge it warmly and move on.
+- Immediately call the tool \`update_contact_profile\` with any provided fields (name/email/phone) so the profile is saved.
 - If the visitor declines or skips, respect that and continue helping them without pressing further.
 - Do NOT repeat the request if they've already provided it or declined.`;
   }

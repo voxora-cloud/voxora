@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { sendResponse, sendError, asyncHandler } from "@shared/utils/response";
-import { Conversation, Message, Team, User, Widget } from "@shared/models";
+import { Conversation, Message, Team, User, Widget, Membership } from "@shared/models";
 import { getSocketManager } from "@sockets/index";
 import logger from "@shared/utils/logger";
 import config from "@shared/config";
@@ -188,30 +188,57 @@ export const getWidgetConfig = asyncHandler(
 /**
  * Find available agent from a specific team (least-busy strategy)
  */
-async function findAvailableAgent(teamId: string): Promise<string | null> {
+async function findOwnerForOrganization(organizationId: string): Promise<string | null> {
   try {
-    const agents = await User.find({
+    const ownerMembership = await Membership.findOne({
+      organizationId,
+      role: "owner",
+      inviteStatus: "active",
+    })
+      .populate("userId", "isActive")
+      .select("userId")
+      .lean();
+
+    const ownerUser = ownerMembership?.userId as { _id?: { toString(): string }; isActive?: boolean } | undefined;
+    if (!ownerUser?.isActive || !ownerUser._id) return null;
+
+    return ownerUser._id.toString();
+  } catch (error: any) {
+    logger.error(`Error finding org owner: ${error.message}`);
+    return null;
+  }
+}
+
+async function findAvailableAgent(organizationId: string, teamId: string): Promise<string | null> {
+  try {
+    const agentMemberships = await Membership.find({
+      organizationId,
       teams: teamId,
-      role: "agent",
-      isActive: true,
-      status: { $in: ["online", "away"] },
+      inviteStatus: "active",
+    }).populate("userId", "status isActive");
+
+    const available = agentMemberships.filter((membership) => {
+      const user = membership.userId as any;
+      return user?.isActive && ["online", "away"].includes(user?.status);
     });
 
-    if (agents.length === 0) {
+    if (available.length === 0) {
       logger.warn(`No available agents found in team ${teamId}`);
       return null;
     }
 
     const agentLoads = await Promise.all(
-      agents.map(async (agent) => {
+      available.map(async (membership) => {
+        const userId = (membership.userId as any)._id;
         const activeConvs = await Conversation.countDocuments({
-          assignedTo: agent._id,
+          organizationId,
+          assignedTo: userId,
           status: { $in: ["open", "pending"] },
         });
         return {
-          agentId: agent._id,
+          agentId: userId,
           load: activeConvs,
-          status: agent.status,
+          status: (membership.userId as any).status,
         };
       }),
     );
@@ -233,33 +260,34 @@ async function findAvailableAgent(teamId: string): Promise<string | null> {
  * Auto-assign conversation to team and agent
  * Strategy: Find team with most available agents, then assign to least-busy agent
  */
-async function autoAssignConversation(): Promise<{
+async function autoAssignConversation(organizationId: string): Promise<{
   teamId: string | null;
   agentId: string | null;
 }> {
   try {
-    const teams = await Team.find({ isActive: true });
+    const ownerId = await findOwnerForOrganization(organizationId);
+    const teams = await Team.find({ organizationId, isActive: true });
 
     if (teams.length === 0) {
       logger.warn("No active teams found for auto-assignment");
-      return { teamId: null, agentId: null };
+      return { teamId: null, agentId: ownerId };
     }
 
     const teamScores = await Promise.all(
       teams.map(async (team) => {
-        const onlineAgents = await User.countDocuments({
+        const memberships = await Membership.find({
+          organizationId,
           teams: team._id,
-          role: "agent",
-          isActive: true,
-          status: "online",
-        });
+          inviteStatus: "active",
+        }).populate("userId", "status isActive");
 
-        const awayAgents = await User.countDocuments({
-          teams: team._id,
-          role: "agent",
-          isActive: true,
-          status: "away",
-        });
+        const onlineAgents = memberships.filter(
+          (membership) => (membership.userId as any)?.isActive && (membership.userId as any)?.status === "online",
+        ).length;
+
+        const awayAgents = memberships.filter(
+          (membership) => (membership.userId as any)?.isActive && (membership.userId as any)?.status === "away",
+        ).length;
 
         const score = onlineAgents * 2 + awayAgents;
         return {
@@ -276,16 +304,16 @@ async function autoAssignConversation(): Promise<{
 
     if (availableTeams.length === 0) {
       logger.warn("No teams with available agents found");
-      return { teamId: teams[0]._id.toString(), agentId: null };
+      return { teamId: teams[0]._id.toString(), agentId: ownerId };
     }
 
     const selectedTeam = availableTeams[0];
-    const agentId = await findAvailableAgent(selectedTeam.teamId);
+    const agentId = await findAvailableAgent(organizationId, selectedTeam.teamId);
 
     logger.info(
       `Auto-assigned conversation to team ${selectedTeam.teamId}, agent ${agentId}`,
     );
-    return { teamId: selectedTeam.teamId, agentId };
+    return { teamId: selectedTeam.teamId, agentId: agentId || ownerId };
   } catch (error: any) {
     logger.error(`Error in auto-assignment: ${error.message}`);
     return { teamId: null, agentId: null };
@@ -314,28 +342,33 @@ export const initConversation = asyncHandler(
         `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       const isAnonymous = !visitorName || !visitorEmail;
+      const organizationId = (req as any).widgetSession.organizationId as string;
 
-      let assignedTeamId: any = teamId;
+      let assignedTeamId: string | null = teamId || null;
       let assignedAgentId: string | null = null;
 
       if (!assignedTeamId && department) {
         const team = await Team.findOne({
+          organizationId,
           name: new RegExp(department, "i"),
           isActive: true,
         });
-        assignedTeamId = team?._id;
+        assignedTeamId = team?._id?.toString() || null;
       }
 
       if (assignedTeamId) {
-        assignedAgentId = await findAvailableAgent(assignedTeamId.toString());
+        assignedAgentId = await findAvailableAgent(organizationId, assignedTeamId);
+        if (!assignedAgentId) {
+          assignedAgentId = await findOwnerForOrganization(organizationId);
+        }
       } else {
-        const assignment = await autoAssignConversation();
+        const assignment = await autoAssignConversation(organizationId);
         assignedTeamId = assignment.teamId;
         assignedAgentId = assignment.agentId;
       }
 
       const conversation = await Conversation.create({
-        organizationId: (req as any).widgetSession.organizationId,
+        organizationId,
         participants: assignedAgentId ? [assignedAgentId] : [],
         subject: department
           ? `${department} - New conversation`
@@ -361,7 +394,7 @@ export const initConversation = asyncHandler(
           },
           widgetKey: voxoraPublicKey || null,
           source: "widget",
-          teamId: assignedTeamId?.toString(),
+          teamId: assignedTeamId,
           department: department || null,
           routingStrategy: teamId
             ? "manual"

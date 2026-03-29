@@ -20,8 +20,10 @@ export function getAllTools(): Tool[] {
 // ─── Register built-in tools here ────────────────────────────────────────────
 import { RewriteAndThinkTool } from "./rewrite-and-think.tool";
 import { WebCrawlTool } from "./web-crawl.tool";
+import { UpdateContactProfileTool } from "./update-contact-profile.tool";
 
 registerTool(new RewriteAndThinkTool());
 registerTool(new WebCrawlTool());
+registerTool(new UpdateContactProfileTool());
 
 export type { Tool, ToolParameterSchema } from "../agent.types";

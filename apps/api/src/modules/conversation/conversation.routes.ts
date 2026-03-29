@@ -1,25 +1,30 @@
 import { Router } from "express";
 import * as ConversationController from "./conversation.controller";
-import { authenticate as auth } from "@shared/middleware";
+import {
+  authenticate as auth,
+  resolveOrganization,
+  requireRole,
+} from "@shared/middleware";
 import { validateRequest } from "@shared/middleware";
 import { conversationSchema } from "./conversation.schema";
 
 const router = Router();
 
+// All agent dashboard conversation routes require org context.
+router.use(auth, resolveOrganization, requireRole("agent"));
+
 // Get all conversations for an agent
-router.get("/", auth, ConversationController.getConversations);
+router.get("/", ConversationController.getConversations);
 
 // Get a specific conversation with messages
 router.get(
   "/:conversationId",
-  auth,
   ConversationController.getConversationById,
 );
 
 // Update conversation status (simple inline version)
 router.patch(
   "/:conversationId/status",
-  auth,
   ConversationController.patchStatus,
 );
 
@@ -33,14 +38,12 @@ router.patch(
 // Route conversation to team or agent
 router.post(
   "/:conversationId/route",
-  auth,
   ConversationController.routeConversation,
 );
 
 // Update conversation status (full version with metadata)
 router.patch(
   "/:conversationId/status/full",
-  auth,
   ConversationController.updateConversationStatus,
 );
 

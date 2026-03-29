@@ -2,6 +2,22 @@ import { Conversation, Message, Team, User, Membership } from "@shared/models";
 import logger from "@shared/utils/logger";
 
 export class ConversationService {
+  private async findOwnerForOrganization(organizationId: string): Promise<string | null> {
+    const ownerMembership = await Membership.findOne({
+      organizationId,
+      role: "owner",
+      inviteStatus: "active",
+    })
+      .populate("userId", "isActive")
+      .select("userId")
+      .lean();
+
+    const ownerUser = ownerMembership?.userId as { _id?: { toString(): string }; isActive?: boolean } | undefined;
+    if (!ownerUser?.isActive || !ownerUser._id) return null;
+
+    return ownerUser._id.toString();
+  }
+
   /**
    * Get all conversations for an organization (filtered by status/agent)
    */
@@ -134,8 +150,9 @@ export class ConversationService {
    */
   async autoAssignConversation(organizationId: string): Promise<{ teamId: string | null; agentId: string | null }> {
     try {
+      const ownerId = await this.findOwnerForOrganization(organizationId);
       const teams = await Team.find({ organizationId, isActive: true });
-      if (teams.length === 0) return { teamId: null, agentId: null };
+      if (teams.length === 0) return { teamId: null, agentId: ownerId };
 
       const teamScores = await Promise.all(
         teams.map(async (team) => {
@@ -153,14 +170,15 @@ export class ConversationService {
       );
 
       const available = teamScores.filter((t) => t.hasAgents).sort((a, b) => b.score - a.score);
-      if (available.length === 0) return { teamId: teams[0]._id.toString(), agentId: null };
+      if (available.length === 0) return { teamId: teams[0]._id.toString(), agentId: ownerId };
 
       const selectedTeam = available[0];
       const agentId = await this.findAvailableAgent(organizationId, selectedTeam.teamId);
-      return { teamId: selectedTeam.teamId, agentId };
+      return { teamId: selectedTeam.teamId, agentId: agentId || ownerId };
     } catch (error: any) {
       logger.error(`Error in auto-assignment: ${error.message}`);
-      return { teamId: null, agentId: null };
+      const ownerId = await this.findOwnerForOrganization(organizationId);
+      return { teamId: null, agentId: ownerId };
     }
   }
 
@@ -198,6 +216,9 @@ export class ConversationService {
           "metadata.routedBy": routedBy,
           "metadata.routedAt": new Date(),
           "metadata.routeReason": reason || "Manual routing",
+          "metadata.escalatedAt": new Date(),
+          "metadata.escalationReason": reason || "Manual routing",
+          "metadata.pendingEscalation": false,
         },
         $addToSet: { participants: selectedAgentId },
       },

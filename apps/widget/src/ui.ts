@@ -218,31 +218,56 @@ export class WidgetUI {
 
     outside.forEach((s) => {
       const chip = document.createElement('button');
-      chip.textContent = s.text;
+      chip.innerHTML = `
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(16,185,129,0.14);color:${accentColor};flex-shrink:0;transition:all 0.2s ease;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l1.9 4.8L19 9.7l-4 3.1 1.4 5L12 15.2 7.6 17.8 9 12.8 5 9.7l5.1-1.9L12 3z"></path>
+          </svg>
+        </span>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.text}</span>
+      `;
       Object.assign(chip.style, {
-        background: '#fff',
-        color: '#111',
-        border: `1.5px solid ${accentColor}`,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))',
+        color: '#0f172a',
+        border: '1px solid rgba(255,255,255,0.7)',
         borderRadius: '999px',
-        padding: '8px 16px',
+        padding: '8px 14px',
         fontSize: '13px',
-        fontWeight: '500',
+        fontWeight: '600',
         cursor: 'pointer',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
+        boxShadow: '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)',
         whiteSpace: 'nowrap',
         maxWidth: '220px',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        transition: 'all 0.2s ease',
+        transition: 'all 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        backdropFilter: 'blur(8px)',
       });
       chip.addEventListener('mouseenter', () => {
-        chip.style.background = accentColor;
-        chip.style.color = '#fff';
+        chip.style.background = `linear-gradient(180deg, ${accentColor}, ${accentColor})`;
+        chip.style.color = '#ffffff';
+        chip.style.transform = 'translateY(-2px) scale(1.01)';
+        chip.style.boxShadow = '0 14px 28px rgba(2, 6, 23, 0.28), 0 0 0 1px rgba(255,255,255,0.15)';
+        const iconBubble = chip.firstElementChild as HTMLElement | null;
+        if (iconBubble) {
+          iconBubble.style.background = 'rgba(255,255,255,0.18)';
+          iconBubble.style.color = '#ffffff';
+        }
       });
       chip.addEventListener('mouseleave', () => {
-        chip.style.background = '#fff';
-        chip.style.color = '#111';
+        chip.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))';
+        chip.style.color = '#0f172a';
+        chip.style.transform = 'translateY(0) scale(1)';
+        chip.style.boxShadow = '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)';
+        const iconBubble = chip.firstElementChild as HTMLElement | null;
+        if (iconBubble) {
+          iconBubble.style.background = 'rgba(16,185,129,0.14)';
+          iconBubble.style.color = accentColor;
+        }
       });
       chip.addEventListener('click', () => {
         // Open the widget, then send the suggestion via postMessage to iframe

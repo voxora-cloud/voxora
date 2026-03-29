@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useSaveWidget, useWidget } from "@/domains/widget/hooks";
 import type { CreateWidgetData } from "@/domains/widget/types";
 import { storageApi } from "@/shared/lib/storage.api";
@@ -17,11 +17,6 @@ import {
 const CDN_URL =
   import.meta.env.VITE_CDN_URL ||
   "http://localhost:9001/voxora-widget/v1/voxora.js";
-const API_ROOT =
-  (import.meta.env.VITE_API_URL || "http://localhost:3002/api/v1").replace(
-    "/api/v1",
-    "",
-  );
 
 const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   displayName: "",
@@ -111,7 +106,6 @@ export function WidgetPage() {
   const [isCopied, setIsCopied] = useState(false);
   const [uploadedFileKey, setUploadedFileKey] = useState<string>("");
   const [savedLogoUrl, setSavedLogoUrl] = useState<string>("");
-  const widgetInitialized = useRef(false);
   const [validationErrors, setValidationErrors] = useState<{
     displayName?: string;
     backgroundColor?: string;
@@ -121,44 +115,6 @@ export function WidgetPage() {
   );
   const { data: widgetData } = useWidget();
   const saveWidget = useSaveWidget();
-
-  useEffect(() => {
-    if (!formData._id) return;
-
-    if (widgetInitialized.current) {
-      return;
-    }
-
-    const existingScript = document.querySelector(
-      "script[data-voxora-public-key]",
-    );
-    const existingButton = document.getElementById("voxora-widget-button");
-    const existingIframe = document.getElementById("voxora-widget-iframe");
-
-    existingScript?.remove();
-    existingButton?.remove();
-    existingIframe?.remove();
-
-    widgetInitialized.current = true;
-
-    const script = document.createElement("script");
-    script.src = `${CDN_URL}?v=${Date.now()}`;
-    script.setAttribute("data-voxora-public-key", formData._id);
-    script.id = "voxora-widget-script";
-    document.body.appendChild(script);
-
-    return () => {
-      widgetInitialized.current = false;
-
-      const scriptEl = document.getElementById("voxora-widget-script");
-      const widgetBtn = document.getElementById("voxora-widget-button");
-      const widgetIframe = document.getElementById("voxora-widget-iframe");
-
-      scriptEl?.remove();
-      widgetBtn?.remove();
-      widgetIframe?.remove();
-    };
-  }, [formData._id]);
 
   const handleInputChange = (field: keyof CreateWidgetData, value: string) => {
     setFormData((prev) => ({

@@ -11,6 +11,7 @@ import { globalRateLimit, errorHandler, notFound } from "@shared/middleware";
 import SocketManager from "@sockets/index";
 import { startAIResponseConsumer } from "@sockets/consumer";
 import logger from "@shared/utils/logger";
+import { seedEmailTemplates } from "@shared/seeds/emailTemplates.seed";
 import { authRouter } from "@modules/auth";
 import { adminRouter } from "@modules/admin";
 import { agentRouter } from "@modules/agent";
@@ -20,6 +21,7 @@ import { storageRouter } from "@modules/storage";
 import { knowledgeRouter } from "@modules/knowledge";
 import { organizationRouter } from "@modules/organization";
 import { membershipRouter } from "@modules/membership";
+import { contactsRouter } from "@modules/contacts";
 
 class Application {
   private app: express.Application;
@@ -87,6 +89,7 @@ class Application {
     router.use("/conversations", conversationRouter);
     router.use("/storage", storageRouter);
     router.use("/knowledge", knowledgeRouter);
+    router.use("/contacts", contactsRouter);
 
     // Health check
     router.get("/health", (req, res) => {
@@ -123,6 +126,16 @@ class Application {
     try {
       // Connect to databases
       await connectDatabase();
+
+      try {
+        const result = await seedEmailTemplates();
+        logger.info(
+          `[EmailTemplate Seeder] Completed startup seed: inserted=${result.inserted}`,
+        );
+      } catch (error) {
+        logger.error("[EmailTemplate Seeder] Startup seed failed:", error);
+      }
+
       await connectRedis();
 
       // Start AI response stream consumer (background loop)

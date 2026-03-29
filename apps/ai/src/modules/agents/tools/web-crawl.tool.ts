@@ -1,4 +1,4 @@
-import { Tool, ToolParameterSchema } from "../agent.types";
+import { Tool, ToolExecutionContext, ToolParameterSchema } from "../agent.types";
 
 export class WebCrawlTool implements Tool {
   readonly name = "web_crawl";
@@ -12,7 +12,7 @@ export class WebCrawlTool implements Tool {
     }
   };
 
-  async execute(args: Record<string, unknown>): Promise<unknown> {
+  async execute(args: Record<string, unknown>, _context?: ToolExecutionContext): Promise<unknown> {
     try {
       const url = args.url as string;
       if (!url) throw new Error("URL is required");

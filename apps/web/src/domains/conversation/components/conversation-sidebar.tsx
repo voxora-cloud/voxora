@@ -111,6 +111,7 @@ export function ConversationSidebar() {
           (prev = []) =>
             prev.map((conv) =>
               conv._id === data.conversationId
+                ? conv.visitor
                 ? {
                     ...conv,
                     visitor: {
@@ -120,6 +121,7 @@ export function ConversationSidebar() {
                       isAnonymous: false,
                     },
                   }
+                : conv
                 : conv,
             ),
         );

@@ -10,11 +10,13 @@ import type {
 } from "../types/types";
 
 class ConversationsApi {
-  async getConversations(status?: string): Promise<ConversationsResponse> {
+  async getConversations(status?: string, options?: { assignedToMe?: boolean; unassigned?: boolean }): Promise<ConversationsResponse> {
     const params = new URLSearchParams();
     if (status && status !== "all") {
       params.set("status", status);
     }
+    if (options?.assignedToMe) params.set("assignedToMe", "true");
+    if (options?.unassigned) params.set("unassigned", "true");
 
     const suffix = params.toString();
     return apiClient.get<ConversationsResponse>(
