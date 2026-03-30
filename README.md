@@ -23,7 +23,7 @@
 ## ✨ About Voxora
 
 <!-- <img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/7060ece4-0308-4b94-9d47-9f1655244a6e" /> -->
-<img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/8737362e-8bd1-43c7-8c5a-5a7fe1aecd06"/>
+<img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/3e57f32b-61bd-405d-a216-8b0b186fdeb7"/>
 
 
 **Voxora is an open-source platform designed to automate end-to-end customer support.** Our goal is to provide businesses with a complete solution that handles every aspect of customer interactions—from initial contact to resolution—all while remaining flexible, scalable, and easy to integrate.
