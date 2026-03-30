@@ -18,149 +18,55 @@
   <a href="https://github.com/voxora-cloud/voxora/issues">Request Feature</a>
 </p>
 
----
 
 ## ✨ About Voxora
 
 <!-- <img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/7060ece4-0308-4b94-9d47-9f1655244a6e" /> -->
 <img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/3e57f32b-61bd-405d-a216-8b0b186fdeb7"/>
+<hr/>
+✨ Voxora is an open-source platform built to automate the entire customer support lifecycle. <br/>
+🔄 From initial touchpoint to resolution, every interaction is handled seamlessly. </br>
+⚙️ Designed to be flexible, scalable, and effortlessly integrable.
+<hr/>
+<img width="2816" height="1536" alt="Gemini_Generated_Image_hgtt3ehgtt3ehgtt" src="https://github.com/user-attachments/assets/6f673d85-a16a-45e8-9f13-ae762abad771" />
 
 
-**Voxora is an open-source platform designed to automate end-to-end customer support.** Our goal is to provide businesses with a complete solution that handles every aspect of customer interactions—from initial contact to resolution—all while remaining flexible, scalable, and easy to integrate.
+## 🚀 Quick One Click Dev Setup
 
-### 🚀 Multiple Communication Interfaces
+### 1. Fork the Repository
 
-Voxora supports multiple channels to meet your customers wherever they are:
+Fork this repository to your GitHub account.
 
-- 📱 **Web Widget** - Embeddable chat widget for your website
-- 📞 **Voice Calls** - Phone support integration
-- 🔌 **SDK** - Programmatic access for custom integrations
-- 💬 **Microsoft Teams** - Direct support via Teams
-- ✈️ **Telegram** - Customer support through Telegram bots
-- 🌐 **REST API** - Full-featured API for custom workflows
-- *...and more coming soon*
-
-### 🛠️ Key Features
-
-- ⚡ **Real-time messaging** with Socket.IO
-- 🤖 **AI-powered automation** for intelligent routing and responses
-- 👥 **Agent management** with role-based access control
-- 📊 **Analytics & insights** to track support performance
-- 🔄 **Multi-channel support** - unified inbox for all interfaces
-- 🎨 **Customizable UI** to match your brand
-- 🔐 **Enterprise-grade security** with JWT authentication
-- 📈 **Horizontal scaling** with Redis and MongoDB
-- 🌍 **Self-hosted** - full control over your data
-
----
-
-## 🚀 Quick Start
-
-Get Voxora running locally in minutes:
-
-### Prerequisites
-
-- **Node.js** (v18 or higher)
-- **Docker** and **Docker Compose**
-- **Git**
-
-### Installation
-
-#### 1. **Fork the Repository**
-
-Fork this repository to your GitHub account by clicking the "Fork" button at the top right.
-
-#### 2. **Clone Your Fork**
+### 2. Clone Your Fork
 
 ```bash
 git clone https://github.com/<your-username>/voxora.git
 cd voxora
 ```
 
-#### 3. **Set Up Environment Variables**
+---
 
-Copy the development environment templates:
+### 3. Configure Environment Variables
+
+Copy all environment templates:
 
 ```bash
-# API environment
-cp apps/api/.env.development apps/api/.env
-
-# Web environment
-cp apps/web/.env.development apps/web/.env
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+cp apps/ai/.env.example apps/ai/.env
+cp apps/worker/.env.example apps/worker/.env
+cp apps/widget/.env.example apps/widget/.env
 ```
 
-Adjust the `.env` files as needed for your local setup.
+Update the `.env` files as needed for your local setup.
 
-#### 4. **Run Everything**
+---
 
-We provide a simple command to start all services:
+### 4. Start the Development Environment
 
 ```bash
 make all
 ```
-
-This command will:
-- Install all dependencies
-- Start Docker containers (Redis, MongoDB, Mongo Express)
-- Launch the web and API development servers via Turborepo
-
-
----
-
-## 🌐 Access Your Local Instance
-
-Once everything is running, you can access:
-
-| Service | URL | Description |
-|---------|-----|-------------|
-| **Web App** | http://localhost:3000 | Main customer support dashboard |
-| **API** | http://localhost:3002 | REST API base endpoint |
-| **API Health** | http://localhost:3002/ | Health check endpoint |
-| **REST Routes** | http://localhost:3002/api/v1 | All REST API routes |
-| **Mongo Express** | http://localhost:8081 | MongoDB admin interface |
-| **MailHog** | http://localhost:8025 | Local email testing UI |
-| **SMTP Server** | localhost:1025 | SMTP server for dev emails |
-
----
-
-## 📚 Documentation
-
-- **API Documentation**: Check `apps/api/README.md` for detailed API documentation
-- **Architecture**: Learn about our tech stack and design decisions
-- **Contributing**: See `CONTRIBUTION.md` for guidelines
-
----
-
-## 🏗️ Project Structure
-
-```
-voxora/
-├── apps/
-│   ├── api/              # Express + Socket.IO backend
-│   ├── web/              # Next.js frontend dashboard
-│   └── widget/           # Embeddable chat widget
-├── packages/             # Shared packages across the monorepo
-├── docker/               # Docker configuration files
-│   └── docker-compose.dev.yml
-├── Makefile              # Convenient commands
-└── turbo.json            # Turborepo configuration
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Before contributing, please:
-
-1. Read our [Contributing Guidelines](CONTRIBUTION.md)
-2. Check out open [Issues](https://github.com/voxora-cloud/voxora/issues)
-3. Fork the repository
-4. Create a feature branch (`git checkout -b feature/amazing-feature`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
----
 
 ## ❤️ Contributors
 
@@ -170,13 +76,13 @@ Thanks to these amazing people who are building Voxora! 🚀
   <img src="https://contrib.rocks/image?repo=voxora-cloud/voxora" />
 </a>
 
----
+
 
 ## 📝 License
 
 This project is licensed under the **Voxora Custom License v1.0**. See the [LICENSE](LICENSE) file for details.
 
----
+
 
 ## 🌟 Star Us!
 
