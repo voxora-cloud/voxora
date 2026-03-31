@@ -4,6 +4,7 @@ import type { CreateWidgetData } from "@/domains/widget/types";
 import { storageApi } from "@/shared/lib/storage.api";
 import { validateWidgetForm } from "@/shared/lib/validation";
 import { toast } from "sonner";
+import { Loader } from "@/shared/ui/loader";
 import {
   WidgetActionsPanel,
   WidgetAdvancedConfigForm,
@@ -24,7 +25,7 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   logoUrl: "",
   appearance: {
     primaryColor: "#10b981",
-    textColor: "#111827",
+    textColor: "#ffffff",
     position: "bottom-right",
     launcherText: "Chat with us",
     welcomeMessage: "Hi there! How can we help you today?",
@@ -113,7 +114,7 @@ export function WidgetPage() {
   const [formData, setFormData] = useState<CreateWidgetData>(
     DEFAULT_WIDGET_FORM_DATA,
   );
-  const { data: widgetData } = useWidget();
+  const { data: widgetData, isLoading: isWidgetLoading } = useWidget();
   const saveWidget = useSaveWidget();
 
   const handleInputChange = (field: keyof CreateWidgetData, value: string) => {
@@ -277,6 +278,14 @@ export function WidgetPage() {
     setIsExistingWidget(false);
   };
 
+  if (isWidgetLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader size="lg" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <WidgetHeader
@@ -285,6 +294,7 @@ export function WidgetPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Main content column */}
         <div className="lg:col-span-8 space-y-6">
           <WidgetAppearanceForm
             formData={formData}
@@ -297,20 +307,29 @@ export function WidgetPage() {
             existingWidget={existingWidget}
             savedLogoUrl={savedLogoUrl}
           />
+
+          <WidgetAdvancedConfigForm
+            formData={formData}
+            onChange={setFormData}
+          />
+
           <WidgetSuggestionsForm
             suggestions={formData.suggestions}
             onChange={(suggestions) => setFormData((prev) => ({ ...prev, suggestions }))}
           />
         </div>
 
+        {/* Sticky sidebar column */}
         <div className="lg:col-span-4 space-y-6">
-          <WidgetActionsPanel
-            isSaving={saveWidget.isPending}
-            isExistingWidget={isExistingWidget}
-            onSave={() => handleSubmit()}
-            onReset={handleResetDefaults}
-          />
-          <WidgetProTip />
+          <div className="lg:sticky lg:top-6 space-y-6">
+            <WidgetActionsPanel
+              isSaving={saveWidget.isPending}
+              isExistingWidget={isExistingWidget}
+              onSave={() => handleSubmit()}
+              onReset={handleResetDefaults}
+            />
+            <WidgetProTip />
+          </div>
         </div>
       </div>
 
@@ -320,11 +339,6 @@ export function WidgetPage() {
         cdnUrl={CDN_URL}
         isCopied={isCopied}
         onCopy={handleCopyInstallCode}
-      />
-
-      <WidgetAdvancedConfigForm
-        formData={formData}
-        onChange={setFormData}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import logger from "@shared/utils/logger";
 const DEFAULT_WIDGET_SETTINGS = {
   appearance: {
     primaryColor: "#10b981",
-    textColor: "#111827",
+    textColor: "#ffffff",
     position: "bottom-right" as const,
     launcherText: "Chat with us",
     welcomeMessage: "Hi there! How can we help you today?",
@@ -314,7 +314,7 @@ export class AdminService {
     if (!widget) {
       widget = new Widget({
         organizationId,
-        displayName: "Support Chat",
+        displayName: "Voxora Ai",
         backgroundColor: "#10b981",
         ...DEFAULT_WIDGET_SETTINGS,
         publicKey: crypto.randomBytes(16).toString("hex"),
@@ -368,7 +368,7 @@ export class AdminService {
     if (!widget) {
       widget = new Widget({
         organizationId,
-        displayName: normalizedUpdateData.displayName || "Support Chat",
+        displayName: normalizedUpdateData.displayName || "Voxora Ai",
         backgroundColor: normalizedUpdateData.backgroundColor || "#10b981",
         logoUrl: normalizedUpdateData.logoUrl,
         appearance: normalizedUpdateData.appearance,

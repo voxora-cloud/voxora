@@ -21,6 +21,7 @@ export const elements = {
 };
 
 let _typingDotsEl: HTMLElement | null = null;
+let _agentTypingEl: HTMLElement | null = null;
 
 export function showTypingDots() {
   if (_typingDotsEl) return; 
@@ -40,12 +41,36 @@ export function removeTypingDots() {
 }
 
 export function showTyping() {
-  if (elements.typingIndicator) elements.typingIndicator.style.display = "block";
+  if (_agentTypingEl) return;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'message agent';
+  wrapper.innerHTML = '<div class="message-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+  _agentTypingEl = wrapper;
+  elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();
 }
 
 export function hideTyping() {
-  if (elements.typingIndicator) elements.typingIndicator.style.display = "none";
+  if (_agentTypingEl) {
+    _agentTypingEl.remove();
+    _agentTypingEl = null;
+  }
+}
+
+export function showAgentConnectedCard(name: string) {
+  if (!elements.messagesContainer) return;
+  const initial = name ? name[0].toUpperCase() : 'A';
+  const card = document.createElement('div');
+  card.className = 'agent-join-card';
+  card.innerHTML = `
+    <div class="agent-join-avatar">${initial}</div>
+    <div class="agent-join-info">
+      <span class="agent-join-name">${escapeHtml(name)} joined the conversation</span>
+      <span class="agent-join-role"><span class="agent-join-dot"></span>Live Support</span>
+    </div>
+  `;
+  elements.messagesContainer.appendChild(card);
+  scrollToBottom();
 }
 
 export function adjustTextareaHeight() {

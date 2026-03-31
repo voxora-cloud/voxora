@@ -22,10 +22,7 @@ function applyWidgetAppearance(cfg: any) {
   if (primaryColor) {
     document.documentElement.style.setProperty('--vx-accent', primaryColor);
     document.documentElement.style.setProperty('--vx-accent-color', primaryColor);
-    if (sendButton) {
-      sendButton.style.background = primaryColor;
-      sendButton.style.boxShadow = `0 2px 8px ${primaryColor}55`;
-    }
+    // Send button color is driven by CSS var(--vx-accent) — no inline override needed
     if (avatar) {
       avatar.style.background = primaryColor;
       avatar.style.boxShadow = `0 4px 12px ${primaryColor}55`;
@@ -34,14 +31,15 @@ function applyWidgetAppearance(cfg: any) {
 
   const bgColor = cfg.backgroundColor || appearance.backgroundColor;
   if (bgColor) {
+    document.documentElement.style.setProperty('--vx-bg', bgColor);
+    // Keep inline fallbacks for elements painted before CSS var resolves
     if (appRoot) appRoot.style.backgroundColor = bgColor;
-    const inputArea = document.querySelector('.input-area') as HTMLElement;
-    if (inputArea) inputArea.style.backgroundColor = bgColor;
     const historyOverlay = document.querySelector('.history-overlay') as HTMLElement;
     if (historyOverlay) historyOverlay.style.background = bgColor;
   }
 
   if (appearance.textColor) {
+    document.documentElement.style.setProperty('--vx-text', appearance.textColor);
     const styleEl = document.createElement('style');
     styleEl.innerHTML = `
       .widget-app, .widget-topbar-title, .history-header h3, .history-item-preview,
