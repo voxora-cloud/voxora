@@ -23,9 +23,9 @@ export const knowledgeSchema = {
     title: Joi.string().trim().min(1).required(),
     description: Joi.string().trim().allow("").optional(),
     catalog: Joi.string().trim().allow("").optional(),
-    source: Joi.string().valid("text", "url").required(),
+    source: Joi.string().valid("text", "url", "table").required(),
     content: Joi.string().when("source", {
-      is: "text",
+      is: Joi.string().valid("text", "table"),
       then: Joi.string().trim().min(1).required(),
       otherwise: Joi.string().allow("").optional(),
     }),

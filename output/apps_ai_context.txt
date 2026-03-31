@@ -1,0 +1,349 @@
+=== FOLDER STRUCTURE ===
+
+└── src
+    ├── config
+    │   └── index.ts
+    ├── index.ts
+    ├── infrastructure
+    │   ├── providers
+    │   │   ├── embedding
+    │   │   │   ├── gemini.embedding.ts
+    │   │   │   ├── index.ts
+    │   │   │   └── types.ts
+    │   │   └── llm
+    │   │       ├── gemini.provider.ts
+    │   │       ├── index.ts
+    │   │       └── types.ts
+    │   ├── queue
+    │   │   └── reply.queue.ts
+    │   └── vector
+    │       ├── index.ts
+    │       ├── qdrant.service.ts
+    │       └── vector.types.ts
+    ├── modules
+    │   ├── agents
+    │   │   ├── agent.types.ts
+    │   │   ├── index.ts
+    │   │   └── tools
+    │   │       ├── index.ts
+    │   │       ├── rewrite-and-think.tool.ts
+    │   │       └── web-crawl.tool.ts
+    │   ├── chat
+    │   │   ├── chat.types.ts
+    │   │   ├── index.ts
+    │   │   ├── pipelines
+    │   │   │   ├── rag.pipeline.ts
+    │   │   │   └── reply.pipeline.ts
+    │   │   └── services
+    │   │       ├── chat.service.ts
+    │   │       └── context-builder.service.ts
+    │   └── ingestion
+    │       ├── index.ts
+    │       ├── ingestion.types.ts
+    │       ├── pipelines
+    │       │   ├── file.pipeline.ts
+    │       │   ├── text.pipeline.ts
+    │       │   └── url.pipeline.ts
+    │       ├── services
+    │       │   ├── content-stream.ts
+    │       │   └── process-ingestion.ts
+    │       ├── sources
+    │       │   ├── loader.ts
+    │       │   └── url.source.ts
+    │       └── utils
+    │           └── chunker.ts
+    ├── shared
+    │   ├── db
+    │   │   └── db.ts
+    │   └── utils
+    │       └── redis.ts
+    └── workers
+        ├── ingestion.worker.ts
+        └── reply.worker.ts
+
+---
+
+=== SYSTEM MAP ===
+
+── FUNCTIONS ──
+
+Component: buildContext
+Type:      function
+File:      context-builder.service.ts
+Params:    conversationId, organizationId, currentMessage, companyName, messageId, teamId, fallbackToAgent, collectUserInfo
+Used in:   chat.service.ts
+
+Component: buildSystemPrompt
+Type:      function
+File:      context-builder.service.ts
+Params:    opts
+Used in:   context-builder.service.ts
+
+Component: chunkText
+Type:      function
+File:      chunker.ts
+Params:    text, chunkSize, overlap
+Used in:   process-ingestion.ts
+
+Component: connectDB
+Type:      function
+File:      db.ts
+Params:    none
+Used in:   context-builder.service.ts, db.ts, ingestion.worker.ts
+
+Component: crawlPages
+Type:      function
+File:      url.source.ts
+Params:    rootUrl, maxDepth
+Used in:   content-stream.ts
+
+Component: embedWithRetry
+Type:      function
+File:      process-ingestion.ts
+Params:    params
+Used in:   process-ingestion.ts
+
+Component: extractLinks
+Type:      function
+File:      url.source.ts
+Params:    html, pageUrl
+Used in:   url.source.ts
+
+Component: fetchBuffer
+Type:      function
+File:      loader.ts
+Params:    fileKey
+Used in:   loader.ts
+
+Component: fetchSinglePage
+Type:      function
+File:      url.source.ts
+Params:    url
+Used in:   content-stream.ts
+
+Component: findBreakPoint
+Type:      function
+File:      chunker.ts
+Params:    text, from, limit
+Used in:   chunker.ts
+
+Component: generateDeterministicChunkId
+Type:      function
+File:      process-ingestion.ts
+Params:    input
+Used in:   process-ingestion.ts
+
+Component: getAllTools
+Type:      function
+File:      index.ts
+Params:    none
+Used in:   chat.service.ts
+
+Component: getDefaultProvider
+Type:      function
+File:      index.ts
+Params:    none
+Used in:   chat.service.ts
+
+Component: getEmbeddingProvider
+Type:      function
+File:      index.ts
+Params:    name
+Used in:   context-builder.service.ts, process-ingestion.ts
+
+Component: getObjectStream
+Type:      function
+File:      loader.ts
+Params:    fileKey
+Used in:   loader.ts
+
+Component: getPage
+Type:      function
+File:      url.source.ts
+Params:    url
+Used in:   url.source.ts
+
+Component: getProvider
+Type:      function
+File:      index.ts
+Params:    name
+Used in:   index.ts
+
+Component: getTool
+Type:      function
+File:      index.ts
+Params:    name
+Used in:   none
+
+Component: htmlToText
+Type:      function
+File:      url.source.ts
+Params:    html
+Used in:   url.source.ts
+
+Component: isStaticAssetUrl
+Type:      function
+File:      url.source.ts
+Params:    url
+Used in:   url.source.ts
+
+Component: loadDocument
+Type:      function
+File:      loader.ts
+Params:    fileKey, mimeType
+Used in:   loader.ts
+
+Component: loadDocumentStream
+Type:      function
+File:      loader.ts
+Params:    fileKey, mimeType
+Used in:   file.pipeline.ts
+
+Component: logEvent
+Type:      function
+File:      process-ingestion.ts
+Params:    event, payload
+Used in:   process-ingestion.ts
+
+Component: processIngestion
+Type:      function
+File:      process-ingestion.ts
+Params:    input
+Used in:   file.pipeline.ts, text.pipeline.ts, url.pipeline.ts
+
+Component: publishEscalation
+Type:      function
+File:      reply.queue.ts
+Params:    payload
+Used in:   chat.service.ts
+
+Component: publishResolution
+Type:      function
+File:      reply.queue.ts
+Params:    payload
+Used in:   chat.service.ts
+
+Component: publishResponse
+Type:      function
+File:      reply.queue.ts
+Params:    payload
+Used in:   chat.service.ts
+
+Component: publishStreamChunk
+Type:      function
+File:      reply.queue.ts
+Params:    payload
+Used in:   chat.service.ts
+
+Component: registerEmbeddingProvider
+Type:      function
+File:      index.ts
+Params:    provider
+Used in:   index.ts
+
+Component: registerProvider
+Type:      function
+File:      index.ts
+Params:    provider
+Used in:   index.ts
+
+Component: registerTool
+Type:      function
+File:      index.ts
+Params:    tool
+Used in:   index.ts
+
+Component: runIngestionPipeline
+Type:      function
+File:      file.pipeline.ts
+Params:    job
+Used in:   ingestion.worker.ts
+
+Component: runPipeline
+Type:      function
+File:      chat.service.ts
+Params:    job
+Used in:   reply.worker.ts
+
+Component: runTextIngestionPipeline
+Type:      function
+File:      text.pipeline.ts
+Params:    job
+Used in:   ingestion.worker.ts
+
+Component: runUrlIngestionPipeline
+Type:      function
+File:      url.pipeline.ts
+Params:    job
+Used in:   ingestion.worker.ts
+
+Component: setDocStatus
+Type:      function
+File:      db.ts
+Params:    organizationId, documentId, update
+Used in:   file.pipeline.ts, text.pipeline.ts, url.pipeline.ts
+
+Component: shutdown
+Type:      function
+File:      index.ts
+Params:    signal
+Used in:   index.ts
+
+Component: startIngestionWorker
+Type:      function
+File:      ingestion.worker.ts
+Params:    none
+Used in:   index.ts
+
+Component: startWorker
+Type:      function
+File:      reply.worker.ts
+Params:    none
+Used in:   index.ts
+
+Component: streamFromCrawl
+Type:      function
+File:      content-stream.ts
+Params:    rootUrl, maxDepth
+Used in:   url.pipeline.ts
+
+Component: streamFromPages
+Type:      function
+File:      content-stream.ts
+Params:    pages
+Used in:   content-stream.ts
+
+Component: streamFromSingleUrl
+Type:      function
+File:      content-stream.ts
+Params:    url
+Used in:   url.pipeline.ts
+
+Component: streamFromText
+Type:      function
+File:      content-stream.ts
+Params:    content, sourceRef, metadata
+Used in:   text.pipeline.ts
+
+Component: streamPlainTextFromMinio
+Type:      function
+File:      loader.ts
+Params:    fileKey
+Used in:   loader.ts
+
+Component: wait
+Type:      function
+File:      process-ingestion.ts
+Params:    ms
+Used in:   process-ingestion.ts
+
+---
+
+=== UNUSED COMPONENTS ===
+
+* getTool (index.ts) [function]
+
+---
+
+Generated: 2026-03-30T15:42:59.372Z
+Total:     45 symbols | 1 unused

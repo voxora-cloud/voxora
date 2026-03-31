@@ -13,8 +13,7 @@ const ESCALATE_RE = /\[ESCALATE:\s*(.+?)\]/i;
 
 /**
  * Regex that matches the resolution sentinel anywhere in the LLM response.
- *   [RESOLVE: <reason text>]
- */
+  */
 const RESOLVE_RE = /\[RESOLVE:\s*(.+?)\]/i;
 
 /**

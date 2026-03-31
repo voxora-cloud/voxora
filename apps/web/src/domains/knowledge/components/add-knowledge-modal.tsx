@@ -12,10 +12,13 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { Label } from "@/shared/ui/label";
+import { Table } from "lucide-react";
 import type {
   AddKnowledgeFormData,
   AddKnowledgeSource,
+  KnowledgeTableData,
 } from "../types";
+import { createEmptyTable, SpreadsheetEditor } from "./spreadsheet-editor";
 
 interface AddKnowledgeModalProps {
   isOpen: boolean;
@@ -41,6 +44,7 @@ export function AddKnowledgeModal({
     content: "",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [tableData, setTableData] = useState<KnowledgeTableData>(createEmptyTable());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCustomCatalog, setShowCustomCatalog] = useState(false);
 
@@ -50,6 +54,7 @@ export function AddKnowledgeModal({
       setSelectedSource(null);
       setFormData({ title: "", description: "", catalog: "", content: "" });
       setSelectedFile(null);
+      setTableData(createEmptyTable());
       setErrors({});
       setShowCustomCatalog(false);
     }
@@ -72,6 +77,7 @@ export function AddKnowledgeModal({
     setSelectedSource(null);
     setFormData({ title: "", description: "", catalog: "", content: "" });
     setSelectedFile(null);
+    setTableData(createEmptyTable());
     setErrors({});
     setShowCustomCatalog(false);
     onClose();
@@ -103,6 +109,20 @@ export function AddKnowledgeModal({
     }
     if ((selectedSource === "pdf" || selectedSource === "docx") && !selectedFile) {
       newErrors.file = "Please upload a file";
+    }
+    if (selectedSource === "table") {
+      const hasColumns = tableData.columns.length > 0;
+      const hasRows = tableData.rows.length > 0;
+      const hasEmptyColumn = tableData.columns.some((column) => !column.trim());
+      const hasValues = tableData.rows.flat().some((cell) => cell.trim());
+
+      if (!hasColumns || !hasRows) {
+        newErrors.table = "Add at least one row and one column";
+      } else if (hasEmptyColumn) {
+        newErrors.table = "Column names cannot be empty";
+      } else if (!hasValues) {
+        newErrors.table = "Enter at least one value in the table";
+      }
     }
 
     setErrors(newErrors);
@@ -150,6 +170,8 @@ export function AddKnowledgeModal({
       submitData.content = formData.content;
     } else if (selectedSource === "pdf" || selectedSource === "docx") {
       submitData.file = selectedFile!;
+    } else if (selectedSource === "table") {
+      submitData.table = tableData;
     }
 
     await onSubmit(submitData);
@@ -160,7 +182,13 @@ export function AddKnowledgeModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"}>
+      <DialogContent
+        className={
+          step === 3 || selectedSource === "table"
+            ? "sm:max-w-[860px]"
+            : "sm:max-w-[600px]"
+        }
+      >
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Add Knowledge</h2>
@@ -186,6 +214,22 @@ export function AddKnowledgeModal({
                   <div className="font-medium text-foreground">Text / Markdown</div>
                   <div className="text-sm text-muted-foreground">
                     Write or paste content directly
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </button>
+
+              <button
+                onClick={() => handleSourceSelect("table")}
+                className="flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer text-left"
+              >
+                <div className="w-12 h-12 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                  <Table className="h-6 w-6 text-emerald-500" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-foreground">Table / Spreadsheet</div>
+                  <div className="text-sm text-muted-foreground">
+                    Insert knowledge in a grid format
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -236,6 +280,13 @@ export function AddKnowledgeModal({
                   <p className="text-xs text-muted-foreground">{wordCount} words</p>
                 </div>
               </div>
+            )}
+
+            {selectedSource === "table" && (
+              <SpreadsheetEditor
+                data={tableData}
+                onChange={setTableData}
+              />
             )}
 
             {(selectedSource === "pdf" || selectedSource === "docx") && (
@@ -351,6 +402,14 @@ export function AddKnowledgeModal({
                       <>
                         <div className="text-muted-foreground">Word Count:</div>
                         <div className="text-foreground">{wordCount} words</div>
+                      </>
+                    )}
+                    {selectedSource === "table" && (
+                      <>
+                        <div className="text-muted-foreground">Rows:</div>
+                        <div className="text-foreground">{tableData.rows.length}</div>
+                        <div className="text-muted-foreground">Columns:</div>
+                        <div className="text-foreground">{tableData.columns.length}</div>
                       </>
                     )}
                     {selectedFile && (

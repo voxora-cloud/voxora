@@ -84,7 +84,7 @@ class KnowledgeService {
       title: string;
       description?: string;
       catalog?: string;
-      source: "text" | "url";
+      source: "text" | "url" | "table";
       content?: string;
       url?: string;
       fetchMode?: "single" | "crawl";
@@ -173,7 +173,7 @@ class KnowledgeService {
   async updateItem(
     documentId: string,
     organizationId: string,
-    patch: { isPaused?: boolean; syncFrequency?: "manual" | "1hour" | "6hours" | "daily"; status?: "queued" | "indexed" | "failed" | "pending" },
+    patch: { isPaused?: boolean; syncFrequency?: "manual" | "1hour" | "6hours" | "daily"; status?: "queued" | "indexed" | "failed" | "pending"; content?: string },
   ) {
     const doc = await Knowledge.findOneAndUpdate(
       { _id: documentId, organizationId },

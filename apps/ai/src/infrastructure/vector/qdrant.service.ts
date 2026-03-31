@@ -55,14 +55,19 @@ class QdrantVectorStore implements VectorStore {
       payload: VectorSearchResult["payload"];
     }>,
   ): Promise<void> {
-    await this.client.upsert(COLLECTION, {
-      wait: true,
-      points: points.map((p) => ({
-        id: p.id,
-        vector: p.vector,
-        payload: p.payload as Record<string, unknown>,
-      })),
-    });
+    try {
+      await this.client.upsert(COLLECTION, {
+        wait: true,
+        points: points.map((p) => ({
+          id: p.id,
+          vector: p.vector,
+          payload: p.payload as Record<string, unknown>,
+        })),
+      });
+    } catch (e: any) {
+      console.error("[Qdrant Upsert Error]:", e.message, "\nPreview:", JSON.stringify(points[0]).substring(0, 150));
+      throw e;
+    }
   }
 
   async search(

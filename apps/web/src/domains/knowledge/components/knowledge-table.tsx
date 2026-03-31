@@ -19,6 +19,8 @@ import {
   Clock,
   XCircle,
   X,
+  Edit2,
+  Table,
 } from "lucide-react";
 import type { KnowledgeBase } from "../types";
 import {
@@ -38,6 +40,7 @@ interface KnowledgeTableProps {
   onReindexItem: (item: KnowledgeBase) => void;
   onDeleteItem: (item: KnowledgeBase) => void;
   onRetryItem: (item: KnowledgeBase) => void;
+  onEditItem?: (item: KnowledgeBase) => void;
 }
 
 export function KnowledgeTable({
@@ -46,6 +49,7 @@ export function KnowledgeTable({
   onReindexItem,
   onDeleteItem,
   onRetryItem,
+  onEditItem,
 }: KnowledgeTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -105,6 +109,8 @@ export function KnowledgeTable({
         return <File className="h-4 w-4" />;
       case "url":
         return <LinkIcon className="h-4 w-4" />;
+      case "table":
+        return <Table className="h-4 w-4" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
@@ -195,6 +201,7 @@ export function KnowledgeTable({
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
                     <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="table">Table</SelectItem>
                     <SelectItem value="pdf">PDF</SelectItem>
                     <SelectItem value="docx">DOCX</SelectItem>
                     <SelectItem value="url">URL</SelectItem>
@@ -285,6 +292,17 @@ export function KnowledgeTable({
                       <Eye className="h-4 w-4 mr-1" />
                       View
                     </Button>
+                    {onEditItem && (item.source === "table" || (item.source === "text" && item.content && item.content.trim().startsWith("{") && item.content.includes("columns"))) ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditItem(item)}
+                        className="h-8 cursor-pointer"
+                      >
+                        <Edit2 className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    ) : null}
                     {item.status === "failed" ? (
                       <Button
                         variant="ghost"
@@ -338,6 +356,7 @@ export function KnowledgeTable({
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
+                  size="sm"
                   onClick={goPrev}
                   aria-disabled={currentPage === 1}
                   className={currentPage === 1 ? "opacity-40 pointer-events-none" : "cursor-pointer"}
@@ -352,6 +371,7 @@ export function KnowledgeTable({
                 ) : (
                   <PaginationItem key={page}>
                     <PaginationLink
+                      size="sm"
                       isActive={page === currentPage}
                       onClick={() => goToPage(page as number)}
                       className="cursor-pointer"
@@ -364,6 +384,7 @@ export function KnowledgeTable({
 
               <PaginationItem>
                 <PaginationNext
+                  size="sm"
                   onClick={goToNext}
                   aria-disabled={currentPage === totalPages}
                   className={currentPage === totalPages ? "opacity-40 pointer-events-none" : "cursor-pointer"}

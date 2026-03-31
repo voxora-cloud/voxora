@@ -144,6 +144,7 @@ Trigger escalation when:
 4. The user shows **repeated frustration** (e.g. "you're useless", "I already told you", "this isn't helping") — especially after 2+ failed attempts
 5. The conversation has had **many back-and-forth turns** (8+) without resolving the issue
 6. The request requires **account-level access** or actions only a human can perform
+  /** _id of the message just saved — excluded from history to avoid sending it twice */
 
 Examples of valid escalation outputs:
   [ESCALATE: user requested human agent]

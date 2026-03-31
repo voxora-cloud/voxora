@@ -31,12 +31,17 @@ export const useAddKnowledge = () => {
         return confirmed;
       }
 
+      const contentPayload =
+        data.source === "table" && data.table
+          ? JSON.stringify(data.table)
+          : data.content;
+
       const { data: created } = await knowledgeApi.createTextKnowledge({
         title: data.title,
         description: data.description,
         catalog: data.catalog,
-        source: "text",
-        content: data.content,
+        source: data.source as "text" | "table",
+        content: contentPayload,
       });
 
       return created;

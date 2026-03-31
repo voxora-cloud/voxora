@@ -18,15 +18,21 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<number[]> {
-    const response = await this.ai.models.embedContent({
-      model: this.model,
-      contents: [text],
-    });
+    try {
+      const response = await this.ai.models.embedContent({
+        model: this.model,
+        contents: [text],
+      });
 
-    const values = response.embeddings?.[0]?.values;
-    if (!Array.isArray(values)) {
-      throw new Error("Gemini embedContent returned unexpected shape");
+      const values = response.embeddings?.[0]?.values;
+      if (!Array.isArray(values)) {
+        throw new Error("Gemini embedContent returned unexpected shape");
+      }
+      return values as number[];
+    } catch (e: any) {
+      console.error("[Gemini Embedding Error]:", e.message, JSON.stringify(e?.response || {}).substring(0, 500));
+      console.error("[Gemini Payload Preview]:", text.substring(0, 150));
+      throw e;
     }
-    return values as number[];
   }
 }
