@@ -74,7 +74,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         if (
           (conversation as any).metadata?.escalatedAt ||
           (conversation as any).metadata?.humanJoinedAt ||
-          ["resolved", "closed"].includes((conversation as any).status)
+          conversation.assignedTo ||
+          ["active", "resolved", "closed"].includes((conversation as any).status)
         ) {
           return; // message was saved & broadcast above; just don't run AI
         }

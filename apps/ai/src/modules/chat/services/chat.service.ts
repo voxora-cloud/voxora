@@ -44,14 +44,15 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
   // ── Guard: abort if conversation was escalated or closed while job was queued ─
   const convCheck = await ConversationModel.findById(conversationId)
-    .select("status metadata")
+    .select("status metadata assignedTo")
     .lean() as any;
   if (
     convCheck?.metadata?.escalatedAt ||
     convCheck?.metadata?.humanJoinedAt ||
-    ["resolved", "closed"].includes(convCheck?.status)
+    convCheck?.assignedTo ||
+    ["active", "resolved", "closed"].includes(convCheck?.status)
   ) {
-    console.log(`[Pipeline] Skipping job — conversation ${conversationId} already escalated/closed`);
+    console.log(`[Pipeline] Skipping job — conversation ${conversationId} already escalated/closed/assigned`);
     return;
   }
 

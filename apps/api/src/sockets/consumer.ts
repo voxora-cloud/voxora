@@ -103,7 +103,7 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
 
       // Resolve org from conversation record
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status metadata.escalatedAt metadata.humanJoinedAt")
+        .select("organizationId status metadata assignedTo")
         .lean();
 
       if (!conv) return;
@@ -111,7 +111,8 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       if (
         (conv as any).metadata?.escalatedAt
         || (conv as any).metadata?.humanJoinedAt
-        || ["resolved", "closed"].includes((conv as any).status)
+        || (conv as any).assignedTo
+        || ["active", "resolved", "closed"].includes((conv as any).status)
       ) {
         logger.info(`[AI Response] Skipping ${conversationId} because conversation is escalated or closed`);
         return;
@@ -151,12 +152,13 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
 
       // Do not forward stream chunks once a human has taken over
       const conv = await Conversation.findById(conversationId)
-        .select("status metadata.escalatedAt metadata.humanJoinedAt")
+        .select("status metadata assignedTo")
         .lean();
       if (
         (conv as any)?.metadata?.escalatedAt ||
         (conv as any)?.metadata?.humanJoinedAt ||
-        ["resolved", "closed"].includes((conv as any)?.status)
+        (conv as any)?.assignedTo ||
+        ["active", "resolved", "closed"].includes((conv as any)?.status)
       ) {
         return;
       }
@@ -190,14 +192,15 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       logger.info(`[Escalation] Received for conversation ${conversationId} — reason: "${reason}"`);
 
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status metadata.escalatedAt metadata.humanJoinedAt")
+        .select("organizationId status metadata assignedTo")
         .lean();
       if (!conv) return;
 
       if (
         (conv as any).metadata?.escalatedAt
         || (conv as any).metadata?.humanJoinedAt
-        || ["resolved", "closed"].includes((conv as any).status)
+        || (conv as any).assignedTo
+        || ["active", "resolved", "closed"].includes((conv as any).status)
       ) {
         logger.info(`[Resolution] Skipping ${conversationId} because conversation is escalated or already closed`);
         return;
