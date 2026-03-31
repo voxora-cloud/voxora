@@ -54,7 +54,7 @@ export function startIngestionWorker() {
         return;
       }
 
-      if (source === "text") {
+      if (source === "text" || source === "table") {
         await runTextIngestionPipeline(job.data);
         return;
       }

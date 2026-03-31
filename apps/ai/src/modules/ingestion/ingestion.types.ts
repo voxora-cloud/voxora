@@ -6,7 +6,7 @@ export interface DocumentJob {
   /** "ingest" (default) | "delete-vectors" — if delete-vectors, only documentId is needed */
   jobType?: "ingest" | "delete-vectors";
   /** Source type — drives which ingestion path is taken */
-  source: "pdf" | "docx" | "text" | "url";
+  source: "pdf" | "docx" | "text" | "table" | "url";
   /** MinIO object key — populated for pdf/docx, empty string for text/url */
   fileKey: string;
   /** MIME type — drives which loader is used */
