@@ -52,7 +52,7 @@ const WidgetSchema = new Schema<IWidget>(
     backgroundColor: { type: String, required: true },
     appearance: {
       primaryColor: { type: String, default: "#10b981" },
-      textColor: { type: String, default: "#111827" },
+      textColor: { type: String, default: "#ffffff" },
       position: {
         type: String,
         enum: ["bottom-right", "bottom-left"],

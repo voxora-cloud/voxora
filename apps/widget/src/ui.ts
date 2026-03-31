@@ -224,7 +224,7 @@ export class WidgetUI {
             <path d="M12 3l1.9 4.8L19 9.7l-4 3.1 1.4 5L12 15.2 7.6 17.8 9 12.8 5 9.7l5.1-1.9L12 3z"></path>
           </svg>
         </span>
-        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.text}</span>
+        <span style="white-space:normal;word-break:break-word;">${s.text}</span>
       `;
       Object.assign(chip.style, {
         background: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))',
@@ -236,16 +236,16 @@ export class WidgetUI {
         fontWeight: '600',
         cursor: 'pointer',
         boxShadow: '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)',
-        whiteSpace: 'nowrap',
-        maxWidth: '220px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
+        whiteSpace: 'normal',
+        maxWidth: '300px',
+        overflow: 'visible',
         transition: 'all 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
         display: 'inline-flex',
         alignItems: 'center',
         gap: '8px',
         backdropFilter: 'blur(8px)',
+        wordBreak: 'break-word',
       });
       chip.addEventListener('mouseenter', () => {
         chip.style.background = `linear-gradient(180deg, ${accentColor}, ${accentColor})`;

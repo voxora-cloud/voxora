@@ -1,6 +1,7 @@
-import { Organization, Membership, MembershipRole, IOrganization } from "@shared/models";
+import { Organization, Membership, MembershipRole, IOrganization, Widget } from "@shared/models";
 import { Types } from "mongoose";
 import { generateTokens } from "@shared/utils/auth";
+import crypto from "crypto";
 
 export class OrganizationService {
     /**
@@ -24,6 +25,32 @@ export class OrganizationService {
 
         const organization = new Organization({ name: data.name, slug });
         await organization.save();
+
+        // Auto-create a default widget for the new organization
+        await Widget.create({
+            organizationId: organization._id,
+            displayName: "Voxora AI",
+            backgroundColor: "#10b981",
+            appearance: {
+                primaryColor: "#10b981",
+                textColor: "#ffffff",
+                position: "bottom-right",
+                launcherText: "Chat with us",
+                welcomeMessage: "Hi there! How can we help you today?",
+                logoUrl: "",
+            },
+            behavior: { autoOpen: false, showOnMobile: true, showOnDesktop: true },
+            ai: { enabled: true, model: "gpt-4o-mini", fallbackToAgent: true, autoAssign: true, assignmentStrategy: "least-loaded" },
+            conversation: { collectUserInfo: { name: true, email: true, phone: false } },
+            features: { acceptMediaFiles: true, endUserDomAccess: true },
+            suggestions: [
+                { text: "What can you help me with?", showOutside: true },
+                { text: "I need help with my order", showOutside: false },
+                { text: "Talk to a human agent", showOutside: true },
+                { text: "What are your business hours?", showOutside: false },
+            ],
+            publicKey: crypto.randomBytes(16).toString("hex"),
+        });
 
         // Create owner membership
         await Membership.create({

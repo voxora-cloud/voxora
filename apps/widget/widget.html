@@ -77,17 +77,19 @@
 
       <!-- Input Area -->
       <div class="input-area">
-        <textarea id="messageInput" placeholder="Do anything with AI..." rows="1"></textarea>
-        <!-- The attach button is hidden via layout, but kept for JS compatibility if needed -->
-        <button id="attachBtn" class="hidden-btn" style="display:none;"></button>
-        <input type="file" id="fileInput" style="display:none;" />
-        
-        <button id="sendBtn" disabled>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"></line>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-          </svg>
-        </button>
+        <div class="chat-input-box" id="chatInputBox">
+          <textarea id="messageInput" placeholder="Ask anything..." rows="1"></textarea>
+          <div class="input-footer">
+            <button id="attachBtn" class="hidden-btn" style="display:none;"></button>
+            <input type="file" id="fileInput" style="display:none;" />
+            <span class="input-hint" id="inputHint">⏎ to send</span>
+            <button id="sendBtn" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
       
       <!-- Kept for JS errors -->

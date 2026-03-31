@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 import { state, API_BASE_URL, PROTO_VERSION } from './config';
-import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, renderThoughtSteps } from './ui';
+import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, renderThoughtSteps, showAgentConnectedCard } from './ui';
 import { extractThoughtSteps, parseMarkdown } from './utils/markdown';
 
 let authRetryCount = 0;
@@ -302,13 +302,22 @@ function bindSocketEvents() {
   socket.on('conversation_escalated', (data: any) => {
     if (data.conversationId !== state.chatId) return;
     removeTypingDots();
+    hideTyping();
     clearOutcomePanel();
     setComposerEnabled(true, data.agent?.name ? `Reply to ${data.agent.name}...` : 'Reply to support...');
     if (data.agent?.name) {
       state._escalationShown = true;
       const name = data.agent.name;
       showStateBanner('human', 'Live human support connected', `You are now chatting with ${name}`);
-      addSystemNotice(`👋 ${name} joined the conversation and will assist you directly.`);
+      showAgentConnectedCard(name);
+      // Show agent default welcome message after a short delay
+      setTimeout(() => {
+        addMessage(`Hi! I'm ${name}. I'll be helping you from here — feel free to share what you need! 😊`, 'agent', name, 'text');
+      }, 800);
+    } else {
+      state._escalationShown = true;
+      showStateBanner('human', 'Live human support connected');
+      addSystemNotice('👋 A support agent has joined and will assist you shortly.');
     }
   });
 

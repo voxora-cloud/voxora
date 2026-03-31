@@ -4,6 +4,7 @@ import { LLMMessage } from "../../../infrastructure/providers/llm/types";
 import { publishResponse, publishEscalation, publishResolution, publishStreamChunk } from "../../../infrastructure/queue/reply.queue";
 import { AIJobData } from "../chat.types";
 import { getAllTools } from "../../agents/tools";
+import { connectDB, ConversationModel } from "../../../shared/db/db";
 
 /**
  * Regex that matches the escalation sentinel anywhere in the LLM response.
@@ -37,6 +38,23 @@ const RESOLVE_RE = /\[RESOLVE:\s*(.+?)\]/i;
  */
 export async function runPipeline(job: AIJobData): Promise<void> {
   const { conversationId, content } = job;
+
+  // ── Ensure DB is connected before any queries ─────────────────────────────
+  await connectDB();
+
+  // ── Guard: abort if conversation was escalated or closed while job was queued ─
+  const convCheck = await ConversationModel.findById(conversationId)
+    .select("status metadata assignedTo")
+    .lean() as any;
+  if (
+    convCheck?.metadata?.escalatedAt ||
+    convCheck?.metadata?.humanJoinedAt ||
+    convCheck?.assignedTo ||
+    ["active", "resolved", "closed"].includes(convCheck?.status)
+  ) {
+    console.log(`[Pipeline] Skipping job — conversation ${conversationId} already escalated/closed/assigned`);
+    return;
+  }
 
   console.log(`\n[Pipeline] ─── NEW JOB ───────────────────────────────────────`);
   console.log(`[Pipeline] conversationId : ${conversationId}`);
