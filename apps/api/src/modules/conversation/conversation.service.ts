@@ -2,21 +2,6 @@ import { Conversation, Message, Team, User, Membership } from "@shared/models";
 import logger from "@shared/utils/logger";
 
 export class ConversationService {
-  private async findOwnerForOrganization(organizationId: string): Promise<string | null> {
-    const ownerMembership = await Membership.findOne({
-      organizationId,
-      role: "owner",
-      inviteStatus: "active",
-    })
-      .populate("userId", "isActive")
-      .select("userId")
-      .lean();
-
-    const ownerUser = ownerMembership?.userId as { _id?: { toString(): string }; isActive?: boolean } | undefined;
-    if (!ownerUser?.isActive || !ownerUser._id) return null;
-
-    return ownerUser._id.toString();
-  }
 
   /**
    * Get all conversations for an organization (filtered by status/agent)
@@ -147,7 +132,7 @@ export class ConversationService {
 
   /**
    * Auto-assign conversation to a team/agent within the org.
-   * Priority: online agents → online admins → online owner → null (no one online).
+   * Priority: online agents -> online admins -> null (no one online).
    */
   async autoAssignConversation(organizationId: string): Promise<{ teamId: string | null; agentId: string | null }> {
     try {
@@ -189,10 +174,6 @@ export class ConversationService {
       const adminId = await pickLeastBusy(adminMembers);
       if (adminId) return { teamId, agentId: adminId };
 
-      // 3. No admins online — try owner
-      const ownerMembers = await Membership.find({ ...baseFilter, role: "owner" }).populate("userId", "name email status isActive");
-      const ownerId = await pickLeastBusy(ownerMembers);
-      if (ownerId) return { teamId, agentId: ownerId };
 
       // 4. No one is online — do not assign
       logger.warn(`[AutoAssign] No online members for org ${organizationId} — skipping assignment`);

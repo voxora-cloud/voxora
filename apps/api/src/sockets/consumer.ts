@@ -67,15 +67,6 @@ async function findBestAgent(organizationId: string, preferredTeamId: string | n
     if (pick) return { agentId: pick.userId.toString(), agentName: pick.name, agentEmail: pick.email, teamId: pick.teamId };
   }
 
-  // ── Step 3: No admins online — check owner ───────────────────────────────────
-  const ownerCandidates = await Membership.find({ ...baseFilter, role: "owner" })
-    .populate("userId", "name email status isActive")
-    .then((ms) => ms.filter((m) => (m.userId as any)?.isActive && onlineStatuses.includes((m.userId as any)?.status)));
-
-  if (ownerCandidates.length > 0) {
-    const pick = await pickLeastBusy(ownerCandidates as any);
-    if (pick) return { agentId: pick.userId.toString(), agentName: pick.name, agentEmail: pick.email, teamId: pick.teamId };
-  }
 
   // ── No one online — do not escalate ─────────────────────────────────────────
   return null;
