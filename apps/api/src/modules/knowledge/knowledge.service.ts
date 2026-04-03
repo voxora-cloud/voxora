@@ -175,6 +175,10 @@ class KnowledgeService {
     organizationId: string,
     patch: { isPaused?: boolean; syncFrequency?: "manual" | "1hour" | "6hours" | "daily"; status?: "queued" | "indexed" | "failed" | "pending"; content?: string },
   ) {
+    if (patch.content) {
+      patch.status = "queued";
+    }
+
     const doc = await Knowledge.findOneAndUpdate(
       { _id: documentId, organizationId },
       { $set: patch },
@@ -192,7 +196,25 @@ class KnowledgeService {
       }
     }
 
-    logger.info("✏️  Knowledge item updated", { documentId, organizationId, patch });
+    if (patch.content) {
+      // Content updated, trigger re-index automatically
+      await ingestionQueue.add("ingest", {
+        documentId: String(doc._id),
+        organizationId,
+        source: doc.source,
+        fileKey: doc.fileKey ?? "",
+        mimeType: doc.mimeType ?? "text/plain",
+        content: doc.content,
+        fileName: doc.fileName || doc.title,
+        sourceUrl: doc.sourceUrl,
+        fetchMode: doc.fetchMode,
+        crawlDepth: doc.crawlDepth,
+        title: doc.title,
+        catalog: doc.catalog,
+      });
+    }
+
+    logger.info("✏️  Knowledge item updated", { documentId, organizationId, patch: Object.keys(patch) });
     return doc;
   }
 

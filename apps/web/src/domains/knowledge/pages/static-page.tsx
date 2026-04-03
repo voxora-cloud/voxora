@@ -94,8 +94,6 @@ export function KnowledgeStaticPage() {
         documentId: selectedItem._id,
         payload: { content: JSON.stringify(editTableData) },
       });
-      // automatically reindex it when content is updated!
-      await reindexKnowledge.mutateAsync(selectedItem._id);
       
       setShowEditModal(false);
       setSelectedItem(null);
@@ -354,10 +352,13 @@ export function KnowledgeStaticPage() {
                     </p>
                     {(selectedItem.source === "table" || (selectedItem.content.trim().startsWith("{") && selectedItem.content.includes("columns"))) ? (
                       <div className="bg-muted p-2 rounded-lg overflow-hidden min-w-0 max-w-full border border-border">
-                        <SpreadsheetEditor
-                          data={JSON.parse(selectedItem.content) as KnowledgeTableData}
-                          readonly={true}
-                        />
+                        {(() => {
+                           try {
+                             return <SpreadsheetEditor data={JSON.parse(selectedItem.content) as KnowledgeTableData} readonly={true} />
+                           } catch (e) {
+                             return <div className="text-red-500 text-sm">Failed to parse table data. Malformed content.</div>
+                           }
+                        })()}
                       </div>
                     ) : (
                       <div className="p-4 bg-muted rounded-lg max-h-64 overflow-y-auto">

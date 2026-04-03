@@ -25,9 +25,23 @@ export const knowledgeSchema = {
     catalog: Joi.string().trim().allow("").optional(),
     source: Joi.string().valid("text", "url", "table").required(),
     content: Joi.string().when("source", {
-      is: Joi.string().valid("text", "table"),
-      then: Joi.string().trim().min(1).required(),
-      otherwise: Joi.string().allow("").optional(),
+      is: "table",
+      then: Joi.string().trim().min(1).required().custom((value, helpers) => {
+        try {
+          const parsed = JSON.parse(value);
+          if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.columns) || !Array.isArray(parsed.rows)) {
+            return helpers.error("any.invalid", { message: "Invalid table JSON format. Must contain columns and rows arrays." });
+          }
+          return value;
+        } catch (e) {
+          return helpers.error("any.invalid", { message: "Content must be valid JSON for table source" });
+        }
+      }),
+      otherwise: Joi.string().when("source", {
+        is: "text",
+        then: Joi.string().trim().min(1).required(),
+        otherwise: Joi.string().allow("").optional(),
+      })
     }),
     url: Joi.string().uri().when("source", {
       is: "url",

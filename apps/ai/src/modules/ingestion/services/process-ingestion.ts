@@ -19,6 +19,7 @@ const DEFAULT_RETRY_BASE_MS = parseInt(
 export interface ProcessIngestionInput {
   organizationId: string;
   documentId: string;
+  sourceType: string;
   fileName?: string;
   fileKey?: string;
   metadata?: Record<string, unknown>;
@@ -276,6 +277,7 @@ export async function processIngestion(
         payload: {
           organizationId: input.organizationId,
           documentId: input.documentId,
+          sourceType: input.sourceType,
           fileKey: input.fileKey || "",
           fileName: input.fileName || "",
           chunkIndex,
