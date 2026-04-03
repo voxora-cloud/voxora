@@ -17,7 +17,7 @@ interface AgentAssignment {
 }
 
 async function findBestAgent(organizationId: string, preferredTeamId: string | null): Promise<AgentAssignment | null> {
-  // Helper: pick the least-busy agent from a set of memberships
+  // Helper: pick the least-busy online/away member from a set of memberships
   async function pickLeastBusy(
     memberships: Array<{ userId: any; teams: any[] }>,
   ): Promise<{ userId: any; name: string; email: string; teamId: string } | null> {
@@ -39,39 +39,36 @@ async function findBestAgent(organizationId: string, preferredTeamId: string | n
     return { userId: best.user._id, name: best.user.name, email: best.user.email, teamId };
   }
 
+  const onlineStatuses = ["online", "away"];
   const baseFilter = { organizationId, inviteStatus: "active" as const };
 
-  // 1 & 2: preferred team first
-  if (preferredTeamId) {
-    for (const status of ["online", "away"]) {
-      const candidates = await Membership.find({
-        ...baseFilter,
-        teams: preferredTeamId,
-      })
-        .populate("userId", "name email status isActive")
-        .then((ms) => ms.filter((m) => (m.userId as any)?.status === status && (m.userId as any)?.isActive));
+  // ── Step 1: Check if any agents (role=agent) are online ──────────────────────
+  const agentCandidates = await Membership.find({ ...baseFilter, role: "agent" })
+    .populate("userId", "name email status isActive")
+    .then((ms) => ms.filter((m) => (m.userId as any)?.isActive && onlineStatuses.includes((m.userId as any)?.status)));
 
-      const pick = await pickLeastBusy(candidates as any);
-      if (pick) return { agentId: pick.userId.toString(), agentName: pick.name, agentEmail: pick.email, teamId: pick.teamId };
-    }
-  }
-
-  // 3 & 4: any team in the org
-  const allTeams = await Team.find({ organizationId, isActive: true }).select("_id");
-  const allTeamIds = allTeams.map((t) => t._id);
-
-  for (const status of ["online", "away"]) {
-    const candidates = await Membership.find({
-      ...baseFilter,
-      teams: { $in: allTeamIds },
-    })
-      .populate("userId", "name email status isActive")
-      .then((ms) => ms.filter((m) => (m.userId as any)?.status === status && (m.userId as any)?.isActive));
-
-    const pick = await pickLeastBusy(candidates as any);
+  if (agentCandidates.length > 0) {
+    // Prefer agents on the preferred team first
+    const teamAgents = preferredTeamId
+      ? agentCandidates.filter((m) => m.teams?.map(String).includes(preferredTeamId))
+      : [];
+    const pool = teamAgents.length > 0 ? teamAgents : agentCandidates;
+    const pick = await pickLeastBusy(pool as any);
     if (pick) return { agentId: pick.userId.toString(), agentName: pick.name, agentEmail: pick.email, teamId: pick.teamId };
   }
 
+  // ── Step 2: No agents online — check admins ──────────────────────────────────
+  const adminCandidates = await Membership.find({ ...baseFilter, role: "admin" })
+    .populate("userId", "name email status isActive")
+    .then((ms) => ms.filter((m) => (m.userId as any)?.isActive && onlineStatuses.includes((m.userId as any)?.status)));
+
+  if (adminCandidates.length > 0) {
+    const pick = await pickLeastBusy(adminCandidates as any);
+    if (pick) return { agentId: pick.userId.toString(), agentName: pick.name, agentEmail: pick.email, teamId: pick.teamId };
+  }
+
+
+  // ── No one online — do not escalate ─────────────────────────────────────────
   return null;
 }
 
@@ -97,7 +94,7 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
 
       // Resolve org from conversation record
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status metadata.escalatedAt metadata.humanJoinedAt")
+        .select("organizationId status metadata assignedTo")
         .lean();
 
       if (!conv) return;
@@ -105,7 +102,8 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       if (
         (conv as any).metadata?.escalatedAt
         || (conv as any).metadata?.humanJoinedAt
-        || ["resolved", "closed"].includes((conv as any).status)
+        || (conv as any).assignedTo
+        || ["active", "resolved", "closed"].includes((conv as any).status)
       ) {
         logger.info(`[AI Response] Skipping ${conversationId} because conversation is escalated or closed`);
         return;
@@ -143,6 +141,19 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         isThought: boolean;
       };
 
+      // Do not forward stream chunks once a human has taken over
+      const conv = await Conversation.findById(conversationId)
+        .select("status metadata assignedTo")
+        .lean();
+      if (
+        (conv as any)?.metadata?.escalatedAt ||
+        (conv as any)?.metadata?.humanJoinedAt ||
+        (conv as any)?.assignedTo ||
+        ["active", "resolved", "closed"].includes((conv as any)?.status)
+      ) {
+        return;
+      }
+
       // Emit chunk directly to active clients without DB persistence
       socketManager.emitToConversation(conversationId, "ai_stream_chunk", {
         conversationId,
@@ -172,14 +183,15 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       logger.info(`[Escalation] Received for conversation ${conversationId} — reason: "${reason}"`);
 
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status metadata.escalatedAt metadata.humanJoinedAt")
+        .select("organizationId status metadata assignedTo")
         .lean();
       if (!conv) return;
 
       if (
         (conv as any).metadata?.escalatedAt
         || (conv as any).metadata?.humanJoinedAt
-        || ["resolved", "closed"].includes((conv as any).status)
+        || (conv as any).assignedTo
+        || ["active", "resolved", "closed"].includes((conv as any).status)
       ) {
         logger.info(`[Resolution] Skipping ${conversationId} because conversation is escalated or already closed`);
         return;

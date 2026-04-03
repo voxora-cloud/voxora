@@ -2,21 +2,6 @@ import { Conversation, Message, Team, User, Membership } from "@shared/models";
 import logger from "@shared/utils/logger";
 
 export class ConversationService {
-  private async findOwnerForOrganization(organizationId: string): Promise<string | null> {
-    const ownerMembership = await Membership.findOne({
-      organizationId,
-      role: "owner",
-      inviteStatus: "active",
-    })
-      .populate("userId", "isActive")
-      .select("userId")
-      .lean();
-
-    const ownerUser = ownerMembership?.userId as { _id?: { toString(): string }; isActive?: boolean } | undefined;
-    if (!ownerUser?.isActive || !ownerUser._id) return null;
-
-    return ownerUser._id.toString();
-  }
 
   /**
    * Get all conversations for an organization (filtered by status/agent)
@@ -100,7 +85,7 @@ export class ConversationService {
   }
 
   /**
-   * Find available agent from a specific team (org-scoped)
+   * Find available agent from a specific team (org-scoped, least-busy)
    */
   async findAvailableAgent(organizationId: string, teamId: string): Promise<string | null> {
     try {
@@ -146,39 +131,56 @@ export class ConversationService {
   }
 
   /**
-   * Auto-assign conversation to a team/agent within the org
+   * Auto-assign conversation to a team/agent within the org.
+   * Priority: online agents -> online admins -> null (no one online).
    */
   async autoAssignConversation(organizationId: string): Promise<{ teamId: string | null; agentId: string | null }> {
     try {
-      const ownerId = await this.findOwnerForOrganization(organizationId);
-      const teams = await Team.find({ organizationId, isActive: true });
-      if (teams.length === 0) return { teamId: null, agentId: ownerId };
+      const onlineStatuses = ["online", "away"];
+      const baseFilter = { organizationId, inviteStatus: "active" as const };
 
-      const teamScores = await Promise.all(
-        teams.map(async (team) => {
-          const members = await Membership.find({
-            organizationId,
-            teams: team._id,
-            inviteStatus: "active",
-          }).populate("userId", "status isActive");
+      // Helper: pick least-busy online member from a membership list
+      const pickLeastBusy = async (memberships: any[]): Promise<string | null> => {
+        const online = memberships.filter(
+          (m) => (m.userId as any)?.isActive && onlineStatuses.includes((m.userId as any)?.status),
+        );
+        if (online.length === 0) return null;
+        const withLoad = await Promise.all(
+          online.map(async (m) => {
+            const userId = (m.userId as any)._id;
+            const load = await Conversation.countDocuments({ organizationId, assignedTo: userId, status: { $in: ["open", "pending"] } });
+            return { agentId: userId.toString(), load, status: (m.userId as any).status };
+          }),
+        );
+        withLoad.sort((a, b) => {
+          if (a.status === "online" && b.status !== "online") return -1;
+          if (a.status !== "online" && b.status === "online") return 1;
+          return a.load - b.load;
+        });
+        return withLoad[0].agentId;
+      };
 
-          const online = members.filter((m) => (m.userId as any)?.status === "online" && (m.userId as any)?.isActive).length;
-          const away = members.filter((m) => (m.userId as any)?.status === "away" && (m.userId as any)?.isActive).length;
+      // Get a teamId to attach to the conversation (first active team or null)
+      const firstTeam = await Team.findOne({ organizationId, isActive: true }).select("_id").lean();
+      const teamId = firstTeam?._id?.toString() || null;
 
-          return { teamId: team._id.toString(), score: online * 2 + away, hasAgents: online + away > 0 };
-        }),
-      );
+      // 1. Try online agents first
+      const agentMembers = await Membership.find({ ...baseFilter, role: "agent" }).populate("userId", "name email status isActive");
+      const agentId = await pickLeastBusy(agentMembers);
+      if (agentId) return { teamId, agentId };
 
-      const available = teamScores.filter((t) => t.hasAgents).sort((a, b) => b.score - a.score);
-      if (available.length === 0) return { teamId: teams[0]._id.toString(), agentId: ownerId };
+      // 2. No agents online — try admins
+      const adminMembers = await Membership.find({ ...baseFilter, role: "admin" }).populate("userId", "name email status isActive");
+      const adminId = await pickLeastBusy(adminMembers);
+      if (adminId) return { teamId, agentId: adminId };
 
-      const selectedTeam = available[0];
-      const agentId = await this.findAvailableAgent(organizationId, selectedTeam.teamId);
-      return { teamId: selectedTeam.teamId, agentId: agentId || ownerId };
+
+      // 4. No one is online — do not assign
+      logger.warn(`[AutoAssign] No online members for org ${organizationId} — skipping assignment`);
+      return { teamId: null, agentId: null };
     } catch (error: any) {
       logger.error(`Error in auto-assignment: ${error.message}`);
-      const ownerId = await this.findOwnerForOrganization(organizationId);
-      return { teamId: null, agentId: ownerId };
+      return { teamId: null, agentId: null };
     }
   }
 

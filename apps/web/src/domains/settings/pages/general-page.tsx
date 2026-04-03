@@ -4,7 +4,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { Loader } from "@/shared/ui/loader";
-import { Building2, MailCheck, MailWarning } from "lucide-react";
+import { Building2, CheckCircle2, Globe, Mail, MailCheck, MailWarning, ShieldAlert, User } from "lucide-react";
 import { useAuth } from "@/domains/auth/hooks";
 import { useOrganization, useUpdateOrganization } from "@/domains/settings/hooks";
 import type { UpdateOrganizationPayload } from "@/domains/settings/api/settings.api";
@@ -74,14 +74,20 @@ export function GeneralSettingsPage() {
         </p>
       </div>
 
-      <form
-        onSubmit={handleSave}
-        className="space-y-6 bg-card p-6 rounded-xl border border-border shadow-sm"
-      >
-        <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="name" className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+      <form onSubmit={handleSave} className="space-y-5">
+        {/* Organization Name Card */}
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 space-y-4">
+          <div className="flex items-center gap-3 pb-3 border-b border-border/60">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Building2 className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Organization</h2>
+              <p className="text-xs text-muted-foreground">Your organization&apos;s visible name across the platform</p>
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="name" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Organization Name
             </Label>
             <Input
@@ -92,58 +98,78 @@ export function GeneralSettingsPage() {
               className="max-w-md cursor-text"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              This is your organization&apos;s visible name across the platform.
-            </p>
           </div>
+        </div>
 
-          <div className="border-t border-border pt-4 space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <MailCheck className="h-4 w-4" />
-                  Email Sender Configuration
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Set an optional tenant sender identity. Unverified sender settings always fall back to the platform sender.
-                </p>
+        {/* Email Sender Card */}
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl overflow-hidden">
+          {/* Card header */}
+          <div className="px-6 pt-6 pb-4 border-b border-border/60">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isEmailSenderVerified ? "bg-success/10" : "bg-warning/10"}`}>
+                  {isEmailSenderVerified
+                    ? <MailCheck className="h-4 w-4 text-success" />
+                    : <MailWarning className="h-4 w-4 text-warning" />
+                  }
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Email Sender Configuration</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Custom sender identity for outbound emails. Falls back to platform sender if unverified.
+                  </p>
+                </div>
               </div>
               {isEmailSenderVerified ? (
-                <Badge variant="success">Verified</Badge>
+                <Badge variant="success" className="flex items-center gap-1 shrink-0">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Verified
+                </Badge>
               ) : (
-                <Badge variant="warning">Fallback Active</Badge>
+                <Badge variant="warning" className="flex items-center gap-1 shrink-0">
+                  <ShieldAlert className="h-3 w-3" />
+                  Fallback Active
+                </Badge>
               )}
             </div>
+          </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="fromName" className="text-sm font-semibold">
-                From Name
-              </Label>
-              <Input
-                id="fromName"
-                placeholder="Acme Support"
-                value={fromName}
-                onChange={(e) => setFromName(e.target.value)}
-                className="max-w-md cursor-text"
-              />
+          {/* Fields */}
+          <div className="px-6 py-5 space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="fromName" className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" />
+                  From Name
+                </Label>
+                <Input
+                  id="fromName"
+                  placeholder="Acme Support"
+                  value={fromName}
+                  onChange={(e) => setFromName(e.target.value)}
+                  className="cursor-text"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="fromEmail" className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5" />
+                  From Email
+                </Label>
+                <Input
+                  id="fromEmail"
+                  type="email"
+                  placeholder="support@acme.com"
+                  value={fromEmail}
+                  onChange={(e) => setFromEmail(e.target.value)}
+                  className="cursor-text"
+                />
+              </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="fromEmail" className="text-sm font-semibold">
-                From Email
-              </Label>
-              <Input
-                id="fromEmail"
-                type="email"
-                placeholder="support@acme.com"
-                value={fromEmail}
-                onChange={(e) => setFromEmail(e.target.value)}
-                className="max-w-md cursor-text"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="domain" className="text-sm font-semibold">
+            <div className="space-y-1.5">
+              <Label htmlFor="domain" className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
                 Domain
               </Label>
               <Input
@@ -151,32 +177,36 @@ export function GeneralSettingsPage() {
                 placeholder="acme.com"
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
-                className="max-w-md cursor-text"
+                className="max-w-sm cursor-text"
               />
               <p className="text-xs text-muted-foreground">
                 Domain must match the From Email domain to qualify for verification.
               </p>
             </div>
 
-            {!isEmailSenderVerified && (
-              <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground flex items-start gap-2">
-                <MailWarning className="h-4 w-4 mt-0.5 text-warning" />
-                <div>
-                  This sender is currently unverified. Voxora will use the default platform sender until verification is completed.
-                </div>
+            {/* Status banners */}
+            {!isEmailSenderVerified && (fromName || fromEmail || domain) && (
+              <div className="rounded-xl border border-warning/30 bg-warning/8 p-4 flex items-start gap-3">
+                <MailWarning className="h-4 w-4 mt-0.5 text-warning flex-shrink-0" />
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  This sender is currently <span className="font-semibold text-warning">unverified</span>. Voxora will use the default platform sender until verification is completed.
+                </p>
               </div>
             )}
 
             {isSenderConfigChanged && isEmailSenderVerified && (
-              <div className="rounded-lg border border-info/40 bg-info/10 p-3 text-sm text-foreground">
-                Sender details were modified. Saving changes will set verification status to unverified until re-verified.
+              <div className="rounded-xl border border-info/30 bg-info/8 p-4 flex items-start gap-3">
+                <ShieldAlert className="h-4 w-4 mt-0.5 text-info flex-shrink-0" />
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  Sender details were modified. Saving will mark this sender as <span className="font-semibold">unverified</span> until re-verified.
+                </p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="pt-4 border-t border-border flex justify-end">
-          <Button type="submit" disabled={updateOrgMutation.isPending} className="cursor-pointer">
+        <div className="flex justify-end">
+          <Button type="submit" disabled={updateOrgMutation.isPending} className="cursor-pointer min-w-[120px]">
             {updateOrgMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
         </div>

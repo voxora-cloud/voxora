@@ -1,8 +1,8 @@
-import { User, Organization, Membership, MembershipRole } from "@shared/models";
+import { User, Organization, Membership, MembershipRole, Widget } from "@shared/models";
 import { generateTokens } from "@shared/utils/auth";
 import { redisClient } from "@shared/config/redis";
 import { isEmailEnabled } from "@shared/utils/email";
-import { enqueuePasswordResetEmail } from "@shared/queues/email.queue";
+import { enqueuePasswordResetEmail, enqueueWelcomeEmail } from "@shared/queues/email.queue";
 import { OrganizationService } from "@modules/organization/organization.service";
 import crypto from "crypto";
 
@@ -66,6 +66,32 @@ export class AuthService {
       ],
     });
 
+    // Auto-create default widget for the first organization
+    await Widget.create({
+      organizationId: organization._id,
+      displayName: "Voxora Ai",
+      backgroundColor: "#10b981",
+      appearance: {
+        primaryColor: "#10b981",
+        textColor: "#ffffff",
+        position: "bottom-right",
+        launcherText: "Chat with us",
+        welcomeMessage: "Hi there! How can we help you today?",
+        logoUrl: "",
+      },
+      behavior: { autoOpen: false, showOnMobile: true, showOnDesktop: true },
+      ai: { enabled: true, model: "gpt-4o-mini", fallbackToAgent: true, autoAssign: true, assignmentStrategy: "least-loaded" },
+      conversation: { collectUserInfo: { name: true, email: true, phone: false } },
+      features: { acceptMediaFiles: true, endUserDomAccess: false },
+      suggestions: [
+        { text: "What can you help me with?", showOutside: true },
+        { text: "I need help with my order", showOutside: false },
+        { text: "Talk to a human agent", showOutside: true },
+        { text: "What are your business hours?", showOutside: false },
+      ],
+      publicKey: crypto.randomBytes(16).toString("hex"),
+    });
+
     const tokens = generateTokens({
       userId: user._id.toString(),
       email: user.email,
@@ -73,6 +99,9 @@ export class AuthService {
     });
 
     await this._storeRefreshToken(user._id.toString(), organization._id.toString(), tokens.refreshToken);
+
+    // Send welcome email to the new owner
+    await enqueueWelcomeEmail(user.email, user.name, "owner", organization._id.toString());
 
     return {
       success: true,

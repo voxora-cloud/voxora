@@ -489,14 +489,22 @@ export function WidgetAdvancedConfigForm({
   /* ── Render ─────────────────────────────────────────────────────────── */
 
   return (
-    <div className="flex gap-0 rounded-2xl border border-border/80 bg-background overflow-hidden shadow-sm">
-      {/* Sidebar nav */}
-      <nav className="w-44 flex-shrink-0 border-r border-border/70 bg-muted/30 py-3">
-        <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-          Sections
-        </p>
-        <ul className="space-y-0.5 px-2">
-          {tabs.map(({ id, label, icon: Icon, badge }) => {
+    <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl overflow-hidden">
+      {/* Card header */}
+      <div className="px-6 lg:px-8 pt-6 lg:pt-8 pb-4 border-b border-border/60">
+        <h2 className="text-xl font-semibold text-foreground">Advanced Settings</h2>
+        <p className="text-sm text-muted-foreground mt-1">Configure AI, behavior, conversation flow, and feature options.</p>
+      </div>
+
+      {/* Tab layout */}
+      <div className="flex gap-0 overflow-hidden">
+        {/* Sidebar nav */}
+        <nav className="w-44 flex-shrink-0 border-r border-border/70 bg-muted/30 py-3">
+          <p className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+            Sections
+          </p>
+          <ul className="space-y-0.5 px-2">
+            {tabs.map(({ id, label, icon: Icon, badge }) => {
             const active = activeTab === id;
             return (
               <li key={id}>
@@ -522,11 +530,12 @@ export function WidgetAdvancedConfigForm({
             );
           })}
         </ul>
-      </nav>
+        </nav>
 
-      {/* Panel */}
-      <div className="flex-1 min-w-0 p-6 overflow-y-auto">
-        {panels[activeTab]}
+        {/* Panel */}
+        <div className="flex-1 min-w-0 p-6 overflow-y-auto">
+          {panels[activeTab]}
+        </div>
       </div>
     </div>
   );

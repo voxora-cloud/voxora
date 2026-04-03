@@ -74,7 +74,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         if (
           (conversation as any).metadata?.escalatedAt ||
           (conversation as any).metadata?.humanJoinedAt ||
-          ["resolved", "closed"].includes((conversation as any).status)
+          conversation.assignedTo ||
+          ["active", "resolved", "closed"].includes((conversation as any).status)
         ) {
           return; // message was saved & broadcast above; just don't run AI
         }
@@ -106,30 +107,19 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           }
         }
 
-        // ── Route: AI disabled → assign directly to human agent ─────────────────
+        // Keep conversation unassigned when AI is disabled.
+        // Human routing should happen only through escalation/manual pickup.
         if (!aiEnabled) {
-          logger.info(`[handleMessage] AI disabled for widget ${widgetKey} — routing ${conversationId} directly to human agent`);
+          logger.info(`[handleMessage] AI disabled for widget ${widgetKey} � leaving ${conversationId} unassigned`);
 
-          // Import conversation service for agent assignment
-          const { ConversationService } = await import("../../modules/conversation/conversation.service");
-          const convService = new ConversationService();
-          const orgId = conversation.organizationId!.toString();
-          const { teamId: assignedTeamId, agentId: assignedAgentId } = await convService.autoAssignConversation(orgId);
+          await Conversation.findByIdAndUpdate(conversationId, {
+            $set: {
+              status: "pending",
+              "metadata.pendingEscalation": true,
+              "metadata.routeReason": "AI disabled � awaiting human escalation",
+            },
+          });
 
-          if (assignedTeamId || assignedAgentId) {
-            await Conversation.findByIdAndUpdate(conversationId, {
-              $set: {
-                assignedTo: assignedAgentId || undefined,
-                "metadata.teamId": assignedTeamId,
-                "metadata.routedAt": new Date(),
-                "metadata.routeReason": "AI disabled — direct to agent",
-                "metadata.escalatedAt": new Date(), // prevents future AI enqueue
-              },
-              ...(assignedAgentId ? { $addToSet: { participants: assignedAgentId } } : {}),
-            });
-          }
-
-          // Notify agents about the new conversation
           const sm = getSocketManager();
           if (sm) {
             const payload = {
@@ -137,9 +127,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               subject: conversation.subject,
               message: content,
               timestamp: new Date(),
-              assignedTo: assignedAgentId,
-              teamId: assignedTeamId,
-              routeReason: "AI disabled — direct to agent",
+              assignedTo: null,
+              teamId: teamId || null,
+              routeReason: "AI disabled � awaiting human escalation",
             };
 
             try {
@@ -153,7 +143,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             }
           }
 
-          return; // Don't enqueue AI job
+          return; // Do not enqueue AI job
         }
 
         // ── Route: AI enabled → enqueue AI job with full config ─────────────────
