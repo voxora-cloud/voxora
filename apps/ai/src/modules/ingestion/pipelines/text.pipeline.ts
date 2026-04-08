@@ -8,27 +8,34 @@ export interface KnowledgeTableData {
   rows: string[][];
 }
 
-export function tableJsonToItems(
+export async function* tableJsonToItems(
   table: KnowledgeTableData,
   documentId: string,
   baseMetadata: Record<string, unknown>
-): ContentStreamItem[] {
+): AsyncGenerator<ContentStreamItem> {
   const { columns, rows } = table;
-  return rows.map((row, rowIndex) => {
-    const parts = columns.map((col, i) => `${col} is ${row[i] || ""}`.trim());
-    const text = parts.join(" and ") + ".";
-    
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
     const rowData: Record<string, string> = {};
-    columns.forEach((col, i) => {
-       rowData[col] = row[i] || "";
-    });
 
-    return {
+    let text = "";
+    for (let i = 0; i < columns.length; i += 1) {
+      const col = columns[i];
+      const value = row[i] ?? "";
+      rowData[col] = value;
+
+      if (text.length > 0) {
+        text += " and ";
+      }
+      text += `${col} is ${value}`.trim();
+    }
+
+    yield {
       sourceRef: `table:${documentId}:row:${rowIndex}`,
-      text,
+      text: `${text}.`,
       metadata: { ...baseMetadata, documentId, rowIndex, rowData, sourceType: "table" }
     };
-  });
+  }
 }
 
 /**
@@ -62,12 +69,7 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
   if (source === "table") {
     try {
       const tableData = JSON.parse(content) as KnowledgeTableData;
-      const items = tableJsonToItems(tableData, documentId, metadata);
-      
-      async function* generateItems() {
-        for (const item of items) yield item;
-      }
-      contentStream = generateItems();
+      contentStream = tableJsonToItems(tableData, documentId, metadata);
     } catch (err: any) {
       await setDocStatus(organizationId, documentId, {
         status: "failed",

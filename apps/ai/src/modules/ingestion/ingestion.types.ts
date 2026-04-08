@@ -3,6 +3,8 @@ export interface DocumentJob {
   organizationId: string;
   /** MongoDB ObjectId of the knowledge document record */
   documentId: string;
+  /** Monotonic document version used for latest-write-wins behavior */
+  version?: number;
   /** "ingest" (default) | "delete-vectors" — if delete-vectors, only documentId is needed */
   jobType?: "ingest" | "delete-vectors";
   /** Source type — drives which ingestion path is taken */

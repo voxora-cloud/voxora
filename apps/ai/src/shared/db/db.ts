@@ -7,10 +7,14 @@ export async function connectDB(): Promise<void> {
     connected = true;
     return;
   }
-  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/voxora-chat";
+  const uri =
+    process.env.MONGODB_URI ||
+    "mongodb://admin:dev123@localhost:27017/voxora-chat-dev?authSource=admin";
   await mongoose.connect(uri);
   connected = true;
-  console.log("[DB] MongoDB connected");
+  console.log(
+    `[DB] MongoDB connected (db=${mongoose.connection.name || "unknown"})`,
+  );
 }
 
 /**
@@ -79,11 +83,30 @@ export const ContactModel =
   (mongoose.models["Contact"] as mongoose.Model<mongoose.Document> | undefined) ??
   mongoose.model("Contact", ContactSchema);
 
+export function buildKnowledgeLookupFilter(
+  documentId: string,
+  organizationId?: string,
+): Record<string, unknown> {
+  const filter: Record<string, unknown> = {
+    _id: mongoose.Types.ObjectId.isValid(documentId)
+      ? { $in: [documentId, new mongoose.Types.ObjectId(documentId)] }
+      : documentId,
+  };
+
+  if (organizationId) {
+    filter.organizationId = mongoose.Types.ObjectId.isValid(organizationId)
+      ? { $in: [organizationId, new mongoose.Types.ObjectId(organizationId)] }
+      : organizationId;
+  }
+
+  return filter;
+}
+
 export async function setDocStatus(
   organizationId: string,
   documentId: string,
   update: {
-    status: "indexing" | "indexed" | "failed";
+    status: "indexing" | "indexed" | "completed" | "failed";
     wordCount?: number;
     chunkCount?: number;
     lastIndexed?: Date;
@@ -95,7 +118,7 @@ export async function setDocStatus(
   await connectDB();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (KnowledgeModel as any).findOneAndUpdate(
-    { _id: documentId, organizationId },
+    buildKnowledgeLookupFilter(documentId, organizationId),
     { $set: update },
   );
 }

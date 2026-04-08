@@ -42,7 +42,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   await connectDB();
 
   // ── Guard: abort if conversation was escalated or closed while job was queued ─
-  const convCheck = await ConversationModel.findById(conversationId)
+  const convCheck = await (ConversationModel as any).findById(conversationId)
     .select("status metadata assignedTo")
     .lean() as any;
   if (
