@@ -13,8 +13,11 @@ import {
   useKnowledgeItems,
   useKnowledgeViewUrl,
   useReindexKnowledgeItem,
+  useUpdateKnowledgeItem,
 } from "../hooks";
 import { toast } from "sonner";
+import { SpreadsheetEditor } from "../components/spreadsheet-editor";
+import type { KnowledgeTableData } from "../types";
 
 export function KnowledgeStaticPage() {
   const { data: items = [], isLoading } = useKnowledgeItems();
@@ -29,9 +32,15 @@ export function KnowledgeStaticPage() {
   const [itemToDelete, setItemToDelete] = useState<KnowledgeBase | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  
+  const [showEditModal, setShowEditModal] = useState<boolean>(false);
+  const [editTableData, setEditTableData] = useState<KnowledgeTableData | null>(null);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
+
   const addKnowledge = useAddKnowledge();
   const deleteKnowledge = useDeleteKnowledgeItem();
   const reindexKnowledge = useReindexKnowledgeItem();
+  const updateKnowledge = useUpdateKnowledgeItem();
   const canLoadViewUrl =
     showViewModal &&
     !!selectedItem &&
@@ -62,6 +71,43 @@ export function KnowledgeStaticPage() {
   const handleViewItem = (item: KnowledgeBase) => {
     setSelectedItem(item);
     setShowViewModal(true);
+  };
+
+  const handleEditItem = (item: KnowledgeBase) => {
+    try {
+      if (item.content) {
+        const parsed = JSON.parse(item.content) as KnowledgeTableData;
+        setEditTableData(parsed);
+        setSelectedItem(item);
+        setShowEditModal(true);
+      }
+    } catch (e) {
+      toast.error("Invalid spreadsheet data");
+    }
+  };
+
+  const handleUpdateTable = async () => {
+    if (!selectedItem || !editTableData) return;
+    try {
+      setIsUpdating(true);
+      await updateKnowledge.mutateAsync({
+        documentId: selectedItem._id,
+        payload: { content: JSON.stringify(editTableData) },
+      });
+      
+      setShowEditModal(false);
+      setSelectedItem(null);
+      setEditTableData(null);
+      toast.success("Spreadsheet updated and queued for re-indexing", {
+        description: "Your latest changes will be available shortly.",
+      });
+    } catch (err: any) {
+      toast.error("Failed to update spreadsheet", {
+        description: err?.message,
+      });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleReindexItem = async (item: KnowledgeBase) => {
@@ -132,6 +178,7 @@ export function KnowledgeStaticPage() {
           onReindexItem={handleReindexItem}
           onDeleteItem={openDeleteDialog}
           onRetryItem={handleRetryItem}
+          onEditItem={handleEditItem}
         />
       ) : (
         <div className="p-12 text-center border rounded-lg border-dashed">
@@ -164,6 +211,8 @@ export function KnowledgeStaticPage() {
           className={
             selectedItem?.source === "pdf"
               ? "sm:max-w-[1000px] max-h-[90vh] overflow-y-auto"
+              : (selectedItem?.source === "table" || (selectedItem?.source === "text" && selectedItem?.content?.trim().startsWith("{")))
+              ? "sm:max-w-[800px] max-h-[90vh] overflow-y-auto"
               : "sm:max-w-[700px]"
           }
         >
@@ -255,7 +304,7 @@ export function KnowledgeStaticPage() {
             </div>
           ) : (
             selectedItem && (
-              <div className="space-y-4">
+              <div className="space-y-4 min-w-0 max-w-full">
                 <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Source</p>
@@ -297,16 +346,28 @@ export function KnowledgeStaticPage() {
                 )}
 
                 {selectedItem.content && (
-                  <div>
+                  <div className="min-w-0 max-w-full">
                     <p className="text-sm font-medium text-foreground mb-2">
-                      Content Preview
+                       {(selectedItem.source === "table" || (selectedItem.content.trim().startsWith("{") && selectedItem.content.includes("columns"))) ? "Spreadsheet Preview" : "Content Preview"}
                     </p>
-                    <div className="p-4 bg-muted rounded-lg max-h-64 overflow-y-auto">
-                      <p className="text-sm text-foreground whitespace-pre-wrap">
-                        {selectedItem.content.substring(0, 500)}
-                        {selectedItem.content.length > 500 ? "..." : ""}
-                      </p>
-                    </div>
+                    {(selectedItem.source === "table" || (selectedItem.content.trim().startsWith("{") && selectedItem.content.includes("columns"))) ? (
+                      <div className="bg-muted p-2 rounded-lg overflow-hidden min-w-0 max-w-full border border-border">
+                        {(() => {
+                           try {
+                             return <SpreadsheetEditor data={JSON.parse(selectedItem.content) as KnowledgeTableData} readonly={true} />
+                           } catch (e) {
+                             return <div className="text-red-500 text-sm">Failed to parse table data. Malformed content.</div>
+                           }
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-muted rounded-lg max-h-64 overflow-y-auto">
+                        <p className="text-sm text-foreground whitespace-pre-wrap">
+                          {selectedItem.content.substring(0, 500)}
+                          {selectedItem.content.length > 500 ? "..." : ""}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -366,6 +427,49 @@ export function KnowledgeStaticPage() {
         itemName={itemToDelete?.title}
         isDeleting={isDeleting}
       />
+
+      <Dialog open={showEditModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowEditModal(false);
+          setSelectedItem(null);
+          setEditTableData(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[800px]">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">
+                Edit Spreadsheet: {selectedItem?.title}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Make changes to your table. Saving will trigger a re-index.
+              </p>
+            </div>
+          </div>
+          {editTableData && (
+            <div className="mt-4 min-w-0 max-w-full overflow-hidden">
+              <SpreadsheetEditor
+                data={editTableData}
+                onChange={setEditTableData}
+              />
+            </div>
+          )}
+          <div className="flex justify-end gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowEditModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateTable}
+              disabled={isUpdating}
+            >
+              {isUpdating ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

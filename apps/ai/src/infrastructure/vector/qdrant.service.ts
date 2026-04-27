@@ -55,25 +55,36 @@ class QdrantVectorStore implements VectorStore {
       payload: VectorSearchResult["payload"];
     }>,
   ): Promise<void> {
-    await this.client.upsert(COLLECTION, {
-      wait: true,
-      points: points.map((p) => ({
-        id: p.id,
-        vector: p.vector,
-        payload: p.payload as Record<string, unknown>,
-      })),
-    });
+    if (points.length === 0) {
+      console.log(`[Qdrant] Skipping upsert - points array is empty`);
+      return;
+    }
+
+    try {
+      await this.client.upsert(COLLECTION, {
+        wait: true,
+        points: points.map((p) => ({
+          id: p.id,
+          vector: p.vector,
+          payload: p.payload as Record<string, unknown>,
+        })),
+      });
+    } catch (e: any) {
+      console.error("[Qdrant Upsert Error]:", e.message, "\nPreview:", JSON.stringify(points[0]).substring(0, 150));
+      throw e;
+    }
   }
 
   async search(
     vector: number[],
-    options: { organizationId: string; topK?: number },
+    options: { organizationId: string; documentId?: string; topK?: number },
   ): Promise<VectorSearchResult[]> {
     console.log(`[Qdrant] ════════════════════════════════════════════════`);
     console.log(`[Qdrant] Starting vector search`);
     console.log(`[Qdrant]   Collection    : "${COLLECTION}"`);
     console.log(`[Qdrant]   Vector dim    : ${vector.length}`);
     console.log(`[Qdrant]   Organization  : ${options.organizationId}`);
+    if (options.documentId) console.log(`[Qdrant]   Document ID   : ${options.documentId}`);
     console.log(`[Qdrant]   Top K         : ${options.topK ?? 5}`);
 
     // Check if collection exists
@@ -96,7 +107,11 @@ class QdrantVectorStore implements VectorStore {
       { key: "organizationId", match: { value: options.organizationId } }
     ];
 
-    console.log(`[Qdrant]   Filter: organizationId == "${options.organizationId}"`);
+    if (options.documentId) {
+      mustConditions.push({ key: "documentId", match: { value: options.documentId } });
+    }
+
+    console.log(`[Qdrant]   Filter: organizationId == "${options.organizationId}"${options.documentId ? ` AND documentId == "${options.documentId}"` : ""}`);
 
     const searchParams = {
       vector,

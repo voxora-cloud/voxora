@@ -1,6 +1,11 @@
-export type KnowledgeSource = "text" | "pdf" | "docx" | "url";
+export type KnowledgeSource = "text" | "pdf" | "docx" | "url" | "table";
 export type KnowledgeStatus = "indexed" | "indexing" | "failed" | "pending" | "queued";
-export type AddKnowledgeSource = "text" | "pdf" | "docx";
+export type AddKnowledgeSource = "text" | "pdf" | "docx" | "table";
+
+export interface KnowledgeTableData {
+  columns: string[];
+  rows: string[][];
+}
 
 export interface KnowledgeBase {
   _id: string;
@@ -31,6 +36,7 @@ export interface AddKnowledgeFormData {
   source: AddKnowledgeSource;
   content?: string;
   file?: File;
+  table?: KnowledgeTableData;
 }
 
 export interface KnowledgeUploadRequest {
@@ -47,7 +53,7 @@ export interface KnowledgeCreatePayload {
   title: string;
   description?: string;
   catalog?: string;
-  source: "text" | "url";
+  source: "text" | "url" | "table";
   content?: string;
   url?: string;
   fetchMode?: FetchMode;
@@ -59,6 +65,7 @@ export interface KnowledgeUpdatePayload {
   isPaused?: boolean;
   syncFrequency?: SyncFrequency;
   status?: KnowledgeStatus;
+  content?: string;
 }
 
 export type FetchMode = "single" | "crawl";

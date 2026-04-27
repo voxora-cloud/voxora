@@ -1,0 +1,941 @@
+{
+  "components": [
+    {
+      "name": "shutdown",
+      "params": [
+        "signal"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "startIngestionWorker",
+      "params": [],
+      "file": "ingestion.worker.ts",
+      "type": "function"
+    },
+    {
+      "name": "startWorker",
+      "params": [],
+      "file": "reply.worker.ts",
+      "type": "function"
+    },
+    {
+      "name": "publishResponse",
+      "params": [
+        "payload"
+      ],
+      "file": "reply.queue.ts",
+      "type": "function"
+    },
+    {
+      "name": "publishEscalation",
+      "params": [
+        "payload"
+      ],
+      "file": "reply.queue.ts",
+      "type": "function"
+    },
+    {
+      "name": "publishResolution",
+      "params": [
+        "payload"
+      ],
+      "file": "reply.queue.ts",
+      "type": "function"
+    },
+    {
+      "name": "publishStreamChunk",
+      "params": [
+        "payload"
+      ],
+      "file": "reply.queue.ts",
+      "type": "function"
+    },
+    {
+      "name": "connectDB",
+      "params": [],
+      "file": "db.ts",
+      "type": "function"
+    },
+    {
+      "name": "setDocStatus",
+      "params": [
+        "organizationId",
+        "documentId",
+        "update"
+      ],
+      "file": "db.ts",
+      "type": "function"
+    },
+    {
+      "name": "registerEmbeddingProvider",
+      "params": [
+        "provider"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "getEmbeddingProvider",
+      "params": [
+        "name"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "registerProvider",
+      "params": [
+        "provider"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "getProvider",
+      "params": [
+        "name"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "getDefaultProvider",
+      "params": [],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "registerTool",
+      "params": [
+        "tool"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "getTool",
+      "params": [
+        "name"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "getAllTools",
+      "params": [],
+      "file": "index.ts",
+      "type": "function"
+    },
+    {
+      "name": "runPipeline",
+      "params": [
+        "job"
+      ],
+      "file": "chat.service.ts",
+      "type": "function"
+    },
+    {
+      "name": "buildSystemPrompt",
+      "params": [
+        "opts"
+      ],
+      "file": "context-builder.service.ts",
+      "type": "function"
+    },
+    {
+      "name": "buildContext",
+      "params": [
+        "conversationId",
+        "organizationId",
+        "currentMessage",
+        "companyName",
+        "messageId",
+        "teamId",
+        "fallbackToAgent",
+        "collectUserInfo"
+      ],
+      "file": "context-builder.service.ts",
+      "type": "function"
+    },
+    {
+      "name": "runIngestionPipeline",
+      "params": [
+        "job"
+      ],
+      "file": "file.pipeline.ts",
+      "type": "function"
+    },
+    {
+      "name": "runTextIngestionPipeline",
+      "params": [
+        "job"
+      ],
+      "file": "text.pipeline.ts",
+      "type": "function"
+    },
+    {
+      "name": "runUrlIngestionPipeline",
+      "params": [
+        "job"
+      ],
+      "file": "url.pipeline.ts",
+      "type": "function"
+    },
+    {
+      "name": "streamFromText",
+      "params": [
+        "content",
+        "sourceRef",
+        "metadata"
+      ],
+      "file": "content-stream.ts",
+      "type": "function"
+    },
+    {
+      "name": "streamFromPages",
+      "params": [
+        "pages"
+      ],
+      "file": "content-stream.ts",
+      "type": "function"
+    },
+    {
+      "name": "streamFromSingleUrl",
+      "params": [
+        "url"
+      ],
+      "file": "content-stream.ts",
+      "type": "function"
+    },
+    {
+      "name": "streamFromCrawl",
+      "params": [
+        "rootUrl",
+        "maxDepth"
+      ],
+      "file": "content-stream.ts",
+      "type": "function"
+    },
+    {
+      "name": "logEvent",
+      "params": [
+        "event",
+        "payload"
+      ],
+      "file": "process-ingestion.ts",
+      "type": "function"
+    },
+    {
+      "name": "wait",
+      "params": [
+        "ms"
+      ],
+      "file": "process-ingestion.ts",
+      "type": "function"
+    },
+    {
+      "name": "generateDeterministicChunkId",
+      "params": [
+        "input"
+      ],
+      "file": "process-ingestion.ts",
+      "type": "function"
+    },
+    {
+      "name": "embedWithRetry",
+      "params": [
+        "params"
+      ],
+      "file": "process-ingestion.ts",
+      "type": "function"
+    },
+    {
+      "name": "processIngestion",
+      "params": [
+        "input"
+      ],
+      "file": "process-ingestion.ts",
+      "type": "function"
+    },
+    {
+      "name": "fetchBuffer",
+      "params": [
+        "fileKey"
+      ],
+      "file": "loader.ts",
+      "type": "function"
+    },
+    {
+      "name": "getObjectStream",
+      "params": [
+        "fileKey"
+      ],
+      "file": "loader.ts",
+      "type": "function"
+    },
+    {
+      "name": "loadDocument",
+      "params": [
+        "fileKey",
+        "mimeType"
+      ],
+      "file": "loader.ts",
+      "type": "function"
+    },
+    {
+      "name": "streamPlainTextFromMinio",
+      "params": [
+        "fileKey"
+      ],
+      "file": "loader.ts",
+      "type": "function"
+    },
+    {
+      "name": "loadDocumentStream",
+      "params": [
+        "fileKey",
+        "mimeType"
+      ],
+      "file": "loader.ts",
+      "type": "function"
+    },
+    {
+      "name": "isStaticAssetUrl",
+      "params": [
+        "url"
+      ],
+      "file": "url.source.ts",
+      "type": "function"
+    },
+    {
+      "name": "htmlToText",
+      "params": [
+        "html"
+      ],
+      "file": "url.source.ts",
+      "type": "function"
+    },
+    {
+      "name": "extractLinks",
+      "params": [
+        "html",
+        "pageUrl"
+      ],
+      "file": "url.source.ts",
+      "type": "function"
+    },
+    {
+      "name": "getPage",
+      "params": [
+        "url"
+      ],
+      "file": "url.source.ts",
+      "type": "function"
+    },
+    {
+      "name": "fetchSinglePage",
+      "params": [
+        "url"
+      ],
+      "file": "url.source.ts",
+      "type": "function"
+    },
+    {
+      "name": "crawlPages",
+      "params": [
+        "rootUrl",
+        "maxDepth"
+      ],
+      "file": "url.source.ts",
+      "type": "function"
+    },
+    {
+      "name": "chunkText",
+      "params": [
+        "text",
+        "chunkSize",
+        "overlap"
+      ],
+      "file": "chunker.ts",
+      "type": "function"
+    },
+    {
+      "name": "findBreakPoint",
+      "params": [
+        "text",
+        "from",
+        "limit"
+      ],
+      "file": "chunker.ts",
+      "type": "function"
+    }
+  ],
+  "usage": {
+    "config": [
+      "index.ts"
+    ],
+    "log": [
+      "index.ts",
+      "ingestion.worker.ts",
+      "reply.worker.ts",
+      "qdrant.service.ts",
+      "db.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "file.pipeline.ts",
+      "text.pipeline.ts",
+      "url.pipeline.ts",
+      "process-ingestion.ts",
+      "url.source.ts"
+    ],
+    "startWorker": [
+      "index.ts"
+    ],
+    "startIngestionWorker": [
+      "index.ts"
+    ],
+    "all": [
+      "index.ts"
+    ],
+    "close": [
+      "index.ts"
+    ],
+    "exit": [
+      "index.ts"
+    ],
+    "on": [
+      "index.ts",
+      "ingestion.worker.ts",
+      "reply.worker.ts",
+      "loader.ts"
+    ],
+    "shutdown": [
+      "index.ts"
+    ],
+    "error": [
+      "index.ts",
+      "ingestion.worker.ts",
+      "reply.worker.ts",
+      "qdrant.service.ts",
+      "gemini.embedding.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "file.pipeline.ts"
+    ],
+    "parseInt": [
+      "index.ts",
+      "redis.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts",
+      "loader.ts"
+    ],
+    "deleteByDocumentId": [
+      "ingestion.worker.ts",
+      "process-ingestion.ts"
+    ],
+    "runUrlIngestionPipeline": [
+      "ingestion.worker.ts"
+    ],
+    "runTextIngestionPipeline": [
+      "ingestion.worker.ts"
+    ],
+    "runIngestionPipeline": [
+      "ingestion.worker.ts"
+    ],
+    "connectDB": [
+      "ingestion.worker.ts",
+      "db.ts",
+      "context-builder.service.ts"
+    ],
+    "findOne": [
+      "ingestion.worker.ts"
+    ],
+    "add": [
+      "ingestion.worker.ts",
+      "url.source.ts"
+    ],
+    "runPipeline": [
+      "reply.worker.ts"
+    ],
+    "publish": [
+      "reply.queue.ts"
+    ],
+    "stringify": [
+      "reply.queue.ts",
+      "qdrant.service.ts",
+      "gemini.embedding.ts",
+      "rewrite-and-think.tool.ts",
+      "web-crawl.tool.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "randomUUID": [
+      "reply.queue.ts"
+    ],
+    "collectionExists": [
+      "qdrant.service.ts"
+    ],
+    "getCollection": [
+      "qdrant.service.ts"
+    ],
+    "warn": [
+      "qdrant.service.ts",
+      "context-builder.service.ts",
+      "url.source.ts"
+    ],
+    "deleteCollection": [
+      "qdrant.service.ts"
+    ],
+    "createCollection": [
+      "qdrant.service.ts"
+    ],
+    "createPayloadIndex": [
+      "qdrant.service.ts"
+    ],
+    "upsert": [
+      "qdrant.service.ts",
+      "process-ingestion.ts"
+    ],
+    "map": [
+      "qdrant.service.ts",
+      "gemini.provider.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "substring": [
+      "qdrant.service.ts",
+      "gemini.embedding.ts"
+    ],
+    "search": [
+      "qdrant.service.ts",
+      "context-builder.service.ts"
+    ],
+    "forEach": [
+      "qdrant.service.ts",
+      "context-builder.service.ts"
+    ],
+    "slice": [
+      "qdrant.service.ts",
+      "web-crawl.tool.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts",
+      "loader.ts",
+      "chunker.ts"
+    ],
+    "toFixed": [
+      "qdrant.service.ts",
+      "context-builder.service.ts"
+    ],
+    "delete": [
+      "qdrant.service.ts"
+    ],
+    "connect": [
+      "db.ts"
+    ],
+    "model": [
+      "db.ts"
+    ],
+    "findOneAndUpdate": [
+      "db.ts"
+    ],
+    "embedContent": [
+      "gemini.embedding.ts"
+    ],
+    "isArray": [
+      "gemini.embedding.ts"
+    ],
+    "set": [
+      "index.ts"
+    ],
+    "get": [
+      "index.ts",
+      "url.source.ts"
+    ],
+    "join": [
+      "index.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "keys": [
+      "index.ts"
+    ],
+    "registerEmbeddingProvider": [
+      "index.ts"
+    ],
+    "find": [
+      "gemini.provider.ts",
+      "context-builder.service.ts"
+    ],
+    "filter": [
+      "gemini.provider.ts"
+    ],
+    "parse": [
+      "gemini.provider.ts"
+    ],
+    "entries": [
+      "gemini.provider.ts"
+    ],
+    "toUpperCase": [
+      "gemini.provider.ts"
+    ],
+    "String": [
+      "gemini.provider.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "generateContentStream": [
+      "gemini.provider.ts"
+    ],
+    "onStream": [
+      "gemini.provider.ts"
+    ],
+    "push": [
+      "gemini.provider.ts",
+      "context-builder.service.ts",
+      "process-ingestion.ts",
+      "loader.ts",
+      "url.source.ts",
+      "chunker.ts"
+    ],
+    "generateContent": [
+      "gemini.provider.ts"
+    ],
+    "execute": [
+      "gemini.provider.ts"
+    ],
+    "getProvider": [
+      "index.ts"
+    ],
+    "registerProvider": [
+      "index.ts"
+    ],
+    "values": [
+      "index.ts"
+    ],
+    "registerTool": [
+      "index.ts"
+    ],
+    "fetch": [
+      "web-crawl.tool.ts"
+    ],
+    "text": [
+      "web-crawl.tool.ts",
+      "url.source.ts"
+    ],
+    "trim": [
+      "web-crawl.tool.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "text.pipeline.ts",
+      "content-stream.ts",
+      "process-ingestion.ts",
+      "loader.ts",
+      "url.source.ts",
+      "chunker.ts"
+    ],
+    "replace": [
+      "web-crawl.tool.ts",
+      "chat.service.ts",
+      "context-builder.service.ts",
+      "url.source.ts",
+      "chunker.ts"
+    ],
+    "buildContext": [
+      "chat.service.ts"
+    ],
+    "getDefaultProvider": [
+      "chat.service.ts"
+    ],
+    "generate": [
+      "chat.service.ts"
+    ],
+    "getAllTools": [
+      "chat.service.ts"
+    ],
+    "catch": [
+      "chat.service.ts"
+    ],
+    "publishStreamChunk": [
+      "chat.service.ts"
+    ],
+    "publishResponse": [
+      "chat.service.ts"
+    ],
+    "match": [
+      "chat.service.ts"
+    ],
+    "stripSentinel": [
+      "chat.service.ts"
+    ],
+    "publishResolution": [
+      "chat.service.ts"
+    ],
+    "publishEscalation": [
+      "chat.service.ts"
+    ],
+    "buildSystemPrompt": [
+      "context-builder.service.ts"
+    ],
+    "getEmbeddingProvider": [
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "embed": [
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "includes": [
+      "context-builder.service.ts",
+      "url.source.ts"
+    ],
+    "ensureCollection": [
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "lean": [
+      "context-builder.service.ts"
+    ],
+    "limit": [
+      "context-builder.service.ts",
+      "process-ingestion.ts"
+    ],
+    "sort": [
+      "context-builder.service.ts"
+    ],
+    "reverse": [
+      "context-builder.service.ts"
+    ],
+    "padEnd": [
+      "context-builder.service.ts"
+    ],
+    "setDocStatus": [
+      "file.pipeline.ts",
+      "text.pipeline.ts",
+      "url.pipeline.ts"
+    ],
+    "processIngestion": [
+      "file.pipeline.ts",
+      "text.pipeline.ts",
+      "url.pipeline.ts"
+    ],
+    "loadDocumentStream": [
+      "file.pipeline.ts"
+    ],
+    "streamFromText": [
+      "text.pipeline.ts"
+    ],
+    "streamFromCrawl": [
+      "url.pipeline.ts"
+    ],
+    "streamFromSingleUrl": [
+      "url.pipeline.ts"
+    ],
+    "fetchSinglePage": [
+      "content-stream.ts"
+    ],
+    "streamFromPages": [
+      "content-stream.ts"
+    ],
+    "crawlPages": [
+      "content-stream.ts"
+    ],
+    "toISOString": [
+      "process-ingestion.ts"
+    ],
+    "setTimeout": [
+      "process-ingestion.ts"
+    ],
+    "digest": [
+      "process-ingestion.ts"
+    ],
+    "update": [
+      "process-ingestion.ts"
+    ],
+    "createHash": [
+      "process-ingestion.ts"
+    ],
+    "split": [
+      "process-ingestion.ts",
+      "url.source.ts"
+    ],
+    "floor": [
+      "process-ingestion.ts"
+    ],
+    "random": [
+      "process-ingestion.ts"
+    ],
+    "logEvent": [
+      "process-ingestion.ts"
+    ],
+    "wait": [
+      "process-ingestion.ts"
+    ],
+    "now": [
+      "process-ingestion.ts"
+    ],
+    "pLimit": [
+      "process-ingestion.ts"
+    ],
+    "max": [
+      "process-ingestion.ts",
+      "chunker.ts"
+    ],
+    "allSettled": [
+      "process-ingestion.ts"
+    ],
+    "embedWithRetry": [
+      "process-ingestion.ts"
+    ],
+    "chunkText": [
+      "process-ingestion.ts"
+    ],
+    "generateDeterministicChunkId": [
+      "process-ingestion.ts"
+    ],
+    "flush": [
+      "process-ingestion.ts"
+    ],
+    "getObject": [
+      "loader.ts"
+    ],
+    "from": [
+      "loader.ts"
+    ],
+    "resolve": [
+      "loader.ts"
+    ],
+    "concat": [
+      "loader.ts"
+    ],
+    "fetchBuffer": [
+      "loader.ts"
+    ],
+    "pdfParse": [
+      "loader.ts"
+    ],
+    "extractRawText": [
+      "loader.ts"
+    ],
+    "toString": [
+      "loader.ts",
+      "url.source.ts"
+    ],
+    "getObjectStream": [
+      "loader.ts"
+    ],
+    "write": [
+      "loader.ts"
+    ],
+    "end": [
+      "loader.ts"
+    ],
+    "streamPlainTextFromMinio": [
+      "loader.ts"
+    ],
+    "loadDocument": [
+      "loader.ts"
+    ],
+    "toLowerCase": [
+      "url.source.ts"
+    ],
+    "pop": [
+      "url.source.ts"
+    ],
+    "has": [
+      "url.source.ts"
+    ],
+    "load": [
+      "url.source.ts"
+    ],
+    "remove": [
+      "url.source.ts"
+    ],
+    "$": [
+      "url.source.ts"
+    ],
+    "each": [
+      "url.source.ts"
+    ],
+    "attr": [
+      "url.source.ts"
+    ],
+    "startsWith": [
+      "url.source.ts"
+    ],
+    "isStaticAssetUrl": [
+      "url.source.ts"
+    ],
+    "getPage": [
+      "url.source.ts"
+    ],
+    "htmlToText": [
+      "url.source.ts"
+    ],
+    "shift": [
+      "url.source.ts"
+    ],
+    "extractLinks": [
+      "url.source.ts"
+    ],
+    "min": [
+      "chunker.ts"
+    ],
+    "findBreakPoint": [
+      "chunker.ts"
+    ]
+  },
+  "unused": [
+    {
+      "name": "getTool",
+      "params": [
+        "name"
+      ],
+      "file": "index.ts",
+      "type": "function"
+    }
+  ],
+  "files": [
+    "src/index.ts",
+    "src/config/index.ts",
+    "src/workers/ingestion.worker.ts",
+    "src/workers/reply.worker.ts",
+    "src/infrastructure/queue/reply.queue.ts",
+    "src/infrastructure/vector/index.ts",
+    "src/infrastructure/vector/qdrant.service.ts",
+    "src/infrastructure/vector/vector.types.ts",
+    "src/modules/agents/agent.types.ts",
+    "src/modules/agents/index.ts",
+    "src/modules/chat/chat.types.ts",
+    "src/modules/chat/index.ts",
+    "src/modules/ingestion/index.ts",
+    "src/modules/ingestion/ingestion.types.ts",
+    "src/shared/db/db.ts",
+    "src/shared/utils/redis.ts",
+    "src/infrastructure/providers/embedding/gemini.embedding.ts",
+    "src/infrastructure/providers/embedding/index.ts",
+    "src/infrastructure/providers/embedding/types.ts",
+    "src/infrastructure/providers/llm/gemini.provider.ts",
+    "src/infrastructure/providers/llm/index.ts",
+    "src/infrastructure/providers/llm/types.ts",
+    "src/modules/agents/tools/index.ts",
+    "src/modules/agents/tools/rewrite-and-think.tool.ts",
+    "src/modules/agents/tools/web-crawl.tool.ts",
+    "src/modules/chat/pipelines/rag.pipeline.ts",
+    "src/modules/chat/pipelines/reply.pipeline.ts",
+    "src/modules/chat/services/chat.service.ts",
+    "src/modules/chat/services/context-builder.service.ts",
+    "src/modules/ingestion/pipelines/file.pipeline.ts",
+    "src/modules/ingestion/pipelines/text.pipeline.ts",
+    "src/modules/ingestion/pipelines/url.pipeline.ts",
+    "src/modules/ingestion/services/content-stream.ts",
+    "src/modules/ingestion/services/process-ingestion.ts",
+    "src/modules/ingestion/sources/loader.ts",
+    "src/modules/ingestion/sources/url.source.ts",
+    "src/modules/ingestion/utils/chunker.ts"
+  ]
+}

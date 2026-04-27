@@ -3,10 +3,12 @@ export interface DocumentJob {
   organizationId: string;
   /** MongoDB ObjectId of the knowledge document record */
   documentId: string;
+  /** Monotonic document version used for latest-write-wins behavior */
+  version?: number;
   /** "ingest" (default) | "delete-vectors" — if delete-vectors, only documentId is needed */
   jobType?: "ingest" | "delete-vectors";
   /** Source type — drives which ingestion path is taken */
-  source: "pdf" | "docx" | "text" | "url";
+  source: "pdf" | "docx" | "text" | "table" | "url";
   /** MinIO object key — populated for pdf/docx, empty string for text/url */
   fileKey: string;
   /** MIME type — drives which loader is used */

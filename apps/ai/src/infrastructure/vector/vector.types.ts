@@ -31,7 +31,7 @@ export interface VectorStore {
   /** Semantic search — returns top-K results filtered by organizationId */
   search(
     vector: number[],
-    options: { organizationId: string; topK?: number },
+    options: { organizationId: string; documentId?: string; topK?: number },
   ): Promise<VectorSearchResult[]>;
 
   /** Remove all vectors belonging to a specific document */

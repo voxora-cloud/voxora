@@ -5,7 +5,7 @@ import { runIngestionPipeline } from "../modules/ingestion/pipelines/file.pipeli
 import { runUrlIngestionPipeline } from "../modules/ingestion/pipelines/url.pipeline";
 import { runTextIngestionPipeline } from "../modules/ingestion/pipelines/text.pipeline";
 import { vectorStore } from "../infrastructure/vector";
-import { connectDB, KnowledgeModel } from "../shared/db/db";
+import { buildKnowledgeLookupFilter, connectDB, KnowledgeModel } from "../shared/db/db";
 
 export const INGESTION_QUEUE = "document-ingestion";
 
@@ -49,12 +49,36 @@ export function startIngestionWorker() {
         return;
       }
 
+      await connectDB();
+      const currentDoc = await (KnowledgeModel as any).findOne(
+        buildKnowledgeLookupFilter(job.data.documentId),
+        { version: 1 },
+      );
+
+      if (!currentDoc) {
+        console.log(
+          `[Ingestion Worker] Document missing, skipping job ${job.id} for documentId=${job.data.documentId}`,
+        );
+        return;
+      }
+
+      const jobVersion = job.data.version ?? 1;
+      const currentVersion =
+        typeof currentDoc.version === "number" ? currentDoc.version : 1;
+
+      if (jobVersion < currentVersion) {
+        console.log(
+          `[Ingestion Worker] Skipping stale job ${job.id} for documentId=${job.data.documentId} (jobVersion=${jobVersion}, currentVersion=${currentVersion})`,
+        );
+        return;
+      }
+
       if (source === "url") {
         await runUrlIngestionPipeline(job.data);
         return;
       }
 
-      if (source === "text") {
+      if (source === "text" || source === "table") {
         await runTextIngestionPipeline(job.data);
         return;
       }
@@ -83,11 +107,8 @@ export function startIngestionWorker() {
         // the source while a crawl was already in flight.
         await connectDB();
         const doc = await (KnowledgeModel as any).findOne(
-          {
-            _id: job.data.documentId,
-            organizationId: job.data.organizationId,
-          },
-          { isPaused: 1 },
+          buildKnowledgeLookupFilter(job.data.documentId),
+          { isPaused: 1, version: 1 },
         );
 
         // Document was deleted — skip re-scheduling
@@ -106,7 +127,18 @@ export function startIngestionWorker() {
           return;
         }
 
-        await ingestionQueue.add("ingest", job.data, { delay });
+        const latestVersion =
+          typeof doc.version === "number" ? doc.version : job.data.version ?? 1;
+
+        await ingestionQueue.add(
+          "ingest",
+          { ...job.data, version: latestVersion },
+          {
+            delay,
+            jobId: job.data.documentId,
+            removeOnComplete: true,
+          },
+        );
         console.log(
           `[Ingestion Worker] Re-crawl scheduled in ${delay / 60_000} min for ${job.data.sourceUrl}`,
         );

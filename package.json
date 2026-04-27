@@ -23,6 +23,7 @@
   },
   "packageManager": "pnpm@9.15.0",
   "dependencies": {
+    "@ompharate/better-context": "^1.0.0",
     "zod": "^4.3.6"
   }
 }

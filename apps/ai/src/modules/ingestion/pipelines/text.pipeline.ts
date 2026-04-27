@@ -1,7 +1,42 @@
 import { DocumentJob } from "../ingestion.types";
-import { streamFromText } from "../services/content-stream";
+import { ContentStreamItem, streamFromText } from "../services/content-stream";
 import { processIngestion } from "../services/process-ingestion";
 import { setDocStatus } from "../../../shared/db/db";
+
+export interface KnowledgeTableData {
+  columns: string[];
+  rows: string[][];
+}
+
+export async function* tableJsonToItems(
+  table: KnowledgeTableData,
+  documentId: string,
+  baseMetadata: Record<string, unknown>
+): AsyncGenerator<ContentStreamItem> {
+  const { columns, rows } = table;
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex];
+    const rowData: Record<string, string> = {};
+
+    let text = "";
+    for (let i = 0; i < columns.length; i += 1) {
+      const col = columns[i];
+      const value = row[i] ?? "";
+      rowData[col] = value;
+
+      if (text.length > 0) {
+        text += " and ";
+      }
+      text += `${col} is ${value}`.trim();
+    }
+
+    yield {
+      sourceRef: `table:${documentId}:row:${rowIndex}`,
+      text: `${text}.`,
+      metadata: { ...baseMetadata, documentId, rowIndex, rowData, sourceType: "table" }
+    };
+  }
+}
 
 /**
  * Plain-text ingestion pipeline:
@@ -18,6 +53,7 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
     content = "",
     fileName,
     metadata = {},
+    source,
   } = job;
 
   if (!content.trim()) {
@@ -28,6 +64,26 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
     return;
   }
 
+  let contentStream: AsyncGenerator<ContentStreamItem>;
+
+  if (source === "table") {
+    try {
+      const tableData = JSON.parse(content) as KnowledgeTableData;
+      contentStream = tableJsonToItems(tableData, documentId, metadata);
+    } catch (err: any) {
+      await setDocStatus(organizationId, documentId, {
+        status: "failed",
+        errorMessage: "Failed to parse table JSON content",
+      });
+      return;
+    }
+  } else {
+    contentStream = streamFromText(content, `text:${documentId}`, {
+      ...metadata,
+      sourceType: source,
+    });
+  }
+
   await setDocStatus(organizationId, documentId, { status: "indexing" });
   console.log(`[Text Ingestion] Starting: ${fileName}`);
 
@@ -35,12 +91,11 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
     const result = await processIngestion({
       organizationId,
       documentId,
+      sourceType: source,
       fileName,
       fileKey: "",
       metadata,
-      contentStream: streamFromText(content, `text:${documentId}`, {
-        sourceType: "text",
-      }),
+      contentStream,
     });
 
     await setDocStatus(organizationId, documentId, {

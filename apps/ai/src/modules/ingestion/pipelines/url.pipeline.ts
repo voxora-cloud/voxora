@@ -43,6 +43,7 @@ export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
     const result = await processIngestion({
       organizationId,
       documentId,
+      sourceType: job.source,
       fileName,
       fileKey: "",
       metadata: {
