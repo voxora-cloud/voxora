@@ -8,7 +8,7 @@
   </a>
 </p>
 
-<h3 align="center">Voxora</h3>
+<h3 align="center">InteraOne</h3>
 
 <p align="center">
   Open Source End-to-End Customer Support Automation
@@ -28,6 +28,8 @@
 🔄 From initial touchpoint to resolution, every interaction is handled seamlessly. </br>
 ⚙️ Designed to be flexible, scalable, and effortlessly integrable.
 <hr/>
+
+<img width="1536" height="1024" alt="architecture" src="https://github.com/user-attachments/assets/a3761df4-a295-4963-9d10-77322fb9a072" />
 
 
 ## 🚀 Quick One Click Dev Setup
@@ -69,22 +71,22 @@ make all
 
 ## ❤️ Contributors
 
-Thanks to these amazing people who are building Voxora! 🚀
+Thanks to these amazing people who are building InteraOne! 🚀
 
-<a href="https://github.com/voxora-cloud/voxora/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=voxora-cloud/voxora" />
+<a href="https://github.com/interaone/interaone/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=interaone/interaone" />
 </a>
 
 
 
 ## 📝 License
 
-This project is licensed under the **Voxora Custom License v1.0**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **InteraOne Custom License v1.0**. See the [LICENSE](LICENSE) file for details.
 
 
 
 ## 🌟 Star Us!
 
-If you find Voxora useful, please consider giving us a star on GitHub! It helps us grow and improve the project.
+If you find InteraOne useful, please consider giving us a star on GitHub! It helps us grow and improve the project.
 
-<p align="center">Made with ❤️ by the Voxora team</p>
+<p align="center">Made with ❤️ by the InteraOne team</p>
