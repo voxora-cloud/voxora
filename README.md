@@ -19,16 +19,15 @@
 </p>
 
 
-## ✨ About Voxora
+## ✨ About InteraOne
 
 <!-- <img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/7060ece4-0308-4b94-9d47-9f1655244a6e" /> -->
-<img width="1895" height="969" alt="Voxora Customer Support Platform" src="https://github.com/user-attachments/assets/3e57f32b-61bd-405d-a216-8b0b186fdeb7"/>
+<img width="1536" height="1024" alt="ChatGPT Image Apr 27, 2026, 09_46_02 AM" src="https://github.com/user-attachments/assets/5766832d-8482-4db9-bbd0-130f4b3f32b0" />
 <hr/>
-✨ Voxora is an open-source platform built to automate the entire customer support lifecycle. <br/>
+✨ InteraOne is an open-source platform built to automate the entire customer support lifecycle. <br/>
 🔄 From initial touchpoint to resolution, every interaction is handled seamlessly. </br>
 ⚙️ Designed to be flexible, scalable, and effortlessly integrable.
 <hr/>
-<img width="2816" height="1536" alt="Gemini_Generated_Image_hgtt3ehgtt3ehgtt" src="https://github.com/user-attachments/assets/6f673d85-a16a-45e8-9f13-ae762abad771" />
 
 
 ## 🚀 Quick One Click Dev Setup
