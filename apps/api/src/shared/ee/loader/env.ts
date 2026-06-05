@@ -1,4 +1,4 @@
-import { InteraOneMode } from "./policy";
+import { InteraOneMode } from "../licensing/policy";
 
 const DEFAULT_MODE: InteraOneMode = "self-host";
 
@@ -13,16 +13,8 @@ export const getInteraOneMode = (): InteraOneMode => {
 
 /**
  * Returns `true` when the Enterprise Edition feature set should be active.
- *
- * Rules:
- * - Cloud mode: requires `INTERAONE_EE_ENABLED=true`.
- * - Self-host mode: requires a valid `INTERAONE_LICENSE_KEY` (must start with `interaone_`).
+ * Since the /ee directory is present, it is always active.
  */
 export const isEeEnabledByEnv = (): boolean => {
-  const mode = getInteraOneMode();
-  if (mode === "cloud") {
-    return (process.env.INTERAONE_EE_ENABLED || "false").toLowerCase() === "true";
-  }
-  const licenseKey = process.env.INTERAONE_LICENSE_KEY;
-  return !!licenseKey && licenseKey.startsWith("interaone_");
+  return true;
 };

@@ -353,6 +353,7 @@ EOF
 
 NODE_ENV=production
 PORT=3002
+INTERAONE_MODE=self-host
 
 # MongoDB (service hostname: mongodb)
 MONGODB_URI=mongodb://admin:$MONGO_PASSWORD@mongodb:27017/interaone?authSource=admin
@@ -379,15 +380,17 @@ MINIO_BUCKET_NAME=interaone-chat
 
 # CORS
 CLIENT_URL=https://$WEB_HOST
-ALLOWED_ORIGINS=https://$WEB_HOST,https://$API_HOST
+ALLOWED_ORIGINS=https://$WEB_HOST,https://$API_HOST,https://$CDN_HOST
 
-# Email (configure your SMTP)
-EMAIL_HOST=smtp.example.com
-EMAIL_PORT=587
-EMAIL_SECURE=true
-EMAIL_USER=your-email@example.com
-EMAIL_PASS=your-email-password
-EMAIL_FROM=noreply@InteraOne.cloud
+# Rate limiting
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=1000
+
+# Email
+EMAIL_PROVIDER=$EMAIL_PROVIDER
+EMAIL_FROM_NAME=InteraOne
+EMAIL_FROM_EMAIL=noreply@interaone.app
+RESEND_API_KEY=$RESEND_API_KEY
 EOF
     
     # apps/web/.env.docker
@@ -402,9 +405,6 @@ VITE_SOCKET_URL=https://$API_HOST
 VITE_WIDGET_URL=https://$CDN_HOST/interaone-widget/v1/InteraOne.js?v=2
 VITE_PUBLIC_ENV=production
 VITE_INTERAONE_MODE=self-host
-VITE_INTERAONE_EE_ENABLED=false
-VITE_INTERAONE_EE_MODULE_PRESENT=true
-VITE_INTERAONE_LICENSE_KEY=
 EOF
     
     # apps/widget/.env.docker
@@ -442,6 +442,9 @@ REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
 
+# API (internal service hostname)
+API_URL=http://api:3002/api/v1
+
 # MinIO (service hostname: minio)
 MINIO_ENDPOINT=minio
 MINIO_PORT=9001
@@ -453,10 +456,10 @@ MINIO_BUCKET_NAME=interaone-chat
 # Qdrant (service hostname: qdrant)
 QDRANT_URL=http://qdrant:6333
 
-# LLM Provider (Gemini recommended, configure API key below)
+# LLM Provider
+LLM_PROVIDER=gemini
 GEMINI_API_KEY=$GEMINI_API_KEY
 GEMINI_MODEL=gemini-2.5-flash
-LLM_PROVIDER=gemini
 
 # Embeddings
 EMBEDDING_PROVIDER=gemini
@@ -469,6 +472,9 @@ CHAT_HISTORY_LIMIT=20
 # Workers
 WORKER_CONCURRENCY=5
 INGESTION_CONCURRENCY=2
+
+# Tool auth (shared secret between api and ai services)
+AI_TOOL_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
 EOF
     fi
     
@@ -490,7 +496,7 @@ REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
 
-# Email provider
+# Email provider: resend | disabled
 EMAIL_PROVIDER=$EMAIL_PROVIDER
 
 # Resend (used when EMAIL_PROVIDER=resend)
@@ -500,6 +506,7 @@ RESEND_API_KEY=$RESEND_API_KEY
 EMAIL_FROM_NAME=InteraOne
 EMAIL_FROM_EMAIL=noreply@interaone.app
 
+# Worker tuning
 WORKER_CONCURRENCY=5
 EOF
     fi

@@ -10,7 +10,7 @@
  */
 function resolveProductId(targetPlan) {
   if (targetPlan === "proplus") {
-    return process.env.DODO_PAYMENTS_PRODUCT_PROPLUS || process.env.DODO_PAYMENTS_PRODUCT_ENTERPRISE;
+    return process.env.DODO_PAYMENTS_PRODUCT_PROPLUS;
   }
   if (targetPlan === "pro") {
     return process.env.DODO_PAYMENTS_PRODUCT_PRO;

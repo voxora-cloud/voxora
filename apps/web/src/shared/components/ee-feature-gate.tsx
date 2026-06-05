@@ -7,7 +7,6 @@ import {
   getRequiredPlan,
   getInteraOneMode,
   isEeEnabledByEnv,
-  isEeModulePresent,
 } from "@/shared/ee";
 import type { EeFeature } from "@/shared/ee";
 
@@ -25,15 +24,12 @@ export function EeFeatureGate({ feature, children }: EeFeatureGateProps) {
   const requiredPlan = getRequiredPlan(feature);
   const currentPlan = getCurrentPlan();
   const enabledByEnv = isEeEnabledByEnv();
-  const modulePresent = isEeModulePresent();
 
   let reason = "Upgrade your plan to unlock this feature.";
-  if (mode === "self-host" && !enabledByEnv) {
-    reason = "Valid Enterprise License Key is missing. Contact sales to get a key.";
+  if (mode === "self-host") {
+    reason = "Enterprise features are not supported on self-hosted instances.";
   } else if (!enabledByEnv) {
     reason = "Enterprise features are disabled by environment configuration.";
-  } else if (!modulePresent) {
-    reason = "Enterprise module is not present in this deployment.";
   }
 
   return (

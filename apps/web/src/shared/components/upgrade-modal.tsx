@@ -3,7 +3,7 @@ import { X, Zap } from "lucide-react";
 import { Link } from "react-router";
 import { Button } from "@/shared/ui/button";
 import { authApi } from "@/domains/auth/api/auth.api";
-import { getInteraOneMode, isEeEnabledByEnv, isEeModulePresent } from "@/shared/ee";
+import { getInteraOneMode, isEeEnabledByEnv } from "@/shared/ee";
 
 interface LimitReachedPayload {
   limitType: string;
@@ -29,7 +29,7 @@ const LIMIT_LABELS: Record<string, string> = {
 
 export function UpgradeModal({ payload, onClose }: UpgradeModalProps) {
   const billingVisible =
-    getInteraOneMode() === "cloud" && isEeEnabledByEnv() && isEeModulePresent();
+    getInteraOneMode() === "cloud" && isEeEnabledByEnv();
   const role = authApi.getOrgRole();
 
   const label = LIMIT_LABELS[payload.limitType] ?? payload.limitType;
@@ -76,7 +76,7 @@ export function UpgradeModal({ payload, onClose }: UpgradeModalProps) {
 
         <div className="mt-5 flex flex-col gap-2">
           {billingVisible && role === "owner" ? (
-            <Link to="/dashboard/settings/billing" onClick={onClose} className="w-full">
+            <Link to="/dashboard/settings/billing/plans" onClick={onClose} className="w-full">
               <Button className="w-full" size="sm">
                 <Zap className="mr-1.5 h-3.5 w-3.5" />
                 Upgrade plan

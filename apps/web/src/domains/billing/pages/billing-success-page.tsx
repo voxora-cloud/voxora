@@ -9,7 +9,7 @@ import { useAuthStore } from "@/domains/auth/store/auth.store";
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLLS = 20; // 60 seconds
 
-type PlanTier = "free" | "pro" | "proplus" | "enterprise";
+type PlanTier = "free" | "pro" | "proplus";
 
 interface EntitlementsResponse {
   success: boolean;
@@ -25,13 +25,14 @@ export function BillingSuccessPage() {
   );
   const pollCount = useRef(0);
 
-  const [status, setStatus] = useState<"polling" | "confirmed" | "timeout">("polling");
+  const [status, setStatus] = useState<"polling" | "confirmed" | "timeout">(() =>
+    authApi.getActiveOrgId() ? "polling" : "timeout",
+  );
   const [newPlan, setNewPlan] = useState<PlanTier | null>(null);
 
   useEffect(() => {
     const orgId = authApi.getActiveOrgId();
     if (!orgId) {
-      setStatus("timeout");
       return;
     }
 
@@ -72,7 +73,6 @@ export function BillingSuccessPage() {
     free: "Free",
     pro: "Pro",
     proplus: "Pro+",
-    enterprise: "Enterprise",
   };
 
   return (
@@ -150,7 +150,7 @@ export function BillingSuccessPage() {
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Button>
             </Link>
-            <Link to="/dashboard/settings/billing" className="flex-1">
+            <Link to="/dashboard/settings/billing/plans" className="flex-1">
               <Button variant="outline" className="w-full cursor-pointer">
                 View Billing
               </Button>

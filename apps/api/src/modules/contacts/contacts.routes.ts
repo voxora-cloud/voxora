@@ -3,7 +3,6 @@ import {
 	authenticate,
 	resolveOrganization,
 	requireRole,
-	requireEeFeature,
 	validateRequest,
 	validateAiSecret,
 } from "@shared/security/middleware";
@@ -32,7 +31,6 @@ router.post(
 
 router.use(authenticate);
 router.use(resolveOrganization);
-router.use(requireEeFeature("contacts"));
 
 router.get(
 	"/",

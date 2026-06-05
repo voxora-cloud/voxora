@@ -3,7 +3,7 @@ import { EE_FEATURE_POLICY, PLAN_WEIGHT } from "./policy";
 import type { EeFeature, PlanTier, InteraOneMode } from "./policy";
 export type { EeFeature, PlanTier, InteraOneMode } from "./policy";
 
-const env = (import.meta as any).env || {};
+const env = import.meta.env || {};
 
 export const getInteraOneMode = (): InteraOneMode => {
   const raw = (env.VITE_INTERAONE_MODE || env.INTERAONE_MODE || "self-host").toLowerCase();
@@ -11,21 +11,12 @@ export const getInteraOneMode = (): InteraOneMode => {
 };
 
 export const isEeEnabledByEnv = (): boolean => {
-  const mode = getInteraOneMode();
-  if (mode === "cloud") return true;
-  const licenseKey = String(env.VITE_INTERAONE_LICENSE_KEY || env.INTERAONE_LICENSE_KEY || "");
-  if (licenseKey.startsWith("interaone_")) return true;
-  return false;
-};
-
-export const isEeModulePresent = (): boolean => {
-  const raw = String(env.VITE_INTERAONE_EE_MODULE_PRESENT || "true").toLowerCase();
-  return raw !== "false";
+  return true;
 };
 
 export const normalizePlan = (plan?: string | null): PlanTier => {
   const normalized = (plan || "").toLowerCase();
-  if (normalized === "pro" || normalized === "proplus" || normalized === "enterprise") return normalized;
+  if (normalized === "pro" || normalized === "proplus") return normalized;
   return "free";
 };
 
@@ -41,7 +32,7 @@ export const isFeatureEnabledForMode = (feature: EeFeature): boolean => {
 
 export const canAccessEeFeature = (feature: EeFeature): boolean => {
   if (!isFeatureEnabledForMode(feature)) return false;
-  if (!isEeEnabledByEnv() || !isEeModulePresent()) return false;
+  if (!isEeEnabledByEnv()) return false;
 
   const current = getCurrentPlan();
   return PLAN_WEIGHT[current] >= PLAN_WEIGHT[getRequiredPlan(feature)];

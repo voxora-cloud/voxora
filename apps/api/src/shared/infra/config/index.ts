@@ -8,8 +8,6 @@ interface Config {
     env: string;
     clientUrl: string;
     mode: "cloud" | "self-host";
-    eeEnabled: boolean;
-    licenseKey?: string;
   };
   database: {
     mongoUri: string;
@@ -131,8 +129,6 @@ const config: Config = {
           })()
         : "http://localhost:5173"),
     mode: (process.env.INTERAONE_MODE || "self-host") === "cloud" ? "cloud" : "self-host",
-    eeEnabled: (process.env.INTERAONE_EE_ENABLED || "false") === "true",
-    licenseKey: process.env.INTERAONE_LICENSE_KEY,
   },
   database: {
     mongoUri: process.env.MONGODB_URI!,

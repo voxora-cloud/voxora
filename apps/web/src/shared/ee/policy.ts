@@ -1,12 +1,11 @@
 export type InteraOneMode = "cloud" | "self-host";
-export type PlanTier = "free" | "pro" | "proplus" | "enterprise";
-export type EeFeature = "billing" | "contacts" | "white-label";
+export type PlanTier = "free" | "pro" | "proplus";
+export type EeFeature = "billing" | "white-label";
 
 export const PLAN_WEIGHT: Record<PlanTier, number> = {
   free: 1,
   pro: 2,
   proplus: 3,
-  enterprise: 4,
 };
 
 export const EE_FEATURE_POLICY: Record<
@@ -20,12 +19,8 @@ export const EE_FEATURE_POLICY: Record<
     requiredPlan: "free",
     enabledModes: ["cloud"],
   },
-  contacts: {
-    requiredPlan: "free",
-    enabledModes: ["cloud"],
-  },
   "white-label": {
-    requiredPlan: "enterprise",
+    requiredPlan: "proplus",
     enabledModes: ["cloud"],
   },
 };
