@@ -8,6 +8,7 @@
     "ignoreDeprecations": "5.0",
     "paths": {
       "@shared/*": ["shared/*"],
+      "@shared/ee/*": ["shared/ee/*"],
       "@shared/ee": ["shared/ee/index.ts"],
       "@modules/*": ["modules/*"],
       "@sockets/*": ["sockets/*"]
