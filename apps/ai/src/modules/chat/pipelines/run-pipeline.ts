@@ -6,14 +6,21 @@ import { AIJobData } from "../chat.types";
 import { getTool, getToolsForContext } from "../../agents/tools";
 import { getConversationGate } from "../../../infrastructure/cache";
 import { publishStreamWithSeq } from "../services/stream.service";
+import { searchFaqFastPathAnswer } from "../services/faq-fast-path.service";
 
-function shouldSkipConversation(gate: {
-  status?: string;
-  assignedTo?: string | null;
-  metadata?: { escalatedAt?: string | null; humanJoinedAt?: string | null };
-} | null): boolean {
+function shouldSkipConversation(
+  gate: {
+    status?: string;
+    assignedTo?: string | null;
+    metadata?: { escalatedAt?: string | null; humanJoinedAt?: string | null };
+  } | null,
+): boolean {
   if (!gate) return false;
-  if (gate.metadata?.escalatedAt || gate.metadata?.humanJoinedAt || gate.assignedTo) {
+  if (
+    gate.metadata?.escalatedAt ||
+    gate.metadata?.humanJoinedAt ||
+    gate.assignedTo
+  ) {
     return true;
   }
   return ["active", "resolved", "closed"].includes(gate.status || "");
@@ -22,10 +29,6 @@ function shouldSkipConversation(gate: {
 function exactOtpCode(content: string): string | null {
   const normalized = content.trim().replace(/\s/g, "");
   return /^\d{6}$/.test(normalized) ? normalized : null;
-}
-
-function redactOtpForLog(content: string): string {
-  return content.replace(/\b\d{6}\b/g, "[6-digit verification code]");
 }
 
 export async function runPipeline(job: AIJobData): Promise<void> {
@@ -39,39 +42,76 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     return;
   }
 
-  console.log(`\n[Pipeline] --- NEW JOB ----------------------------------------`);
+  console.log(
+    `\n[Pipeline] --- NEW JOB ----------------------------------------`,
+  );
   console.log(`[Pipeline] conversationId : ${conversationId}`);
   console.log(`[Pipeline] messageId      : ${job.messageId}`);
   console.log(`[Pipeline] organizationId : ${job.organizationId}`);
   console.log(`[Pipeline] fallbackToAgent: ${job.fallbackToAgent ?? true}`);
-  console.log(`[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`);
-  console.log(`[Pipeline] content        : ${redactOtpForLog(content).slice(0, 120).replace(/\n/g, " ")}`);
+  console.log(
+    `[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`,
+  );
+  console.log(`[Pipeline] messageLength  : ${content.length} chars`);
+
+  const faqFastPath = await searchFaqFastPathAnswer({
+    organizationId: job.organizationId,
+    message: content,
+  });
+  if (faqFastPath) {
+    console.log(
+      `[Pipeline] FAQ fast-path hit with score=${faqFastPath.score.toFixed(4)}`,
+    );
+    await publishResponse({
+      conversationId,
+      content: faqFastPath.answer,
+      answeredBy: "faq",
+      tokensUsed: 0,
+    });
+    return;
+  }
 
   let verifiedIdentityEmail: string | null = null;
   const otpCode = exactOtpCode(content);
   if (otpCode) {
     const verifyTool = getTool("verify_email_otp");
     const verification = verifyTool
-      ? (await verifyTool.execute(
+      ? ((await verifyTool.execute(
           { code: otpCode },
           {
             organizationId: job.organizationId,
             conversationId: job.conversationId,
             messageId: job.messageId,
           },
-        )) as { status?: string; verified?: boolean; email?: string | null; message?: string }
-      : { status: "error", verified: false, message: "OTP verifier is unavailable" };
+        )) as {
+          status?: string;
+          verified?: boolean;
+          email?: string | null;
+          message?: string;
+        })
+      : {
+          status: "error",
+          verified: false,
+          message: "OTP verifier is unavailable",
+        };
 
     if (verification.verified === true) {
       verifiedIdentityEmail = verification.email || null;
     } else if (verification.message !== "No active verification code found") {
-      let reply = "That verification code did not match. Please check the latest code in your email and try again.";
+      let reply =
+        "That verification code did not match. Please check the latest code in your email and try again.";
       if (verification.message?.includes("expired")) {
-        reply = "That verification code has expired. Please request a new code and try again.";
+        reply =
+          "That verification code has expired. Please request a new code and try again.";
       } else if (verification.message?.includes("Too many attempts")) {
-        reply = "Too many verification attempts were made. Please request a new code and try again.";
-      } else if (verification.message && verification.message !== "Invalid OTP") {
-        reply = "I could not verify that code right now. Please try again in a moment.";
+        reply =
+          "Too many verification attempts were made. Please request a new code and try again.";
+      } else if (
+        verification.message &&
+        verification.message !== "Invalid OTP"
+      ) {
+        reply =
+          "I could not verify that code right now. Please try again in a moment.";
       }
       await publishResponse({ conversationId, content: reply });
       return;
@@ -91,7 +131,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     const verifiedCodePattern = new RegExp(`\\b${otpCode}\\b`, "g");
     context.messages = context.messages.map((message) => ({
       ...message,
-      content: message.content.replace(verifiedCodePattern, "[verified code omitted]"),
+      content: message.content.replace(
+        verifiedCodePattern,
+        "[verified code omitted]",
+      ),
     }));
     context.systemPrompt += `
 
@@ -157,9 +200,15 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   }
 
   console.log(
-    `[Pipeline] raw LLM response: ${generatedText.slice(0, 200).replace(/\n/g, " ")}`,
+    `[Pipeline] generated response length: ${generatedText.length} chars`,
   );
 
   // -- 4. Publish regular response ---------------------------------------------
-  await publishResponse({ conversationId, content: generatedText, usage });
+  await publishResponse({
+    conversationId,
+    content: generatedText,
+    usage,
+    answeredBy: "ai",
+    tokensUsed: usage?.totalTokens ?? 0,
+  });
 }

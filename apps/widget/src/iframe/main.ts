@@ -1,93 +1,124 @@
-import { state, PROTO_VERSION, API_BASE_URL } from './config';
-import { elements, adjustTextareaHeight, renderMaximizeIcon, addMessage, showTyping, hideTyping, showOpenSkeleton, INTERAONE_LOGO_SVG } from './ui';
-import { bootstrapSession } from './api';
-import { initializeSocket } from './socket';
-import { setupEventListeners } from './events';
-import { clearStoredSession } from './utils/session';
+import { state, PROTO_VERSION, API_BASE_URL } from "./config";
+import {
+  elements,
+  adjustTextareaHeight,
+  renderMaximizeIcon,
+  addMessage,
+  showTyping,
+  hideTyping,
+  showOpenSkeleton,
+  INTERAONE_LOGO_SVG,
+} from "./ui";
+import { bootstrapSession } from "./api";
+import { initializeSocket } from "./socket";
+import { setupEventListeners } from "./events";
+import { clearStoredSession } from "./utils/session";
 
 function updateGreeting(name?: string, overrideSubtext?: string) {
   const greeting = elements.greetingTitle;
   const subtext = elements.greetingSubtext;
 
   if (greeting) {
-    greeting.textContent = 'What can I help you with?';
+    greeting.textContent = "What can I help you with?";
   }
   if (subtext) {
-    subtext.textContent = overrideSubtext || 'Ask anything or pick a suggestion below to get started.';
+    subtext.textContent =
+      overrideSubtext ||
+      "Ask anything or pick a suggestion below to get started.";
   }
 }
 
-const DEFAULT_SUGGESTIONS: Array<{ text: string; showOutside: boolean }> = [
-  { text: 'Get help with a question', showOutside: false },
-  { text: 'Learn about services', showOutside: false },
-  { text: 'Contact support', showOutside: false },
-];
+function submitSuggestionText(text: string) {
+  const input = document.getElementById(
+    "messageInput",
+  ) as HTMLTextAreaElement | null;
+  if (input) {
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.focus();
+  }
+
+  const sendBtn = document.getElementById(
+    "sendBtn",
+  ) as HTMLButtonElement | null;
+  if (sendBtn && !sendBtn.disabled) sendBtn.click();
+}
+
+function renderPanelSuggestions(cfg: any) {
+  const suggestionsContainer =
+    elements.suggestionsContainer || document.getElementById("suggestions");
+  if (!suggestionsContainer) return;
+
+  suggestionsContainer.innerHTML = "";
+
+  const suggestions = Array.isArray(cfg?.suggestions)
+    ? cfg.suggestions
+        .filter(
+          (suggestion: any) =>
+            suggestion?.enabled !== false && String(suggestion?.text || "").trim(),
+        )
+        .slice(0, 3)
+    : [];
+
+  suggestions.forEach((suggestion: any, index: number) => {
+    const text = String(suggestion.text || "").trim();
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "suggestion-btn";
+    button.textContent = text;
+    button.style.animationDelay = `${index * 40}ms`;
+    button.addEventListener("click", () => submitSuggestionText(text));
+    suggestionsContainer.appendChild(button);
+  });
+}
 
 function applyWidgetAppearance(cfg: any) {
   if (!cfg) return;
   state._uiConfig = cfg || { appearance: {} };
 
-  const avatar = elements.brandAvatar || document.getElementById('vx-avatar');
-  const brandLabel = document.querySelector('.assistant-brand-label') as HTMLElement | null;
-  const input = document.getElementById('messageInput') as HTMLInputElement;
+  const avatar = elements.brandAvatar || document.getElementById("vx-avatar");
+  const brandLabel = document.querySelector(
+    ".assistant-brand-label",
+  ) as HTMLElement | null;
+  const input = document.getElementById("messageInput") as HTMLInputElement;
   const appearance = cfg.appearance || {};
 
   // Apply Theme
-  const rawTheme = String(appearance.theme || 'dark').toLowerCase();
-  const normalizedTheme = rawTheme.includes('light') ? 'light-theme' : 'dark-theme';
-  document.documentElement.classList.remove('light-theme', 'dark-theme');
+  const rawTheme = String(appearance.theme || "dark").toLowerCase();
+  const normalizedTheme = rawTheme.includes("light")
+    ? "light-theme"
+    : "dark-theme";
+  document.documentElement.classList.remove("light-theme", "dark-theme");
   document.documentElement.classList.add(normalizedTheme);
-  document.body.classList.remove('light-theme', 'dark-theme');
+  document.body.classList.remove("light-theme", "dark-theme");
   document.body.classList.add(normalizedTheme);
 
   updateGreeting(state.userName, appearance.welcomeMessage);
-  if (brandLabel && cfg.displayName) brandLabel.textContent = `${cfg.displayName} Assistant`;
+  if (brandLabel && cfg.displayName)
+    brandLabel.textContent = `${cfg.displayName} Assistant`;
 
   if (input && !input.value) {
-    input.placeholder = 'Ask InteraOne anything';
+    input.placeholder = "Ask InteraOne anything";
   }
 
   if (avatar) {
-    avatar.innerHTML = '';
+    avatar.innerHTML = "";
     avatar.innerHTML = INTERAONE_LOGO_SVG;
   }
 
-
-  // Render dynamic suggestion buttons
-  const suggestionsContainer = document.getElementById('suggestions');
-  if (suggestionsContainer) {
-    const configuredSuggestions: Array<{ text: string; showOutside: boolean }> = Array.isArray(cfg.suggestions)
-      ? cfg.suggestions.filter((s: { text?: string }) => !!s.text)
-      : [];
-    const suggestions = configuredSuggestions.length ? configuredSuggestions : DEFAULT_SUGGESTIONS;
-    suggestionsContainer.innerHTML = '';
-    suggestions.forEach((s, index) => {
-      if (!s.text) return;
-      const btn = document.createElement('button');
-      btn.className = 'suggestion-btn';
-      btn.dataset['text'] = s.text;
-      btn.textContent = s.text;
-      btn.style.animationDelay = `${Math.min(index * 60, 240)}ms`;
-      btn.addEventListener('click', () => {
-        const input = document.getElementById('messageInput') as HTMLInputElement | null;
-        if (!input) return;
-        input.value = s.text;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        // Auto-send
-        const sendBtn = document.getElementById('sendBtn') as HTMLButtonElement | null;
-        if (sendBtn && !sendBtn.disabled) sendBtn.click();
-      });
-      suggestionsContainer.appendChild(btn);
-    });
-  }
+  renderPanelSuggestions(cfg);
 }
 
 function requestResize(width: number, height: number, centered: boolean) {
-  const target = state.parentOrigin || '*';
+  const target = state.parentOrigin || "*";
   if (!window.parent) return;
   window.parent.postMessage(
-    { type: 'RESIZE_WIDGET', version: PROTO_VERSION, payload: { width, height, centered: !!centered } },
-    target
+    {
+      type: "RESIZE_WIDGET",
+      version: PROTO_VERSION,
+      payload: { width, height, centered: !!centered },
+    },
+    target,
   );
 }
 
@@ -104,58 +135,68 @@ function toggleMaximizeWidget() {
 }
 
 function minimizeWidget() {
-  const target = state.parentOrigin || '*';
+  const target = state.parentOrigin || "*";
   if (window.parent) {
-    window.parent.postMessage({ type: 'CLOSE_WIDGET', version: PROTO_VERSION }, target);
+    window.parent.postMessage(
+      { type: "CLOSE_WIDGET", version: PROTO_VERSION },
+      target,
+    );
   }
 }
 
-type WidgetTab = 'chat' | 'history';
+type WidgetTab = "chat" | "history";
 
 function setActiveTab(tab: WidgetTab) {
   const tabs: Array<{ key: WidgetTab; el: HTMLButtonElement | null }> = [
-    { key: 'chat', el: elements.tabChat || null },
-    { key: 'history', el: elements.tabHistory || null },
+    { key: "chat", el: elements.tabChat || null },
+    { key: "history", el: elements.tabHistory || null },
   ];
 
   tabs.forEach(({ key, el }) => {
     if (!el) return;
     const isActive = key === tab;
-    el.classList.toggle('active', isActive);
-    el.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    el.classList.toggle("active", isActive);
+    el.setAttribute("aria-selected", isActive ? "true" : "false");
   });
 
-  const inputArea = document.querySelector('.input-area') as HTMLElement | null;
+  const inputArea = document.querySelector(".input-area") as HTMLElement | null;
   const messagesContainer = elements.messagesContainer as HTMLElement | null;
   const welcomeScreen = elements.welcomeScreen as HTMLElement | null;
   const historyOverlay = elements.historyOverlay as HTMLElement | null;
 
-  if (tab === 'history') {
+  if (tab === "history") {
     if (elements.historyBtn) elements.historyBtn.click();
-    if (inputArea) inputArea.style.display = 'none';
-    if (messagesContainer) messagesContainer.style.display = 'none';
-    if (welcomeScreen) welcomeScreen.style.display = 'none';
+    if (inputArea) inputArea.style.display = "none";
+    if (messagesContainer) messagesContainer.style.display = "none";
+    if (welcomeScreen) welcomeScreen.style.display = "none";
     return;
   }
 
-  if (historyOverlay) historyOverlay.style.display = 'none';
-  if (elements.historySearch) elements.historySearch.value = '';
+  if (historyOverlay) historyOverlay.style.display = "none";
+  if (elements.historySearch) elements.historySearch.value = "";
 
-  if (inputArea) inputArea.style.display = '';
-  const hasMessages = !!(messagesContainer && messagesContainer.childElementCount > 0);
-  if (messagesContainer) messagesContainer.style.display = hasMessages ? 'flex' : 'none';
-  if (welcomeScreen) welcomeScreen.style.display = hasMessages ? 'none' : 'flex';
+  if (inputArea) inputArea.style.display = "";
+  const hasMessages = !!(
+    messagesContainer && messagesContainer.childElementCount > 0
+  );
+  if (messagesContainer)
+    messagesContainer.style.display = hasMessages ? "flex" : "none";
+  if (welcomeScreen)
+    welcomeScreen.style.display = hasMessages ? "none" : "flex";
 }
 
 async function handleInitWidget(payload: any) {
-  if (state._connectTimeout) { clearTimeout(state._connectTimeout); state._connectTimeout = null; }
+  if (state._connectTimeout) {
+    clearTimeout(state._connectTimeout);
+    state._connectTimeout = null;
+  }
 
   state.InteraOnePublicKey = payload.publicKey;
   if (payload.identity?.name) {
     state.userName = payload.identity.name;
   }
   (window as any).__InteraOnePageUrl = payload.pageUrl;
-  (window as any).__InteraOnePageTitle = payload.pageTitle || '';
+  (window as any).__InteraOnePageTitle = payload.pageTitle || "";
 
   if (payload.appearance) applyWidgetAppearance(payload.appearance);
   updateGreeting(state.userName, payload.appearance?.welcomeMessage);
@@ -168,7 +209,7 @@ async function handleInitWidget(payload: any) {
 
     if (elements.messageInput) {
       elements.messageInput.disabled = false;
-      elements.messageInput.placeholder = 'Ask InteraOne anything';
+      elements.messageInput.placeholder = "Ask InteraOne anything";
     }
   });
 }
@@ -176,91 +217,104 @@ async function handleInitWidget(payload: any) {
 document.addEventListener("DOMContentLoaded", function () {
   setupEventListeners();
 
-  if (elements.minimizeBtn) elements.minimizeBtn.addEventListener('click', minimizeWidget);
+  if (elements.minimizeBtn)
+    elements.minimizeBtn.addEventListener("click", minimizeWidget);
   if (elements.maximizeBtn) {
-    elements.maximizeBtn.addEventListener('click', toggleMaximizeWidget);
+    elements.maximizeBtn.addEventListener("click", toggleMaximizeWidget);
     renderMaximizeIcon();
   }
 
-  if (elements.tabChat) elements.tabChat.addEventListener('click', () => setActiveTab('chat'));
-  if (elements.tabHistory) elements.tabHistory.addEventListener('click', () => setActiveTab('history'));
-  if (elements.closeHistoryBtn) elements.closeHistoryBtn.addEventListener('click', () => setActiveTab('chat'));
+  if (elements.tabChat)
+    elements.tabChat.addEventListener("click", () => setActiveTab("chat"));
+  if (elements.tabHistory)
+    elements.tabHistory.addEventListener("click", () =>
+      setActiveTab("history"),
+    );
+  if (elements.closeHistoryBtn)
+    elements.closeHistoryBtn.addEventListener("click", () =>
+      setActiveTab("chat"),
+    );
 
   adjustTextareaHeight();
 
   if (elements.messageInput && elements.sendBtn) {
     elements.messageInput.disabled = true;
-    elements.messageInput.placeholder = 'Connecting...';
+    elements.messageInput.placeholder = "Connecting...";
     elements.sendBtn.disabled = true;
   }
 
   state._connectTimeout = setTimeout(function () {
     if (elements.messageInput && elements.messageInput.disabled) {
       elements.messageInput.disabled = false;
-      elements.messageInput.placeholder = 'Connection failed — try refreshing';
-      console.warn('[InteraOneWidget] INIT_WIDGET not received within 12s — unblocking input');
+      elements.messageInput.placeholder = "Connection failed — try refreshing";
+      console.warn(
+        "[InteraOneWidget] INIT_WIDGET not received within 12s — unblocking input",
+      );
     }
   }, 12000) as unknown as number;
 
   if (window.parent) {
-    window.parent.postMessage({ type: 'WIDGET_READY', version: PROTO_VERSION }, state.parentOrigin || '*');
+    window.parent.postMessage(
+      { type: "WIDGET_READY", version: PROTO_VERSION },
+      state.parentOrigin || "*",
+    );
   }
 });
 
-window.addEventListener('message', function (event) {
+window.addEventListener("message", function (event) {
   if (state.parentOrigin && event.origin !== state.parentOrigin) return;
   const msg = event.data;
   if (!msg || !msg.type || msg.version !== PROTO_VERSION) return;
 
   switch (msg.type) {
-    case 'SHOW_SKELETON':
+    case "SHOW_SKELETON":
       showOpenSkeleton(msg.payload?.durationMs ?? 1000);
       break;
-    case 'INIT_WIDGET':
+    case "INIT_WIDGET":
       handleInitWidget(msg.payload);
       break;
 
-    case 'USER_IDENTITY':
+    case "USER_IDENTITY":
       if (state.InteraOnePublicKey && API_BASE_URL) {
         if (msg.payload?.name) {
           state.userName = msg.payload.name;
-          updateGreeting(state.userName, state._uiConfig?.appearance?.welcomeMessage);
+          updateGreeting(
+            state.userName,
+            state._uiConfig?.appearance?.welcomeMessage,
+          );
         }
         const refreshPayload = {
           publicKey: state.InteraOnePublicKey,
           apiUrl: API_BASE_URL,
-          visitorId: msg.payload.visitorId || '',
+          visitorId: msg.payload.visitorId || "",
           identity: msg.payload,
-          pageUrl: (window as any).__InteraOnePageUrl || '',
+          pageUrl: (window as any).__InteraOnePageUrl || "",
         };
         clearStoredSession(state.InteraOnePublicKey);
-        bootstrapSession(refreshPayload, function (token: string, sessionId: string) {
-          state.widgetToken = token;
-          state.currentSessionId = sessionId;
-          if (state.socket) {
-            state.socket.disconnect();
-            state.socket = null;
-          }
-          initializeSocket();
-        });
+        bootstrapSession(
+          refreshPayload,
+          function (token: string, sessionId: string) {
+            state.widgetToken = token;
+            state.currentSessionId = sessionId;
+            if (state.socket) {
+              state.socket.disconnect();
+              state.socket = null;
+            }
+            initializeSocket();
+          },
+        );
       }
       break;
 
-    case 'PAGE_CHANGE':
+    case "PAGE_CHANGE":
       (window as any).__InteraOnePageUrl = msg.payload.pageUrl;
-      (window as any).__InteraOnePageTitle = msg.payload.pageTitle || '';
+      (window as any).__InteraOnePageTitle = msg.payload.pageTitle || "";
       break;
 
-    case 'SUGGESTION_CLICK': {
+    case "SUGGESTION_CLICK": {
       const text: string = msg.payload?.text;
       if (!text) break;
-      const input = document.getElementById('messageInput') as HTMLInputElement | null;
-      if (input) {
-        input.value = text;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-      const sendBtn = document.getElementById('sendBtn') as HTMLButtonElement | null;
-      if (sendBtn && !sendBtn.disabled) sendBtn.click();
+      submitSuggestionText(text);
       break;
     }
   }
@@ -272,17 +326,21 @@ window.addEventListener('message', function (event) {
   hideTyping,
   sendMessage: (message: string) => {
     if (state.socket && state.chatId) {
-      state.socket.emit('send_message', {
+      state.socket.emit("send_message", {
         conversationId: state.chatId,
         content: message,
-        type: 'text',
-        metadata: { senderName: state.userName, senderEmail: state.userEmail, source: 'widget' }
+        type: "text",
+        metadata: {
+          senderName: state.userName,
+          senderEmail: state.userEmail,
+          source: "widget",
+        },
       });
     }
   },
   joinConversation: (conversationId: string) => {
     if (state.socket) {
-      state.socket.emit('join_conversation', conversationId);
+      state.socket.emit("join_conversation", conversationId);
     }
-  }
+  },
 };

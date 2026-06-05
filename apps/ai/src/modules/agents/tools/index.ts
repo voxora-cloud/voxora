@@ -1,6 +1,5 @@
 import { Tool } from "../agent.types";
 
-
 const registry = new Map<string, Tool>();
 
 export function registerTool(tool: Tool): void {
@@ -39,8 +38,6 @@ import { WebCrawlTool } from "./web-crawl.tool";
 import { UpdateContactProfileTool } from "./update-contact-profile.tool";
 import { MarkQueryResolvedTool } from "./mark-query-resolved.tool";
 
-// New tools
-import { FaqRetrievalTool } from "./faq-retrieval.tool";
 import { ConversationMemoryTool } from "./conversation-memory.tool";
 import { SendEmailTool } from "./send-email.tool";
 import { VerifyEmailOtpTool } from "./verify-email-otp.tool";
@@ -56,8 +53,6 @@ registerTool(new WebCrawlTool());
 registerTool(new UpdateContactProfileTool());
 registerTool(new MarkQueryResolvedTool());
 
-// New AI tools
-registerTool(new FaqRetrievalTool());
 registerTool(new ConversationMemoryTool());
 registerTool(new SendEmailTool());
 registerTool(new VerifyEmailOtpTool());

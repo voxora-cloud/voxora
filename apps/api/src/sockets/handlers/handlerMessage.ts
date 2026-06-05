@@ -4,8 +4,33 @@ import { aiQueue } from "@shared/infra/queue";
 import { getSocketManager } from "@sockets/index";
 import { ConversationService } from "@modules/conversation/conversation.service";
 import { tracker } from "@shared/utils/tracker";
+import { lookupFaqFastPathAnswer } from "@shared/clients/faq-fast-path-client";
 
 const conversationService = new ConversationService();
+
+type ConversationMetadata = {
+  widgetKey?: string;
+  customer?: {
+    startedAt?: string | Date;
+  };
+  escalatedAt?: string | Date | null;
+  humanJoinedAt?: string | Date | null;
+};
+
+type WidgetConfig = {
+  displayName?: string;
+  ai?: {
+    enabled?: boolean;
+    fallbackToAgent?: boolean;
+  };
+  conversation?: {
+    collectUserInfo?: {
+      name?: boolean;
+      email?: boolean;
+      phone?: boolean;
+    };
+  };
+};
 
 export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
   socket.on(
@@ -38,8 +63,14 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
         if (metadata?.source === "widget") {
           messageMetadata = {
-            senderName: metadata?.senderName || conversation.visitor?.name || "Anonymous User",
-            senderEmail: metadata?.senderEmail || conversation.visitor?.email || "anonymous@temp.local",
+            senderName:
+              metadata?.senderName ||
+              conversation.visitor?.name ||
+              "Anonymous User",
+            senderEmail:
+              metadata?.senderEmail ||
+              conversation.visitor?.email ||
+              "anonymous@temp.local",
             source: "widget",
           };
         }
@@ -78,7 +109,10 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         if (messageMetadata.source !== "widget") {
           const organizationId = conversation.organizationId.toString();
           const agentId = socket.data?.user?.userId;
-          const startedAt = (conversation as any).metadata?.customer?.startedAt;
+          const conversationMetadata = conversation.metadata as
+            | ConversationMetadata
+            | undefined;
+          const startedAt = conversationMetadata?.customer?.startedAt;
 
           tracker.trackMessage(
             organizationId,
@@ -90,7 +124,10 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           if (startedAt) {
             const responseTimeMs = Date.now() - new Date(startedAt).getTime();
             const updateResult = await Conversation.updateOne(
-              { _id: conversationId, "metadata.firstAgentReplyAt": { $exists: false } },
+              {
+                _id: conversationId,
+                "metadata.firstAgentReplyAt": { $exists: false },
+              },
               {
                 $set: {
                   "metadata.firstAgentReplyAt": new Date(),
@@ -113,48 +150,63 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           return;
         }
 
+        const conversationMetadata = conversation.metadata as
+          | ConversationMetadata
+          | undefined;
+
         // Once escalated to a human OR already resolved, stop feeding into AI pipeline.
         if (
-          (conversation as any).metadata?.escalatedAt ||
-          (conversation as any).metadata?.humanJoinedAt ||
+          conversationMetadata?.escalatedAt ||
+          conversationMetadata?.humanJoinedAt ||
           conversation.assignedTo ||
-          ["active", "resolved", "closed"].includes((conversation as any).status)
+          ["active", "resolved", "closed"].includes(
+            String(conversation.status || ""),
+          )
         ) {
           return; // message was saved & broadcast above; just don't run AI
         }
 
-        // â”€â”€ Resolve widget config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        const widgetKey: string | undefined = (conversation.metadata as any)?.widgetKey ?? undefined;
+        // Resolve widget config.
+        const widgetKey = conversationMetadata?.widgetKey;
 
         let companyName: string | undefined;
         let aiEnabled = true;
         let fallbackToAgent = true;
-        let collectUserInfo: { name?: boolean; email?: boolean; phone?: boolean } = {};
+        let collectUserInfo: {
+          name?: boolean;
+          email?: boolean;
+          phone?: boolean;
+        } = {};
 
         if (widgetKey) {
           try {
             const widget = await Widget.findById(widgetKey)
               .select("displayName ai conversation features")
-              .lean();
+              .lean<WidgetConfig>();
 
             if (widget) {
-              companyName = (widget as any).displayName || undefined;
-              aiEnabled = (widget as any).ai?.enabled !== false; // default true
-              fallbackToAgent = (widget as any).ai?.fallbackToAgent !== false; // default true
-              collectUserInfo = (widget as any).conversation?.collectUserInfo || {};
+              companyName = widget.displayName || undefined;
+              aiEnabled = widget.ai?.enabled !== false; // default true
+              fallbackToAgent = widget.ai?.fallbackToAgent !== false; // default true
+              collectUserInfo = widget.conversation?.collectUserInfo || {};
             }
           } catch {
-            // Non-fatal â€” fall back to defaults
-            logger.warn(`[handleMessage] Could not fetch widget config for key ${widgetKey}`);
+            // Non-fatal; fall back to defaults.
+            logger.warn(
+              `[handleMessage] Could not fetch widget config for key ${widgetKey}`,
+            );
           }
         }
 
-        // Keep conversation unassigned when AI is disabled.
-        // Human routing should happen only through escalation/manual pickup.
+        const organizationId = conversation.organizationId.toString();
+        // When AI is disabled, route to humans before trying any AI shortcut.
         if (!aiEnabled) {
-          logger.info(`[handleMessage] AI disabled for widget ${widgetKey} — attempting auto-escalation`);
+          logger.info(
+            `[handleMessage] AI disabled for widget ${widgetKey}; attempting auto-escalation`,
+          );
 
-          const { agentId } = await conversationService.autoAssignConversation(conversation.organizationId.toString());
+          const { agentId } =
+            await conversationService.autoAssignConversation(organizationId);
 
           if (agentId) {
             await Conversation.findByIdAndUpdate(conversationId, {
@@ -162,13 +214,14 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 status: "open",
                 assignedTo: agentId,
                 "metadata.escalatedAt": new Date(),
-                "metadata.routeReason": "AI disabled — auto-assigned to available agent",
+                "metadata.routeReason":
+                  "AI disabled; auto-assigned to available agent",
               },
               $addToSet: { participants: agentId },
             });
 
             tracker.trackEvent(
-              conversation.organizationId.toString(),
+              organizationId,
               "agent_assigned",
               "system",
               { reason: "ai_disabled_auto_assign" },
@@ -182,7 +235,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 subject: conversation.subject,
                 message: content,
                 timestamp: new Date(),
-                routeReason: "AI disabled — auto-assigned to you",
+                routeReason: "AI disabled; auto-assigned to you",
               });
             }
           } else {
@@ -191,7 +244,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               $set: {
                 status: "pending",
                 "metadata.pendingEscalation": true,
-                "metadata.routeReason": "AI disabled — awaiting human (no one online)",
+                "metadata.routeReason":
+                  "AI disabled; awaiting human (no one online)",
               },
             });
           }
@@ -199,10 +253,72 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           return; // Do not enqueue AI job
         }
 
-        // â”€â”€ Route: AI enabled â†’ enqueue AI job with full config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        const faqFastPath =
+          type === "text"
+            ? await lookupFaqFastPathAnswer({
+                organizationId,
+                message: content,
+              })
+            : null;
+
+        if (faqFastPath) {
+          const assistantMessage = new Message({
+            organizationId,
+            conversationId,
+            senderId: "ai-bot",
+            content: faqFastPath.answer,
+            type: "text",
+            metadata: {
+              senderName: "AI Assistant",
+              senderEmail: "ai@interaone.internal",
+              source: "ai",
+              answeredBy: "faq",
+              tokensUsed: 0,
+            },
+          });
+
+          await assistantMessage.save();
+
+          tracker.trackMessage(
+            organizationId,
+            "ai",
+            { messageLength: faqFastPath.answer.length },
+            { conversationId, channel: "widget" },
+          );
+
+          tracker.trackEvent(
+            organizationId,
+            "ai_response",
+            "ai",
+            { messageLength: faqFastPath.answer.length, answeredBy: "faq" },
+            { conversationId, channel: "widget" },
+          );
+
+          io.to(`conversation:${conversationId}`).emit("new_message", {
+            conversationId,
+            message: {
+              _id: assistantMessage._id,
+              senderId: assistantMessage.senderId,
+              content: assistantMessage.content,
+              type: assistantMessage.type,
+              metadata: assistantMessage.metadata,
+              createdAt: assistantMessage.createdAt,
+            },
+          });
+
+          logger.info("FAQ fast-path response delivered", {
+            organizationId,
+            conversationId,
+            score: faqFastPath.score,
+          });
+
+          return;
+        }
+
+        // Route AI-enabled conversations through FAQ fast-path or the full AI job.
         aiQueue
           .add("process", {
-            organizationId: conversation.organizationId!.toString(),
+            organizationId,
             conversationId,
             content,
             messageId: message._id.toString(),
@@ -210,9 +326,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             fallbackToAgent,
             collectUserInfo,
           })
-          .catch((err) =>
-            logger.error("Failed to enqueue AI job:", err),
-          );
+          .catch((err) => logger.error("Failed to enqueue AI job:", err));
       } catch (error) {
         logger.error("Error handling send_message:", error);
       }

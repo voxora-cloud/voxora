@@ -3,8 +3,8 @@
  * Handles button, iframe, and UI interactions
  */
 
-import { WidgetConfig, WidgetServerConfig, WidgetState } from './types';
-import { INTERAONE_LOGO_SVG } from './shared/assets';
+import { WidgetConfig, WidgetServerConfig, WidgetState } from "./types";
+import { INTERAONE_LOGO_SVG } from "./shared/assets";
 
 export class WidgetUI {
   private config: WidgetConfig;
@@ -38,11 +38,15 @@ export class WidgetUI {
   }
 
   private getLauncherLabel(): string {
-    return this.config.appearance?.launcherText?.trim() || 'Open chat';
+    return this.config.appearance?.launcherText?.trim() || "Open chat";
   }
 
   private getLauncherTitle(): string {
-    return this.config.appearance?.launcherText?.trim() || this.config.displayName || 'Open chat';
+    return (
+      this.config.appearance?.launcherText?.trim() ||
+      this.config.displayName ||
+      "Open chat"
+    );
   }
 
   /**
@@ -53,10 +57,13 @@ export class WidgetUI {
 
     const appearance = serverConfig.appearance || {};
 
-    if (serverConfig.displayName) this.config.displayName = serverConfig.displayName;
-    if (serverConfig.backgroundColor) this.config.backgroundColor = serverConfig.backgroundColor;
+    if (serverConfig.displayName)
+      this.config.displayName = serverConfig.displayName;
+    if (serverConfig.backgroundColor)
+      this.config.backgroundColor = serverConfig.backgroundColor;
     if (appearance.primaryColor || serverConfig.primaryColor) {
-      this.config.primaryColor = appearance.primaryColor || serverConfig.primaryColor;
+      this.config.primaryColor =
+        appearance.primaryColor || serverConfig.primaryColor;
     }
     if (appearance.position) this.config.position = appearance.position;
 
@@ -80,29 +87,29 @@ export class WidgetUI {
   private renderButtonIdleContent(): void {
     if (!this.button) return;
 
-    this.button.textContent = '';
+    this.button.textContent = "";
     this.button.innerHTML = INTERAONE_LOGO_SVG;
   }
 
   private setButtonClosedChrome(): void {
     if (!this.button) return;
-    this.button.classList.remove('vx-open');
+    this.button.classList.remove("vx-open");
     Object.assign(this.button.style, {
-      width: '60px',
-      height: '60px',
-      borderRadius: '50%',
-      padding: '0',
+      width: "60px",
+      height: "60px",
+      borderRadius: "50%",
+      padding: "0",
     });
   }
 
   private setButtonOpenChrome(): void {
     if (!this.button) return;
-    this.button.classList.add('vx-open');
+    this.button.classList.add("vx-open");
     Object.assign(this.button.style, {
-      width: '60px',
-      height: '60px',
-      borderRadius: '50%',
-      padding: '0',
+      width: "60px",
+      height: "60px",
+      borderRadius: "50%",
+      padding: "0",
     });
   }
   private applyHostDockSpacing(width: number): void {
@@ -115,45 +122,45 @@ export class WidgetUI {
     const effectiveWidth = this.isMobileSheet() ? 0 : width;
 
     if (this.hostWidth === null) {
-      this.hostWidth = body.style.width || '';
-      this.hostHeight = body.style.height || '';
-      this.hostTransition = body.style.transition || '';
-      this.hostOverflowY = body.style.overflowY || '';
-      this.hostOverflowX = body.style.overflowX || '';
-      this.documentOverflow = document.documentElement.style.overflow || '';
+      this.hostWidth = body.style.width || "";
+      this.hostHeight = body.style.height || "";
+      this.hostTransition = body.style.transition || "";
+      this.hostOverflowY = body.style.overflowY || "";
+      this.hostOverflowX = body.style.overflowX || "";
+      this.documentOverflow = document.documentElement.style.overflow || "";
     }
 
     if (effectiveWidth > 0) {
-      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.overflow = "hidden";
       body.style.width = `calc(100vw - ${effectiveWidth}px)`;
-      body.style.height = '100dvh';
-      body.style.overflowY = 'auto';
-      body.style.overflowX = 'hidden';
+      body.style.height = "100dvh";
+      body.style.overflowY = "auto";
+      body.style.overflowX = "hidden";
 
-      const baseTransition = this.hostTransition || '';
-      const widthTransition = 'width 0.24s ease-in-out';
+      const baseTransition = this.hostTransition || "";
+      const widthTransition = "width 0.24s ease-in-out";
       body.style.transition = baseTransition
         ? `${baseTransition}, ${widthTransition}`
         : widthTransition;
-      body.style.boxSizing = 'border-box';
+      body.style.boxSizing = "border-box";
     } else {
       // Mobile sheet mode
-      document.documentElement.style.overflow = 'hidden';
-      body.style.overflowY = 'hidden';
+      document.documentElement.style.overflow = "hidden";
+      body.style.overflowY = "hidden";
     }
 
     if (this.dockContainer) {
-      this.dockContainer.style.right = '0px';
+      this.dockContainer.style.right = "0px";
     }
   }
 
   private restoreHostDockSpacing(): void {
     const body = document.body;
     if (!body || this.hostWidth === null) return;
-    
+
     body.style.width = this.hostWidth;
-    body.style.height = this.hostHeight || '';
-    
+    body.style.height = this.hostHeight || "";
+
     if (this.hostTransition !== null) {
       body.style.transition = this.hostTransition;
     }
@@ -175,8 +182,9 @@ export class WidgetUI {
   }
 
   private syncDockToScrollbar(): void {
-    if (!this.dockContainer || this.isFullscreen || this.isMobileSheet()) return;
-    this.dockContainer.style.right = '0px';
+    if (!this.dockContainer || this.isFullscreen || this.isMobileSheet())
+      return;
+    this.dockContainer.style.right = "0px";
   }
 
   /**
@@ -184,91 +192,96 @@ export class WidgetUI {
    */
   createButton(): HTMLElement {
     if (this.isFullscreen) {
-      throw new Error('[InteraOneWidget] createButton() should not be called in fullscreen mode');
+      throw new Error(
+        "[InteraOneWidget] createButton() should not be called in fullscreen mode",
+      );
     }
 
-    this.button = document.createElement('div');
-    this.button.id = 'InteraOne-chat-button';
-    this.button.setAttribute('role', 'button');
-    this.button.setAttribute('aria-label', this.getLauncherLabel());
-    this.button.setAttribute('title', this.getLauncherTitle());
+    this.button = document.createElement("div");
+    this.button.id = "InteraOne-chat-button";
+    this.button.setAttribute("role", "button");
+    this.button.setAttribute("aria-label", this.getLauncherLabel());
+    this.button.setAttribute("title", this.getLauncherTitle());
 
-    const bgColor = this.config.primaryColor || this.config.backgroundColor || '#845C6C';
-    const buttonTextColor = this.config.appearance?.textColor || 'white';
-    const shadowColor = bgColor.startsWith('#') ? `${bgColor}66` : 'rgba(132,92,108,0.4)';
+    const bgColor =
+      this.config.primaryColor || this.config.backgroundColor || "#845C6C";
+    const buttonTextColor = this.config.appearance?.textColor || "white";
+    const shadowColor = bgColor.startsWith("#")
+      ? `${bgColor}66`
+      : "rgba(132,92,108,0.4)";
 
     this.renderButtonIdleContent();
 
     Object.assign(this.button.style, {
-      position: 'fixed',
-      bottom: '24px',
-      right: this.config.position === 'bottom-left' ? 'auto' : '24px',
-      left: this.config.position === 'bottom-left' ? '24px' : 'auto',
-      width: '60px',
-      height: '60px',
-      borderRadius: '50%',
+      position: "fixed",
+      bottom: "24px",
+      right: this.config.position === "bottom-left" ? "auto" : "24px",
+      left: this.config.position === "bottom-left" ? "24px" : "auto",
+      width: "60px",
+      height: "60px",
+      borderRadius: "50%",
       background: bgColor,
       boxShadow: `0 8px 24px ${shadowColor}`,
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
       color: buttonTextColor,
-      zIndex: '2147483646', // Maximum safe z-index
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      transform: 'scale(0)',
-      opacity: '0',
-      border: 'none',
-      outline: 'none',
-      overflow: 'hidden',
-      padding: '0',
+      zIndex: "2147483646", // Maximum safe z-index
+      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      transform: "scale(0)",
+      opacity: "0",
+      border: "none",
+      outline: "none",
+      overflow: "hidden",
+      padding: "0",
       // Prevent text/element selection on double-click or drag over the button
-      userSelect: 'none',
-      WebkitUserSelect: 'none',
+      userSelect: "none",
+      WebkitUserSelect: "none",
     });
 
     // Hover effects
-    this.button.addEventListener('mouseenter', () => {
+    this.button.addEventListener("mouseenter", () => {
       if (!this.state.isOpen && this.button) {
-        this.button.style.transform = 'scale(1.1)';
+        this.button.style.transform = "scale(1.1)";
         this.button.style.boxShadow = `0 12px 32px ${shadowColor}`;
       }
     });
 
-    this.button.addEventListener('mouseleave', () => {
+    this.button.addEventListener("mouseleave", () => {
       if (!this.state.isOpen && this.button) {
-        this.button.style.transform = 'scale(1)';
+        this.button.style.transform = "scale(1)";
         this.button.style.boxShadow = `0 8px 24px ${shadowColor}`;
       }
     });
 
-    this.button.addEventListener('click', () => this.toggle());
+    this.button.addEventListener("click", () => this.toggle());
 
     // Prevent the host page from getting a blue selection highlight when the
     // user double-clicks the button (selectstart fires before the browser
     // marks anything as selected, so cancelling it is zero-risk).
-    this.button.addEventListener('mousedown', (e) => e.preventDefault());
-    this.button.addEventListener('selectstart', (e) => e.preventDefault());
+    this.button.addEventListener("mousedown", (e) => e.preventDefault());
+    this.button.addEventListener("selectstart", (e) => e.preventDefault());
 
     // Create unread badge
-    this.badge = document.createElement('div');
+    this.badge = document.createElement("div");
     Object.assign(this.badge.style, {
-      position: 'absolute',
-      top: '-4px',
-      right: '-4px',
-      minWidth: '20px',
-      height: '20px',
-      borderRadius: '10px',
-      background: '#ff4757',
-      display: 'none',
-      border: '2px solid white',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-      color: 'white',
-      fontSize: '11px',
-      fontWeight: 'bold',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 6px',
+      position: "absolute",
+      top: "-4px",
+      right: "-4px",
+      minWidth: "20px",
+      height: "20px",
+      borderRadius: "10px",
+      background: "#ff4757",
+      display: "none",
+      border: "2px solid white",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+      color: "white",
+      fontSize: "11px",
+      fontWeight: "bold",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0 6px",
     });
 
     this.button.appendChild(this.badge);
@@ -278,8 +291,8 @@ export class WidgetUI {
     requestAnimationFrame(() => {
       if (this.button) {
         this.setButtonClosedChrome();
-        this.button.style.transform = 'scale(1)';
-        this.button.style.opacity = '1';
+        this.button.style.transform = "scale(1)";
+        this.button.style.opacity = "1";
       }
     });
     this.renderOutsideChips();
@@ -291,28 +304,31 @@ export class WidgetUI {
    * Called after createButton(). Hidden when widget is open.
    */
   private renderOutsideChips(): void {
-    const outside = (this.config.suggestions || []).filter((s) => s.showOutside && s.text);
+    const outside = (this.config.suggestions || []).filter(
+      (s) => s.enabled !== false && s.showOutside && s.text,
+    );
     if (outside.length === 0) return;
 
-    const isLeft = this.config.position === 'bottom-left';
-    const accentColor = this.config.primaryColor || this.config.backgroundColor || '#10b981';
+    const isLeft = this.config.position === "bottom-left";
+    const accentColor =
+      this.config.primaryColor || this.config.backgroundColor || "#10b981";
 
-    this.outsideChipsContainer = document.createElement('div');
-    this.outsideChipsContainer.id = 'InteraOne-outside-chips';
+    this.outsideChipsContainer = document.createElement("div");
+    this.outsideChipsContainer.id = "InteraOne-outside-chips";
     Object.assign(this.outsideChipsContainer.style, {
-      position: 'fixed',
-      bottom: '100px',
-      right: isLeft ? 'auto' : '16px',
-      left: isLeft ? '16px' : 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: isLeft ? 'flex-start' : 'flex-end',
-      gap: '8px',
-      zIndex: '2147483644',
+      position: "fixed",
+      bottom: "100px",
+      right: isLeft ? "auto" : "16px",
+      left: isLeft ? "16px" : "auto",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: isLeft ? "flex-start" : "flex-end",
+      gap: "8px",
+      zIndex: "2147483644",
     });
 
     outside.forEach((s) => {
-      const chip = document.createElement('button');
+      const chip = document.createElement("button");
       chip.innerHTML = `
         <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(16,185,129,0.14);color:${accentColor};flex-shrink:0;transition:all 0.2s ease;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -322,49 +338,55 @@ export class WidgetUI {
         <span style="white-space:normal;word-break:break-word;">${s.text}</span>
       `;
       Object.assign(chip.style, {
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))',
-        color: '#0f172a',
-        border: '1px solid rgba(255,255,255,0.7)',
-        borderRadius: '999px',
-        padding: '8px 14px',
-        fontSize: '13px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        boxShadow: '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)',
-        whiteSpace: 'normal',
-        maxWidth: '300px',
-        overflow: 'visible',
-        transition: 'all 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '8px',
-        backdropFilter: 'blur(8px)',
-        wordBreak: 'break-word',
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))",
+        color: "#0f172a",
+        border: "1px solid rgba(255,255,255,0.7)",
+        borderRadius: "999px",
+        padding: "8px 14px",
+        fontSize: "13px",
+        fontWeight: "600",
+        cursor: "pointer",
+        boxShadow:
+          "0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)",
+        whiteSpace: "normal",
+        maxWidth: "300px",
+        overflow: "visible",
+        transition: "all 0.22s cubic-bezier(0.22, 1, 0.36, 1)",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "8px",
+        backdropFilter: "blur(8px)",
+        wordBreak: "break-word",
       });
-      chip.addEventListener('mouseenter', () => {
+      chip.addEventListener("mouseenter", () => {
         chip.style.background = `linear-gradient(180deg, ${accentColor}, ${accentColor})`;
-        chip.style.color = '#ffffff';
-        chip.style.transform = 'translateY(-2px) scale(1.01)';
-        chip.style.boxShadow = '0 14px 28px rgba(2, 6, 23, 0.28), 0 0 0 1px rgba(255,255,255,0.15)';
+        chip.style.color = "#ffffff";
+        chip.style.transform = "translateY(-2px) scale(1.01)";
+        chip.style.boxShadow =
+          "0 14px 28px rgba(2, 6, 23, 0.28), 0 0 0 1px rgba(255,255,255,0.15)";
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
-          iconBubble.style.background = 'rgba(255,255,255,0.18)';
-          iconBubble.style.color = '#ffffff';
+          iconBubble.style.background = "rgba(255,255,255,0.18)";
+          iconBubble.style.color = "#ffffff";
         }
       });
-      chip.addEventListener('mouseleave', () => {
-        chip.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))';
-        chip.style.color = '#0f172a';
-        chip.style.transform = 'translateY(0) scale(1)';
-        chip.style.boxShadow = '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)';
+      chip.addEventListener("mouseleave", () => {
+        chip.style.background =
+          "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))";
+        chip.style.color = "#0f172a";
+        chip.style.transform = "translateY(0) scale(1)";
+        chip.style.boxShadow =
+          "0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)";
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
-          iconBubble.style.background = 'rgba(16,185,129,0.14)';
+          iconBubble.style.background = "rgba(16,185,129,0.14)";
           iconBubble.style.color = accentColor;
         }
       });
-      chip.addEventListener('click', () => {
+      chip.addEventListener("click", () => {
         // Open the widget, then send the suggestion via postMessage to iframe
         if (!this.state.isOpen) {
           this.open();
@@ -384,8 +406,8 @@ export class WidgetUI {
   private _sendSuggestionToIframe(text: string): void {
     if (this.iframe?.contentWindow) {
       this.iframe.contentWindow.postMessage(
-        { type: 'SUGGESTION_CLICK', version: '1', payload: { text } },
-        '*',
+        { type: "SUGGESTION_CLICK", version: "1", payload: { text } },
+        "*",
       );
     }
   }
@@ -394,72 +416,75 @@ export class WidgetUI {
    * Create iframe widget
    */
   createIframe(src: string): HTMLIFrameElement {
-    this.iframe = document.createElement('iframe');
-    this.iframe.id = 'InteraOne-widget-iframe';
+    this.iframe = document.createElement("iframe");
+    this.iframe.id = "InteraOne-widget-iframe";
     this.iframe.src = src;
-    this.iframe.allow = 'microphone; camera';
-    this.iframe.setAttribute('title', 'InteraOne Chat Widget');
+    this.iframe.allow = "microphone; camera";
+    this.iframe.setAttribute("title", "InteraOne Chat Widget");
     // Use sandbox for security - allow scripts, forms, popups, and same-origin (for localStorage)
-    this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-same-origin');
+    this.iframe.setAttribute(
+      "sandbox",
+      "allow-scripts allow-forms allow-popups allow-same-origin",
+    );
 
     if (this.isFullscreen) {
       Object.assign(this.iframe.style, {
-        position: 'fixed',
-        top: '0',
-        right: '0',
-        bottom: '0',
-        left: '0',
-        width: '100vw',
-        height: '100dvh',
-        maxWidth: '100vw',
-        maxHeight: '100dvh',
-        border: 'none',
-        borderRadius: '0',
-        boxShadow: 'none',
-        overflow: 'hidden',
-        zIndex: '2147483647',
-        background: 'white',
-        transition: 'opacity 0.2s ease',
-        transform: 'none',
-        opacity: '0',
-        transformOrigin: 'center center',
-        display: 'none',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
+        position: "fixed",
+        top: "0",
+        right: "0",
+        bottom: "0",
+        left: "0",
+        width: "100vw",
+        height: "100dvh",
+        maxWidth: "100vw",
+        maxHeight: "100dvh",
+        border: "none",
+        borderRadius: "0",
+        boxShadow: "none",
+        overflow: "hidden",
+        zIndex: "2147483647",
+        background: "white",
+        transition: "opacity 0.2s ease",
+        transform: "none",
+        opacity: "0",
+        transformOrigin: "center center",
+        display: "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
       });
     } else {
-      this.dockContainer = document.createElement('div');
-      this.dockContainer.id = 'InteraOne-widget-dock';
+      this.dockContainer = document.createElement("div");
+      this.dockContainer.id = "InteraOne-widget-dock";
       Object.assign(this.dockContainer.style, {
-        position: 'fixed',
-        top: '0',
-        right: '0px',
-        bottom: '0',
+        position: "fixed",
+        top: "0",
+        right: "0px",
+        bottom: "0",
         width: `${this.getPanelWidth()}px`,
-        height: '100dvh',
-        zIndex: '2147483645',
-        transform: 'translateX(100%)',
-        opacity: '0',
-        transition: 'transform 0.24s ease-in-out, opacity 0.24s ease',
-        pointerEvents: 'none',
-        borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
-        background: 'transparent',
+        height: "100dvh",
+        zIndex: "2147483645",
+        transform: "translateX(100%)",
+        opacity: "0",
+        transition: "transform 0.24s ease-in-out, opacity 0.24s ease",
+        pointerEvents: "none",
+        borderLeft: "1px solid rgba(15, 23, 42, 0.14)",
+        background: "transparent",
       });
 
       Object.assign(this.iframe.style, {
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        border: 'none',
-        borderRadius: '0',
-        boxShadow: 'none',
-        overflow: 'hidden',
-        background: 'transparent',
-        display: 'block',
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        border: "none",
+        borderRadius: "0",
+        boxShadow: "none",
+        overflow: "hidden",
+        background: "transparent",
+        display: "block",
         // Prevent the host page from getting a selection highlight when the
         // user double-clicks inside the iframe area.
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
+        userSelect: "none",
+        WebkitUserSelect: "none",
       });
     }
 
@@ -508,34 +533,35 @@ export class WidgetUI {
     if (!this.iframe) return;
 
     this.state.isOpen = true;
-    if (this.dockContainer) this.dockContainer.style.pointerEvents = 'auto';
+    if (this.dockContainer) this.dockContainer.style.pointerEvents = "auto";
 
     if (this.button) {
       this.setButtonOpenChrome();
-      this.button.style.transform = 'scale(1)';
-      this.button.setAttribute('aria-label', 'Close chat');
-      this.button.setAttribute('title', 'Close chat');
-      this.button.style.display = 'none';
+      this.button.style.transform = "scale(1)";
+      this.button.setAttribute("aria-label", "Close chat");
+      this.button.setAttribute("title", "Close chat");
+      this.button.style.display = "none";
     }
 
     // Animate widget in
     requestAnimationFrame(() => {
       if (this.isFullscreen && this.iframe) {
-        this.iframe.style.display = 'block';
-        this.iframe.style.opacity = '1';
+        this.iframe.style.display = "block";
+        this.iframe.style.opacity = "1";
         return;
       }
 
       if (this.dockContainer) {
-        this.dockContainer.style.transform = 'translateX(0)';
-        this.dockContainer.style.opacity = '1';
+        this.dockContainer.style.transform = "translateX(0)";
+        this.dockContainer.style.opacity = "1";
       }
     });
 
     this.applyHostDockSpacing(this.getPanelWidth());
 
     // Hide outside chips while widget is open
-    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
+    if (this.outsideChipsContainer)
+      this.outsideChipsContainer.style.display = "none";
 
     if (this.onToggle) this.onToggle(true);
   }
@@ -550,28 +576,29 @@ export class WidgetUI {
 
     if (this.button) {
       this.setButtonClosedChrome();
-      this.button.style.transform = 'scale(1)';
-      this.button.setAttribute('aria-label', this.getLauncherLabel());
-      this.button.setAttribute('title', this.getLauncherTitle());
-      this.button.style.display = 'flex';
+      this.button.style.transform = "scale(1)";
+      this.button.setAttribute("aria-label", this.getLauncherLabel());
+      this.button.setAttribute("title", this.getLauncherTitle());
+      this.button.style.display = "flex";
     }
 
     // Animate widget out
     if (this.isFullscreen) {
-      this.iframe.style.opacity = '0';
+      this.iframe.style.opacity = "0";
       setTimeout(() => {
-        if (this.iframe) this.iframe.style.display = 'none';
+        if (this.iframe) this.iframe.style.display = "none";
       }, 200);
     } else if (this.dockContainer) {
-      this.dockContainer.style.transform = 'translateX(100%)';
-      this.dockContainer.style.opacity = '0';
-      this.dockContainer.style.pointerEvents = 'none';
+      this.dockContainer.style.transform = "translateX(100%)";
+      this.dockContainer.style.opacity = "0";
+      this.dockContainer.style.pointerEvents = "none";
     }
 
     this.restoreHostDockSpacing();
 
     // Restore outside chips
-    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'flex';
+    if (this.outsideChipsContainer)
+      this.outsideChipsContainer.style.display = "flex";
 
     if (this.onToggle) this.onToggle(false);
   }
@@ -580,7 +607,7 @@ export class WidgetUI {
    * Setup responsive behavior
    */
   private setupResponsive(): void {
-    window.addEventListener('resize', () => this.applyResponsiveLayout());
+    window.addEventListener("resize", () => this.applyResponsiveLayout());
     this.applyResponsiveLayout();
   }
 
@@ -589,34 +616,36 @@ export class WidgetUI {
 
     if (this.isFullscreen) {
       Object.assign(this.iframe.style, {
-        top: '0',
-        right: '0',
-        bottom: '0',
-        left: '0',
-        width: '100vw',
-        height: '100dvh',
-        maxWidth: '100vw',
-        maxHeight: '100dvh',
-        borderRadius: '0',
-        boxShadow: 'none',
+        top: "0",
+        right: "0",
+        bottom: "0",
+        left: "0",
+        width: "100vw",
+        height: "100dvh",
+        maxWidth: "100vw",
+        maxHeight: "100dvh",
+        borderRadius: "0",
+        boxShadow: "none",
       });
-      this.iframe.style.transformOrigin = 'center center';
+      this.iframe.style.transformOrigin = "center center";
       return;
     }
 
     if (this.isMobileSheet()) {
       if (this.dockContainer) {
         Object.assign(this.dockContainer.style, {
-          width: '100vw',
-          height: '100dvh',
-          right: '0',
-          left: '0',
-          top: '0',
-          bottom: '0',
-          borderLeft: 'none',
+          width: "100vw",
+          height: "100dvh",
+          right: "0",
+          left: "0",
+          top: "0",
+          bottom: "0",
+          borderLeft: "none",
         });
-        this.dockContainer.style.transformOrigin = 'right center';
-        this.dockContainer.style.transform = this.state.isOpen ? 'translateX(0)' : 'translateX(100%)';
+        this.dockContainer.style.transformOrigin = "right center";
+        this.dockContainer.style.transform = this.state.isOpen
+          ? "translateX(0)"
+          : "translateX(100%)";
       }
       if (this.state.isOpen) this.applyHostDockSpacing(this.getPanelWidth());
       return;
@@ -626,15 +655,17 @@ export class WidgetUI {
     if (this.dockContainer) {
       Object.assign(this.dockContainer.style, {
         width: `${panelWidth}px`,
-        height: '100dvh',
-        right: '0px',
-        left: 'auto',
-        top: '0',
-        bottom: '0',
-        borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
+        height: "100dvh",
+        right: "0px",
+        left: "auto",
+        top: "0",
+        bottom: "0",
+        borderLeft: "1px solid rgba(15, 23, 42, 0.14)",
       });
-      this.dockContainer.style.transformOrigin = 'right center';
-      this.dockContainer.style.transform = this.state.isOpen ? 'translateX(0)' : 'translateX(100%)';
+      this.dockContainer.style.transformOrigin = "right center";
+      this.dockContainer.style.transform = this.state.isOpen
+        ? "translateX(0)"
+        : "translateX(100%)";
     }
     if (this.state.isOpen) this.applyHostDockSpacing(this.getPanelWidth());
   }

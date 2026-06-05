@@ -10,6 +10,14 @@ logger.info("Starting AI service", {
   nodeEnv: process.env.NODE_ENV || "development",
 });
 
+if (
+  process.env.NODE_ENV === "production" &&
+  !process.env.AI_TOOL_SECRET?.trim()
+) {
+  logger.error("AI_TOOL_SECRET is required in production");
+  process.exit(1);
+}
+
 const chatWorker = startWorker();
 const ingestionWorker = startIngestionWorker();
 const healthServer = startHealthServer();

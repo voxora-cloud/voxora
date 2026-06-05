@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
 import { Loader } from "@/shared/ui/loader";
+import { Textarea } from "@/shared/ui/textarea";
 import {
   Plus,
   BookOpen,
@@ -11,6 +14,7 @@ import {
   Trash2,
   Eye,
   RefreshCw,
+  Pencil,
 } from "lucide-react";
 import { KnowledgeTable } from "../components/knowledge-table";
 import { AddKnowledgeModal } from "../components/add-knowledge-modal";
@@ -23,6 +27,7 @@ import {
   useKnowledgeItems,
   useKnowledgeViewUrl,
   useReindexKnowledgeItem,
+  useUpdateKnowledgeItem,
 } from "../hooks";
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs";
@@ -31,7 +36,8 @@ export function KnowledgeStaticPage() {
   const { data: items = [], isLoading } = useKnowledgeItems();
 
   const documents = useMemo(
-    () => items.filter((item) => item.source !== "url" && item.source !== "faq"),
+    () =>
+      items.filter((item) => item.source !== "url" && item.source !== "faq"),
     [items],
   );
 
@@ -45,19 +51,21 @@ export function KnowledgeStaticPage() {
   const [selectedItem, setSelectedItem] = useState<KnowledgeBase | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<KnowledgeBase | null>(null);
+  const [isEditingFaq, setIsEditingFaq] = useState(false);
+  const [faqEditForm, setFaqEditForm] = useState({ question: "", answer: "" });
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [isUpdatingFaq, setIsUpdatingFaq] = useState(false);
   const addKnowledge = useAddKnowledge();
   const deleteKnowledge = useDeleteKnowledgeItem();
   const reindexKnowledge = useReindexKnowledgeItem();
+  const updateKnowledge = useUpdateKnowledgeItem();
   const canLoadViewUrl =
     showViewModal &&
     !!selectedItem &&
     (selectedItem.source === "pdf" || selectedItem.source === "docx");
-  const { data: viewUrl = null, isLoading: viewUrlLoading } = useKnowledgeViewUrl(
-    selectedItem?._id || "",
-    canLoadViewUrl,
-  );
+  const { data: viewUrl = null, isLoading: viewUrlLoading } =
+    useKnowledgeViewUrl(selectedItem?._id || "", canLoadViewUrl);
 
   const handleAddKnowledge = async (data: AddKnowledgeFormData) => {
     try {
@@ -79,7 +87,61 @@ export function KnowledgeStaticPage() {
 
   const handleViewItem = (item: KnowledgeBase) => {
     setSelectedItem(item);
+    setIsEditingFaq(false);
+    setFaqEditForm({
+      question: item.title || "",
+      answer: item.content || "",
+    });
     setShowViewModal(true);
+  };
+
+  const handleEditFaq = () => {
+    if (!selectedItem) return;
+    setFaqEditForm({
+      question: selectedItem.title || "",
+      answer: selectedItem.content || "",
+    });
+    setIsEditingFaq(true);
+  };
+
+  const handleCancelEditFaq = () => {
+    if (!selectedItem) return;
+    setFaqEditForm({
+      question: selectedItem.title || "",
+      answer: selectedItem.content || "",
+    });
+    setIsEditingFaq(false);
+  };
+
+  const handleSaveFaq = async () => {
+    if (!selectedItem) return;
+    const question = faqEditForm.question.trim();
+    const answer = faqEditForm.answer.trim();
+
+    if (!question || !answer) {
+      toast.error("Question and answer are required");
+      return;
+    }
+
+    setIsUpdatingFaq(true);
+    try {
+      const response = await updateKnowledge.mutateAsync({
+        documentId: selectedItem._id,
+        payload: { title: question, content: answer },
+      });
+      setSelectedItem(response.data);
+      setIsEditingFaq(false);
+      toast.success("FAQ updated successfully", {
+        description: "The FAQ has been queued for re-indexing.",
+      });
+    } catch (err: any) {
+      console.error("Error updating FAQ:", err);
+      toast.error("Failed to update FAQ", {
+        description: err?.message,
+      });
+    } finally {
+      setIsUpdatingFaq(false);
+    }
   };
 
   const handleReindexItem = async (item: KnowledgeBase) => {
@@ -183,10 +245,14 @@ export function KnowledgeStaticPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Knowledge Base</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            PDFs, DOCX files, plain text, and curated FAQs indexed into your vector database
+            PDFs, DOCX files, plain text, and curated FAQs indexed into your
+            vector database
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="cursor-pointer">
+        <Button
+          onClick={() => setShowAddModal(true)}
+          className="cursor-pointer"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Knowledge
         </Button>
@@ -207,7 +273,9 @@ export function KnowledgeStaticPage() {
             <div className="flex items-center justify-center min-h-[300px]">
               <div className="text-center">
                 <Loader size="lg" />
-                <p className="text-muted-foreground mt-4">Loading documents...</p>
+                <p className="text-muted-foreground mt-4">
+                  Loading documents...
+                </p>
               </div>
             </div>
           ) : documents.length > 0 ? (
@@ -223,7 +291,9 @@ export function KnowledgeStaticPage() {
               <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                 <BookOpen className="h-6 w-6 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium text-foreground">No documents yet</h3>
+              <h3 className="text-lg font-medium text-foreground">
+                No documents yet
+              </h3>
               <p className="text-muted-foreground mt-1">
                 Upload PDFs, DOCX, or text files to build your knowledge base
               </p>
@@ -338,9 +408,12 @@ export function KnowledgeStaticPage() {
               <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                 <HelpCircle className="h-6 w-6 text-emerald-500" />
               </div>
-              <h3 className="text-lg font-medium text-foreground">No FAQs yet</h3>
+              <h3 className="text-lg font-medium text-foreground">
+                No FAQs yet
+              </h3>
               <p className="text-muted-foreground mt-1">
-                Add curated Question & Answer pairs to intercept messages and reply instantly
+                Add curated Question & Answer pairs to intercept messages and
+                reply instantly
               </p>
               <Button
                 className="mt-4 cursor-pointer"
@@ -371,8 +444,22 @@ export function KnowledgeStaticPage() {
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground">
-              {selectedItem?.source === "faq" ? "FAQ Details" : selectedItem?.title}
+              {selectedItem?.source === "faq"
+                ? "FAQ Details"
+                : selectedItem?.title}
             </h2>
+            {selectedItem?.source === "faq" && !isEditingFaq && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleEditFaq}
+                className="cursor-pointer"
+              >
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            )}
           </div>
 
           {selectedItem && selectedItem.source === "faq" ? (
@@ -443,25 +530,77 @@ export function KnowledgeStaticPage() {
               {/* Right Column: Full Q&A Display */}
               <div className="flex-1 space-y-4">
                 <div className="p-5 bg-muted/40 rounded-lg border border-border space-y-4">
-                  <div>
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                      Question
-                    </h4>
-                    <p className="text-lg font-bold text-foreground leading-snug">
-                      {selectedItem.title}
-                    </p>
-                  </div>
-                  <hr className="border-border" />
-                  <div>
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                      Curated Answer
-                    </h4>
-                    <div className="p-4 bg-card rounded-md border border-border shadow-sm min-h-[150px] max-h-[350px] overflow-y-auto">
-                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                        {selectedItem.content}
-                      </p>
-                    </div>
-                  </div>
+                  {isEditingFaq ? (
+                    <>
+                      <div>
+                        <Label className="block mb-2">Question</Label>
+                        <Input
+                          value={faqEditForm.question}
+                          onChange={(e) =>
+                            setFaqEditForm((prev) => ({
+                              ...prev,
+                              question: e.target.value,
+                            }))
+                          }
+                          className="cursor-text"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block mb-2">Answer</Label>
+                        <Textarea
+                          value={faqEditForm.answer}
+                          onChange={(e) =>
+                            setFaqEditForm((prev) => ({
+                              ...prev,
+                              answer: e.target.value,
+                            }))
+                          }
+                          className="min-h-[180px] cursor-text resize-none"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2 border-t border-border pt-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleCancelEditFaq}
+                          disabled={isUpdatingFaq}
+                          className="cursor-pointer"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={handleSaveFaq}
+                          disabled={isUpdatingFaq}
+                          className="cursor-pointer"
+                        >
+                          {isUpdatingFaq ? "Saving..." : "Save FAQ"}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                          Question
+                        </h4>
+                        <p className="text-lg font-bold text-foreground leading-snug">
+                          {selectedItem.title}
+                        </p>
+                      </div>
+                      <hr className="border-border" />
+                      <div>
+                        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                          Curated Answer
+                        </h4>
+                        <div className="p-4 bg-card rounded-md border border-border shadow-sm min-h-[150px] max-h-[350px] overflow-y-auto">
+                          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                            {selectedItem.content}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -483,7 +622,9 @@ export function KnowledgeStaticPage() {
                   </div>
                   {selectedItem.lastIndexed && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Last Indexed</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Last Indexed
+                      </p>
                       <p className="text-sm font-medium text-foreground">
                         {new Date(selectedItem.lastIndexed).toLocaleString()}
                       </p>
@@ -491,7 +632,9 @@ export function KnowledgeStaticPage() {
                   )}
                   {selectedItem.wordCount && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Word Count</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Word Count
+                      </p>
                       <p className="text-sm font-medium text-foreground">
                         {selectedItem.wordCount} words
                       </p>
@@ -499,7 +642,9 @@ export function KnowledgeStaticPage() {
                   )}
                   {selectedItem.fileName && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">File Name</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        File Name
+                      </p>
                       <p className="text-sm font-medium text-foreground break-all">
                         {selectedItem.fileName}
                       </p>
@@ -520,14 +665,20 @@ export function KnowledgeStaticPage() {
 
                 {selectedItem.errorMessage && (
                   <div className="p-3 bg-red-500/10 rounded-lg">
-                    <p className="text-sm font-medium text-red-500 mb-1">Error</p>
-                    <p className="text-sm text-red-400">{selectedItem.errorMessage}</p>
+                    <p className="text-sm font-medium text-red-500 mb-1">
+                      Error
+                    </p>
+                    <p className="text-sm text-red-400">
+                      {selectedItem.errorMessage}
+                    </p>
                   </div>
                 )}
               </div>
 
               <div className="flex-1">
-                <p className="text-sm font-medium text-foreground mb-2">Preview</p>
+                <p className="text-sm font-medium text-foreground mb-2">
+                  Preview
+                </p>
                 {viewUrlLoading ? (
                   <div className="flex items-center justify-center h-[600px] bg-muted rounded border border-border">
                     <Loader size="sm" />
@@ -540,7 +691,9 @@ export function KnowledgeStaticPage() {
                   />
                 ) : (
                   <div className="flex items-center justify-center h-[600px] bg-muted rounded border border-border">
-                    <p className="text-sm text-muted-foreground">Preview unavailable</p>
+                    <p className="text-sm text-muted-foreground">
+                      Preview unavailable
+                    </p>
                   </div>
                 )}
               </div>
@@ -563,7 +716,9 @@ export function KnowledgeStaticPage() {
                   </div>
                   {selectedItem.lastIndexed && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Last Indexed</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Last Indexed
+                      </p>
                       <p className="text-sm font-medium text-foreground">
                         {new Date(selectedItem.lastIndexed).toLocaleString()}
                       </p>
@@ -571,7 +726,9 @@ export function KnowledgeStaticPage() {
                   )}
                   {selectedItem.wordCount && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Word Count</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Word Count
+                      </p>
                       <p className="text-sm font-medium text-foreground">
                         {selectedItem.wordCount} words
                       </p>
@@ -606,7 +763,9 @@ export function KnowledgeStaticPage() {
 
                 {selectedItem.fileName && (
                   <div>
-                    <p className="text-sm font-medium text-foreground mb-2">File Name</p>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      File Name
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {selectedItem.fileName}
                     </p>
@@ -615,7 +774,9 @@ export function KnowledgeStaticPage() {
 
                 {selectedItem.source === "docx" && (
                   <div>
-                    <p className="text-sm font-medium text-foreground mb-2">Download</p>
+                    <p className="text-sm font-medium text-foreground mb-2">
+                      Download
+                    </p>
                     {viewUrlLoading ? (
                       <div className="flex items-center justify-center h-8">
                         <Loader size="sm" />

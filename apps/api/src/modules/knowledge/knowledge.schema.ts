@@ -35,16 +35,22 @@ export const knowledgeSchema = {
       otherwise: Joi.optional(),
     }),
     // URL-only crawl options
-    fetchMode: Joi.string().valid("single", "crawl").when("source", {
-      is: "url",
-      then: Joi.optional().default("single"),
-      otherwise: Joi.forbidden(),
-    }),
-    crawlDepth: Joi.number().integer().min(1).max(5).when("fetchMode", {
-      is: "crawl",
-      then: Joi.optional().default(1),
-      otherwise: Joi.optional(),
-    }),
+    fetchMode: Joi.string()
+      .valid("single", "crawl")
+      .when("source", {
+        is: "url",
+        then: Joi.optional().default("single"),
+        otherwise: Joi.forbidden(),
+      }),
+    crawlDepth: Joi.number()
+      .integer()
+      .min(1)
+      .max(5)
+      .when("fetchMode", {
+        is: "crawl",
+        then: Joi.optional().default(1),
+        otherwise: Joi.optional(),
+      }),
     syncFrequency: Joi.string()
       .valid("manual", "1hour", "6hours", "daily")
       .when("source", {
@@ -52,5 +58,19 @@ export const knowledgeSchema = {
         then: Joi.optional().default("manual"),
         otherwise: Joi.forbidden(),
       }),
+  }),
+
+  update: Joi.object({
+    title: Joi.string().trim().min(1).optional(),
+    description: Joi.string().trim().allow("").optional(),
+    catalog: Joi.string().trim().allow("").optional(),
+    content: Joi.string().trim().min(1).optional(),
+    isPaused: Joi.boolean().optional(),
+    syncFrequency: Joi.string()
+      .valid("manual", "1hour", "6hours", "daily")
+      .optional(),
+    status: Joi.string()
+      .valid("queued", "indexed", "failed", "pending")
+      .optional(),
   }),
 };

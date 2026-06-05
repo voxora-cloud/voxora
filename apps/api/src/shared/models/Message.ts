@@ -12,6 +12,8 @@ export interface IMessage extends Document {
     senderName: string;
     senderEmail: string;
     source: string;
+    answeredBy?: "faq" | "ai";
+    tokensUsed?: number;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +30,8 @@ const messageSchema = new Schema<IMessage>(
       senderName: String,
       senderEmail: String,
       source: String,
+      answeredBy: { type: String, enum: ["faq", "ai"] },
+      tokensUsed: Number,
     },
   },
   { timestamps: true },

@@ -8,6 +8,8 @@ const STREAM_CHANNEL = "ai:stream";
 export interface PublishPayload {
   conversationId: string;
   content: string;
+  answeredBy?: "faq" | "ai";
+  tokensUsed?: number;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;
@@ -29,26 +31,27 @@ export interface EscalationPayload {
   reason: string;
 }
 
-
-
 export async function publishResponse(payload: PublishPayload): Promise<void> {
-  await pubsubRedis.publish(PUBSUB_CHANNEL, JSON.stringify({ ...payload, nonce: randomUUID() }));
+  await pubsubRedis.publish(
+    PUBSUB_CHANNEL,
+    JSON.stringify({ ...payload, nonce: randomUUID() }),
+  );
 }
 
-
-
-
-
-
-export async function publishEscalation(payload: EscalationPayload): Promise<void> {
-  await pubsubRedis.publish(ESCALATION_CHANNEL, JSON.stringify({ ...payload, nonce: randomUUID() }));
+export async function publishEscalation(
+  payload: EscalationPayload,
+): Promise<void> {
+  await pubsubRedis.publish(
+    ESCALATION_CHANNEL,
+    JSON.stringify({ ...payload, nonce: randomUUID() }),
+  );
 }
 
-
-
-
-
-
-export async function publishStreamChunk(payload: StreamPayload): Promise<void> {
-  await pubsubRedis.publish(STREAM_CHANNEL, JSON.stringify({ ...payload, nonce: randomUUID() }));
+export async function publishStreamChunk(
+  payload: StreamPayload,
+): Promise<void> {
+  await pubsubRedis.publish(
+    STREAM_CHANNEL,
+    JSON.stringify({ ...payload, nonce: randomUUID() }),
+  );
 }

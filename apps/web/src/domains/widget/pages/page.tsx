@@ -43,14 +43,12 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   features: {
     endUserDomAccess: false,
   },
-  suggestions: [
-    { text: "Get help with a question", showOutside: true },
-    { text: "Learn about services", showOutside: false },
-    { text: "Contact support", showOutside: true },
-  ],
+  suggestions: [],
 };
 
-function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined): CreateWidgetData {
+function withWidgetDefaults(
+  data: Partial<CreateWidgetData> | null | undefined,
+): CreateWidgetData {
   if (!data) return { ...DEFAULT_WIDGET_FORM_DATA };
 
   return {
@@ -78,7 +76,18 @@ function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined):
       ...DEFAULT_WIDGET_FORM_DATA.features,
       ...data.features,
     },
-    suggestions: Array.isArray(data.suggestions) ? data.suggestions : DEFAULT_WIDGET_FORM_DATA.suggestions,
+    suggestions: Array.isArray(data.suggestions)
+        ? data.suggestions.slice(0, 3).map((suggestion) => ({
+          ...suggestion,
+          showOutside:
+            typeof suggestion.showOutside === "boolean"
+              ? suggestion.showOutside
+              : suggestion.source === "faq",
+          enabled: true,
+          source: suggestion.source === "faq" ? "faq" : "manual",
+          knowledgeId: suggestion.knowledgeId || "",
+        }))
+      : DEFAULT_WIDGET_FORM_DATA.suggestions,
   };
 }
 
@@ -117,9 +126,7 @@ export function WidgetPage() {
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
 
-    const validation = validateWidgetForm(
-      formData.displayName,
-    );
+    const validation = validateWidgetForm(formData.displayName);
 
     if (!validation.isValid) {
       const errors: { displayName?: string } = {};
@@ -163,12 +170,16 @@ export function WidgetPage() {
         }, 1500);
       } else {
         toast.error(
-          isExistingWidget ? "Failed to update widget" : "Failed to create widget",
+          isExistingWidget
+            ? "Failed to update widget"
+            : "Failed to create widget",
         );
       }
     } catch (error) {
       console.error("Error saving widget:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save widget");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save widget",
+      );
     } finally {
       // Mutation handles isPending state.
     }
@@ -222,7 +233,9 @@ export function WidgetPage() {
 
           <WidgetSuggestionsForm
             suggestions={formData.suggestions}
-            onChange={(suggestions) => setFormData((prev) => ({ ...prev, suggestions }))}
+            onChange={(suggestions) =>
+              setFormData((prev) => ({ ...prev, suggestions }))
+            }
           />
         </div>
 

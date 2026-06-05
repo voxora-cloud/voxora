@@ -71,6 +71,13 @@ export interface WidgetAppearance {
   features?: {
     endUserDomAccess?: boolean;
   };
+  suggestions?: Array<{
+    text: string;
+    showOutside: boolean;
+    enabled?: boolean;
+    source?: 'manual' | 'faq';
+    knowledgeId?: string;
+  }>;
 }
 
 // ─── Parent → Iframe messages ─────────────────────────────────────────────────

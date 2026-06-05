@@ -23,7 +23,7 @@ export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
       errorMessage: "FAQ Question is empty",
     });
     return;
-  }
+  } 
 
   if (!answer) {
     await setDocStatus(organizationId, documentId, {

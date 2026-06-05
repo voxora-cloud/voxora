@@ -30,6 +30,9 @@ export interface WidgetFeatureSettings {
 export interface WidgetSuggestion {
   text: string;
   showOutside: boolean;
+  enabled?: boolean;
+  source?: "manual" | "faq";
+  knowledgeId?: string;
 }
 
 export interface CreateWidgetData {
@@ -59,7 +62,6 @@ export interface Widget extends CreateWidgetData {
   createdAt?: Date;
   updatedAt?: Date;
 }
-
 
 export interface WidgetResponse {
   success: boolean;

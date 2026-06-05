@@ -18,7 +18,7 @@ export interface WidgetConfig {
   /** Auto-open widget immediately after initialization. */
   autoOpen?: boolean;
   /** Floating button position */
-  position?: 'bottom-right' | 'bottom-left';
+  position?: "bottom-right" | "bottom-left";
   /** Override button accent color */
   primaryColor?: string;
   // The following are populated from the API response, not the script tag:
@@ -29,7 +29,13 @@ export interface WidgetConfig {
   ai?: WidgetServerAiConfig;
   conversation?: WidgetServerConversationConfig;
   features?: WidgetServerFeatureConfig;
-  suggestions?: Array<{ text: string; showOutside: boolean }>;
+  suggestions?: Array<{
+    text: string;
+    showOutside: boolean;
+    enabled?: boolean;
+    source?: "manual" | "faq";
+    knowledgeId?: string;
+  }>;
   apiUrl?: string;
 }
 
@@ -93,13 +99,20 @@ export interface WidgetConfigApiResponse {
       ai?: WidgetServerAiConfig;
       conversation?: WidgetServerConversationConfig;
       features?: WidgetServerFeatureConfig;
-      suggestions?: Array<{ text: string; showOutside: boolean }>;
+      suggestions?: Array<{
+        text: string;
+        showOutside: boolean;
+        enabled?: boolean;
+        source?: "manual" | "faq";
+        knowledgeId?: string;
+      }>;
     };
   };
 }
 
-export type WidgetServerConfig = NonNullable<WidgetConfigApiResponse["data"]>["config"];
-
+export type WidgetServerConfig = NonNullable<
+  WidgetConfigApiResponse["data"]
+>["config"];
 
 export interface WidgetAuthResponse {
   success: boolean;

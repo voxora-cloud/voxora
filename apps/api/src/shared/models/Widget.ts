@@ -36,13 +36,21 @@ export interface IWidget extends Document {
   suggestions: Array<{
     text: string;
     showOutside: boolean;
+    enabled?: boolean;
+    source?: "manual" | "faq";
+    knowledgeId?: string;
   }>;
   publicKey?: string;
 }
 
 const WidgetSchema = new Schema<IWidget>(
   {
-    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true, unique: true },
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      unique: true,
+    },
     displayName: { type: String, required: true },
     logoUrl: { type: String, required: false, default: "" },
     appearance: {
@@ -80,6 +88,9 @@ const WidgetSchema = new Schema<IWidget>(
         {
           text: { type: String, required: true },
           showOutside: { type: Boolean, default: false },
+          enabled: { type: Boolean, default: true },
+          source: { type: String, enum: ["manual", "faq"], default: "manual" },
+          knowledgeId: { type: String, default: "" },
         },
       ],
       default: DEFAULT_WIDGET_CONFIG.suggestions,

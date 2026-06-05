@@ -7,10 +7,32 @@ import jwt from "jsonwebtoken";
 
 type ServiceError = Error & { statusCode?: number };
 
+const LEGACY_DEFAULT_SUGGESTIONS = new Set([
+  "get help with a question",
+  "learn about services",
+  "contact support",
+]);
+
 function createServiceError(message: string, statusCode: number): ServiceError {
   const err = new Error(message) as ServiceError;
   err.statusCode = statusCode;
   return err;
+}
+
+function normalizeSuggestionText(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isLegacyDefaultSuggestion(
+  text: string,
+  source: string,
+  knowledgeId: string,
+): boolean {
+  return (
+    source === "manual" &&
+    !knowledgeId &&
+    LEGACY_DEFAULT_SUGGESTIONS.has(normalizeSuggestionText(text))
+  );
 }
 
 function withWidgetConfigDefaults(input: any): any {
@@ -32,10 +54,38 @@ function withWidgetConfigDefaults(input: any): any {
   };
   output.features = { ...defaults.features, ...(input.features || {}) };
   if (Array.isArray(input.suggestions)) {
-    output.suggestions = input.suggestions.slice(0, 4).map((s: any) => ({
-      text: String(s.text || "").trim(),
-      showOutside: Boolean(s.showOutside),
-    })).filter((s: any) => s.text.length > 0);
+    const seenTexts = new Set<string>();
+    const seenKnowledgeIds = new Set<string>();
+    output.suggestions = input.suggestions
+      .map((s: any) => {
+        const text = String(s.text || "").trim();
+        const source = s.source === "faq" ? "faq" : "manual";
+        const knowledgeId = String(s.knowledgeId || "").trim();
+        const normalizedText = normalizeSuggestionText(text);
+
+        if (
+          !text ||
+          isLegacyDefaultSuggestion(text, source, knowledgeId) ||
+          seenTexts.has(normalizedText) ||
+          (knowledgeId && seenKnowledgeIds.has(knowledgeId))
+        ) {
+          return null;
+        }
+
+        seenTexts.add(normalizedText);
+        if (knowledgeId) seenKnowledgeIds.add(knowledgeId);
+
+        return {
+          text,
+          showOutside:
+            typeof s.showOutside === "boolean" ? s.showOutside : source === "faq",
+          enabled: true,
+          source,
+          knowledgeId,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 3);
   } else if (!output.suggestions) {
     output.suggestions = defaults.suggestions;
   }
@@ -45,7 +95,9 @@ function withWidgetConfigDefaults(input: any): any {
 export class WidgetService {
   private isMobileUserAgent(userAgent?: string): boolean {
     if (!userAgent) return false;
-    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(userAgent);
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(
+      userAgent,
+    );
   }
 
   private isQrReferrer(referrer?: string): boolean {
@@ -53,9 +105,11 @@ export class WidgetService {
 
     try {
       const parsed = new URL(referrer);
-      const get = (key: string) => (parsed.searchParams.get(key) || "").toLowerCase();
+      const get = (key: string) =>
+        (parsed.searchParams.get(key) || "").toLowerCase();
 
-      const source = get("source") || get("src") || get("utm_source") || get("entry");
+      const source =
+        get("source") || get("src") || get("utm_source") || get("entry");
       const medium = get("utm_medium") || get("medium");
       const campaign = get("utm_campaign") || get("campaign");
       const qrFlag = get("qr") || get("is_qr");
@@ -65,7 +119,9 @@ export class WidgetService {
 
       return /\bqr\b|qrcode/.test(parsed.pathname.toLowerCase());
     } catch {
-      return /[?&](source|src|utm_source|entry)=qr\b|[?&](qr|is_qr)=(1|true|yes)\b/i.test(referrer);
+      return /[?&](source|src|utm_source|entry)=qr\b|[?&](qr|is_qr)=(1|true|yes)\b/i.test(
+        referrer,
+      );
     }
   }
 
@@ -73,7 +129,11 @@ export class WidgetService {
     return this.isMobileUserAgent(userAgent) && this.isQrReferrer(referrer);
   }
 
-  async generateWidgetToken(InteraOnePublicKey: string, origin?: string, requestOrigin?: string) {
+  async generateWidgetToken(
+    InteraOnePublicKey: string,
+    origin?: string,
+    requestOrigin?: string,
+  ) {
     if (!InteraOnePublicKey) {
       throw createServiceError("InteraOne public key is required", 400);
     }
@@ -107,7 +167,9 @@ export class WidgetService {
     }
 
     const widget = await Widget.findById(InteraOnePublicKey)
-      .select("organizationId displayName backgroundColor appearance behavior ai conversation features suggestions")
+      .select(
+        "organizationId displayName backgroundColor appearance behavior ai conversation features suggestions",
+      )
       .lean();
 
     if (!widget) {
@@ -115,7 +177,8 @@ export class WidgetService {
     }
 
     const defaults = buildDefaultWidgetConfig();
-    const { logoUrl: _ignoredLogoUrl, ...appearance } = (widget as any).appearance || {};
+    const { logoUrl: _ignoredLogoUrl, ...appearance } =
+      (widget as any).appearance || {};
 
     return {
       organizationId: (widget as any).organizationId,
@@ -125,7 +188,8 @@ export class WidgetService {
           ...defaults.appearance,
           ...appearance,
         },
-        backgroundColor: (widget as any).backgroundColor || defaults.backgroundColor,
+        backgroundColor:
+          (widget as any).backgroundColor || defaults.backgroundColor,
         behavior: {
           ...defaults.behavior,
           ...((widget as any).behavior || {}),
@@ -146,6 +210,19 @@ export class WidgetService {
         },
         suggestions: Array.isArray((widget as any).suggestions)
           ? (widget as any).suggestions
+              .map((s: any) => ({
+                text: String(s.text || "").trim(),
+                showOutside: Boolean(s.showOutside),
+                enabled: true,
+                source: s.source === "faq" ? "faq" : "manual",
+                knowledgeId: String(s.knowledgeId || ""),
+              }))
+              .filter(
+                (s: any) =>
+                  s.text &&
+                  !isLegacyDefaultSuggestion(s.text, s.source, s.knowledgeId),
+              )
+              .slice(0, 3)
           : defaults.suggestions,
       },
     };
@@ -212,12 +289,22 @@ export class WidgetService {
     }
 
     const normalizedExisting = withWidgetConfigDefaults(widget.toObject());
+    const hasLegacySuggestions =
+      Array.isArray((widget as any).suggestions) &&
+      (widget as any).suggestions.some((s: any) =>
+        isLegacyDefaultSuggestion(
+          String(s.text || ""),
+          s.source === "faq" ? "faq" : "manual",
+          String(s.knowledgeId || ""),
+        ),
+      );
     const needsBackfill =
       !widget.appearance ||
       !widget.behavior ||
       !widget.ai ||
       !widget.conversation ||
-      !widget.features;
+      !widget.features ||
+      hasLegacySuggestions;
 
     if (needsBackfill) {
       await Widget.updateOne({ _id: widget._id }, normalizedExisting, {
@@ -246,10 +333,14 @@ export class WidgetService {
       Object.entries(allowedUpdates).filter(([_, v]) => v !== undefined),
     );
 
-    let widget = await Widget.findOneAndUpdate({ organizationId }, cleanUpdates, {
-      new: true,
-      runValidators: true,
-    });
+    let widget = await Widget.findOneAndUpdate(
+      { organizationId },
+      cleanUpdates,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
 
     if (!widget) {
       widget = new Widget({
@@ -260,6 +351,7 @@ export class WidgetService {
         ai: normalizedUpdateData.ai,
         conversation: normalizedUpdateData.conversation,
         features: normalizedUpdateData.features,
+        suggestions: normalizedUpdateData.suggestions,
         publicKey: crypto.randomBytes(16).toString("hex"),
       });
       await widget.save();

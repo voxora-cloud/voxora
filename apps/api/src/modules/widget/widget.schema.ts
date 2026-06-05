@@ -29,6 +29,17 @@ const featuresSchema = Joi.object({
   endUserDomAccess: Joi.boolean().required(),
 });
 
+const suggestionSchema = Joi.object({
+  text: Joi.string().trim().min(1).max(160).required(),
+  showOutside: Joi.boolean().default(false),
+  enabled: Joi.boolean().default(true),
+  source: Joi.string().valid("manual", "faq").default("manual"),
+  knowledgeId: Joi.string().trim().allow("").optional(),
+  _id: Joi.string().optional(),
+}).options({ stripUnknown: true });
+
+const suggestionsSchema = Joi.array().items(suggestionSchema).max(3);
+
 export const widgetSchema = {
   createWidget: Joi.object({
     displayName: Joi.string().min(1).max(50).required(),
@@ -37,6 +48,7 @@ export const widgetSchema = {
     ai: aiSchema,
     conversation: conversationSchema,
     features: featuresSchema,
+    suggestions: suggestionsSchema,
   }).options({ stripUnknown: true }),
 
   updateWidget: Joi.object({
@@ -46,6 +58,7 @@ export const widgetSchema = {
     ai: aiSchema,
     conversation: conversationSchema,
     features: featuresSchema,
+    suggestions: suggestionsSchema,
     _id: Joi.string().optional(),
     userId: Joi.string().optional(),
     createdAt: Joi.date().optional(),

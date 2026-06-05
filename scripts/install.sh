@@ -295,11 +295,16 @@ prompt_config() {
         REDIS_PASSWORD=$(grep "^REDIS_PASSWORD=" docker/.env | cut -d= -f2-)
         MINIO_PASSWORD=$(grep "^MINIO_ROOT_PASSWORD=" docker/.env | cut -d= -f2-)
         JWT_SECRET=$(grep "^JWT_SECRET=" docker/.env | cut -d= -f2-)
+        AI_TOOL_SECRET=$(grep "^AI_TOOL_SECRET=" docker/.env | cut -d= -f2-)
+        if [ -z "$AI_TOOL_SECRET" ]; then
+            AI_TOOL_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
+        fi
     else
         MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         REDIS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         MINIO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         JWT_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
+        AI_TOOL_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
     fi
     
     echo ""
@@ -342,6 +347,9 @@ CDN_URL_PRODUCTION=https://$CDN_HOST
 
 # JWT (used for re-run password recovery)
 JWT_SECRET=$JWT_SECRET
+
+# Shared internal AI tool auth
+AI_TOOL_SECRET=$AI_TOOL_SECRET
 EOF
     
     # apps/api/.env.docker
@@ -362,6 +370,9 @@ MONGODB_URI=mongodb://admin:$MONGO_PASSWORD@mongodb:27017/interaone?authSource=a
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
+
+# AI service (service hostname: ai)
+AI_SERVICE_URL=http://ai:4010
 
 # JWT
 JWT_SECRET=$JWT_SECRET
@@ -391,6 +402,9 @@ EMAIL_PROVIDER=$EMAIL_PROVIDER
 EMAIL_FROM_NAME=InteraOne
 EMAIL_FROM_EMAIL=noreply@interaone.app
 RESEND_API_KEY=$RESEND_API_KEY
+
+# Tool auth
+AI_TOOL_SECRET=$AI_TOOL_SECRET
 EOF
     
     # apps/web/.env.docker
@@ -473,8 +487,8 @@ CHAT_HISTORY_LIMIT=20
 WORKER_CONCURRENCY=5
 INGESTION_CONCURRENCY=2
 
-# Tool auth (shared secret between api and ai services)
-AI_TOOL_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+# Tool auth
+AI_TOOL_SECRET=$AI_TOOL_SECRET
 EOF
     fi
     

@@ -1,5 +1,10 @@
 export type KnowledgeSource = "text" | "pdf" | "docx" | "url" | "faq";
-export type KnowledgeStatus = "indexed" | "indexing" | "failed" | "pending" | "queued";
+export type KnowledgeStatus =
+  | "indexed"
+  | "indexing"
+  | "failed"
+  | "pending"
+  | "queued";
 export type AddKnowledgeSource = "text" | "pdf" | "docx" | "faq";
 
 export interface KnowledgeBase {
@@ -60,6 +65,10 @@ export interface KnowledgeCreatePayload {
 }
 
 export interface KnowledgeUpdatePayload {
+  title?: string;
+  description?: string;
+  catalog?: string;
+  content?: string;
   isPaused?: boolean;
   syncFrequency?: SyncFrequency;
   status?: KnowledgeStatus;
@@ -93,7 +102,6 @@ export interface AddLiveSourceFormData {
   crawlDepth?: number;
   syncFrequency: SyncFrequency;
 }
-
 
 export interface KnowledgeListResponse {
   success: boolean;

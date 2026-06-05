@@ -1,197 +1,299 @@
-import { Organization, Membership, MembershipRole, IOrganization, Widget } from "@shared/models";
+import {
+  Organization,
+  Membership,
+  MembershipRole,
+  IOrganization,
+  Widget,
+  Knowledge,
+} from "@shared/models";
 import { ClientSession, Types } from "mongoose";
 import { generateTokens } from "@shared/security/auth/jwt";
 import crypto from "crypto";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
+import { DEFAULT_STATIC_FAQS } from "@shared/core/default-faqs";
+import { ingestionQueue } from "@shared/infra/queue";
 
 export class OrganizationService {
-    /**
-     * Create a new organization and assign the creator as owner.
-     */
-    static async createOrganization(
-        userId: string,
-        data: { name: string; slug?: string },
-        options?: { session?: ClientSession },
-    ): Promise<{
-        organization: IOrganization;
-        accessToken: string;
-        refreshToken: string;
-    }> {
-        const session = options?.session;
-        let slug = data.slug ?? await this.generateAvailableSlug(data.name);
+  private static async seedDefaultFaqs(
+    organizationId: Types.ObjectId,
+    userId: string,
+    options?: { session?: ClientSession },
+  ) {
+    const session = options?.session;
+    const seededFaqs = [];
 
-        const organization = new Organization({ name: data.name, slug });
-        await organization.save({ session });
+    for (const faq of DEFAULT_STATIC_FAQS) {
+      const existing = await Knowledge.findOne({
+        organizationId,
+        source: "faq",
+        title: faq.question,
+      }).session(session ?? null);
 
-        if (!organization) {
-            throw new Error("Failed to create organization");
-        }
+      if (existing) {
+        seededFaqs.push(existing);
+        continue; 
+      }
 
-        // Auto-create a default widget for the new organization
-        const defaultWidgetConfig = buildDefaultWidgetConfig();
-        await Widget.create(
-            [{
-                organizationId: organization._id,
-                displayName: organization.name,
-                ...defaultWidgetConfig,
-                publicKey: crypto.randomBytes(16).toString("hex"),
-            }],
-            { session },
-        );
+      const [doc] = await Knowledge.create(
+        [
+          {
+            organizationId,
+            title: faq.question,
+            content: faq.answer,
+            catalog: "Support & FAQs",
+            source: "faq",
+            status: "queued",
+            uploadedBy: userId,
+          },
+        ],
+        { session },
+      );
 
-        // Create owner membership
-        await Membership.create(
-            [{
-                userId: new Types.ObjectId(userId),
-                organizationId: organization._id,
-                role: "owner" as MembershipRole,
-                inviteStatus: "active",
-                activatedAt: new Date(),
-                permissions: [
-                    "manage_teams",
-                    "manage_agents",
-                    "view_analytics",
-                    "manage_settings",
-                    "manage_members",
-                ],
-            }],
-            { session },
-        );
+      await ingestionQueue.add("ingest", {
+        documentId: String(doc._id),
+        organizationId: organizationId.toString(),
+        source: "faq",
+        fileKey: "",
+        mimeType: "text/plain",
+        fileName: faq.question,
+        title: faq.question,
+        catalog: "Support & FAQs",
+        content: faq.answer,
+      });
 
-        // Issue tokens scoped to new org
-        const { accessToken, refreshToken } = generateTokens({
-            userId,
-            email: "", // filled by caller or re-fetched
-            activeOrganizationId: organization._id.toString(),
-        });
-
-        return { organization, accessToken, refreshToken };
-    }
-    /**
-     * List all organizations a user belongs to (with role info).
-     */
-    static async getUserOrganizations(userId: string) {
-        const memberships = await Membership.find({ userId, inviteStatus: "active" }).populate<{
-            organizationId: IOrganization;
-        }>("organizationId");
-
-        return memberships
-            .filter((m) => m.organizationId && (m.organizationId as any).isActive)
-            .map((m) => ({
-                organization: m.organizationId as IOrganization,
-                role: m.role,
-                membershipId: m._id,
-            }));
+      seededFaqs.push(doc);
     }
 
-    /**
-     * Get a single organization (validates membership).
-     */
-    static async getOrganization(userId: string, orgId: string) {
-        const membership = await Membership.findOne({
-            userId,
-            organizationId: orgId,
-            inviteStatus: "active",
-        });
-        if (!membership) throw new Error("Organization not found or access denied");
+    return seededFaqs;
+  }
 
-        const org = await Organization.findById(orgId);
-        if (!org || !org.isActive) throw new Error("Organization not found");
+  /**
+   * Create a new organization and assign the creator as owner.
+   */
+  static async createOrganization(
+    userId: string,
+    data: { name: string; slug?: string },
+    options?: { session?: ClientSession },
+  ): Promise<{
+    organization: IOrganization;
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    const session = options?.session;
+    let slug = data.slug ?? (await this.generateAvailableSlug(data.name));
 
-        return { organization: org, role: membership.role };
+    const organization = new Organization({ name: data.name, slug });
+    await organization.save({ session });
+
+    if (!organization) {
+      throw new Error("Failed to create organization");
     }
 
-    /**
-     * Update organization settings (owner/admin only – enforced at route level).
-     */
-    static async updateOrganization(
-        orgId: string,
-        data: {
-            name?: string;
-            slug?: string;
-            logoUrl?: string;
-            whiteLabelEnabled?: boolean;
+    const defaultFaqs = await this.seedDefaultFaqs(organization._id, userId, {
+      session,
+    });
+
+    // Auto-create a default widget for the new organization
+    const defaultWidgetConfig = buildDefaultWidgetConfig();
+    await Widget.create(
+      [
+        {
+          organizationId: organization._id,
+          displayName: organization.name,
+          ...defaultWidgetConfig,
+          suggestions: defaultFaqs.map((faq) => ({
+            text: faq.title,
+            showOutside: true,
+            enabled: true,
+            source: "faq",
+            knowledgeId: String(faq._id),
+          })),
+          publicKey: crypto.randomBytes(16).toString("hex"),
         },
-    ) {
-        if (data.slug) {
-            const existing = await Organization.findOne({ slug: data.slug, _id: { $ne: orgId } });
-            if (existing) throw new Error(`Slug "${data.slug}" is already taken`);
-        }
+      ],
+      { session },
+    );
 
-        const existingOrg = await Organization.findById(orgId);
-        if (!existingOrg) throw new Error("Organization not found");
+    // Create owner membership
+    await Membership.create(
+      [
+        {
+          userId: new Types.ObjectId(userId),
+          organizationId: organization._id,
+          role: "owner" as MembershipRole,
+          inviteStatus: "active",
+          activatedAt: new Date(),
+          permissions: [
+            "manage_teams",
+            "manage_agents",
+            "view_analytics",
+            "manage_settings",
+            "manage_members",
+          ],
+        },
+      ],
+      { session },
+    );
 
-        const updateFields: Record<string, unknown> = {};
-        if (typeof data.name !== "undefined") updateFields.name = data.name;
-        if (typeof data.slug !== "undefined") updateFields.slug = data.slug;
-        if (typeof data.logoUrl !== "undefined") updateFields.logoUrl = data.logoUrl;
-        if (typeof data.whiteLabelEnabled !== "undefined") updateFields.whiteLabelEnabled = data.whiteLabelEnabled;
+    // Issue tokens scoped to new org
+    const { accessToken, refreshToken } = generateTokens({
+      userId,
+      email: "", // filled by caller or re-fetched
+      activeOrganizationId: organization._id.toString(),
+    });
 
-        const org = await Organization.findByIdAndUpdate(orgId, { $set: updateFields }, { new: true });
-        if (!org) throw new Error("Organization not found");
-        return org;
+    return { organization, accessToken, refreshToken };
+  }
+  /**
+   * List all organizations a user belongs to (with role info).
+   */
+  static async getUserOrganizations(userId: string) {
+    const memberships = await Membership.find({
+      userId,
+      inviteStatus: "active",
+    }).populate<{
+      organizationId: IOrganization;
+    }>("organizationId");
+
+    return memberships
+      .filter((m) => m.organizationId && (m.organizationId as any).isActive)
+      .map((m) => ({
+        organization: m.organizationId as IOrganization,
+        role: m.role,
+        membershipId: m._id,
+      }));
+  }
+
+  /**
+   * Get a single organization (validates membership).
+   */
+  static async getOrganization(userId: string, orgId: string) {
+    const membership = await Membership.findOne({
+      userId,
+      organizationId: orgId,
+      inviteStatus: "active",
+    });
+    if (!membership) throw new Error("Organization not found or access denied");
+
+    const org = await Organization.findById(orgId);
+    if (!org || !org.isActive) throw new Error("Organization not found");
+
+    return { organization: org, role: membership.role };
+  }
+
+  /**
+   * Update organization settings (owner/admin only – enforced at route level).
+   */
+  static async updateOrganization(
+    orgId: string,
+    data: {
+      name?: string;
+      slug?: string;
+      logoUrl?: string;
+      whiteLabelEnabled?: boolean;
+    },
+  ) {
+    if (data.slug) {
+      const existing = await Organization.findOne({
+        slug: data.slug,
+        _id: { $ne: orgId },
+      });
+      if (existing) throw new Error(`Slug "${data.slug}" is already taken`);
     }
 
-    /**
-     * Delete an organization (owner only). Cascades are handled by the caller or hooks.
-     */
-    static async deleteOrganization(orgId: string) {
-        await Organization.findByIdAndUpdate(orgId, { isActive: false });
-        await Membership.updateMany({ organizationId: orgId }, { inviteStatus: "inactive" });
+    const existingOrg = await Organization.findById(orgId);
+    if (!existingOrg) throw new Error("Organization not found");
+
+    const updateFields: Record<string, unknown> = {};
+    if (typeof data.name !== "undefined") updateFields.name = data.name;
+    if (typeof data.slug !== "undefined") updateFields.slug = data.slug;
+    if (typeof data.logoUrl !== "undefined")
+      updateFields.logoUrl = data.logoUrl;
+    if (typeof data.whiteLabelEnabled !== "undefined")
+      updateFields.whiteLabelEnabled = data.whiteLabelEnabled;
+
+    const org = await Organization.findByIdAndUpdate(
+      orgId,
+      { $set: updateFields },
+      { new: true },
+    );
+    if (!org) throw new Error("Organization not found");
+    return org;
+  }
+
+  /**
+   * Delete an organization (owner only). Cascades are handled by the caller or hooks.
+   */
+  static async deleteOrganization(orgId: string) {
+    await Organization.findByIdAndUpdate(orgId, { isActive: false });
+    await Membership.updateMany(
+      { organizationId: orgId },
+      { inviteStatus: "inactive" },
+    );
+  }
+
+  /**
+   * Switch the active organization — returns new tokens.
+   */
+  static async switchOrganization(
+    userId: string,
+    email: string,
+    targetOrgId: string,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    organization: IOrganization;
+    role: MembershipRole;
+  }> {
+    const membership = await Membership.findOne({
+      userId,
+      organizationId: targetOrgId,
+      inviteStatus: "active",
+    });
+
+    if (!membership) {
+      throw new Error("You are not a member of the requested organization");
     }
 
-    /**
-     * Switch the active organization — returns new tokens.
-     */
-    static async switchOrganization(
-        userId: string,
-        email: string,
-        targetOrgId: string,
-    ): Promise<{ accessToken: string; refreshToken: string; organization: IOrganization; role: MembershipRole }> {
-        const membership = await Membership.findOne({
-            userId,
-            organizationId: targetOrgId,
-            inviteStatus: "active",
-        });
+    const org = await Organization.findById(targetOrgId);
+    if (!org || !org.isActive)
+      throw new Error("Organization not found or inactive");
 
-        if (!membership) {
-            throw new Error("You are not a member of the requested organization");
-        }
+    const tokens = generateTokens({
+      userId,
+      email,
+      activeOrganizationId: targetOrgId,
+    });
 
-        const org = await Organization.findById(targetOrgId);
-        if (!org || !org.isActive) throw new Error("Organization not found or inactive");
+    return { ...tokens, organization: org, role: membership.role };
+  }
 
-        const tokens = generateTokens({ userId, email, activeOrganizationId: targetOrgId });
+  // ─── Helpers ───
 
-        return { ...tokens, organization: org, role: membership.role };
+  static generateSlug(name: string): string {
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .substring(0, 50);
+
+    return slug || "organization";
+  }
+
+  static async generateAvailableSlug(name: string): Promise<string> {
+    const baseSlug = this.generateSlug(name);
+    let slug = baseSlug;
+    let suffix = 1;
+
+    while (await Organization.exists({ slug })) {
+      suffix += 1;
+      const suffixText = `-${suffix}`;
+      slug = `${baseSlug.substring(0, 50 - suffixText.length)}${suffixText}`;
     }
 
-    // ─── Helpers ───
-
-    static generateSlug(name: string): string {
-        const slug = name
-            .toLowerCase()
-            .trim()
-            .replace(/[^a-z0-9\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .replace(/-+/g, "-")
-            .replace(/^-|-$/g, "")
-            .substring(0, 50);
-
-        return slug || "organization";
-    }
-
-    static async generateAvailableSlug(name: string): Promise<string> {
-        const baseSlug = this.generateSlug(name);
-        let slug = baseSlug;
-        let suffix = 1;
-
-        while (await Organization.exists({ slug })) {
-            suffix += 1;
-            const suffixText = `-${suffix}`;
-            slug = `${baseSlug.substring(0, 50 - suffixText.length)}${suffixText}`;
-        }
-
-        return slug;
-    }
+    return slug;
+  }
 }
