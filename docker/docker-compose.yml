@@ -65,7 +65,7 @@ services:
     networks:
       - InteraOne-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -83,6 +83,8 @@ services:
       - "127.0.0.1:3002:3002"  # Caddy is the public entry-point; bind locally for health checks only
     env_file:
       - ../apps/api/.env.docker
+    volumes:
+      - ../ee:/app/ee:ro
     depends_on:
       mongodb:
         condition: service_healthy
@@ -93,7 +95,7 @@ services:
     networks:
       - InteraOne-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/api/v1/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3002/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,6 +131,8 @@ services:
     restart: unless-stopped
     env_file:
       - ../apps/worker/.env.docker
+    volumes:
+      - ../ee:/app/ee:ro
     depends_on:
       redis:
         condition: service_healthy
