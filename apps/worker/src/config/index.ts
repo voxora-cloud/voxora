@@ -19,12 +19,7 @@ function parseEmailProvider(value?: string): EmailProvider {
  * helper so the worker does not have to import from the api package.
  */
 export function isEeEnabled(): boolean {
-  const mode = (process.env.INTERAONE_MODE || "").toLowerCase();
-  if (mode === "cloud") {
-    return (process.env.INTERAONE_EE_ENABLED || "false").toLowerCase() === "true";
-  }
-  const key = process.env.INTERAONE_LICENSE_KEY || "";
-  return key.startsWith("interaone_");
+  return true;
 }
 
 const config = {

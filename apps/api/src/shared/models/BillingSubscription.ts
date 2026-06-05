@@ -11,7 +11,7 @@ export interface IBillingSubscription extends Document {
   organizationId: string;
   provider: "dodo";
   providerId: string;
-  plan: "free" | "pro" | "proplus" | "enterprise";
+  plan: "free" | "pro" | "proplus";
   status: SubscriptionStatus;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
@@ -32,7 +32,7 @@ const billingSubscriptionSchema = new Schema<IBillingSubscription>(
     providerId: { type: String, required: true, trim: true },
     plan: {
       type: String,
-      enum: ["free", "pro", "proplus", "enterprise"],
+      enum: ["free", "pro", "proplus"],
       required: true,
     },
     status: {

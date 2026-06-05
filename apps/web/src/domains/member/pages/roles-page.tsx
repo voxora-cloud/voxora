@@ -102,7 +102,7 @@ export function RolesPage() {
         <div>
           <h4 className="text-sm font-medium">Have a special permission request?</h4>
           <p className="text-sm text-muted-foreground mt-1">
-            Custom roles and granular permission matrices are available on the Enterprise
+            Custom roles and granular permission matrices are available on the Pro+
             tier. Contact support for details.
           </p>
         </div>

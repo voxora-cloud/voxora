@@ -106,10 +106,10 @@ class AuthApi {
     localStorage.setItem("orgPlan", plan);
   }
 
-  getOrgPlan(): "free" | "pro" | "proplus" | "enterprise" | null {
+  getOrgPlan(): "free" | "pro" | "proplus" | null {
     if (typeof window === "undefined") return null;
     const plan = localStorage.getItem("orgPlan");
-    return plan as "free" | "pro" | "proplus" | "enterprise" | null;
+    return plan as "free" | "pro" | "proplus" | null;
   }
 
   getOrgRole(): "owner" | "admin" | "agent" | null {

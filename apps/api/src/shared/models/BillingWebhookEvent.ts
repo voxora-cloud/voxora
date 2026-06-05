@@ -5,7 +5,7 @@ export interface IBillingWebhookEvent extends Document {
   eventId: string;
   eventType: string;
   organizationId?: string;
-  targetPlan?: "pro" | "proplus" | "enterprise";
+  targetPlan?: "pro" | "proplus";
   status: "processing" | "processed" | "ignored" | "failed";
   rawPayload: unknown;
   errorMessage?: string;
@@ -20,7 +20,7 @@ const billingWebhookEventSchema = new Schema<IBillingWebhookEvent>(
     eventId: { type: String, required: true, trim: true },
     eventType: { type: String, required: true, trim: true },
     organizationId: { type: String, trim: true },
-    targetPlan: { type: String, enum: ["pro", "proplus", "enterprise"] },
+    targetPlan: { type: String, enum: ["pro", "proplus"] },
     status: {
       type: String,
       enum: ["processing", "processed", "ignored", "failed"],

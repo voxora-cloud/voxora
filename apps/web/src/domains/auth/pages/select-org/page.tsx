@@ -9,7 +9,7 @@ interface Organization {
   _id: string;
   name: string;
   slug?: string;
-  plan?: "free" | "pro" | "proplus" | "enterprise";
+  plan?: "free" | "pro" | "proplus";
 }
 
 interface OrgMembership {

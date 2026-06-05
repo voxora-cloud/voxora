@@ -1,5 +1,5 @@
 import { Organization } from "@shared/models";
-import { PlanTier } from "./policy";
+import { PlanTier } from "../licensing/policy";
 
 export type SubscriptionAction = "activate" | "renew" | "past_due" | "cancel" | "expire" | "unknown";
 
@@ -10,7 +10,7 @@ export type ParsedSubscriptionEvent = {
   action: SubscriptionAction;
   subscriptionId?: string;
   organizationId?: string;
-  targetPlan?: "pro" | "proplus" | "enterprise";
+  targetPlan?: "pro" | "proplus";
   currentPeriodEnd?: Date;
 };
 
@@ -49,7 +49,7 @@ export type EeModule = {
       eventId: string;
       eventType: string;
       organizationId?: string;
-      targetPlan?: "pro" | "proplus" | "enterprise";
+      targetPlan?: "pro" | "proplus";
       shouldUpgrade: boolean;
     };
     handleSubscriptionEvent?: (params: {
@@ -81,4 +81,3 @@ export type EeModule = {
     }) => Promise<{ removeBranding: boolean }>;
   };
 };
-

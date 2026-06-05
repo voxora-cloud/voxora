@@ -6,7 +6,7 @@ const { getHeader } = require("./headers");
 /**
  * @typedef {Record<string, string | string[] | undefined>} HttpHeaders
  *
- * @typedef {"pro" | "proplus" | "enterprise"} PlanTier
+ * @typedef {"pro" | "proplus"} PlanTier
  *
  * @typedef {"activate" | "renew" | "past_due" | "cancel" | "expire" | "unknown"} SubscriptionAction
  *
@@ -66,14 +66,14 @@ function inferPlanFromPayload(payload) {
     getObject(payload, "metadata.target_plan");
 
   const normalized = typeof metadataPlan === "string" ? metadataPlan.toLowerCase() : undefined;
-  if (normalized === "enterprise" || normalized === "pro" || normalized === "proplus") {
+  if (normalized === "pro" || normalized === "proplus") {
     return /** @type {PlanTier} */ (normalized);
   }
 
   const productId =
     String(getObject(payload, "data.product_id") || getObject(payload, "data.items.0.price.product_id") || "");
 
-  const proplusId = process.env.DODO_PAYMENTS_PRODUCT_PROPLUS || process.env.DODO_PAYMENTS_PRODUCT_ENTERPRISE;
+  const proplusId = process.env.DODO_PAYMENTS_PRODUCT_PROPLUS;
   if (proplusId && productId === proplusId) return "proplus";
   if (process.env.DODO_PAYMENTS_PRODUCT_PRO && productId === process.env.DODO_PAYMENTS_PRODUCT_PRO) return "pro";
 

@@ -3,7 +3,7 @@ import { AlertTriangle, X, Zap } from "lucide-react";
 import { Link } from "react-router";
 import { apiClient } from "@/shared/lib/api-client";
 import { authApi } from "@/domains/auth/api/auth.api";
-import { getInteraOneMode, isEeEnabledByEnv, isEeModulePresent } from "@/shared/ee";
+import { getInteraOneMode, isEeEnabledByEnv } from "@/shared/ee";
 
 interface UsageStat {
   used: number;
@@ -38,7 +38,7 @@ export function UsageBanner() {
 
   const orgId = authApi.getActiveOrgId();
   const billingVisible =
-    getInteraOneMode() === "cloud" && isEeEnabledByEnv() && isEeModulePresent();
+    getInteraOneMode() === "cloud" && isEeEnabledByEnv();
   const role = authApi.getOrgRole();
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export function UsageBanner() {
 
       {billingVisible && role === "owner" && (
         <Link
-          to="/dashboard/settings/billing"
+          to="/dashboard/settings/billing/plans"
           className="shrink-0 flex items-center gap-1 rounded-md bg-current/10 px-2.5 py-1 text-xs font-medium hover:bg-current/20 transition-colors"
         >
           <Zap className="h-3 w-3" />

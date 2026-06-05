@@ -45,7 +45,7 @@ export function BillingFailedPage() {
 
         {/* Actions */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Link to="/dashboard/settings/billing" className="flex-1">
+          <Link to="/dashboard/settings/billing/plans" className="flex-1">
             <Button className="group w-full cursor-pointer">
               <RefreshCw className="mr-1.5 h-4 w-4" />
               Try again

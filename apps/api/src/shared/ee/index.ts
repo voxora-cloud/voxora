@@ -5,33 +5,33 @@
  * or middleware so that this barrel remains the single stable import boundary.
  *
  * Sub-module responsibilities:
- *   types.ts        — EeModule contract type (shape of the /ee JS plugin)
- *   policy.ts       — Plan tiers, feature policy, plan definitions
- *   audit.ts        — Structured audit logging for EE access events
- *   env.ts          — Deployment mode detection + license key validation
- *   loader.ts       — Dynamic require() of /ee, contract validation, status
- *   plan.ts         — Plan cache, resolution, catalog, limits
- *   entitlements.ts — Feature gating and entitlements payload
+ *   contracts/types.ts       — EeModule contract type (shape of the /ee JS plugin)
+ *   licensing/policy.ts      — Plan tiers, feature policy, plan definitions
+ *   audit/audit.ts           — Structured audit logging for EE access events
+ *   loader/env.ts            — Deployment mode detection + license key validation
+ *   loader/loader.ts         — Dynamic require() of /ee, contract validation, status
+ *   licensing/plan.ts        — Plan cache, resolution, catalog, limits
+ *   licensing/entitlements.ts— Feature gating and entitlements payload
  */
 
 // Types
-export type { EeModule } from "./types";
-export type { EeFeature, PlanTier, InteraOneMode, PlanDefinition, PlanLimitKey } from "./policy";
+export type { EeModule } from "./contracts/types";
+export type { EeFeature, PlanTier, InteraOneMode, PlanDefinition, PlanLimitKey } from "./licensing/policy";
 
 // Policy constants
-export { EE_FEATURE_POLICY, PLAN_WEIGHT, PLAN_DEFINITIONS, OSS_CORE_CAPABILITIES } from "./policy";
+export { EE_FEATURE_POLICY, PLAN_WEIGHT, PLAN_DEFINITIONS, OSS_CORE_CAPABILITIES } from "./licensing/policy";
 
 // Audit
-export { logEeAuditEvent } from "./audit";
+export { logEeAuditEvent } from "./audit/audit";
 
 // Environment / mode
-export { getInteraOneMode, isEeEnabledByEnv } from "./env";
+export { getInteraOneMode, isEeEnabledByEnv } from "./loader/env";
 
 // Loader & status
-export { isEeModulePresent, getEeStatus, loadEeModule, preflightEeContractCheck } from "./loader";
+export { isEeModulePresent, getEeStatus, loadEeModule, preflightEeContractCheck } from "./loader/loader";
 
 // Plan
-export { normalizePlan, resolveOrganizationPlan, invalidateOrganizationPlanCache, getPlanCatalog, getPlanLimits } from "./plan";
+export { normalizePlan, resolveOrganizationPlan, invalidateOrganizationPlanCache, getPlanCatalog, getPlanLimits } from "./licensing/plan";
 
 // Entitlements
-export { isFeatureEnabledForMode, canAccessFeatureByPlan, getRequiredPlanForFeature, resolvePlanEntitlements } from "./entitlements";
+export { isFeatureEnabledForMode, canAccessFeatureByPlan, getRequiredPlanForFeature, resolvePlanEntitlements } from "./licensing/entitlements";

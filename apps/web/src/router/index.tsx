@@ -23,9 +23,10 @@ import { KnowledgeStaticPage } from "@/domains/knowledge/pages/static-page";
 import { KnowledgeRealtimePage } from "@/domains/knowledge/pages/realtime-page";
 import { GeneralSettingsPage } from "@/domains/settings/pages/general-page";
 import { DangerZonePage } from "@/domains/settings/pages/danger-zone-page";
-import { BillingPage } from "@/domains/settings/pages/billing-page";
-import { BillingSuccessPage } from "@/domains/settings/pages/billing-success-page";
-import { BillingFailedPage } from "@/domains/settings/pages/billing-failed-page";
+import { PlansPage } from "@/domains/billing/pages/plans-page";
+import { UsagePage } from "@/domains/billing/pages/usage-page";
+import { BillingSuccessPage } from "@/domains/billing/pages/billing-success-page";
+import { BillingFailedPage } from "@/domains/billing/pages/billing-failed-page";
 import { WhiteLabelPage } from "@/domains/settings/pages/white-label-page";
 import { CreateOrganizationPage } from "@/domains/auth/pages/create-organization/page";
 import { DashboardLayout } from "@/shared/layouts/dashboard-layout";
@@ -155,9 +156,7 @@ const router = createBrowserRouter([
         element: (
             <ProtectedRoute requiredRole="agent">
                 <DashboardLayout>
-                    <EeFeatureGate feature="contacts">
-                        <ContactsPage />
-                    </EeFeatureGate>
+                    <ContactsPage />
                 </DashboardLayout>
             </ProtectedRoute>
         ),
@@ -167,9 +166,7 @@ const router = createBrowserRouter([
         element: (
             <ProtectedRoute requiredRole="agent">
                 <DashboardLayout>
-                    <EeFeatureGate feature="contacts">
-                        <ContactSegmentsPage />
-                    </EeFeatureGate>
+                    <ContactSegmentsPage />
                 </DashboardLayout>
             </ProtectedRoute>
         ),
@@ -246,10 +243,24 @@ const router = createBrowserRouter([
     },
     {
         path: "/dashboard/settings/billing",
+        element: <Navigate to="/dashboard/settings/billing/plans" replace />,
+    },
+    {
+        path: "/dashboard/settings/billing/plans",
         element: (
             <ProtectedRoute requiredRole="founder">
                 <DashboardLayout>
-                    <BillingPage />
+                    <PlansPage />
+                </DashboardLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/dashboard/settings/billing/usage",
+        element: (
+            <ProtectedRoute requiredRole="founder">
+                <DashboardLayout>
+                    <UsagePage />
                 </DashboardLayout>
             </ProtectedRoute>
         ),

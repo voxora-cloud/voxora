@@ -6,7 +6,7 @@ import {
   PLAN_WEIGHT,
   OSS_CORE_CAPABILITIES,
 } from "./policy";
-import { getEeStatus } from "./loader";
+import { getEeStatus } from "../loader/loader";
 import { getPlanLimits } from "./plan";
 
 /**

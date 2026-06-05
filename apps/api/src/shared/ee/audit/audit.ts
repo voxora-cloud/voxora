@@ -1,5 +1,5 @@
 import logger from "@shared/core/logger";
-import { EeFeature, PlanTier, InteraOneMode } from "./policy";
+import { EeFeature, PlanTier, InteraOneMode } from "../licensing/policy";
 
 interface EeAuditEvent {
   event: "ee_access_allowed" | "ee_access_denied" | "ee_contract_warning";

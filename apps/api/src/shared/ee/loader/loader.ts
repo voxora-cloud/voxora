@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
 import logger from "@shared/core/logger";
-import { logEeAuditEvent } from "./audit";
-import { getInteraOneMode, isEeEnabledByEnv } from "./env";
-import { EeModule } from "./types";
+import { logEeAuditEvent } from "@shared/ee/audit/audit";
+import { getInteraOneMode, isEeEnabledByEnv } from "@shared/ee/loader/env";
+import { EeModule } from "@shared/ee/contracts/types";
 
 let eeModuleCache: EeModule | null | undefined;
 

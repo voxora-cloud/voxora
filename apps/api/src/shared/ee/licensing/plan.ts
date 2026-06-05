@@ -12,7 +12,7 @@ const planCache = new Map<string, { plan: PlanTier; expiresAt: number }>();
  */
 export const normalizePlan = (value?: string): PlanTier => {
   const normalized = (value || "").toLowerCase();
-  if (normalized === "pro" || normalized === "proplus" || normalized === "enterprise") {
+  if (normalized === "pro" || normalized === "proplus") {
     return normalized;
   }
   return DEFAULT_PLAN;
@@ -50,7 +50,6 @@ export const getPlanCatalog = (): PlanDefinition[] => [
   PLAN_DEFINITIONS.free,
   PLAN_DEFINITIONS.pro,
   PLAN_DEFINITIONS.proplus,
-  PLAN_DEFINITIONS.enterprise,
 ];
 
 /**

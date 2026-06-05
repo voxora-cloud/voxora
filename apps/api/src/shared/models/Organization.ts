@@ -4,7 +4,7 @@ export interface IOrganization extends Document {
   _id: Types.ObjectId;
   name: string;
   slug: string;
-  plan: "free" | "pro" | "proplus" | "enterprise";
+  plan: "free" | "pro" | "proplus";
   logoUrl?: string;
   whiteLabelEnabled: boolean;
 
@@ -36,7 +36,7 @@ const organizationSchema = new Schema<IOrganization>(
     },
     plan: {
       type: String,
-      enum: ["free", "pro", "proplus", "enterprise"],
+      enum: ["free", "pro", "proplus"],
       default: "free",
     },
     billingEmail: { type: String, trim: true, lowercase: true },

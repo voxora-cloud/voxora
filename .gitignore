@@ -44,3 +44,6 @@ yarn-error.log*
 
 test-docker
 .current-host
+
+# Cloud deployment script (contains EE billing secrets — never commit)
+scripts/install-cloud.sh

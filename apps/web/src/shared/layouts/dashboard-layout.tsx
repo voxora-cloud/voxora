@@ -2,7 +2,6 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useWidget } from "@/domains/widget/hooks/useWidget";
 import {
-  BarChart3,
   Bell,
   BookOpen,
   Bot,
@@ -28,6 +27,7 @@ import {
   Info,
   Clock,
   Ticket,
+  BarChart3,
 } from "lucide-react";
 import { useAuth } from "@/domains/auth/hooks/useAuth";
 import { useLogout } from "@/domains/auth/hooks/useLogout";
@@ -38,7 +38,6 @@ import {
   canAccessEeFeature,
   getInteraOneMode,
   isEeEnabledByEnv,
-  isEeModulePresent,
 } from "@/shared/ee";
 import { OrgSwitcher } from "@/shared/components/org-switcher";
 import { UsageBanner } from "@/shared/components/usage-banner";
@@ -91,10 +90,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: widgetData } = useWidget();
 
   const orgRole: OrgRole | null = isAuthenticated ? authApi.getOrgRole() : null;
-  const canAccessContacts = canAccessEeFeature("contacts");
+  const canAccessContacts = true;
   const canAccessWhiteLabel = canAccessEeFeature("white-label");
   const billingVisible =
-    getInteraOneMode() === "cloud" && isEeEnabledByEnv() && isEeModulePresent();
+    getInteraOneMode() === "cloud" && isEeEnabledByEnv();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -471,6 +470,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           )}
 
+          {orgRole === "owner" && billingVisible && (
+            <div className="space-y-1">
+              <p className="px-3 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+                Billing &amp; Usage
+              </p>
+              {[
+                { label: "Plans & Pricing", to: "/dashboard/settings/billing/plans", icon: CreditCard },
+                { label: "Resource Usage", to: "/dashboard/settings/billing/usage", icon: BarChart3 },
+              ].map((item) => (
+                <Link key={item.to} to={item.to}>
+                  <Button
+                    variant="ghost"
+                    className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer rounded-lg justify-start ${isActive(item.to, true)
+                      ? "text-primary bg-primary/5 font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
+                  >
+                    <item.icon className="h-4 w-4 mr-3" />
+                    <span>{item.label}</span>
+                  </Button>
+                </Link>
+              ))}
+            </div>
+          )}
+
           {orgRole === "owner" && (
             <div className="space-y-1">
               <p className="px-3 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -478,7 +501,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </p>
               {[
                 { label: "General", to: "/dashboard/settings/general", icon: Settings, visible: true },
-                { label: "Billing", to: "/dashboard/settings/billing", icon: CreditCard, visible: billingVisible },
                 { label: "White-label", to: "/dashboard/settings/white-label", icon: Paintbrush, visible: canAccessWhiteLabel },
                 { label: "Danger Zone", to: "/dashboard/settings/danger-zone", icon: TriangleAlert, visible: true },
               ]

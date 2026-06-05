@@ -1,6 +1,6 @@
 export type InteraOneMode = "cloud" | "self-host";
-export type PlanTier = "free" | "pro" | "proplus" | "enterprise";
-export type EeFeature = "billing" | "contacts" | "white-label";
+export type PlanTier = "free" | "pro" | "proplus";
+export type EeFeature = "billing" | "white-label";
 export type PlanLimitKey = "messages" | "humanAgents" | "contacts" | "knowledgeItems";
 
 export interface PlanDefinition {
@@ -15,7 +15,6 @@ export const PLAN_WEIGHT: Record<PlanTier, number> = {
   free: 1,
   pro: 2,
   proplus: 3,
-  enterprise: 4,
 };
 
 export const EE_FEATURE_POLICY: Record<
@@ -29,12 +28,8 @@ export const EE_FEATURE_POLICY: Record<
     requiredPlan: "free",
     enabledModes: ["cloud"],
   },
-  contacts: {
-    requiredPlan: "free",
-    enabledModes: ["cloud"],
-  },
   "white-label": {
-    requiredPlan: "enterprise",
+    requiredPlan: "proplus",
     enabledModes: ["cloud"],
   },
 };
@@ -92,22 +87,6 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       humanAgents: 50,
       contacts: 5000,
       knowledgeItems: 1000,
-    },
-  },
-  enterprise: {
-    plan: "enterprise",
-    priceMonthlyUsd: 0,
-    summary: "Custom unlimited plan for enterprise customers.",
-    features: [
-      "No InteraOne branding",
-      "Everything unlimited",
-      "Custom contract and onboarding",
-    ],
-    limits: {
-      messages: null,
-      humanAgents: null,
-      contacts: null,
-      knowledgeItems: null,
     },
   },
 };
