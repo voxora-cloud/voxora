@@ -20,8 +20,8 @@ export interface AnalyticsJobData {
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const BATCH_SIZE = 10;
-const FLUSH_INTERVAL_MS = 5_000; // flush at least every 5s regardless of batch size
+const BATCH_SIZE = 25;
+const FLUSH_INTERVAL_MS = 15_000; // flush at least every 5s regardless of batch size
 
 // ── In-memory event buffer ────────────────────────────────────────────────────
 interface BufferedEvent {

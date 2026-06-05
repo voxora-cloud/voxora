@@ -24,7 +24,7 @@ export function getOrCreateSessionId() {
     sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     setCookie('InteraOne_session_id', sessionId, 365);
     return sessionId;
-  } catch (error) {
+  } catch {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
@@ -57,5 +57,9 @@ export function persistSession(pubKey: string, token: string, expiresAt: number,
 }
 
 export function clearStoredSession(pubKey: string) {
-  try { localStorage.removeItem(getSessionKey(pubKey)); } catch { }
+  try {
+    localStorage.removeItem(getSessionKey(pubKey));
+  } catch {
+    // Silently ignore storage access failures in sandboxed/private contexts.
+  }
 }

@@ -42,6 +42,12 @@ export interface DashboardTrends {
   }>;
 }
 
+export const hasMessageVolumeData = (rows: DashboardTrends["messageVolume"] = []) =>
+  rows.some((row) => row.ai > 0 || row.agent > 0);
+
+export const hasConversationStatusData = (rows: DashboardTrends["conversationStatus"] = []) =>
+  rows.some((row) => row.started > 0 || row.resolved > 0 || row.opened > 0);
+
 export function useAnalyticsSummary() {
   return useQuery({
     queryKey: ["analytics", "summary"],

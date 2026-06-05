@@ -84,7 +84,6 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     job.organizationId,
     content,
     job.companyName,
-    job.messageId,
     job.fallbackToAgent,
     job.collectUserInfo,
   );

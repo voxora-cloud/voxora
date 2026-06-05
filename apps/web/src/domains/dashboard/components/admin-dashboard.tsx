@@ -22,8 +22,15 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from "recharts";
-import { useAnalyticsSummary, useAnalyticsTrends } from "../hooks/use-analytics";
+import {
+  hasConversationStatusData,
+  hasMessageVolumeData,
+  useAnalyticsSummary,
+  useAnalyticsTrends,
+} from "../hooks/use-analytics";
 import { Loader } from "@/shared/ui/loader";
+
+const emptyAnalyticsMessage = "Currently, we don’t have enough data to show this information.";
 
 const messageChartConfig = {
   ai: {
@@ -73,6 +80,10 @@ export function AdminDashboard() {
   const totalSource =
     (summary?.source?.widget || 0) +
     (summary?.source?.qr || 0);
+  const messageVolumeData = trends?.messageVolume ?? [];
+  const conversationStatusData = trends?.conversationStatus ?? [];
+  const hasMessageVolume = hasMessageVolumeData(messageVolumeData);
+  const hasConversationStatus = hasConversationStatusData(conversationStatusData);
 
   if (summaryLoading || trendsLoading) {
     return (
@@ -148,124 +159,136 @@ export function AdminDashboard() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Message Volume (Last 7 Days)</h3>
           <div className="h-80 w-full">
-            <ChartContainer config={messageChartConfig} className="h-full w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trends?.messageVolume || []}>
-                  <defs>
-                    <linearGradient id="colorAi" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#845C6C" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#845C6C" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorAgent" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2F6D6B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2F6D6B" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                    tickFormatter={(str) => {
-                      const date = new Date(str);
-                      return date.toLocaleDateString('en-US', { weekday: 'short' });
-                    }}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="ai"
-                    stroke="#845C6C"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorAi)"
-                    stackId="messages"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="agent"
-                    stroke="#2F6D6B"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorAgent)"
-                    stackId="messages"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            {hasMessageVolume ? (
+              <ChartContainer config={messageChartConfig} className="h-full w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={messageVolumeData}>
+                    <defs>
+                      <linearGradient id="colorAi" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#845C6C" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#845C6C" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorAgent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2F6D6B" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#2F6D6B" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+                      tickFormatter={(str) => {
+                        const date = new Date(str);
+                        return date.toLocaleDateString('en-US', { weekday: 'short' });
+                      }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      type="monotone"
+                      dataKey="ai"
+                      stroke="#845C6C"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorAi)"
+                      stackId="messages"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="agent"
+                      stroke="#2F6D6B"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorAgent)"
+                      stackId="messages"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
+                <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
+              </div>
+            )}
           </div>
         </Card>
 
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Conversation Outcomes (Last 7 Days)</h3>
           <div className="h-80 w-full">
-            <ChartContainer config={conversationChartConfig} className="h-full w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trends?.conversationStatus || []}>
-                  <defs>
-                    <linearGradient id="colorStarted" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#845C6C" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#845C6C" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorOpened" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                    tickFormatter={(str) => {
-                      const date = new Date(str);
-                      return date.toLocaleDateString("en-US", { weekday: "short" });
-                    }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="started"
-                    stroke="#845C6C"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorStarted)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="resolved"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorResolved)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="opened"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorOpened)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            {hasConversationStatus ? (
+              <ChartContainer config={conversationChartConfig} className="h-full w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={conversationStatusData}>
+                    <defs>
+                      <linearGradient id="colorStarted" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#845C6C" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#845C6C" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorOpened" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                      tickFormatter={(str) => {
+                        const date = new Date(str);
+                        return date.toLocaleDateString("en-US", { weekday: "short" });
+                      }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      type="monotone"
+                      dataKey="started"
+                      stroke="#845C6C"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorStarted)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="resolved"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorResolved)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="opened"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorOpened)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
+                <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
+              </div>
+            )}
           </div>
         </Card>
 

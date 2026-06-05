@@ -1,5 +1,7 @@
 import { apiClient } from "@/shared/lib/api-client";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002/api/v1";
+
 interface PresignedUploadResponse {
   success: boolean;
   data: {
@@ -24,6 +26,9 @@ interface DeleteStorageResponse {
 }
 
 export const storageApi = {
+  getProxyFileUrl: (fileKey: string) =>
+    `${API_URL}/storage/file?key=${encodeURIComponent(fileKey)}`,
+
   generatePresignedUploadUrl: (
     fileName: string,
     mimeType: string,

@@ -1,6 +1,6 @@
 import { state, API_BASE_URL } from './config';
 import { loadStoredSession, persistSession, clearStoredSession, getSessionKey } from './utils/session';
-import { elements, addMessage, removeTypingDots } from './ui';
+import { elements } from './ui';
 
 export async function makeAuthenticatedRequest(url: string, options: any = {}) {
   const defaultHeaders: any = {
@@ -49,7 +49,9 @@ export async function bootstrapSession(initPayload: any, onReady: (token: string
       const old = JSON.parse(raw);
       if (old?.sessionId) preservedSessionId = old.sessionId;
     }
-  } catch { }
+  } catch {
+    // Ignore malformed legacy session data and continue with a fresh token.
+  }
 
   console.log('[InteraOneWidget] Bootstrapping new session...');
   try {
@@ -121,5 +123,4 @@ export async function fetchMessagesFromBackend(conversationId: string) {
     return [];
   }
 }
-
 

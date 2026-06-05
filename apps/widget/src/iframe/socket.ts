@@ -50,7 +50,7 @@ function getNextStreamFlushText(force = false) {
 
   if (pending.length >= STREAM_SENTENCE_MIN_CHARS) {
     const sentenceMatches = Array.from(pending.matchAll(/[.!?]["')\]]?\s+/g));
-    const lastSentence = sentenceMatches.at(-1);
+    const lastSentence = sentenceMatches[sentenceMatches.length - 1];
     if (lastSentence?.index !== undefined) {
       const end = renderedLength + lastSentence.index + lastSentence[0].length;
       return state._streamText.slice(0, end);
@@ -179,7 +179,7 @@ function resetConversationToNew() {
   addSystemNotice('Started a new conversation. Ask anything and we will help you.');
 }
 
-function showOutcomePanel(status: 'closed') {
+function showOutcomePanel() {
   clearOutcomePanel();
   const messagesContainer = elements.messagesContainer;
   if (!messagesContainer) return;
@@ -295,6 +295,10 @@ function bindSocketEvents() {
       const responseContent = state._streamBubbleEl.querySelector('.response-content');
       if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
 
+      if (!state._streamBubbleEl.querySelector('.agent-response-icon')) {
+        state._streamBubbleEl.insertAdjacentHTML('afterbegin', renderAgentResponseIcon());
+      }
+      removeTypingDots();
       resetStreamState();
     } else {
       typeMessage(data.message.content);
@@ -304,13 +308,11 @@ function bindSocketEvents() {
   socket.off('ai_stream_chunk');
   socket.on('ai_stream_chunk', (data: any) => {
     if (data.conversationId !== state.chatId) return;
-    removeTypingDots();
 
     if (!state._streamBubbleEl) {
       state._streamBubbleEl = document.createElement('div');
       state._streamBubbleEl.className = 'message agent';
       state._streamBubbleEl.innerHTML = `
-        ${renderAgentResponseIcon()}
         <div class="message-bubble" style="min-width: 250px;">
           <div class="response-content md"></div>
           <div class="typing-dots-inline" style="display: none;">
@@ -389,7 +391,7 @@ function bindSocketEvents() {
       addSystemNotice('🔒 This conversation has been closed');
       showStateBanner('closed', 'Conversation closed', 'Start a new chat if you need more help');
       setComposerEnabled(false, 'Conversation closed. Start a new chat.');
-      showOutcomePanel('closed');
+      showOutcomePanel();
     } else if (status === 'pending') {
       showStateBanner('pending', 'Waiting for support team', 'Your chat is in queue. We will be with you shortly.');
       addSystemNotice("⏳ Your query is pending review — we'll be right with you");

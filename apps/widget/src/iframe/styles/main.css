@@ -1695,89 +1695,235 @@ details.thought-box summary::-webkit-details-marker {
 .typing-bubble {
   align-items: center;
   display: inline-flex;
-  min-height: 48px;
-  min-width: 116px;
-  max-width: min(320px, calc(100% - 24px));
-  padding: 7px 11px 7px 9px;
-}
-
-.typing-loader {
-  align-items: center;
-  display: inline-flex;
-  gap: 10px;
   justify-content: flex-start;
-  min-width: 0;
-  width: 100%;
+  min-height: 46px;
+  min-width: 226px;
+  max-width: 226px;
 }
 
-.typing-loader-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: color-mix(in srgb, var(--vx-text, #f4f4f5) 75%, transparent);
-  animation: textPulseOpacity 1.5s ease-in-out infinite;
+.message.agent .typing-bubble {
+  background: transparent;
+  max-width: 226px;
+  min-height: 46px;
+  min-width: 226px;
+  padding: 0;
 }
 
-@keyframes textPulseOpacity {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
-.interaone-anim {
-  width: 34px;
-  height: 34px;
-  display: flex;
+.interaone-loader-shell {
   align-items: center;
+  contain: layout paint;
+  display: inline-flex;
+  flex: 0 0 226px;
+  gap: 12px;
+  height: 46px;
+  width: 226px;
+}
+
+.interaone-loader {
+  align-items: center;
+  color: #ffffff;
+  contain: layout paint;
+  display: inline-flex;
+  flex: 0 0 30px;
+  height: 30px;
   justify-content: center;
-  position: relative;
-  flex-shrink: 0;
   isolation: isolate;
+  width: 30px;
 }
 
-.interaone-logo-center {
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
+.interaone-loader-skeleton {
+  display: grid;
+  flex: 0 0 184px;
+  gap: 8px;
+  width: 184px;
 }
 
-.interaone-logo-center svg {
+.interaone-loader-skeleton-line {
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--vx-text, #f4f4f5) 9%, transparent),
+      color-mix(in srgb, var(--vx-text, #f4f4f5) 26%, transparent),
+      color-mix(in srgb, var(--vx-text, #f4f4f5) 9%, transparent));
+  background-size: 220% 100%;
+  border-radius: 999px;
+  display: block;
+  height: 9px;
+  overflow: hidden;
+  position: relative;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  animation: interaoneSkeletonFlow 1.35s ease-in-out infinite;
 }
 
-.interaone-spinner {
+.interaone-loader-skeleton-line.is-primary {
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--vx-text, #f4f4f5) 12%, transparent),
+      color-mix(in srgb, var(--vx-text, #f4f4f5) 34%, transparent),
+      color-mix(in srgb, var(--vx-text, #f4f4f5) 12%, transparent));
+  height: 10px;
   width: 100%;
-  height: 100%;
+}
+
+.interaone-loader-skeleton-line.is-primary::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.62), transparent);
+  content: "";
+  inset: 0 auto 0 -38%;
   position: absolute;
-  top: 0;
-  left: 0;
-  animation: spinnerRotate 2s linear infinite;
-  z-index: 0;
+  width: 38%;
+  animation: interaoneSkeletonShine 1.35s ease-in-out infinite;
 }
 
-.spinner-path {
-  stroke-dasharray: 90, 150;
-  stroke-dashoffset: 0;
-  animation: spinnerDash 1.5s ease-in-out infinite;
+.interaone-loader-skeleton-line.is-medium {
+  width: 86%;
+  animation-delay: 0.1s;
 }
 
-@keyframes spinnerRotate {
-  100% { transform: rotate(360deg); }
+.interaone-loader-skeleton-line.is-short {
+  width: 64%;
+  animation-delay: 0.2s;
 }
 
-@keyframes spinnerDash {
-  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
-  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
-  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+.interaone-loader-mark {
+  color: #ffffff;
+  display: block;
+  filter: drop-shadow(0 0 9px rgba(255, 255, 255, 0.16));
+  height: 26px;
+  opacity: 1;
+  overflow: visible;
+  transform-origin: center;
+  width: 26px;
+  will-change: transform, filter;
+  animation: interaoneLoaderPulse 2.2s ease-in-out infinite;
+}
+
+.interaone-loader-mark rect,
+.interaone-loader-mark circle {
+  fill: #ffffff;
+}
+
+.interaone-loader-bar,
+.interaone-loader-dot {
+  opacity: 1;
+  transform-box: fill-box;
+  will-change: transform;
+  animation: interaoneLineFlow 1.55s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.interaone-loader-bar {
+  transform-origin: center bottom;
+}
+
+.interaone-loader-dot {
+  transform-origin: center;
+  animation-name: interaoneDotFlow;
+}
+
+.interaone-loader-bar-1,
+.interaone-loader-dot-1 {
+  animation-delay: 0s;
+}
+
+.interaone-loader-bar-2 {
+  animation-delay: 0.1s;
+}
+
+.interaone-loader-bar-3,
+.interaone-loader-dot-2 {
+  animation-delay: 0.2s;
+}
+
+.interaone-loader-bar-4 {
+  animation-delay: 0.3s;
+}
+
+.interaone-loader-bar-5,
+.interaone-loader-dot-3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes interaoneLoaderPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 7px rgba(255, 255, 255, 0.12));
+    transform: scale(0.96) rotate(-4deg);
+  }
+
+  50% {
+    filter: drop-shadow(0 0 13px rgba(255, 255, 255, 0.28));
+    transform: scale(1.04) rotate(4deg);
+  }
+}
+
+@keyframes interaoneLineFlow {
+  0%,
+  100% {
+    transform: scaleY(0.74);
+  }
+
+  34% {
+    transform: scaleY(1.05);
+  }
+
+  62% {
+    transform: scaleY(0.9);
+  }
+}
+
+@keyframes interaoneDotFlow {
+  0%,
+  100% {
+    transform: scale(0.76);
+  }
+
+  36% {
+    transform: scale(1.12);
+  }
+
+  64% {
+    transform: scale(0.92);
+  }
+}
+
+@keyframes interaoneSkeletonFlow {
+  0% {
+    background-position: 120% 50%;
+    opacity: 0.56;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+
+  100% {
+    background-position: -80% 50%;
+    opacity: 0.56;
+  }
+}
+
+@keyframes interaoneSkeletonShine {
+  0% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+
+  22% {
+    opacity: 0.72;
+  }
+
+  100% {
+    transform: translateX(360%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interaone-loader-mark,
+  .interaone-loader-bar,
+  .interaone-loader-dot,
+  .interaone-loader-skeleton-line,
+  .interaone-loader-skeleton-line.is-primary::after {
+    animation-duration: 3.6s;
+  }
 }
 
 .typing-dots {

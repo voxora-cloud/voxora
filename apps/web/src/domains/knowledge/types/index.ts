@@ -31,6 +31,10 @@ export interface AddKnowledgeFormData {
   source: AddKnowledgeSource;
   content?: string;
   file?: File;
+  faqEntries?: Array<{
+    question: string;
+    answer: string;
+  }>;
 }
 
 export interface KnowledgeUploadRequest {

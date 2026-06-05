@@ -6,8 +6,6 @@
 import { WidgetConfig, WidgetServerConfig, WidgetState } from './types';
 import { INTERAONE_LOGO_SVG } from './shared/assets';
 
-const DEFAULT_FLOATING_ICON_URL = '';
-
 export class WidgetUI {
   private config: WidgetConfig;
   private state: WidgetState;

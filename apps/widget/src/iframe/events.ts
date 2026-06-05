@@ -51,7 +51,7 @@ function showStateBanner(stateType: 'human' | 'closed', title: string, subtitle?
   `;
 }
 
-function showOutcomePanel(status: 'closed') {
+function showOutcomePanel(_status: 'closed') {
   const messagesContainer = elements.messagesContainer;
   if (!messagesContainer) return;
 

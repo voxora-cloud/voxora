@@ -1,4 +1,4 @@
-import { parseMarkdown, extractThoughtSteps } from './utils/markdown';
+import { parseMarkdown } from './utils/markdown';
 import { state } from './config';
 import { INTERAONE_LOGO_SVG } from '../shared/assets';
 export { INTERAONE_LOGO_SVG };
@@ -32,40 +32,35 @@ let _agentTypingEl: HTMLElement | null = null;
 let _typingDotsInterval: number | null = null;
 let _openSkeletonTimer: number | null = null;
 
-function getThinkingStatusText(context?: string) {
-  const cleanContext = (context || '').replace(/\s+/g, ' ').trim();
-  if (!cleanContext) return 'Thinking...';
-  
-  const prefixes = [
-    'Figuring out',
-    'Looking into',
-    'Thinking about',
-    'Analyzing'
-  ];
-  const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-  const maxLen = 30;
-  const truncated = cleanContext.length > maxLen 
-    ? cleanContext.substring(0, maxLen) + '...' 
-    : cleanContext;
-    
-  return `${prefix} "${truncated}"`;
-}
-
-function getTypingOrbitMarkup() {
+export function InteraOneLoader() {
   return `
-    <div style="display: flex; flex-direction: column; gap: 8px; width: 140px; padding: 4px;">
-      <div class="ui-skeleton-bubble"></div>
-      <div class="ui-skeleton-bubble is-medium"></div>
-      <div class="ui-skeleton-bubble is-short"></div>
+    <div class="interaone-loader-shell" role="status" aria-label="InteraOne is thinking">
+      <div class="interaone-loader" aria-hidden="true">
+        <svg class="interaone-loader-mark" viewBox="0 0 200 200" focusable="false" xmlns="http://www.w3.org/2000/svg">
+          <rect class="interaone-loader-bar interaone-loader-bar-1" x="50" y="90" width="10" height="40" rx="5" fill="currentColor"/>
+          <rect class="interaone-loader-bar interaone-loader-bar-2" x="70" y="70" width="10" height="60" rx="5" fill="currentColor"/>
+          <rect class="interaone-loader-bar interaone-loader-bar-3" x="90" y="50" width="10" height="80" rx="5" fill="currentColor"/>
+          <rect class="interaone-loader-bar interaone-loader-bar-4" x="110" y="70" width="10" height="60" rx="5" fill="currentColor"/>
+          <rect class="interaone-loader-bar interaone-loader-bar-5" x="130" y="90" width="10" height="40" rx="5" fill="currentColor"/>
+          <circle class="interaone-loader-dot interaone-loader-dot-1" cx="75" cy="145" r="6" fill="currentColor"/>
+          <circle class="interaone-loader-dot interaone-loader-dot-2" cx="100" cy="145" r="6" fill="currentColor"/>
+          <circle class="interaone-loader-dot interaone-loader-dot-3" cx="125" cy="145" r="6" fill="currentColor"/>
+        </svg>
+      </div>
+      <div class="interaone-loader-skeleton" aria-hidden="true">
+        <span class="interaone-loader-skeleton-line is-primary"></span>
+        <span class="interaone-loader-skeleton-line is-medium"></span>
+        <span class="interaone-loader-skeleton-line is-short"></span>
+      </div>
     </div>
   `;
 }
 
-export function showTypingDots() {
-  if (_typingDotsEl) return; 
+export function showTypingDots(_context?: string) {
+  if (_typingDotsEl) return;
   const wrapper = document.createElement('div');
   wrapper.className = 'message agent';
-  wrapper.innerHTML = `<div class="message-bubble typing-bubble">${getTypingOrbitMarkup()}</div>`;
+  wrapper.innerHTML = `<div class="message-bubble typing-bubble">${InteraOneLoader()}</div>`;
   _typingDotsEl = wrapper;
   elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();
@@ -86,7 +81,7 @@ export function showTyping() {
   if (_agentTypingEl) return;
   const wrapper = document.createElement('div');
   wrapper.className = 'message agent';
-  wrapper.innerHTML = `<div class="message-bubble typing-bubble">${getTypingOrbitMarkup()}</div>`;
+  wrapper.innerHTML = `<div class="message-bubble typing-bubble">${InteraOneLoader()}</div>`;
   _agentTypingEl = wrapper;
   elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();

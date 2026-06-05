@@ -6,6 +6,8 @@ import { Textarea } from "@/shared/ui/textarea";
 import {
   FileText,
   Upload,
+  Plus,
+  Trash2,
   ChevronRight,
   ChevronLeft,
   AlertCircle,
@@ -41,6 +43,7 @@ export function AddKnowledgeModal({
     catalog: "",
     content: "",
   });
+  const [faqEntries, setFaqEntries] = useState([{ question: "", answer: "" }]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showCustomCatalog, setShowCustomCatalog] = useState(false);
@@ -50,6 +53,7 @@ export function AddKnowledgeModal({
       setStep(1);
       setSelectedSource(null);
       setFormData({ title: "", description: "", catalog: "", content: "" });
+      setFaqEntries([{ question: "", answer: "" }]);
       setSelectedFile(null);
       setErrors({});
       setShowCustomCatalog(false);
@@ -72,6 +76,7 @@ export function AddKnowledgeModal({
     setStep(1);
     setSelectedSource(null);
     setFormData({ title: "", description: "", catalog: "", content: "" });
+    setFaqEntries([{ question: "", answer: "" }]);
     setSelectedFile(null);
     setErrors({});
     setShowCustomCatalog(false);
@@ -96,6 +101,36 @@ export function AddKnowledgeModal({
     }
   };
 
+  const updateFaqEntry = (
+    index: number,
+    field: "question" | "answer",
+    value: string,
+  ) => {
+    setFaqEntries((prev) =>
+      prev.map((entry, entryIndex) =>
+        entryIndex === index ? { ...entry, [field]: value } : entry,
+      ),
+    );
+  };
+
+  const addFaqEntry = () => {
+    setFaqEntries((prev) => [...prev, { question: "", answer: "" }]);
+  };
+
+  const removeFaqEntry = (index: number) => {
+    setFaqEntries((prev) =>
+      prev.length === 1 ? prev : prev.filter((_, entryIndex) => entryIndex !== index),
+    );
+  };
+
+  const getValidFaqEntries = () =>
+    faqEntries
+      .map((entry) => ({
+        question: entry.question.trim(),
+        answer: entry.answer.trim(),
+      }))
+      .filter((entry) => entry.question && entry.answer);
+
   const validateStep2 = () => {
     const newErrors: Record<string, string> = {};
 
@@ -103,11 +138,17 @@ export function AddKnowledgeModal({
       newErrors.content = "Content is required";
     }
     if (selectedSource === "faq") {
-      if (!formData.title?.trim()) {
-        newErrors.title = "Question is required";
-      }
-      if (!formData.content?.trim()) {
-        newErrors.content = "Answer is required";
+      const hasCompleteEntry = getValidFaqEntries().length > 0;
+      const hasPartialEntry = faqEntries.some(
+        (entry) =>
+          (entry.question.trim() && !entry.answer.trim()) ||
+          (!entry.question.trim() && entry.answer.trim()),
+      );
+
+      if (!hasCompleteEntry) {
+        newErrors.faqEntries = "Add at least one complete FAQ";
+      } else if (hasPartialEntry) {
+        newErrors.faqEntries = "Complete or remove partial FAQ rows";
       }
     }
     if ((selectedSource === "pdf" || selectedSource === "docx") && !selectedFile) {
@@ -121,7 +162,7 @@ export function AddKnowledgeModal({
   const validateStep3 = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.title?.trim()) {
+    if (selectedSource !== "faq" && !formData.title?.trim()) {
       newErrors.title = "Title is required";
     }
 
@@ -148,8 +189,12 @@ export function AddKnowledgeModal({
   const handleSubmit = async () => {
     if (!validateStep3() || !selectedSource) return;
 
+    const validFaqEntries = getValidFaqEntries();
     const submitData: AddKnowledgeFormData = {
-      title: formData.title!,
+      title:
+        selectedSource === "faq"
+          ? validFaqEntries[0]?.question || "FAQ entries"
+          : formData.title!,
       description: formData.description,
       catalog: formData.catalog,
       source: selectedSource,
@@ -159,6 +204,8 @@ export function AddKnowledgeModal({
       submitData.content = formData.content;
     } else if (selectedSource === "pdf" || selectedSource === "docx") {
       submitData.file = selectedFile!;
+    } else if (selectedSource === "faq") {
+      submitData.faqEntries = validFaqEntries;
     }
 
     await onSubmit(submitData);
@@ -169,8 +216,12 @@ export function AddKnowledgeModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"}>
-        <div className="flex items-center justify-between mb-6">
+      <DialogContent
+        className={`flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden ${
+          step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"
+        }`}
+      >
+        <div className="flex shrink-0 items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Add Knowledge</h2>
             <p className="text-sm text-muted-foreground mt-1">Step {step} of 3</p>
@@ -236,45 +287,88 @@ export function AddKnowledgeModal({
         )}
 
         {step === 2 && selectedSource && (
-          <div className="space-y-4">
+          <div
+            className={
+              selectedSource === "faq"
+                ? "flex min-h-0 flex-1 flex-col"
+                : "min-h-0 flex-1 space-y-4 overflow-y-auto pr-1"
+            }
+          >
             {selectedSource === "faq" && (
-              <div className="space-y-4">
-                <div>
-                  <Label className="block mb-2">Question</Label>
-                  <Input
-                    value={formData.title || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, title: e.target.value }))
-                    }
-                    placeholder="e.g., What is InteraOne's support email?"
-                    className="cursor-text"
-                  />
-                  {errors.title && (
-                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.title}
-                    </p>
-                  )}
+              <>
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-2">
+                  {faqEntries.map((entry, index) => (
+                    <div key={index} className="rounded-lg border border-border p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <Label>FAQ {index + 1}</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeFaqEntry(index)}
+                          disabled={faqEntries.length === 1}
+                          className="cursor-pointer"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div>
+                        <Label className="block mb-2">Question</Label>
+                        <Input
+                          value={entry.question}
+                          onChange={(e) =>
+                            updateFaqEntry(index, "question", e.target.value)
+                          }
+                          placeholder="e.g., What is InteraOne's support email?"
+                          className="cursor-text"
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="block mb-2">Answer</Label>
+                        <Textarea
+                          value={entry.answer}
+                          onChange={(e) =>
+                            updateFaqEntry(index, "answer", e.target.value)
+                          }
+                          placeholder="Enter the curated answer for this FAQ..."
+                          className="w-full h-28 cursor-text resize-none"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
-                <div>
-                  <Label className="block mb-2">Answer</Label>
-                  <Textarea
-                    value={formData.content || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, content: e.target.value }))
-                    }
-                    placeholder="Enter the curated answer for this FAQ..."
-                    className="w-full h-48 cursor-text resize-none"
-                  />
-                  {errors.content && (
-                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.content}
-                    </p>
-                  )}
+                {errors.faqEntries && (
+                  <p className="shrink-0 pt-3 text-red-500 text-xs flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.faqEntries}
+                  </p>
+                )}
+
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border pt-4 mt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addFaqEntry}
+                    className="cursor-pointer"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add FAQ
+                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={handleBack} className="cursor-pointer">
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Back
+                    </Button>
+                    <Button onClick={handleNext} className="cursor-pointer">
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             {selectedSource === "text" && (
@@ -349,144 +443,163 @@ export function AddKnowledgeModal({
               </div>
             )}
 
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={handleBack} className="cursor-pointer">
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
-              <Button onClick={handleNext} className="cursor-pointer">
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
+            {selectedSource !== "faq" && (
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={handleBack} className="cursor-pointer">
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                <Button onClick={handleNext} className="cursor-pointer">
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
         {step === 3 && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <Label className="block mb-2">
-                    {selectedSource === "faq" ? "Question" : "Title"} <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    value={formData.title || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, title: e.target.value }))
-                    }
-                    placeholder={selectedSource === "faq" ? "e.g., What is InteraOne's support email?" : "e.g., Refund Policy"}
-                    className="cursor-text"
-                  />
-                  {errors.title && (
-                    <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.title}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label className="block mb-2">Description</Label>
-                  <Textarea
-                    value={formData.description || ""}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, description: e.target.value }))
-                    }
-                    placeholder="Used for support answers..."
-                    className="w-full h-24 cursor-text resize-none"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Help agents understand when to use this knowledge
-                  </p>
-                </div>
-
-                <div className="p-4 bg-muted rounded-lg space-y-2">
-                  <h4 className="text-sm font-medium text-foreground">Summary</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="text-muted-foreground">Source:</div>
-                    <div className="text-foreground uppercase">{selectedSource}</div>
-                    {formData.catalog && (
-                      <>
-                        <div className="text-muted-foreground">Catalog:</div>
-                        <div className="text-foreground">{formData.catalog}</div>
-                      </>
-                    )}
-                    {selectedSource === "text" && wordCount > 0 && (
-                      <>
-                        <div className="text-muted-foreground">Word Count:</div>
-                        <div className="text-foreground">{wordCount} words</div>
-                      </>
-                    )}
-                    {selectedFile && (
-                      <>
-                        <div className="text-muted-foreground">File:</div>
-                        <div className="text-foreground truncate">{selectedFile.name}</div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <Label className="block mb-2">
-                  <div className="flex items-center gap-2">
-                    <FolderOpen className="h-4 w-4" />
-                    Catalog / Category
-                  </div>
-                </Label>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    {catalogCategories.map((category) => (
-                      <button
-                        key={category}
-                        type="button"
-                        onClick={() => {
-                          if (category === "Custom") {
-                            setShowCustomCatalog(true);
-                            setFormData((prev) => ({ ...prev, catalog: "" }));
-                          } else {
-                            setShowCustomCatalog(false);
-                            setFormData((prev) => ({ ...prev, catalog: category }));
-                          }
-                        }}
-                        className={`p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer ${
-                          formData.catalog === category && !showCustomCatalog
-                            ? "border-primary bg-primary/10 text-primary"
-                            : category === "Custom" && showCustomCatalog
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-border hover:bg-muted/50 text-foreground"
-                        }`}
-                      >
-                        {category}
-                      </button>
-                    ))}
-                  </div>
-
-                  {showCustomCatalog && (
-                    <div className="space-y-2">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {selectedSource === "faq" ? (
+                    <div className="p-4 bg-muted rounded-lg space-y-2">
+                      <h4 className="text-sm font-medium text-foreground">FAQ Entries</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {getValidFaqEntries().length} complete FAQs ready to add
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <Label className="block mb-2">
+                        Title <span className="text-red-500">*</span>
+                      </Label>
                       <Input
-                        value={formData.catalog || ""}
+                        value={formData.title || ""}
                         onChange={(e) =>
-                          setFormData((prev) => ({ ...prev, catalog: e.target.value }))
+                          setFormData((prev) => ({ ...prev, title: e.target.value }))
                         }
-                        placeholder="Enter custom catalog name..."
+                        placeholder="e.g., Refund Policy"
                         className="cursor-text"
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Create a custom catalog name for organizing your knowledge
-                      </p>
+                      {errors.title && (
+                        <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {errors.title}
+                        </p>
+                      )}
                     </div>
                   )}
 
-                  <p className="text-xs text-muted-foreground">
-                    Organize knowledge into catalogs for easier navigation
-                  </p>
+                  <div>
+                    <Label className="block mb-2">Description</Label>
+                    <Textarea
+                      value={formData.description || ""}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, description: e.target.value }))
+                      }
+                      placeholder="Used for support answers..."
+                      className="w-full h-24 cursor-text resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Help agents understand when to use this knowledge
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <h4 className="text-sm font-medium text-foreground">Summary</h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="text-muted-foreground">Source:</div>
+                      <div className="text-foreground uppercase">{selectedSource}</div>
+                      {formData.catalog && (
+                        <>
+                          <div className="text-muted-foreground">Catalog:</div>
+                          <div className="text-foreground">{formData.catalog}</div>
+                        </>
+                      )}
+                      {selectedSource === "text" && wordCount > 0 && (
+                        <>
+                          <div className="text-muted-foreground">Word Count:</div>
+                          <div className="text-foreground">{wordCount} words</div>
+                        </>
+                      )}
+                      {selectedFile && (
+                        <>
+                          <div className="text-muted-foreground">File:</div>
+                          <div className="text-foreground truncate">{selectedFile.name}</div>
+                        </>
+                      )}
+                      {selectedSource === "faq" && (
+                        <>
+                          <div className="text-muted-foreground">FAQs:</div>
+                          <div className="text-foreground">{getValidFaqEntries().length}</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="block mb-2">
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4" />
+                      Catalog / Category
+                    </div>
+                  </Label>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      {catalogCategories.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => {
+                            if (category === "Custom") {
+                              setShowCustomCatalog(true);
+                              setFormData((prev) => ({ ...prev, catalog: "" }));
+                            } else {
+                              setShowCustomCatalog(false);
+                              setFormData((prev) => ({ ...prev, catalog: category }));
+                            }
+                          }}
+                          className={`p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer ${
+                            formData.catalog === category && !showCustomCatalog
+                              ? "border-primary bg-primary/10 text-primary"
+                              : category === "Custom" && showCustomCatalog
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border hover:bg-muted/50 text-foreground"
+                          }`}
+                        >
+                          {category}
+                        </button>
+                      ))}
+                    </div>
+
+                    {showCustomCatalog && (
+                      <div className="space-y-2">
+                        <Input
+                          value={formData.catalog || ""}
+                          onChange={(e) =>
+                            setFormData((prev) => ({ ...prev, catalog: e.target.value }))
+                          }
+                          placeholder="Enter custom catalog name..."
+                          className="cursor-text"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Create a custom catalog name for organizing your knowledge
+                        </p>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      Organize knowledge into catalogs for easier navigation
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-between pt-2">
+            <div className="flex shrink-0 justify-between border-t border-border pt-4 mt-4">
               <Button variant="outline" onClick={handleBack} className="cursor-pointer">
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
@@ -498,7 +611,7 @@ export function AddKnowledgeModal({
           </div>
         )}
 
-        <div className="flex gap-2 mt-6">
+        <div className="flex shrink-0 gap-2 mt-6">
           <div
             className={`h-1 flex-1 rounded-full ${step > 1 ? "bg-primary" : "bg-muted"}`}
           />
