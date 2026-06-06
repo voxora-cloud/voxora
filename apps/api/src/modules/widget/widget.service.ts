@@ -23,6 +23,16 @@ function withWidgetConfigDefaults(input: any): any {
   delete output.logoUrl;
   delete output.appearance.logoUrl;
   output.behavior = { ...defaults.behavior, ...(input.behavior || {}) };
+  output.behavior.allowedPageRules = Array.from(
+    new Set(
+      (Array.isArray(output.behavior.allowedPageRules)
+        ? output.behavior.allowedPageRules
+        : []
+      )
+        .map((rule: any) => String(rule || "").trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, 50);
   output.ai = { ...defaults.ai, ...(input.ai || {}) };
   output.conversation = {
     collectUserInfo: {

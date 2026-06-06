@@ -15,6 +15,7 @@ import { parseWidgetConfig, getWidgetOrigin } from './config';
 import { WidgetAPI } from './api';
 import { WidgetUI } from './ui';
 import { WidgetState } from './types';
+import { shouldShowWidgetOnPage } from './page-visibility';
 import {
   getOrCreateVisitorId,
   setIdentity,
@@ -51,6 +52,8 @@ class InteraOneLoader {
   private appearance: WidgetAppearance | null = null;
   private allowHostDomAccess = true;
   private fullscreenMode = false;
+  private isVisibleForCurrentPage = true;
+  private cleanupCallbacks: Array<() => void> = [];
 
   constructor() {
     const config = parseWidgetConfig();
@@ -103,12 +106,11 @@ class InteraOneLoader {
     if (this.allowHostDomAccess) {
       this.visitorId = getOrCreateVisitorId();
       this.identity = getIdentity();
-      this.lastPageUrl = window.location.href;
     } else {
       this.visitorId = this.generateEphemeralVisitorId();
       this.identity = null;
-      this.lastPageUrl = "";
     }
+    this.lastPageUrl = window.location.href;
 
     // Register message handler BEFORE creating the iframe.
     // The iframe fires WIDGET_READY as soon as its DOM is ready — if we register
@@ -122,15 +124,16 @@ class InteraOneLoader {
       this.ui.createButton();
     }
     this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
+    this.syncPageVisibility(window.location.href);
 
     const shouldAutoOpen = this.api.getConfig().autoOpen ?? behavior?.autoOpen;
-    if (this.fullscreenMode || shouldAutoOpen) {
+    if (this.isVisibleForCurrentPage && (this.fullscreenMode || shouldAutoOpen)) {
       this.open();
     }
   }
 
   private setupMessageHandlers(): void {
-    window.addEventListener('message', (event: MessageEvent) => {
+    const handleMessage = (event: MessageEvent) => {
       if (event.origin !== this.iframeOrigin) return;
       if (this.iframe && event.source !== this.iframe.contentWindow) return;
       if (!isIframeMessage(event.data)) return;
@@ -148,6 +151,9 @@ class InteraOneLoader {
           this.state.isOpen = false;
           break;
         case 'OPEN_WIDGET':
+          if (!this.isVisibleForCurrentPage) {
+            break;
+          }
           this.ui.open();
           this.state.isOpen = true;
           break;
@@ -184,7 +190,10 @@ class InteraOneLoader {
         default:
           break;
       }
-    });
+    };
+
+    window.addEventListener('message', handleMessage);
+    this.cleanupCallbacks.push(() => window.removeEventListener('message', handleMessage));
   }
 
   private onIframeReady(): void {
@@ -207,19 +216,59 @@ class InteraOneLoader {
   }
 
   private setupPageChangeDetection(): void {
-    if (!this.allowHostDomAccess) return;
-
     const report = () => {
       const url = window.location.href;
       if (url === this.lastPageUrl) return;
       this.lastPageUrl = url;
-      this.queueOrSend({ type: 'PAGE_CHANGE', version: PROTOCOL_VERSION, payload: { pageUrl: url, pageTitle: document.title } } as PageChangeMessage);
+      this.syncPageVisibility(url);
+      if (this.allowHostDomAccess) {
+        this.queueOrSend({ type: 'PAGE_CHANGE', version: PROTOCOL_VERSION, payload: { pageUrl: url, pageTitle: document.title } } as PageChangeMessage);
+      }
     };
-    const orig = { push: history.pushState.bind(history), replace: history.replaceState.bind(history) };
-    history.pushState = (...a: Parameters<typeof history.pushState>) => { orig.push(...a); report(); };
-    history.replaceState = (...a: Parameters<typeof history.replaceState>) => { orig.replace(...a); report(); };
+
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    const patchedPushState = function (
+      this: History,
+      ...args: Parameters<typeof history.pushState>
+    ) {
+      const result = originalPushState.apply(this, args);
+      report();
+      return result;
+    } as typeof history.pushState;
+    const patchedReplaceState = function (
+      this: History,
+      ...args: Parameters<typeof history.replaceState>
+    ) {
+      const result = originalReplaceState.apply(this, args);
+      report();
+      return result;
+    } as typeof history.replaceState;
+
+    history.pushState = patchedPushState;
+    history.replaceState = patchedReplaceState;
     window.addEventListener('popstate', report);
     window.addEventListener('hashchange', report);
+
+    this.cleanupCallbacks.push(() => {
+      window.removeEventListener('popstate', report);
+      window.removeEventListener('hashchange', report);
+      if (history.pushState === patchedPushState) {
+        history.pushState = originalPushState;
+      }
+      if (history.replaceState === patchedReplaceState) {
+        history.replaceState = originalReplaceState;
+      }
+    });
+  }
+
+  private syncPageVisibility(pageUrl: string): boolean {
+    this.isVisibleForCurrentPage = shouldShowWidgetOnPage(
+      this.appearance?.behavior,
+      pageUrl,
+    );
+    this.ui.setPageVisibility(this.isVisibleForCurrentPage);
+    return this.isVisibleForCurrentPage;
   }
 
   private dispatchToIframe(msg: QueuedMessage): void {
@@ -231,9 +280,16 @@ class InteraOneLoader {
     else this.pendingMessages.push(msg);
   }
 
-  open() { this.ui.open(); this.state.isOpen = true; }
+  open() {
+    if (!this.isVisibleForCurrentPage) return;
+    this.ui.open();
+    this.state.isOpen = true;
+  }
   close() { this.ui.close(); this.state.isOpen = false; }
-  toggle() { this.state.isOpen ? this.close() : this.open(); }
+  toggle() {
+    if (!this.isVisibleForCurrentPage) return;
+    this.state.isOpen ? this.close() : this.open();
+  }
 
   identify(userId: string, traits: Omit<StoredIdentity, 'userId'> = {}): void {
     const identity: StoredIdentity = { userId, ...traits };
@@ -275,6 +331,7 @@ class InteraOneLoader {
   private shouldRenderForCurrentDevice(
     behavior: WidgetAppearance["behavior"] | undefined,
   ): boolean {
+    if (!this.fullscreenMode && behavior?.showWidget === false) return false;
     if (!behavior) return true;
     if (this.isMobileView()) return behavior.showOnMobile !== false;
     return behavior.showOnDesktop !== false;
@@ -288,7 +345,13 @@ class InteraOneLoader {
   }
 
   getState(): Readonly<WidgetState> { return { ...this.state }; }
-  destroy(): void { this.ui.destroy(); widgetInstance = null; }
+  destroy(): void {
+    for (const cleanup of this.cleanupCallbacks.splice(0).reverse()) {
+      cleanup();
+    }
+    this.ui.destroy();
+    widgetInstance = null;
+  }
 }
 
 let widgetInstance: InteraOneLoader | null = null;

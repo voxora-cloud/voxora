@@ -67,6 +67,8 @@ const chartConfig = {
   },
 };
 
+const formatIntegerTick = (value: number) => Math.round(value).toLocaleString();
+
 export function AgentDashboard() {
   return (
     <div className="space-y-6">
@@ -124,7 +126,7 @@ export function AgentDashboard() {
               <LineChart data={myActivityData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="day" />
-                <YAxis />
+                <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"
@@ -150,7 +152,7 @@ export function AgentDashboard() {
               <LineChart data={myResponseTimeData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="hour" />
-                <YAxis />
+                <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"
@@ -204,7 +206,7 @@ export function AgentDashboard() {
             <BarChart data={myConversationsData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="status" />
-              <YAxis />
+              <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar
                 dataKey="count"

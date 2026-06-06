@@ -1,11 +1,46 @@
 import Joi from "joi";
 
+const pageRuleSchema = Joi.string()
+  .trim()
+  .min(1)
+  .max(2048)
+  .custom((value, helpers) => {
+    if (/\s/.test(value)) {
+      return helpers.error("any.invalid");
+    }
+
+    try {
+      if (/^https?:\/\//i.test(value)) {
+        const url = new URL(value);
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+          return helpers.error("any.invalid");
+        }
+        return value;
+      }
+
+      if (value.startsWith("/") && !value.startsWith("//")) {
+        new URL(value, "https://example.com");
+        return value;
+      }
+    } catch {
+      return helpers.error("any.invalid");
+    }
+
+    return helpers.error("any.invalid");
+  }, "page URL or path validation")
+  .messages({
+    "any.invalid": "Hidden pages must be http(s) URLs or paths starting with /",
+  });
+
 const appearanceSchema = Joi.object({
   theme: Joi.string().valid("dark", "light").required(),
   welcomeMessage: Joi.string().min(1).max(500).required(),
 }).options({ stripUnknown: true });
 
 const behaviorSchema = Joi.object({
+  showWidget: Joi.boolean().default(true),
+  showOnlyOnSelectedPages: Joi.boolean().default(false),
+  allowedPageRules: Joi.array().items(pageRuleSchema).max(50).default([]),
   autoOpen: Joi.boolean().required(),
   showOnMobile: Joi.boolean().required(),
   showOnDesktop: Joi.boolean().required(),

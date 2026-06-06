@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Download, Smartphone, ImagePlus, Upload } from "lucide-react";
+import { Download, Smartphone, ImagePlus, Trash2, Upload } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { authApi } from "@/domains/auth/api/auth.api";
 import { useAuth } from "@/domains/auth/hooks";
@@ -14,7 +14,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 const QR_CANVAS_ID = "InteraOne-qr-code-canvas";
 const PAGE_TITLE = "Chat Access QR";
-const DEFAULT_LOGO_URL = "/assets/interaone-logo-base64.png";
+const DEFAULT_LOGO_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect x="5" y="5" width="190" height="190" rx="30" fill="#845C6C"/>
+  <rect x="50" y="90" width="10" height="40" rx="5" fill="#fff"/>
+  <rect x="70" y="70" width="10" height="60" rx="5" fill="#fff"/>
+  <rect x="90" y="50" width="10" height="80" rx="5" fill="#fff"/>
+  <rect x="110" y="70" width="10" height="60" rx="5" fill="#fff"/>
+  <rect x="130" y="90" width="10" height="40" rx="5" fill="#fff"/>
+  <circle cx="75" cy="145" r="6" fill="#fff"/>
+  <circle cx="100" cy="145" r="6" fill="#fff"/>
+  <circle cx="125" cy="145" r="6" fill="#fff"/>
+</svg>
+`)}`;
 const QR_SIZE = 320;
 const QR_LOGO_SIZE = 46;
 const QR_LOGO_BACKGROUND_SIZE = 62;
@@ -27,6 +39,14 @@ const loadImage = (src: string) =>
     image.onerror = reject;
     image.src = src;
   });
+
+const loadQrLogoImage = async (src: string) => {
+  try {
+    return await loadImage(src);
+  } catch {
+    return loadImage(DEFAULT_LOGO_URL);
+  }
+};
 
 const drawRoundedRect = (
   ctx: CanvasRenderingContext2D,
@@ -97,7 +117,7 @@ export default function QRCodeGeneratorPage() {
       ctx.drawImage(canvas, qrX, qrY, qrSize, qrSize);
       ctx.restore();
 
-      const logoImage = await loadImage(qrLogoUrl);
+      const logoImage = await loadQrLogoImage(qrLogoUrl);
       const exportLogoScale = qrSize / QR_SIZE;
       const logoBackgroundSize = QR_LOGO_BACKGROUND_SIZE * exportLogoScale;
       const logoSize = QR_LOGO_SIZE * exportLogoScale;
@@ -182,6 +202,33 @@ export default function QRCodeGeneratorPage() {
     }
   };
 
+  const handleRemoveLogo = async () => {
+    if (!organization?._id || isLogoUploading || !organizationLogoUrl) return;
+
+    setIsLogoUploading(true);
+    setLogoError(null);
+    setLogoSuccess(null);
+
+    try {
+      const response = await settingsApi.updateOrganization(organization._id, {
+        logoUrl: "",
+      });
+
+      const updatedOrganization = response.data.organization;
+      setOrganization(updatedOrganization);
+      queryClient.setQueryData(["organization", organization._id], response);
+      queryClient.invalidateQueries({ queryKey: ["organization", organization._id] });
+      setLogoSuccess("Logo removed. The default InteraOne logo will be used.");
+      toast.success("Organization logo removed");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to remove logo";
+      setLogoError(message);
+      toast.error(message);
+    } finally {
+      setIsLogoUploading(false);
+    }
+  };
+
   if (orgRole !== "owner") {
     return (
       <div className="space-y-2">
@@ -243,18 +290,19 @@ export default function QRCodeGeneratorPage() {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-foreground">Organization Logo</div>
                     <p className="text-sm text-muted-foreground">
-                      Upload a PNG or JPG logo for the QR center.
+                      Upload a PNG or JPG logo for the QR center. The InteraOne logo is used by default.
                     </p>
                   </div>
-                  {organizationLogoUrl && (
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1">
-                      <img
-                        src={organizationLogoUrl}
-                        alt="Organization logo"
-                        className="h-full w-full object-contain"
-                      />
-                    </div>
-                  )}
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1">
+                    <img
+                      src={qrLogoUrl}
+                      alt={organizationLogoUrl ? "Organization logo" : "InteraOne logo"}
+                      className="h-full w-full object-contain"
+                      onError={(event) => {
+                        event.currentTarget.src = DEFAULT_LOGO_URL;
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <input
@@ -285,6 +333,18 @@ export default function QRCodeGeneratorPage() {
                       </>
                     )}
                   </Button>
+                  {organizationLogoUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleRemoveLogo}
+                      disabled={isLogoUploading}
+                      className="cursor-pointer text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Remove Logo
+                    </Button>
+                  )}
                   <span className="text-xs text-muted-foreground">
                     Max 2MB. PNG or JPG.
                   </span>
@@ -340,6 +400,9 @@ export default function QRCodeGeneratorPage() {
                     alt=""
                     className="object-contain"
                     style={{ width: QR_LOGO_SIZE, height: QR_LOGO_SIZE }}
+                    onError={(event) => {
+                      event.currentTarget.src = DEFAULT_LOGO_URL;
+                    }}
                   />
                 </div>
               </div>

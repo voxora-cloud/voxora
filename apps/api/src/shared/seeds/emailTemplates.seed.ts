@@ -172,28 +172,6 @@ function otpBlock(otpColor = BRAND.primary): string {
 
 export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
   {
-    templateKey: "global.email_verification_link",
-    type: "email_verification_link",
-    subjectTemplate: "Verify your InteraOne email address",
-    htmlTemplate: renderLayout({
-      preheader: "Use this secure link to verify your InteraOne account.",
-      eyebrow: "Account verification",
-      title: "Verify your email address",
-      intro: "Confirm your email to continue setting up your InteraOne workspace.",
-      children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">Use the secure link below to verify your email address. This link is short lived to protect your workspace access.</p>
-      `,
-      cta: {
-        href: "{{verificationUrl}}",
-        label: "Verify email address",
-      },
-      note: "This verification link expires in 10 minutes. You can request a new one from the authentication screen.",
-      footerNote: "If you did not create an InteraOne account, no action is required.",
-    }),
-    textTemplate: "Hi {{name}}, verify your InteraOne email address: {{verificationUrl}}. This link expires in 10 minutes.",
-  },
-  {
     templateKey: "global.email_verification_otp",
     type: "email_verification_otp",
     subjectTemplate: "{{otp}} is your InteraOne verification code",
@@ -232,28 +210,6 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       footerNote: "If you did not request a password reset, you can ignore this email.",
     }),
     textTemplate: "Hi {{name}}, use {{otp}} to reset your InteraOne password. This code expires in 2 minutes.",
-  },
-  {
-    templateKey: "global.password_reset",
-    type: "password_reset",
-    subjectTemplate: "Reset your InteraOne password",
-    htmlTemplate: renderLayout({
-      preheader: "Reset your password securely from this InteraOne link.",
-      eyebrow: "Security request",
-      title: "Reset your password",
-      intro: "A password reset was requested for your InteraOne account.",
-      children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">Use the secure link below to choose a new password. This keeps your workspace protected while giving you quick access back to your account.</p>
-      `,
-      cta: {
-        href: "{{resetUrl}}",
-        label: "Reset password",
-      },
-      note: "This link expires in 10 minutes. If it expires, you can request a new password reset from the login page.",
-      footerNote: "If you did not request this password reset, you can safely ignore this email.",
-    }),
-    textTemplate: "Hi {{name}}, reset your InteraOne password here: {{resetUrl}}. This link expires in 10 minutes.",
   },
   {
     templateKey: "global.invite",

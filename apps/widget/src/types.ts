@@ -42,6 +42,9 @@ export interface WidgetServerAppearanceConfig {
 }
 
 export interface WidgetServerBehaviorConfig {
+  showWidget?: boolean;
+  showOnlyOnSelectedPages?: boolean;
+  allowedPageRules?: string[];
   autoOpen?: boolean;
   showOnMobile?: boolean;
   showOnDesktop?: boolean;

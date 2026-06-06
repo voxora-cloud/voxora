@@ -146,7 +146,7 @@ class AuthApi {
     return apiClient.get<VerifyInviteResponse>(`/memberships/verify-invite/${token}`);
   }
 
-  async forgotPassword(email: string, verificationMethod: "link" | "otp" = "link"): Promise<ForgotPasswordResponse> {
+  async forgotPassword(email: string, verificationMethod: "otp" = "otp"): Promise<ForgotPasswordResponse> {
     return apiClient.post<ForgotPasswordResponse>("/auth/forgot-password", { email, verificationMethod });
   }
 
@@ -174,10 +174,6 @@ class AuthApi {
 
   async sendEmailVerification(email: string): Promise<any> {
     return apiClient.post("/auth/send-email-verification", { email });
-  }
-
-  async verifyEmailLink(token: string): Promise<any> {
-    return apiClient.get(`/auth/verify-email-link?token=${encodeURIComponent(token)}`);
   }
 
   async getEmailVerificationStatus(email: string): Promise<any> {

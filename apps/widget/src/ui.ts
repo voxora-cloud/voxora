@@ -23,6 +23,8 @@ export class WidgetUI {
   private hostOverflowX: string | null = null;
   private hostTransition: string | null = null;
   private documentOverflow: string | null = null;
+  private pageVisible = true;
+  private resizeHandler: (() => void) | null = null;
 
   private get isFullscreen(): boolean {
     return this.config.fullscreen === true;
@@ -494,6 +496,8 @@ export class WidgetUI {
    * Toggle widget open/close
    */
   toggle(): void {
+    if (!this.pageVisible) return;
+
     if (this.state.isOpen) {
       this.close();
     } else {
@@ -505,6 +509,7 @@ export class WidgetUI {
    * Open widget
    */
   open(): void {
+    if (!this.pageVisible) return;
     if (!this.iframe) return;
 
     this.state.isOpen = true;
@@ -553,7 +558,7 @@ export class WidgetUI {
       this.button.style.transform = 'scale(1)';
       this.button.setAttribute('aria-label', this.getLauncherLabel());
       this.button.setAttribute('title', this.getLauncherTitle());
-      this.button.style.display = 'flex';
+      this.button.style.display = this.pageVisible ? 'flex' : 'none';
     }
 
     // Animate widget out
@@ -571,16 +576,43 @@ export class WidgetUI {
     this.restoreHostDockSpacing();
 
     // Restore outside chips
-    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'flex';
+    if (this.outsideChipsContainer) {
+      this.outsideChipsContainer.style.display = this.pageVisible ? 'flex' : 'none';
+    }
 
     if (this.onToggle) this.onToggle(false);
+  }
+
+  setPageVisibility(isVisible: boolean): void {
+    this.pageVisible = isVisible;
+
+    if (!isVisible) {
+      if (this.state.isOpen) this.close();
+      if (this.button) this.button.style.display = 'none';
+      if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
+      if (this.dockContainer) this.dockContainer.style.display = 'none';
+      if (this.isFullscreen && this.iframe) this.iframe.style.display = 'none';
+      return;
+    }
+
+    if (this.dockContainer) this.dockContainer.style.display = 'block';
+    if (this.isFullscreen) {
+      if (this.state.isOpen && this.iframe) this.iframe.style.display = 'block';
+      return;
+    }
+
+    if (!this.state.isOpen && this.button) this.button.style.display = 'flex';
+    if (!this.state.isOpen && this.outsideChipsContainer) {
+      this.outsideChipsContainer.style.display = 'flex';
+    }
   }
 
   /**
    * Setup responsive behavior
    */
   private setupResponsive(): void {
-    window.addEventListener('resize', () => this.applyResponsiveLayout());
+    this.resizeHandler = () => this.applyResponsiveLayout();
+    window.addEventListener('resize', this.resizeHandler);
     this.applyResponsiveLayout();
   }
 
@@ -662,10 +694,19 @@ export class WidgetUI {
    * Cleanup
    */
   destroy(): void {
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler);
+      this.resizeHandler = null;
+    }
     if (this.button) this.button.remove();
     if (this.outsideChipsContainer) this.outsideChipsContainer.remove();
     if (this.iframe) this.iframe.remove();
     if (this.dockContainer) this.dockContainer.remove();
     this.restoreHostDockSpacing();
+    this.button = null;
+    this.outsideChipsContainer = null;
+    this.iframe = null;
+    this.dockContainer = null;
+    this.badge = null;
   }
 }

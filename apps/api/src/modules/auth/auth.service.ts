@@ -3,7 +3,6 @@ import { generateTokens } from "@shared/security/auth/jwt";
 import { redisClient } from "@shared/infra/redis";
 import { isEmailEnabled } from "@shared/utils/email";
 import {
-  enqueuePasswordResetEmail,
   enqueueWelcomeEmail,
   enqueueEmailVerificationOTPEmail,
   enqueueForgotPasswordOTPEmail
@@ -234,7 +233,7 @@ export class AuthService {
   //  PASSWORD MANAGEMENT
   // ─────────────────────────────────────────────────────────────────
 
-  async forgotPassword(email: string, verificationMethod: "link" | "otp" = "link") {
+  async forgotPassword(email: string) {
     if (!isEmailEnabled()) {
       return {
         success: false,
@@ -249,19 +248,8 @@ export class AuthService {
       return { success: true }; // Silent failure for security
     }
 
-    if (verificationMethod === "otp") {
-      await this.generateAndSendOTP(user.email, "password_reset");
-      return { success: true };
-    }
-
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    user.passwordResetToken = this._hashResetToken(resetToken);
-    user.passwordResetExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    user.otp = undefined;
-    await user.save();
-
-    await enqueuePasswordResetEmail(user.email, user.name, resetToken);
-    return { success: true, data: { isActive: user.isActive } };
+    await this.generateAndSendOTP(user.email, "password_reset");
+    return { success: true };
   }
 
   async sendEmailVerification(email: string) {

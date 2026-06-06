@@ -3,8 +3,6 @@ import config from "@shared/infra/config";
 import {
   isEmailEnabled,
   buildInviteEmail,
-  buildPasswordResetEmail,
-  buildEmailVerificationLinkEmail,
   buildWelcomeEmail,
   buildEmailVerificationOTPEmail,
   buildForgotPasswordOTPEmail,
@@ -39,9 +37,7 @@ const emailQueue = new Queue<EmailOptions>(EMAIL_QUEUE, {
 async function enqueueEmail(
   jobName:
     | "invite"
-    | "password_reset"
     | "welcome"
-    | "email_verification_link"
     | "email_verification_otp"
     | "password_reset_otp"
     | "agent_verification_otp"
@@ -68,17 +64,6 @@ export async function enqueueInviteEmail(
   return true;
 }
 
-export async function enqueuePasswordResetEmail(
-  to: string,
-  name: string,
-  resetToken: string,
-): Promise<boolean> {
-  if (!isEmailEnabled()) return false;
-  const { subject, html } = await buildPasswordResetEmail(name, resetToken);
-  await enqueueEmail("password_reset", { to, subject, html });
-  return true;
-}
-
 export async function enqueueWelcomeEmail(
   to: string,
   name: string,
@@ -98,17 +83,6 @@ export async function enqueueEmailVerificationOTPEmail(
   if (!isEmailEnabled()) return false;
   const { subject, html } = await buildEmailVerificationOTPEmail(name, otp);
   await enqueueEmail("email_verification_otp", { to, subject, html });
-  return true;
-}
-
-export async function enqueueEmailVerificationLinkEmail(
-  to: string,
-  name: string,
-  token: string,
-): Promise<boolean> {
-  if (!isEmailEnabled()) return false;
-  const { subject, html } = await buildEmailVerificationLinkEmail(name, token);
-  await enqueueEmail("email_verification_link", { to, subject, html });
   return true;
 }
 

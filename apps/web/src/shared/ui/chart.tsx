@@ -102,6 +102,14 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+const formatTooltipValue = (value: unknown) => {
+  if (typeof value === "number") {
+    return Math.round(value).toLocaleString()
+  }
+
+  return String(value)
+}
+
 const ChartTooltipContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -250,9 +258,9 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && item.value !== null && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
-                          {item.value.toLocaleString()}
+                          {formatTooltipValue(item.value)}
                         </span>
                       )}
                     </div>

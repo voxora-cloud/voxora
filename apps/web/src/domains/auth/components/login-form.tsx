@@ -129,7 +129,7 @@ export function LoginForm() {
           <div className="rounded-sm border border-border/50 bg-muted/20 p-4 space-y-4">
             <p className="text-sm font-semibold text-foreground">Verify your email first</p>
             <p className="text-xs text-muted-foreground">
-              We send both a verification link and an OTP to your email.
+              We will send a 6-digit verification code to your email.
             </p>
             {verificationError && (
               <p className="text-xs text-destructive flex items-center gap-1">
@@ -138,7 +138,7 @@ export function LoginForm() {
             )}
             {verificationSent && (
               <p className="text-xs text-muted-foreground">
-                Verification email sent. Open the link in your inbox, or enter the OTP below.
+                Verification code sent. Enter the OTP below to continue.
               </p>
             )}
             {verificationSent && (
@@ -154,7 +154,7 @@ export function LoginForm() {
             {!verificationSent && (
               <Button type="button" variant="outline" className="w-full h-11 rounded-sm cursor-pointer"
                 onClick={handleSendVerification} disabled={isSendingVerification}>
-                {isSendingVerification ? "Sending..." : "Send Verification Email"}
+                {isSendingVerification ? "Sending..." : "Send Verification Code"}
               </Button>
             )}
           </div>

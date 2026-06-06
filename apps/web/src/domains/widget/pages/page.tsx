@@ -21,9 +21,12 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   displayName: "",
   appearance: {
     theme: "dark",
-    welcomeMessage: "Hi there! How can we help you today?",
+    welcomeMessage: "Welcome to our support chat. Ask a question and we will help you find the right answer or connect you with our team.",
   },
   behavior: {
+    showWidget: true,
+    showOnlyOnSelectedPages: false,
+    allowedPageRules: [],
     autoOpen: false,
     showOnMobile: true,
     showOnDesktop: true,
@@ -82,6 +85,27 @@ function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined):
   };
 }
 
+function validatePageRule(value: string): boolean {
+  const rule = value.trim();
+  if (!rule || /\s/.test(rule)) return false;
+
+  try {
+    if (/^https?:\/\//i.test(rule)) {
+      const url = new URL(rule);
+      return url.protocol === "http:" || url.protocol === "https:";
+    }
+
+    if (rule.startsWith("/") && !rule.startsWith("//")) {
+      new URL(rule, "https://example.com");
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
 export function WidgetPage() {
   const [isExistingWidget, setIsExistingWidget] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -133,13 +157,29 @@ export function WidgetPage() {
       return;
     }
 
+    if (formData.behavior.showOnlyOnSelectedPages) {
+      const rules = (formData.behavior.allowedPageRules || []).map((rule) =>
+        rule.trim(),
+      ).filter(Boolean);
+      if (rules.some((rule) => !validatePageRule(rule))) {
+        toast.error("Fix invalid hidden page URL or path");
+        return;
+      }
+    }
+
     setValidationErrors({});
 
     try {
+      const behavior = {
+        ...formData.behavior,
+        allowedPageRules: Array.from(
+          new Set((formData.behavior.allowedPageRules || []).map((rule) => rule.trim())),
+        ).filter(Boolean),
+      };
       const widgetData = {
         displayName: formData.displayName,
         appearance: formData.appearance,
-        behavior: formData.behavior,
+        behavior,
         ai: formData.ai,
         conversation: formData.conversation,
         features: formData.features,

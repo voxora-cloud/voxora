@@ -127,30 +127,6 @@ export async function buildInviteEmail(
   });
 }
 
-export async function buildPasswordResetEmail(
-  name: string,
-  resetToken: string,
-): Promise<BuiltEmail> {
-  const resetUrl = `${getClientUrl()}/auth/reset-password?token=${encodeURIComponent(resetToken)}`;
-
-  return buildFromTemplate("password_reset", {
-    name: escapeHtml(name),
-    resetUrl,
-  });
-}
-
-export async function buildEmailVerificationLinkEmail(
-  name: string,
-  token: string,
-): Promise<BuiltEmail> {
-  const verificationUrl = `${getClientUrl()}/auth/verify-email?token=${encodeURIComponent(token)}`;
-
-  return buildFromTemplate("email_verification_link", {
-    name: escapeHtml(name),
-    verificationUrl,
-  });
-}
-
 export async function buildWelcomeEmail(name: string, role: string): Promise<BuiltEmail> {
   const loginUrl = `${getClientUrl()}/auth/login`;
 

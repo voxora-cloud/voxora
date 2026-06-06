@@ -50,6 +50,9 @@ export interface WidgetAppearance {
     welcomeMessage?: string;
   };
   behavior?: {
+    showWidget?: boolean;
+    showOnlyOnSelectedPages?: boolean;
+    allowedPageRules?: string[];
     autoOpen?: boolean;
     showOnMobile?: boolean;
     showOnDesktop?: boolean;
