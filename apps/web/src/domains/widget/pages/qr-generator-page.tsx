@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { renderToString } from "react-dom/server";
 import { Download, Smartphone, ImagePlus, Trash2, Upload } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { authApi } from "@/domains/auth/api/auth.api";
@@ -12,21 +13,13 @@ import { Loader } from "@/shared/ui/loader";
 import { storageApi } from "@/shared/lib/storage.api";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import Logo from "@/shared/components/logo";
+
 const QR_CANVAS_ID = "InteraOne-qr-code-canvas";
 const PAGE_TITLE = "Chat Access QR";
-const DEFAULT_LOGO_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <rect x="5" y="5" width="190" height="190" rx="30" fill="#845C6C"/>
-  <rect x="50" y="90" width="10" height="40" rx="5" fill="#fff"/>
-  <rect x="70" y="70" width="10" height="60" rx="5" fill="#fff"/>
-  <rect x="90" y="50" width="10" height="80" rx="5" fill="#fff"/>
-  <rect x="110" y="70" width="10" height="60" rx="5" fill="#fff"/>
-  <rect x="130" y="90" width="10" height="40" rx="5" fill="#fff"/>
-  <circle cx="75" cy="145" r="6" fill="#fff"/>
-  <circle cx="100" cy="145" r="6" fill="#fff"/>
-  <circle cx="125" cy="145" r="6" fill="#fff"/>
-</svg>
-`)}`;
+const DEFAULT_LOGO_URL = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+  renderToString(<Logo size={200} animate={false} />)
+)}`;
 const QR_SIZE = 320;
 const QR_LOGO_SIZE = 46;
 const QR_LOGO_BACKGROUND_SIZE = 62;

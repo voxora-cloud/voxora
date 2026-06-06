@@ -3,7 +3,7 @@ export const DEFAULT_WIDGET_CONFIG = {
     appearance: {
         theme: "dark" as const,
         primaryColor: "#845C6C",
-        welcomeMessage: "Welcome to our support chat. Ask a question and we will help you find the right answer or connect you with our team.",
+        welcomeMessage: "Need help? Ask here and we’ll point you in the right direction.",
     },
     behavior: {
         showWidget: true,

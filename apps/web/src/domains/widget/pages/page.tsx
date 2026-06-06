@@ -21,7 +21,7 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   displayName: "",
   appearance: {
     theme: "dark",
-    welcomeMessage: "Welcome to our support chat. Ask a question and we will help you find the right answer or connect you with our team.",
+    welcomeMessage: "Need help? Ask here and we’ll point you in the right direction.",
   },
   behavior: {
     showWidget: true,

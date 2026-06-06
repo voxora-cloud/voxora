@@ -301,7 +301,7 @@ export function WidgetAdvancedConfigForm({
             id="welcomeMessage"
             value={formData.appearance.welcomeMessage}
             onChange={(e) => updateAppearance("welcomeMessage", e.target.value)}
-            placeholder="Welcome to our support chat. Ask a question and we will help you find the right answer or connect you with our team."
+            placeholder="Need help? Ask here and we’ll point you in the right direction."
             className="min-h-[96px] resize-none text-sm rounded-xl"
           />
         </FieldRow>
