@@ -97,6 +97,9 @@ importers:
       dayjs:
         specifier: ^1.11.20
         version: 1.11.20
+      dodopayments:
+        specifier: ^2.27.0
+        version: 2.27.0
       dotenv:
         specifier: ^16.3.1
         version: 16.6.1
