@@ -213,12 +213,13 @@ export function AddKnowledgeModal({
   };
 
   const wordCount = formData.content?.trim().split(/\s+/).length || 0;
+  const isFaqFlow = selectedSource === "faq";
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
         className={`flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden ${
-          step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"
+          isFaqFlow ? "sm:max-w-[960px] xl:max-w-[1120px]" : step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"
         }`}
       >
         <div className="flex shrink-0 items-center justify-between mb-6">
@@ -313,28 +314,30 @@ export function AddKnowledgeModal({
                         </Button>
                       </div>
 
-                      <div>
-                        <Label className="block mb-2">Question</Label>
-                        <Input
-                          value={entry.question}
-                          onChange={(e) =>
-                            updateFaqEntry(index, "question", e.target.value)
-                          }
-                          placeholder="e.g., What is InteraOne's support email?"
-                          className="cursor-text"
-                        />
-                      </div>
+                      <div className="grid gap-4 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                        <div>
+                          <Label className="block mb-2">Question</Label>
+                          <Input
+                            value={entry.question}
+                            onChange={(e) =>
+                              updateFaqEntry(index, "question", e.target.value)
+                            }
+                            placeholder="e.g., What is InteraOne's support email?"
+                            className="cursor-text"
+                          />
+                        </div>
 
-                      <div>
-                        <Label className="block mb-2">Answer</Label>
-                        <Textarea
-                          value={entry.answer}
-                          onChange={(e) =>
-                            updateFaqEntry(index, "answer", e.target.value)
-                          }
-                          placeholder="Enter the curated answer for this FAQ..."
-                          className="w-full h-28 cursor-text resize-none"
-                        />
+                        <div>
+                          <Label className="block mb-2">Answer</Label>
+                          <Textarea
+                            value={entry.answer}
+                            onChange={(e) =>
+                              updateFaqEntry(index, "answer", e.target.value)
+                            }
+                            placeholder="Enter the curated answer for this FAQ..."
+                            className="h-32 w-full cursor-text resize-none"
+                          />
+                        </div>
                       </div>
                     </div>
                   ))}

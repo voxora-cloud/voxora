@@ -3,9 +3,12 @@ export const DEFAULT_WIDGET_CONFIG = {
     appearance: {
         theme: "dark" as const,
         primaryColor: "#845C6C",
-        welcomeMessage: "Hi there! How can we help you today?",
+        welcomeMessage: "Need help? Ask here and we’ll point you in the right direction.",
     },
     behavior: {
+        showWidget: true,
+        showOnlyOnSelectedPages: false,
+        allowedPageRules: [],
         autoOpen: false,
         showOnMobile: true,
         showOnDesktop: true,

@@ -4,6 +4,9 @@ export interface WidgetAppearanceSettings {
 }
 
 export interface WidgetBehaviorSettings {
+  showWidget: boolean;
+  showOnlyOnSelectedPages: boolean;
+  allowedPageRules: string[];
   autoOpen: boolean;
   showOnMobile: boolean;
   showOnDesktop: boolean;

@@ -29,7 +29,7 @@ export function PasswordRecoveryForm() {
   const [searchParams] = useSearchParams();
   const resetToken = searchParams.get("token") || "";
   const [step, setStep] = useState<RecoveryStep>(resetToken ? "reset" : "email");
-  const [verificationMethod, setVerificationMethod] = useState<VerificationMethod>(resetToken ? "link" : "link");
+  const verificationMethod: VerificationMethod = resetToken ? "link" : "otp";
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -82,14 +82,10 @@ export function PasswordRecoveryForm() {
     setIsLoading(true);
     setError(null);
     try {
-      await authApi.forgotPassword(email, verificationMethod);
-      if (verificationMethod === "otp") {
-        setStep("otp");
-      } else {
-        setIsSuccess(true);
-      }
+      await authApi.forgotPassword(email);
+      setStep("otp");
     } catch (err: any) {
-      setError(err.message || "Failed to send reset link. Please try again.");
+      setError(err.message || "Failed to send reset code. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -110,11 +106,7 @@ export function PasswordRecoveryForm() {
   };
 
   const handleResend = async () => {
-    if (verificationMethod === "otp") {
-      await authApi.resendOTP(email, "password_reset");
-    } else {
-      await authApi.forgotPassword(email, "link");
-    }
+    await authApi.resendOTP(email, "password_reset");
   };
 
   const handleResetSubmit = async (e: React.FormEvent) => {
@@ -152,7 +144,6 @@ export function PasswordRecoveryForm() {
   };
 
   if (isSuccess) {
-    const isPasswordUpdated = step === "reset";
     return (
       <div className="w-full text-center space-y-6">
         <div className="w-16 h-16 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mx-auto">
@@ -160,12 +151,10 @@ export function PasswordRecoveryForm() {
         </div>
         <div>
           <h2 className="type-headline-sm text-foreground mb-2">
-            {isPasswordUpdated ? "Password updated!" : "Check your inbox"}
+            Password updated!
           </h2>
           <p className="type-body-md text-muted-foreground leading-relaxed">
-            {isPasswordUpdated
-              ? "Your password has been reset. Redirecting to login..."
-              : "If an account exists for that email, we sent a secure reset link. The link expires in 10 minutes."}
+            Your password has been reset. Redirecting to login...
           </p>
         </div>
         <Link to="/auth/login">
@@ -191,7 +180,7 @@ export function PasswordRecoveryForm() {
           {step === "reset" && (<>Create new<br /><span className="text-primary">password</span></>)}
         </h1>
         <p className="mt-2 type-body-md text-muted-foreground">
-          {step === "email" && "Enter your email to receive a secure reset link."}
+          {step === "email" && "Enter your email to receive a secure reset code."}
           {step === "otp" && `We sent a 6-digit code to ${email}`}
           {step === "reset" && "Choose a strong, unique password for your account."}
         </p>
@@ -232,25 +221,6 @@ export function PasswordRecoveryForm() {
       {/* Step: email */}
       {step === "email" && (
         <form onSubmit={handleEmailSubmit} className="space-y-5">
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { value: "link" as const, label: "Email Link" },
-              { value: "otp" as const, label: "OTP Code" },
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setVerificationMethod(option.value)}
-                className={`min-h-11 rounded-sm border px-3 text-xs font-bold transition-colors cursor-pointer ${
-                  verificationMethod === option.value
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/60 bg-muted/20 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
           <div className="space-y-1.5">
             <Label className="type-label-caps text-muted-foreground">Email Address</Label>
             <div className="relative">
@@ -268,7 +238,7 @@ export function PasswordRecoveryForm() {
           </div>
           <Button type="submit" className="w-full h-12 rounded-sm type-button shadow-lg shadow-primary/20 cursor-pointer" disabled={isLoading}>
             {isLoading ? "Sending..." : (
-              <>{verificationMethod === "otp" ? "Send OTP" : "Send Reset Link"}<ArrowRight className="h-4 w-4 ml-2" /></>
+              <>Send OTP<ArrowRight className="h-4 w-4 ml-2" /></>
             )}
           </Button>
         </form>

@@ -4,7 +4,6 @@ import LoginPage from "../domains/auth/pages/login/page";
 import SetupPage from "../domains/auth/pages/setup/page";
 import PasswordRecoveryPage from "../domains/auth/pages/password-recovery/page";
 import ResetPasswordPage from "../domains/auth/pages/reset-password/page";
-import VerifyEmailPage from "../domains/auth/pages/verify-email/page";
 import AcceptInvitePage from "../domains/auth/pages/accept-invite/page";
 import { SelectOrgPage } from "@/domains/auth/pages/select-org/page";
 import { DashboardHomePage } from "@/domains/dashboard/pages/page";
@@ -14,7 +13,6 @@ import { MembersPage } from "@/domains/member/pages/members-page";
 import { RolesPage } from "@/domains/member/pages/roles-page";
 import { ContactsPage } from "@/domains/contacts/pages/contacts-page";
 import { AgentsPage } from "@/domains/agent/pages/page";
-import { ContactSegmentsPage } from "@/domains/contacts/pages/segments-page";
 import { WidgetPage } from "@/domains/widget/pages/page";
 import { ConversationLayout } from "@/domains/conversation/components/conversation-layout";
 import { ConversationsInboxPage } from "@/domains/conversation/pages/inbox-page";
@@ -55,10 +53,6 @@ const router = createBrowserRouter([
     {
         path: "/auth/reset-password",
         element: <ResetPasswordPage />,
-    },
-    {
-        path: "/auth/verify-email",
-        element: <VerifyEmailPage />,
     },
     {
         path: "/auth/accept-invite",
@@ -157,16 +151,6 @@ const router = createBrowserRouter([
             <ProtectedRoute requiredRole="agent">
                 <DashboardLayout>
                     <ContactsPage />
-                </DashboardLayout>
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: "/dashboard/contacts/segments",
-        element: (
-            <ProtectedRoute requiredRole="agent">
-                <DashboardLayout>
-                    <ContactSegmentsPage />
                 </DashboardLayout>
             </ProtectedRoute>
         ),

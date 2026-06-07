@@ -1,16 +1,26 @@
-import { AnalyticsEvent, Conversation } from "@shared/models";
+import { AnalyticsEvent, Conversation, Message } from "@shared/models";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import mongoose from "mongoose";
 
 dayjs.extend(isSameOrBefore);
 
+type ConversationTrendRecord = {
+  createdAt: Date;
+  updatedAt: Date;
+  closedAt?: Date | null;
+  status: "open" | "pending" | "resolved" | "closed";
+  metadata?: {
+    statusUpdatedAt?: Date | string | null;
+  };
+};
+
 export class AnalyticsService {
   static async getOwnerSummary(organizationId: string, days = 30) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
 
-    const [conversationAgg, usersServedAgg, resolutionAgg, questionAgg, widgetLoadAgg, sourceAgg, tokenAgg] =
+    const [conversationAgg, usersServedAgg, resolutionAgg, questionAgg, widgetLoadAgg, sourceAgg, tokenAgg, totalMessages] =
       await Promise.all([
         Conversation.aggregate([
           {
@@ -193,6 +203,10 @@ export class AnalyticsService {
             },
           },
         ]),
+        Message.countDocuments({
+          organizationId: { $in: [organizationId, orgObjectId] },
+          createdAt: { $gte: startDate },
+        }),
       ]);
 
     const conv = conversationAgg[0] || {
@@ -220,6 +234,7 @@ export class AnalyticsService {
     };
 
     return {
+      totalMessages,
       totalConversations: conv.totalConversations,
       resolvedConversations: conv.resolvedConversations,
       totalUsersServed: usersServedAgg[0]?.totalUsersServed || 0,
@@ -241,26 +256,26 @@ export class AnalyticsService {
 
   static async getOwnerTrends(organizationId: string, days = 7) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
-    const endDate = dayjs().endOf("day");
+    const endDate = dayjs().endOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
 
-    const [eventRows, aiCostRows] = await Promise.all([
-      AnalyticsEvent.aggregate([
-        {
-          $addFields: {
-            eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
-          },
-        },
+    const [messageRows, conversationRows, aiCostRows] = await Promise.all([
+      Message.aggregate([
         {
           $match: {
             organizationId: { $in: [organizationId, orgObjectId] },
-            eventTime: { $gte: startDate },
-            type: {
-              $in: [
-                "message_sent",
-                "conversation_started",
-                "conversation_resolved",
-                "conversation_closed",
+            createdAt: { $gte: startDate, $lte: endDate },
+            "metadata.source": { $in: ["ai", "web", "agent", "widget"] },
+          },
+        },
+        {
+          $project: {
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            category: {
+              $cond: [
+                { $eq: ["$metadata.source", "ai"] },
+                "ai",
+                { $cond: [{ $eq: ["$metadata.source", "agent"] }, "agent", "other"] },
               ],
             },
           },
@@ -268,8 +283,7 @@ export class AnalyticsService {
         {
           $group: {
             _id: {
-              date: { $dateToString: { format: "%Y-%m-%d", date: "$eventTime" } },
-              type: "$type",
+              date: "$date",
               category: "$category",
             },
             count: { $sum: 1 },
@@ -277,6 +291,18 @@ export class AnalyticsService {
         },
         { $sort: { "_id.date": 1 } },
       ]),
+      Conversation.find({
+        organizationId: orgObjectId,
+        createdAt: { $lte: endDate },
+        $or: [
+          { createdAt: { $gte: startDate } },
+          { closedAt: { $gte: startDate } },
+          { "metadata.statusUpdatedAt": { $gte: startDate } },
+          { status: { $nin: ["resolved", "closed"] } },
+        ],
+      })
+        .select("createdAt updatedAt closedAt status metadata.statusUpdatedAt")
+        .lean(),
       AnalyticsEvent.aggregate([
         {
           $addFields: {
@@ -332,27 +358,46 @@ export class AnalyticsService {
     const messageByDate = new Map(messageVolume.map((row) => [row.date, row]));
     const costByDate = new Map(aiCost.map((row) => [row.date, row]));
 
-    eventRows.forEach((row) => {
+    messageRows.forEach((row) => {
       const date = row._id.date as string;
-      const type = row._id.type as string;
       const category = row._id.category as string;
       const count = row.count as number;
 
-      if (type === "message_sent") {
-        const target = messageByDate.get(date);
-        if (target && (category === "ai" || category === "agent")) {
-          target[category] += count;
-        }
+      const target = messageByDate.get(date);
+      if (target && (category === "ai" || category === "agent")) {
+        target[category] += count;
       }
+    });
 
-      if (type === "conversation_started" || type === "conversation_resolved" || type === "conversation_closed") {
+    const dayEndByDate = new Map(
+      dates.map((date) => [date, dayjs(date).endOf("day")]),
+    );
+
+    conversationRows.forEach((conversation: ConversationTrendRecord) => {
+      const createdAt = dayjs(conversation.createdAt);
+      const createdDate = createdAt.format("YYYY-MM-DD");
+      const startedTarget = statusByDate.get(createdDate);
+      if (startedTarget) startedTarget.started += 1;
+
+      const isResolved = conversation.status === "resolved" || conversation.status === "closed";
+      const resolvedAt = isResolved
+        ? dayjs(
+            conversation.closedAt ||
+              conversation.metadata?.statusUpdatedAt ||
+              conversation.updatedAt,
+          )
+        : null;
+      const resolvedDate = resolvedAt?.format("YYYY-MM-DD");
+      const resolvedTarget = resolvedDate ? statusByDate.get(resolvedDate) : undefined;
+      if (resolvedTarget) resolvedTarget.resolved += 1;
+
+      dates.forEach((date) => {
+        const dayEnd = dayEndByDate.get(date);
+        if (!dayEnd || createdAt.isAfter(dayEnd)) return;
+        if (resolvedAt && resolvedAt.isSameOrBefore(dayEnd)) return;
         const target = statusByDate.get(date);
-        if (target) {
-          if (type === "conversation_started") target.started += count;
-          if (type === "conversation_resolved") target.resolved += count;
-          if (type === "conversation_closed") target.resolved += count;
-        }
-      }
+        if (target) target.opened += 1;
+      });
     });
 
     aiCostRows.forEach((row) => {
@@ -364,13 +409,6 @@ export class AnalyticsService {
       target.completionTokens += row.completionTokens || 0;
       target.totalTokens += row.totalTokens || 0;
       target.estimatedCostUsd += row.estimatedCostUsd || 0;
-    });
-
-    let runningOpen = 0;
-    conversationStatus.forEach((row) => {
-      runningOpen += row.started;
-      runningOpen -= row.resolved;
-      row.opened = Math.max(runningOpen, 0);
     });
 
     return {

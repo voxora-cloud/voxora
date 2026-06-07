@@ -22,7 +22,6 @@ import {
   UserCheck,
   UserCog,
   Users2,
-  UsersRound,
   UserPlus,
   Info,
   Clock,
@@ -130,10 +129,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     ];
 
     if (canAccessContacts) {
-      base.push(
-        { label: "All Contacts", to: "/dashboard/contacts/all-contacts" },
-        { label: "Segments", to: "/dashboard/contacts/segments" },
-      );
+      base.push({ label: "All Contacts", to: "/dashboard/contacts/all-contacts" });
     }
 
     if (orgRole === "admin" || orgRole === "owner") {
@@ -187,11 +183,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       items.push({ label, to: currentPath });
     });
 
-    return items.map((item) =>
-      item.to === "/dashboard/conversations"
-        ? { ...item, to: "/dashboard/conversations/inbox" }
-        : item,
-    );
+    return items
+      .map((item) =>
+        item.to === "/dashboard/conversations"
+          ? { ...item, to: "/dashboard/conversations/inbox" }
+          : item,
+      )
+      .filter((item, index, list) => item.to !== list[index + 1]?.to);
   }, [location.pathname]);
 
   const searchResults = useMemo(() => {
@@ -369,7 +367,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <p className="px-3 pb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Contacts</p>
               {[
                 { label: "All Contacts", to: "/dashboard/contacts/all-contacts", icon: Users2 },
-                { label: "Segments", to: "/dashboard/contacts/segments", icon: UsersRound },
               ].map((item) => (
                 <Link key={item.to} to={item.to}>
                   <Button
@@ -583,7 +580,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                     {breadcrumbs.map((crumb, index) => (
-                      <div key={crumb.to} className="flex items-center gap-1 shrink-0">
+                      <div key={`${crumb.to}-${index}`} className="flex items-center gap-1 shrink-0">
                         {index > 0 && <ChevronRight className="h-3.5 w-3.5" />}
                         {index === breadcrumbs.length - 1 ? (
                           <span className="font-medium text-foreground">{crumb.label}</span>

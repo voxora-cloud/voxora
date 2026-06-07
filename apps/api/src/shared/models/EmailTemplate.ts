@@ -2,9 +2,7 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type EmailTemplateType =
   | "invite"
-  | "password_reset"
   | "welcome"
-  | "email_verification_link"
   | "email_verification_otp"
   | "password_reset_otp"
   | "notification"
@@ -39,9 +37,7 @@ const EmailTemplateSchema = new Schema<IEmailTemplate>(
       type: String,
       enum: [
          "invite",
-         "password_reset",
          "welcome",
-         "email_verification_link",
          "email_verification_otp",
          "password_reset_otp",
          "notification",

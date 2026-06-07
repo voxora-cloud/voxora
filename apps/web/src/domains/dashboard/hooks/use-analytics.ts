@@ -1,7 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/shared/lib/api-client";
 
+const analyticsQueryOptions = {
+  refetchInterval: 15_000,
+  refetchOnWindowFocus: true,
+  staleTime: 5_000,
+};
+
 export interface DashboardSummary {
+  totalMessages: number;
   totalConversations: number;
   resolvedConversations: number;
   totalUsersServed: number;
@@ -55,6 +62,7 @@ export function useAnalyticsSummary() {
       const response = await apiClient.get<{ success: boolean; data: DashboardSummary }>("/analytics/owner/summary");
       return response.data;
     },
+    ...analyticsQueryOptions,
   });
 }
 
@@ -65,5 +73,6 @@ export function useAnalyticsTrends(days = 7) {
       const response = await apiClient.get<{ success: boolean; data: DashboardTrends }>(`/analytics/owner/trends?days=${days}`);
       return response.data;
     },
+    ...analyticsQueryOptions,
   });
 }

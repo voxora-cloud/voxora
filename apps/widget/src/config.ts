@@ -129,8 +129,7 @@ export function parseWidgetConfig(): WidgetConfig | null {
 
     const autoOpen =
       toBoolean(globalConfig.autoOpen) ??
-      toBoolean(script?.getAttribute("data-InteraOne-auto-open")) ??
-      false;
+      toBoolean(script?.getAttribute("data-InteraOne-auto-open"));
 
     const config: WidgetConfig = {
       publicKey,

@@ -2,26 +2,13 @@ import { MetricCard } from "../components/metric-card";
 import { Card } from "@/shared/ui/card";
 import {
   MessageSquare,
+  MessagesSquare,
   CheckCircle2,
   Clock,
   Users,
   UserCheck,
   Coins,
-  Wallet,
 } from "lucide-react";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/shared/ui/chart";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
 import {
   hasConversationStatusData,
   hasMessageVolumeData,
@@ -29,41 +16,12 @@ import {
   useAnalyticsTrends,
 } from "../hooks/use-analytics";
 import { Loader } from "@/shared/ui/loader";
+import {
+  ConversationOutcomesBarChart,
+  MessageVolumeBarChart,
+} from "./analytics-charts";
 
 const emptyAnalyticsMessage = "Currently, we don’t have enough data to show this information.";
-
-const messageChartConfig = {
-  ai: {
-    label: "AI Messages",
-    color: "#845C6C",
-  },
-  agent: {
-    label: "Agent Messages",
-    color: "#2F6D6B",
-  },
-};
-
-const conversationChartConfig = {
-  started: {
-    label: "Started",
-    color: "#845C6C",
-  },
-  resolved: {
-    label: "Resolved",
-    color: "#10b981",
-  },
-  opened: {
-    label: "Open",
-    color: "#f59e0b",
-  },
-};
-
-const aiCostChartConfig = {
-  estimatedCostUsd: {
-    label: "Cost (USD)",
-    color: "#2F6D6B",
-  },
-};
 
 const formatDuration = (ms?: number | null) => {
   if (!ms) return "—";
@@ -98,7 +56,7 @@ export function OwnerDashboard() {
       <div>
         <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Organization performance, message flow, and cost visibility.
+          Organization performance, message flow, and support outcomes.
         </p>
       </div>
 
@@ -147,70 +105,24 @@ export function OwnerDashboard() {
           description="Prompt + completion tokens"
         />
         <MetricCard
-          title="Estimated AI Cost"
-          value={`$${(summary?.aiCost?.estimatedCostUsd || 0).toFixed(2)}`}
-          icon={Wallet}
-          description="Last 30 days"
+          title="Avg Messages / Conversation"
+          value={
+            (summary?.totalConversations ?? 0) > 0
+              ? ((summary?.totalMessages ?? 0) / summary!.totalConversations).toFixed(1)
+              : "—"
+          }
+          icon={MessagesSquare}
+          description="Message depth per conversation"
         />
       </div>
 
       {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-1 xl:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Message Volume (Last 7 Days)</h3>
           <div className="h-80 w-full">
             {hasMessageVolume ? (
-              <ChartContainer config={messageChartConfig} className="h-full w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={messageVolumeData}>
-                    <defs>
-                      <linearGradient id="colorAi" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#845C6C" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#845C6C" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorAgent" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2F6D6B" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#2F6D6B" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                      tickFormatter={(str) => {
-                        const date = new Date(str);
-                        return date.toLocaleDateString('en-US', { weekday: 'short' });
-                      }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
-                      type="monotone"
-                      dataKey="ai"
-                      stroke="#845C6C"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorAi)"
-                      stackId="messages"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="agent"
-                      stroke="#2F6D6B"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorAgent)"
-                      stackId="messages"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <MessageVolumeBarChart data={messageVolumeData} />
             ) : (
               <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
                 <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
@@ -223,115 +135,12 @@ export function OwnerDashboard() {
           <h3 className="text-lg font-semibold mb-4">Conversation Outcomes (Last 7 Days)</h3>
           <div className="h-80 w-full">
             {hasConversationStatus ? (
-              <ChartContainer config={conversationChartConfig} className="h-full w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={conversationStatusData}>
-                    <defs>
-                      <linearGradient id="colorStarted" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#845C6C" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#845C6C" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorResolved" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorOpened" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                      tickFormatter={(str) => {
-                        const date = new Date(str);
-                        return date.toLocaleDateString("en-US", { weekday: "short" });
-                      }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
-                      type="monotone"
-                      dataKey="started"
-                      stroke="#845C6C"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorStarted)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="resolved"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorResolved)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="opened"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill="url(#colorOpened)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              <ConversationOutcomesBarChart data={conversationStatusData} />
             ) : (
               <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
                 <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
               </div>
             )}
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">AI Cost Trend (Last 7 Days)</h3>
-          <div className="h-80 w-full">
-            <ChartContainer config={aiCostChartConfig} className="h-full w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trends?.aiCost || []}>
-                  <defs>
-                    <linearGradient id="colorAiCost" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2F6D6B" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#2F6D6B" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                    tickFormatter={(str) => {
-                      const date = new Date(str);
-                      return date.toLocaleDateString("en-US", { weekday: "short" });
-                    }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="estimatedCostUsd"
-                    stroke="#2F6D6B"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorAiCost)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartContainer>
           </div>
         </Card>
       </div>

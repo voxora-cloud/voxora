@@ -27,7 +27,7 @@ export const authSchema = {
 
   forgotPassword: Joi.object({
     email: Joi.string().email().required(),
-    verificationMethod: Joi.string().valid("link", "otp").default("link"),
+    verificationMethod: Joi.string().valid("otp").default("otp"),
   }),
 
   resetPassword: Joi.object({

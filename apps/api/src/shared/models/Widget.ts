@@ -14,6 +14,9 @@ export interface IWidget extends Document {
   };
   backgroundColor: string;
   behavior: {
+    showWidget: boolean;
+    showOnlyOnSelectedPages: boolean;
+    allowedPageRules: string[];
     autoOpen: boolean;
     showOnMobile: boolean;
     showOnDesktop: boolean;
@@ -50,12 +53,15 @@ const WidgetSchema = new Schema<IWidget>(
       primaryColor: { type: String, default: "#845C6C" },
       welcomeMessage: {
         type: String,
-        default: "Hi there! How can we help you today?",
+        default: DEFAULT_WIDGET_CONFIG.appearance.welcomeMessage,
       },
       logoUrl: { type: String, default: "" },
     },
     backgroundColor: { type: String, default: "#845C6C" },
     behavior: {
+      showWidget: { type: Boolean, default: true },
+      showOnlyOnSelectedPages: { type: Boolean, default: false },
+      allowedPageRules: { type: [String], default: [] },
       autoOpen: { type: Boolean, default: false },
       showOnMobile: { type: Boolean, default: true },
       showOnDesktop: { type: Boolean, default: true },

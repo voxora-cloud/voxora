@@ -57,11 +57,11 @@ export const getProfile = asyncHandler(async (req: Request, res: Response) => {
 // ─── Password ─────────────────────────────────────────────────────────────────
 
 export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
-  const result = await authService.forgotPassword(req.body.email, req.body.verificationMethod || "link");
+  const result = await authService.forgotPassword(req.body.email);
   if (!result.success) {
     return sendError(res, 503, result.message || "Email is not configured");
   }
-  sendResponse(res, 200, true, "If an account exists with this email, reset instructions have been sent");
+  sendResponse(res, 200, true, "If an account exists with this email, a reset code has been sent");
 });
 
 

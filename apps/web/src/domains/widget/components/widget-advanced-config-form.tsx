@@ -6,15 +6,18 @@ import {
   Brush,
   Check,
   ChevronRight,
+  Eye,
   Layers,
   MessageSquareText,
   Monitor,
   Moon,
+  Plus,
   Shield,
   Smartphone,
   Sun,
   Timer,
   UserCheck,
+  X,
   Zap,
 } from "lucide-react";
 import type { CreateWidgetData } from "../types";
@@ -22,6 +25,8 @@ import { Label } from "@/shared/ui/label";
 
 import { Textarea } from "@/shared/ui/textarea";
 import { Badge } from "@/shared/ui/badge";
+import { Input } from "@/shared/ui/input";
+import { Button } from "@/shared/ui/button";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
@@ -129,6 +134,31 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle: string })
   );
 }
 
+function validatePageRule(value: string): string | null {
+  const rule = value.trim();
+  if (!rule) return "Enter a URL or path.";
+  if (/\s/.test(rule)) return "URLs and paths cannot contain spaces.";
+
+  try {
+    if (/^https?:\/\//i.test(rule)) {
+      const url = new URL(rule);
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return "Only http and https URLs are supported.";
+      }
+      return null;
+    }
+
+    if (rule.startsWith("/") && !rule.startsWith("//")) {
+      new URL(rule, "https://example.com");
+      return null;
+    }
+
+    return "Use a full http(s) URL or a path that starts with /.";
+  } catch {
+    return "Enter a valid URL or path.";
+  }
+}
+
 /* ─── Main Component ────────────────────────────────────────────────────── */
 
 export function WidgetAdvancedConfigForm({
@@ -136,6 +166,8 @@ export function WidgetAdvancedConfigForm({
   onChange,
 }: WidgetAdvancedConfigFormProps) {
   const [activeTab, setActiveTab] = useState<TabId>("appearance");
+  const [pageRuleInput, setPageRuleInput] = useState("");
+  const [pageRuleError, setPageRuleError] = useState("");
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -143,7 +175,10 @@ export function WidgetAdvancedConfigForm({
   const updateAppearance = (field: keyof CreateWidgetData["appearance"], value: string) =>
     onChange({ ...formData, appearance: { ...formData.appearance, [field]: value } });
 
-  const updateBehavior = (field: keyof CreateWidgetData["behavior"], value: boolean) =>
+  const updateBehavior = (
+    field: keyof CreateWidgetData["behavior"],
+    value: boolean | string[],
+  ) =>
     onChange({ ...formData, behavior: { ...formData.behavior, [field]: value } });
 
   const updateAi = (field: keyof CreateWidgetData["ai"], value: boolean | string) =>
@@ -163,6 +198,32 @@ export function WidgetAdvancedConfigForm({
 
   const updateFeatures = (field: keyof CreateWidgetData["features"], value: boolean) =>
     onChange({ ...formData, features: { ...formData.features, [field]: value } });
+
+  const addHiddenPageRule = () => {
+    const nextRule = pageRuleInput.trim();
+    const error = validatePageRule(nextRule);
+    if (error) {
+      setPageRuleError(error);
+      return;
+    }
+
+    const existingRules = formData.behavior.allowedPageRules || [];
+    if (existingRules.includes(nextRule)) {
+      setPageRuleError("This page rule is already added.");
+      return;
+    }
+
+    updateBehavior("allowedPageRules", [...existingRules, nextRule]);
+    setPageRuleInput("");
+    setPageRuleError("");
+  };
+
+  const removeHiddenPageRule = (rule: string) => {
+    updateBehavior(
+      "allowedPageRules",
+      (formData.behavior.allowedPageRules || []).filter((item) => item !== rule),
+    );
+  };
 
   /* ── Tab config ───────────────────────────────────────────────────────── */
 
@@ -240,7 +301,7 @@ export function WidgetAdvancedConfigForm({
             id="welcomeMessage"
             value={formData.appearance.welcomeMessage}
             onChange={(e) => updateAppearance("welcomeMessage", e.target.value)}
-            placeholder="Hi there! How can we help you today?"
+            placeholder="Need help? Ask here and we’ll point you in the right direction."
             className="min-h-[96px] resize-none text-sm rounded-xl"
           />
         </FieldRow>
@@ -284,6 +345,13 @@ export function WidgetAdvancedConfigForm({
         />
         <div className="grid gap-3">
           <ToggleCard
+            icon={Eye}
+            label="Show widget popup"
+            description="Display the chat launcher and popup on your website."
+            checked={formData.behavior.showWidget}
+            onCheckedChange={(v) => updateBehavior("showWidget", v)}
+          />
+          <ToggleCard
             icon={Timer}
             label="Auto-open on load"
             description="Widget opens automatically when a visitor lands on the page."
@@ -304,14 +372,88 @@ export function WidgetAdvancedConfigForm({
             checked={formData.behavior.showOnDesktop}
             onCheckedChange={(v) => updateBehavior("showOnDesktop", v)}
           />
+          <ToggleCard
+            icon={Layers}
+            label="Hide widget on selected pages"
+            description="Add pages where the widget should be hidden."
+            checked={formData.behavior.showOnlyOnSelectedPages}
+            onCheckedChange={(v) => updateBehavior("showOnlyOnSelectedPages", v)}
+          />
+
+          {formData.behavior.showOnlyOnSelectedPages && (
+            <div className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-3">
+              <FieldRow label="Hidden pages" htmlFor="hiddenPageRule">
+                <div className="flex gap-2">
+                  <Input
+                    id="hiddenPageRule"
+                    value={pageRuleInput}
+                    onChange={(e) => {
+                      setPageRuleInput(e.target.value);
+                      if (pageRuleError) setPageRuleError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addHiddenPageRule();
+                      }
+                    }}
+                    placeholder="/admin/* or https://example.com/login"
+                    className="h-9 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="icon-lg"
+                    onClick={addHiddenPageRule}
+                    className="cursor-pointer"
+                    aria-label="Add hidden page"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {pageRuleError && (
+                  <p className="text-xs text-destructive mt-1">{pageRuleError}</p>
+                )}
+              </FieldRow>
+
+              {(formData.behavior.allowedPageRules || []).length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {formData.behavior.allowedPageRules.map((rule) => (
+                    <span
+                      key={rule}
+                      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 py-1 text-xs text-foreground"
+                    >
+                      <span className="truncate">{rule}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeHiddenPageRule(rule)}
+                        className="rounded-full text-muted-foreground hover:text-foreground cursor-pointer"
+                        aria-label={`Remove ${rule}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Add pages where the widget should be hidden.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Summary pill row */}
         <div className="flex flex-wrap gap-2 pt-1">
           {[
+            { label: "Widget popup", active: formData.behavior.showWidget },
             { label: "Auto-open", active: formData.behavior.autoOpen },
             { label: "Mobile", active: formData.behavior.showOnMobile },
             { label: "Desktop", active: formData.behavior.showOnDesktop },
+            {
+              label: "Hidden pages",
+              active: formData.behavior.showOnlyOnSelectedPages,
+            },
           ].map(({ label, active }) => (
             <span
               key={label}
