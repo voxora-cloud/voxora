@@ -30,8 +30,18 @@ interface WindowInteraOneConfig {
   InteraOnePublicKey?: string;
   apiUrl?: string;
   cdnUrl?: string;
+  source?: string;
   fullscreen?: boolean;
   autoOpen?: boolean;
+}
+
+function normalizeSource(value: unknown, fallback: WidgetConfig["source"]): WidgetConfig["source"] {
+  if (typeof value !== "string") return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "widget" || normalized === "qr" || normalized === "link" || normalized === "unknown") {
+    return normalized;
+  }
+  return fallback;
 }
 
 export function getApiUrl(customUrl?: string): string {
@@ -131,12 +141,18 @@ export function parseWidgetConfig(): WidgetConfig | null {
       toBoolean(globalConfig.autoOpen) ??
       toBoolean(script?.getAttribute("data-InteraOne-auto-open"));
 
+    const source = normalizeSource(
+      globalConfig.source || script?.getAttribute("data-InteraOne-source"),
+      "widget",
+    );
+
     const config: WidgetConfig = {
       publicKey,
       apiUrl,
       cdnUrl,
       fullscreen,
       autoOpen,
+      source,
     };
 
     return config;

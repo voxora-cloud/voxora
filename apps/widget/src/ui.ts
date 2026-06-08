@@ -568,7 +568,9 @@ export class WidgetUI {
         if (this.iframe) this.iframe.style.display = 'none';
       }, 200);
     } else if (this.dockContainer) {
-      this.dockContainer.style.transform = 'translateX(100%)';
+      this.dockContainer.style.transform = this.isMobileSheet()
+        ? 'translateX(calc(100% + 16px))'
+        : 'translateX(100%)';
       this.dockContainer.style.opacity = '0';
       this.dockContainer.style.pointerEvents = 'none';
     }
@@ -639,16 +641,22 @@ export class WidgetUI {
     if (this.isMobileSheet()) {
       if (this.dockContainer) {
         Object.assign(this.dockContainer.style, {
-          width: '100vw',
-          height: '100dvh',
-          right: '0',
-          left: '0',
-          top: '0',
-          bottom: '0',
-          borderLeft: 'none',
+          width: 'calc(100vw - 32px)',
+          maxWidth: `${this.getPanelWidth()}px`,
+          height: 'calc(100dvh - 32px)',
+          right: '16px',
+          left: 'auto',
+          top: '16px',
+          bottom: '16px',
+          marginLeft: 'auto',
+          borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
+          borderRadius: '16px',
+          overflow: 'hidden',
         });
         this.dockContainer.style.transformOrigin = 'right center';
-        this.dockContainer.style.transform = this.state.isOpen ? 'translateX(0)' : 'translateX(100%)';
+        this.dockContainer.style.transform = this.state.isOpen
+          ? 'translateX(0)'
+          : 'translateX(calc(100% + 16px))';
       }
       if (this.state.isOpen) this.applyHostDockSpacing(this.getPanelWidth());
       return;
@@ -658,12 +666,16 @@ export class WidgetUI {
     if (this.dockContainer) {
       Object.assign(this.dockContainer.style, {
         width: `${panelWidth}px`,
+        maxWidth: 'none',
         height: '100dvh',
         right: '0px',
         left: 'auto',
         top: '0',
         bottom: '0',
+        marginLeft: '0',
         borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
+        borderRadius: '0',
+        overflow: 'visible',
       });
       this.dockContainer.style.transformOrigin = 'right center';
       this.dockContainer.style.transform = this.state.isOpen ? 'translateX(0)' : 'translateX(100%)';

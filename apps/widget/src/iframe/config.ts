@@ -36,5 +36,6 @@ export const state = {
   _isMaximized: false,
   _uiConfig: { appearance: {}, features: {} } as any,
   currentSessionId: null as string | null,
+  interactionSource: params.get('source') || 'unknown',
   _historyCached: [] as any[],
 };

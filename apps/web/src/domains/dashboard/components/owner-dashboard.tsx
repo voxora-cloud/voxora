@@ -11,15 +11,18 @@ import {
 } from "lucide-react";
 import {
   hasConversationStatusData,
+  hasInteractionSourceData,
   hasMessageVolumeData,
   useAnalyticsSummary,
   useAnalyticsTrends,
 } from "../hooks/use-analytics";
 import { Loader } from "@/shared/ui/loader";
 import {
+  AIInteractionSourcesPieChart,
   ConversationOutcomesBarChart,
   MessageVolumeBarChart,
 } from "./analytics-charts";
+import { MostAskedQuestionsCard } from "./most-asked-questions-card";
 
 const emptyAnalyticsMessage = "Currently, we don’t have enough data to show this information.";
 
@@ -35,13 +38,12 @@ export function OwnerDashboard() {
   const { data: summary, isLoading: summaryLoading } = useAnalyticsSummary();
   const { data: trends, isLoading: trendsLoading } = useAnalyticsTrends(7);
 
-  const totalSource =
-    (summary?.source?.widget || 0) +
-    (summary?.source?.qr || 0);
   const messageVolumeData = trends?.messageVolume ?? [];
   const conversationStatusData = trends?.conversationStatus ?? [];
   const hasMessageVolume = hasMessageVolumeData(messageVolumeData);
   const hasConversationStatus = hasConversationStatusData(conversationStatusData);
+  const sourceData = summary?.source ?? { widget: 0, qr: 0, link: 0 };
+  const hasSourceData = hasInteractionSourceData(sourceData);
 
   if (summaryLoading || trendsLoading) {
     return (
@@ -146,45 +148,18 @@ export function OwnerDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Most Asked Questions</h3>
-          <div className="space-y-3">
-            {summary?.mostAskedQuestions?.length ? (
-              summary.mostAskedQuestions.map((q: { question: string; count: number }, index: number) => (
-                <div key={`${q.question}-${index}`} className="flex items-start justify-between gap-4 border-b border-border pb-2 last:border-b-0">
-                  <p className="text-sm text-foreground line-clamp-2">{q.question}</p>
-                  <p className="text-xs text-muted-foreground">{q.count}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No question data available.</p>
-            )}
-          </div>
-        </Card>
+        <MostAskedQuestionsCard questions={summary?.mostAskedQuestions} />
 
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Traffic Sources</h3>
-          <div className="space-y-4">
-            {[
-              { label: "Widget", value: summary?.source?.widget || 0 },
-              { label: "QR", value: summary?.source?.qr || 0 },
-            ].map((row) => {
-              const percent = totalSource > 0 ? Math.round((row.value / totalSource) * 100) : 0;
-              return (
-                <div key={row.label}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="text-foreground">{row.label}</span>
-                    <span className="text-muted-foreground">{row.value} ({percent}%)</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-muted">
-                    <div
-                      className="h-2 rounded-full bg-primary"
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <h3 className="text-lg font-semibold mb-4">AI Interaction Sources</h3>
+          <div className="h-80 w-full">
+            {hasSourceData ? (
+              <AIInteractionSourcesPieChart source={sourceData} />
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
+                <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
+              </div>
+            )}
           </div>
         </Card>
       </div>

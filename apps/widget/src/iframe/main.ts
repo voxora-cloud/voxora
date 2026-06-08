@@ -151,6 +151,7 @@ async function handleInitWidget(payload: any) {
   if (state._connectTimeout) { clearTimeout(state._connectTimeout); state._connectTimeout = null; }
 
   state.InteraOnePublicKey = payload.publicKey;
+  state.interactionSource = payload.source || state.interactionSource || 'unknown';
   if (payload.identity?.name) {
     state.userName = payload.identity.name;
   }
@@ -232,6 +233,7 @@ window.addEventListener('message', function (event) {
           visitorId: msg.payload.visitorId || '',
           identity: msg.payload,
           pageUrl: (window as any).__InteraOnePageUrl || '',
+          source: state.interactionSource || 'unknown',
         };
         clearStoredSession(state.InteraOnePublicKey);
         bootstrapSession(refreshPayload, function (token: string, sessionId: string) {
@@ -276,7 +278,12 @@ window.addEventListener('message', function (event) {
         conversationId: state.chatId,
         content: message,
         type: 'text',
-        metadata: { senderName: state.userName, senderEmail: state.userEmail, source: 'widget' }
+        metadata: {
+          senderName: state.userName,
+          senderEmail: state.userEmail,
+          source: 'widget',
+          interactionSource: state.interactionSource || 'unknown'
+        }
       });
     }
   },

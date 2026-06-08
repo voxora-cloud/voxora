@@ -12,12 +12,18 @@ interface WindowWithInteraOneConfig extends Window {
     publicKey: string;
     fullscreen: boolean;
     autoOpen: boolean;
+    source: "qr" | "link" | "unknown";
   };
   InteraOne?: {
     open?: () => void;
     destroy?: () => void;
   };
 }
+
+const normalizeSource = (value: string | null): "qr" | "link" | "unknown" => {
+  if (value === "qr" || value === "link") return value;
+  return "unknown";
+};
 
 export default function QRScannerLandingPage() {
   const { publicKey } = useParams<{ publicKey: string }>();
@@ -26,6 +32,7 @@ export default function QRScannerLandingPage() {
     if (!publicKey) return;
 
     const win = window as WindowWithInteraOneConfig;
+    const source = normalizeSource(new URLSearchParams(window.location.search).get("source"));
     let retries = 0;
     let openTimer: ReturnType<typeof window.setInterval> | null = null;
 
@@ -53,17 +60,20 @@ export default function QRScannerLandingPage() {
       publicKey,
       fullscreen: true,
       autoOpen: true,
+      source,
     };
 
-    fetch(`${API_URL}/widget/qr-scan`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ publicKey }),
-    }).catch(() => {
-      // QR scan tracking is best-effort
-    });
+    if (source === "qr") {
+      fetch(`${API_URL}/widget/qr-scan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ publicKey }),
+      }).catch(() => {
+        // QR scan tracking is best-effort
+      });
+    }
 
     const script = document.createElement("script");
     script.id = "InteraOne-qr-script";
@@ -72,6 +82,7 @@ export default function QRScannerLandingPage() {
     script.setAttribute("data-InteraOne-public-key", publicKey);
     script.setAttribute("data-InteraOne-fullscreen", "true");
     script.setAttribute("data-InteraOne-auto-open", "true");
+    script.setAttribute("data-InteraOne-source", source);
     script.addEventListener("load", ensureOpened, { once: true });
     document.body.appendChild(script);
 

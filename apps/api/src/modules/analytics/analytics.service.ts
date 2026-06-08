@@ -20,7 +20,7 @@ export class AnalyticsService {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
 
-    const [conversationAgg, usersServedAgg, resolutionAgg, questionAgg, widgetLoadAgg, sourceAgg, tokenAgg, totalMessages] =
+    const [conversationAgg, usersServedAgg, resolutionAgg, questionAgg, sourceAgg, widgetLoadAgg, tokenAgg, totalMessages] =
       await Promise.all([
         Conversation.aggregate([
           {
@@ -115,6 +115,22 @@ export class AnalyticsService {
           { $sort: { count: -1 } },
           { $limit: 5 },
         ]),
+        Conversation.aggregate([
+          {
+            $match: {
+              organizationId: orgObjectId,
+              createdAt: { $gte: startDate },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                $ifNull: ["$metadata.interactionSource", "$metadata.source"],
+              },
+              count: { $sum: 1 },
+            },
+          },
+        ]),
         AnalyticsEvent.aggregate([
           {
             $addFields: {
@@ -130,36 +146,6 @@ export class AnalyticsService {
           },
           {
             $count: "widgetLoads",
-          },
-        ]),
-        AnalyticsEvent.aggregate([
-          {
-            $addFields: {
-              eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
-            },
-          },
-          {
-            $match: {
-              organizationId: { $in: [organizationId, orgObjectId] },
-              eventTime: { $gte: startDate },
-              $or: [
-                { channel: "widget" },
-                { type: "qr_scan" },
-              ],
-            },
-          },
-          {
-            $project: {
-              source: {
-                $cond: [{ $eq: ["$type", "qr_scan"] }, "qr", "widget"],
-              },
-            },
-          },
-          {
-            $group: {
-              _id: "$source",
-              count: { $sum: 1 },
-            },
           },
         ]),
         AnalyticsEvent.aggregate([
@@ -219,10 +205,11 @@ export class AnalyticsService {
       ? Math.round((conv.escalatedConversations / conv.totalConversations) * 100)
       : 0;
 
-    const source = { widget: 0, qr: 0 };
+    const source = { widget: 0, qr: 0, link: 0 };
     sourceAgg.forEach((row) => {
-      if (row._id in source) {
-        source[row._id as "widget" | "qr"] = row.count;
+      const sourceKey = String(row._id || "unknown").toLowerCase();
+      if (sourceKey === "widget" || sourceKey === "qr" || sourceKey === "link") {
+        source[sourceKey] += row.count;
       }
     });
 

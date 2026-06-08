@@ -87,6 +87,7 @@ export interface WidgetAppearance {
  *   - visitorId: stable anonymous ID, read from parent localStorage by the loader
  *   - identity: optional explicit user identity (set via InteraOne.identify())
  *   - pageUrl / pageTitle: initial page context
+ *   - source: AI interaction source for analytics attribution
  *   - appearance: branding config fetched by the loader from the public API
  */
 export interface InitWidgetMessage {
@@ -99,6 +100,7 @@ export interface InitWidgetMessage {
     identity?: UserIdentity;
     pageUrl: string;
     pageTitle: string;
+    source?: 'widget' | 'qr' | 'link' | 'unknown';
     appearance?: WidgetAppearance;
   };
 }

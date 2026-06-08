@@ -18,6 +18,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         senderName?: string;
         senderEmail?: string;
         source: string;
+        interactionSource?: string;
       };
     }) => {
       const { conversationId, content, type, metadata } = data;
@@ -41,6 +42,11 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             senderName: metadata?.senderName || conversation.visitor?.name || "Anonymous User",
             senderEmail: metadata?.senderEmail || conversation.visitor?.email || "anonymous@temp.local",
             source: "widget",
+            interactionSource:
+              metadata?.interactionSource ||
+              (conversation.metadata as any)?.interactionSource ||
+              (conversation.metadata as any)?.source ||
+              "unknown",
           };
         }
 

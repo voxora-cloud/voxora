@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { renderToString } from "react-dom/server";
-import { Download, Smartphone, ImagePlus, Trash2, Upload } from "lucide-react";
+import { Copy, Download, ImagePlus, Link2, Smartphone, Trash2, Upload } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { authApi } from "@/domains/auth/api/auth.api";
 import { useAuth } from "@/domains/auth/hooks";
@@ -74,10 +74,12 @@ export default function QRCodeGeneratorPage() {
   const organizationLogoUrl = latestOrganization?.logoUrl || organization?.logoUrl || "";
   const qrLogoUrl = organizationLogoUrl || DEFAULT_LOGO_URL;
 
-  const destinationUrl = useMemo(() => {
+  const baseChatUrl = useMemo(() => {
     if (!publicKey) return "";
     return `${window.location.origin}/c/${publicKey}`;
   }, [publicKey]);
+  const qrUrl = baseChatUrl ? `${baseChatUrl}?source=qr` : "";
+  const directLinkUrl = baseChatUrl ? `${baseChatUrl}?source=link` : "";
 
   const handleDownload = async () => {
     const canvas = document.getElementById(QR_CANVAS_ID) as HTMLCanvasElement | null;
@@ -95,7 +97,10 @@ export default function QRCodeGeneratorPage() {
     exportCanvas.width = exportWidth;
     exportCanvas.height = exportHeight;
     const ctx = exportCanvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      setIsDownloading(false);
+      return;
+    }
 
     const qrX = (exportWidth - qrSize) / 2;
     const qrY = padding + titleHeight;
@@ -141,6 +146,17 @@ export default function QRCodeGeneratorPage() {
       toast.error("Could not prepare the QR export");
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!directLinkUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(directLinkUrl);
+      toast.success("Direct link copied");
+    } catch {
+      toast.error("Could not copy the direct link");
     }
   };
 
@@ -350,32 +366,16 @@ export default function QRCodeGeneratorPage() {
                   <p className="text-sm text-red-600 dark:text-red-400">{logoError}</p>
                 )}
               </div>
-
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={handleDownload} disabled={isDownloading} className="cursor-pointer">
-                  {isDownloading ? (
-                    <>
-                      <Loader size="sm" className="mr-2" />
-                      Preparing...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download PNG
-                    </>
-                  )}
-                </Button>
-              </div>
             </CardContent>
           </div>
 
           <div className="p-6 md:p-8 bg-muted/20">
-            <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-background p-6">
+            <div className="flex flex-col items-center gap-5 rounded-xl border border-border bg-background p-6">
               <div className="relative inline-block">
                 <div className="rounded-3xl overflow-hidden border border-border/70 shadow-sm">
                   <QRCodeCanvas
                     id={QR_CANVAS_ID}
-                    value={destinationUrl}
+                    value={qrUrl}
                     size={QR_SIZE}
                     includeMargin
                     level="H"
@@ -397,6 +397,57 @@ export default function QRCodeGeneratorPage() {
                       event.currentTarget.src = DEFAULT_LOGO_URL;
                     }}
                   />
+                </div>
+              </div>
+
+              <div className="w-full space-y-3">
+                <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Direct link
+                    </div>
+                    <a
+                      href={directLinkUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 block break-all text-sm font-medium text-foreground hover:text-primary"
+                    >
+                      {directLinkUrl}
+                    </a>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCopyLink}
+                    className="cursor-pointer"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy Direct Link
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={isDownloading}
+                    className="cursor-pointer"
+                  >
+                    {isDownloading ? (
+                      <>
+                        <Loader size="sm" className="mr-2" />
+                        Preparing...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download QR
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>
