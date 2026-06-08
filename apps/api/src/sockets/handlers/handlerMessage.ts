@@ -46,7 +46,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               metadata?.interactionSource ||
               (conversation.metadata as any)?.interactionSource ||
               (conversation.metadata as any)?.source ||
-              "unknown",
+              "widget",
           };
         }
 

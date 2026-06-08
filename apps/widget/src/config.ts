@@ -38,7 +38,7 @@ interface WindowInteraOneConfig {
 function normalizeSource(value: unknown, fallback: WidgetConfig["source"]): WidgetConfig["source"] {
   if (typeof value !== "string") return fallback;
   const normalized = value.trim().toLowerCase();
-  if (normalized === "widget" || normalized === "qr" || normalized === "link" || normalized === "unknown") {
+  if (normalized === "widget" || normalized === "qr" || normalized === "link") {
     return normalized;
   }
   return fallback;

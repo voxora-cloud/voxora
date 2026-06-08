@@ -9,19 +9,18 @@ import { WidgetService } from "./widget.service";
 
 const widgetService = new WidgetService();
 
-type AIInteractionSource = "widget" | "qr" | "link" | "unknown";
+type AIInteractionSource = "widget" | "qr" | "link";
 const AI_INTERACTION_SOURCES = new Set<AIInteractionSource>([
   "widget",
   "qr",
   "link",
-  "unknown",
 ]);
 const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
 
 function normalizeInteractionSource(value: unknown): AIInteractionSource {
-  if (typeof value !== "string") return "unknown";
+  if (typeof value !== "string") return "widget";
   const normalized = value.trim().toLowerCase() as AIInteractionSource;
-  return AI_INTERACTION_SOURCES.has(normalized) ? normalized : "unknown";
+  return AI_INTERACTION_SOURCES.has(normalized) ? normalized : "widget";
 }
 
 // ========================

@@ -5,6 +5,17 @@ export const PROTO_VERSION = '1';
 const RUNTIME_API_URL = '__API_URL_PRODUCTION__';
 const params = new URLSearchParams(window.location.search);
 
+export type InteractionSource = 'widget' | 'qr' | 'link';
+
+export function normalizeInteractionSource(value: unknown): InteractionSource {
+  if (typeof value !== 'string') return 'widget';
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'widget' || normalized === 'qr' || normalized === 'link') {
+    return normalized;
+  }
+  return 'widget';
+}
+
 let apiUrl = params.get('apiUrl');
 if (!apiUrl && RUNTIME_API_URL && !RUNTIME_API_URL.startsWith('__')) {
   apiUrl = RUNTIME_API_URL;
@@ -36,6 +47,6 @@ export const state = {
   _isMaximized: false,
   _uiConfig: { appearance: {}, features: {} } as any,
   currentSessionId: null as string | null,
-  interactionSource: params.get('source') || 'unknown',
+  interactionSource: normalizeInteractionSource(params.get('source')),
   _historyCached: [] as any[],
 };

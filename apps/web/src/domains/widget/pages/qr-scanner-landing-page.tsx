@@ -12,7 +12,7 @@ interface WindowWithInteraOneConfig extends Window {
     publicKey: string;
     fullscreen: boolean;
     autoOpen: boolean;
-    source: "qr" | "link" | "unknown";
+    source: "qr" | "link";
   };
   InteraOne?: {
     open?: () => void;
@@ -20,9 +20,9 @@ interface WindowWithInteraOneConfig extends Window {
   };
 }
 
-const normalizeSource = (value: string | null): "qr" | "link" | "unknown" => {
+const normalizeSource = (value: string | null): "qr" | "link" => {
   if (value === "qr" || value === "link") return value;
-  return "unknown";
+  return "link";
 };
 
 export default function QRScannerLandingPage() {

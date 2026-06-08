@@ -237,7 +237,7 @@ async function sendMessage() {
         message: text + pageContext,
         InteraOnePublicKey: state.InteraOnePublicKey,
         sessionId: state.currentSessionId,
-        source: state.interactionSource || 'unknown',
+        source: state.interactionSource || 'widget',
       };
 
       const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/widget/conversations`, {
@@ -266,7 +266,7 @@ async function sendMessage() {
               senderName: state.userName,
               senderEmail: state.userEmail,
               source: 'widget',
-              interactionSource: state.interactionSource || 'unknown'
+              interactionSource: state.interactionSource || 'widget'
             }
           });
           typingStop();
@@ -295,7 +295,7 @@ async function sendMessage() {
         senderName: state.userName,
         senderEmail: state.userEmail,
         source: 'widget',
-        interactionSource: state.interactionSource || 'unknown'
+        interactionSource: state.interactionSource || 'widget'
       }
     });
     typingStop();

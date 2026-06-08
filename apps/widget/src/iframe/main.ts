@@ -1,4 +1,4 @@
-import { state, PROTO_VERSION, API_BASE_URL } from './config';
+import { state, PROTO_VERSION, API_BASE_URL, normalizeInteractionSource } from './config';
 import { elements, adjustTextareaHeight, renderMaximizeIcon, addMessage, showTyping, hideTyping, showOpenSkeleton, INTERAONE_LOGO_SVG } from './ui';
 import { bootstrapSession } from './api';
 import { initializeSocket } from './socket';
@@ -151,7 +151,7 @@ async function handleInitWidget(payload: any) {
   if (state._connectTimeout) { clearTimeout(state._connectTimeout); state._connectTimeout = null; }
 
   state.InteraOnePublicKey = payload.publicKey;
-  state.interactionSource = payload.source || state.interactionSource || 'unknown';
+  state.interactionSource = normalizeInteractionSource(payload.source || state.interactionSource);
   if (payload.identity?.name) {
     state.userName = payload.identity.name;
   }
@@ -233,7 +233,7 @@ window.addEventListener('message', function (event) {
           visitorId: msg.payload.visitorId || '',
           identity: msg.payload,
           pageUrl: (window as any).__InteraOnePageUrl || '',
-          source: state.interactionSource || 'unknown',
+          source: state.interactionSource || 'widget',
         };
         clearStoredSession(state.InteraOnePublicKey);
         bootstrapSession(refreshPayload, function (token: string, sessionId: string) {
@@ -282,7 +282,7 @@ window.addEventListener('message', function (event) {
           senderName: state.userName,
           senderEmail: state.userEmail,
           source: 'widget',
-          interactionSource: state.interactionSource || 'unknown'
+          interactionSource: state.interactionSource || 'widget'
         }
       });
     }

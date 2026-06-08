@@ -100,7 +100,7 @@ export interface InitWidgetMessage {
     identity?: UserIdentity;
     pageUrl: string;
     pageTitle: string;
-    source?: 'widget' | 'qr' | 'link' | 'unknown';
+    source?: 'widget' | 'qr' | 'link';
     appearance?: WidgetAppearance;
   };
 }
