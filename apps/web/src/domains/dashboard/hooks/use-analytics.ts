@@ -19,6 +19,7 @@ export interface DashboardSummary {
   source: {
     widget: number;
     qr: number;
+    link: number;
   };
   aiCost: {
     promptTokens: number;
@@ -54,6 +55,13 @@ export const hasMessageVolumeData = (rows: DashboardTrends["messageVolume"] = []
 
 export const hasConversationStatusData = (rows: DashboardTrends["conversationStatus"] = []) =>
   rows.some((row) => row.started > 0 || row.resolved > 0 || row.opened > 0);
+
+export const hasInteractionSourceData = (source?: DashboardSummary["source"]) =>
+  Boolean(
+    (source?.widget || 0) +
+    (source?.qr || 0) +
+    (source?.link || 0),
+  );
 
 export function useAnalyticsSummary() {
   return useQuery({

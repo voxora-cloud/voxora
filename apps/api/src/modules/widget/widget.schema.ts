@@ -94,6 +94,7 @@ export const widgetSchema = {
     visitorName: Joi.string().min(1).max(100).optional(),
     visitorEmail: Joi.string().email().optional(),
     sessionId: Joi.string().optional(),
+    source: Joi.string().max(50).optional(),
     department: Joi.string().max(100).optional(),
   }).options({ stripUnknown: true }),
 

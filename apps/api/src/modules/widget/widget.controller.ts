@@ -9,6 +9,20 @@ import { WidgetService } from "./widget.service";
 
 const widgetService = new WidgetService();
 
+type AIInteractionSource = "widget" | "qr" | "link";
+const AI_INTERACTION_SOURCES = new Set<AIInteractionSource>([
+  "widget",
+  "qr",
+  "link",
+]);
+const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
+
+function normalizeInteractionSource(value: unknown): AIInteractionSource {
+  if (typeof value !== "string") return "widget";
+  const normalized = value.trim().toLowerCase() as AIInteractionSource;
+  return AI_INTERACTION_SOURCES.has(normalized) ? normalized : "widget";
+}
+
 // ========================
 // WIDGET AUTH & CONFIG
 // ========================
@@ -168,6 +182,7 @@ export const initConversation = asyncHandler(
       visitorName,
       visitorEmail,
       sessionId,
+      source,
       department,
     } = req.body;
 
@@ -181,6 +196,7 @@ export const initConversation = asyncHandler(
         `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
       const isAnonymous = !visitorName || !visitorEmail;
+      const interactionSource = normalizeInteractionSource(source);
       const widgetSession = (req as any).widgetSession as
         | { organizationId?: string; InteraOnePublicKey?: string }
         | undefined;
@@ -222,6 +238,7 @@ export const initConversation = asyncHandler(
           },
           widgetKey: InteraOnePublicKey || widgetSession?.InteraOnePublicKey || null,
           source: "widget",
+          interactionSource,
           department: department || null,
           routingStrategy: department ? "department" : "auto",
         },
@@ -239,11 +256,12 @@ export const initConversation = asyncHandler(
           isAnonymous,
           department: department || null,
           initialMessageLength: message.length,
+          source: interactionSource,
         },
         {
           conversationId: conversation.id,
           widgetId: InteraOnePublicKey,
-          channel: "widget",
+          channel: interactionSource === "qr" ? "qr" : "widget",
         },
       );
 
@@ -412,7 +430,7 @@ export const getWidgetConversations = asyncHandler(
     try {
       const conversations = await Conversation.find({
         "visitor.sessionId": sessionId,
-        "metadata.source": "widget",
+        "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
         status: { $ne: "closed" },   // hide conversations the visitor deleted
       })
         .select(
@@ -489,7 +507,7 @@ export const deleteConversation = asyncHandler(
       const conversation = await Conversation.findOne({
         _id: conversationId,
         "visitor.sessionId": sessionId,
-        "metadata.source": "widget",
+        "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
       });
 
       if (!conversation) {
@@ -533,7 +551,7 @@ export const getConversationMessages = asyncHandler(
       const conversation = await Conversation.findOne({
         _id: conversationId,
         "visitor.sessionId": sessionId,
-        "metadata.source": "widget",
+        "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
       });
 
       if (!conversation) {

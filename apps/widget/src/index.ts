@@ -126,7 +126,8 @@ class InteraOneLoader {
     this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
     this.syncPageVisibility(window.location.href);
 
-    const shouldAutoOpen = this.api.getConfig().autoOpen ?? behavior?.autoOpen;
+    const shouldAutoOpen =
+      !this.isMobileView() && (this.api.getConfig().autoOpen ?? behavior?.autoOpen);
     if (this.isVisibleForCurrentPage && (this.fullscreenMode || shouldAutoOpen)) {
       this.open();
     }
@@ -210,6 +211,7 @@ class InteraOneLoader {
         identity: this.identity ?? undefined,
         pageUrl: this.getCurrentPageUrl(),
         pageTitle: this.getCurrentPageTitle(),
+        source: this.api.getConfig().source || 'widget',
         appearance: this.appearance ?? undefined,
       },
     } as InitWidgetMessage);

@@ -4,7 +4,6 @@ import type { LucideProps } from "lucide-react";
 import {
   Bot,
   Brush,
-  Check,
   ChevronRight,
   Eye,
   Layers,
@@ -354,7 +353,7 @@ export function WidgetAdvancedConfigForm({
           <ToggleCard
             icon={Timer}
             label="Auto-open on load"
-            description="Widget opens automatically when a visitor lands on the page."
+            description="Widget opens automatically for desktop visitors when they land on the page."
             checked={formData.behavior.autoOpen}
             onCheckedChange={(v) => updateBehavior("autoOpen", v)}
           />
@@ -443,31 +442,6 @@ export function WidgetAdvancedConfigForm({
           )}
         </div>
 
-        {/* Summary pill row */}
-        <div className="flex flex-wrap gap-2 pt-1">
-          {[
-            { label: "Widget popup", active: formData.behavior.showWidget },
-            { label: "Auto-open", active: formData.behavior.autoOpen },
-            { label: "Mobile", active: formData.behavior.showOnMobile },
-            { label: "Desktop", active: formData.behavior.showOnDesktop },
-            {
-              label: "Hidden pages",
-              active: formData.behavior.showOnlyOnSelectedPages,
-            },
-          ].map(({ label, active }) => (
-            <span
-              key={label}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                active
-                  ? "border-primary/40 bg-primary/8 text-primary"
-                  : "border-border/60 bg-muted text-muted-foreground line-through"
-              }`}
-            >
-              {active && <Check className="h-3 w-3" />}
-              {label}
-            </span>
-          ))}
-        </div>
       </div>
     ),
 

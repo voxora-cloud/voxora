@@ -237,6 +237,7 @@ async function sendMessage() {
         message: text + pageContext,
         InteraOnePublicKey: state.InteraOnePublicKey,
         sessionId: state.currentSessionId,
+        source: state.interactionSource || 'widget',
       };
 
       const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/widget/conversations`, {
@@ -261,7 +262,12 @@ async function sendMessage() {
             conversationId: state.chatId,
             content: text + pageContext,
             type: 'text',
-            metadata: { senderName: state.userName, senderEmail: state.userEmail, source: 'widget' }
+            metadata: {
+              senderName: state.userName,
+              senderEmail: state.userEmail,
+              source: 'widget',
+              interactionSource: state.interactionSource || 'widget'
+            }
           });
           typingStop();
         }
@@ -285,7 +291,12 @@ async function sendMessage() {
       conversationId: state.chatId,
       content: text + pageContext,
       type: 'text',
-      metadata: { senderName: state.userName, senderEmail: state.userEmail, source: 'widget' }
+      metadata: {
+        senderName: state.userName,
+        senderEmail: state.userEmail,
+        source: 'widget',
+        interactionSource: state.interactionSource || 'widget'
+      }
     });
     typingStop();
     setTimeout(() => { if (elements.sendBtn) elements.sendBtn.disabled = false; }, 1000);
