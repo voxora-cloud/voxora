@@ -13,7 +13,7 @@ const whitelabel = require("./whitelabel");
 
 /**
  * The EE module contract. This object shape is validated by the core API at
- * startup via `validateEeModuleContract()` in `apps/api/src/shared/ee/loader.ts`.
+ * startup via `validateEeModuleContract()` in `apps/gateway/src/shared/ee/loader.ts`.
  *
  * contractVersion must be "1" to satisfy the current contract.
  *

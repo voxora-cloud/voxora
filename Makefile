@@ -211,9 +211,9 @@ docker-start: check-docker ## Start Docker services
 	@echo "  $(GREEN)✓$(NC) MinIO Console  → http://localhost:9002 (minioadmin/minioadmin)"
 	@echo ""
 	@echo "$(BLUE)📋 App services (started via 'make dev' / turbo):$(NC)"
-	@echo "  $(GREEN)✓$(NC) API            → http://localhost:3002"
-	@echo "  $(GREEN)✓$(NC) Web            → http://localhost:3000"
-	@echo "  $(GREEN)✓$(NC) AI Worker      → BullMQ worker (queue: ai-processing)"
+	@echo "  $(GREEN)✓$(NC) Gateway        → http://localhost:3002"
+	@echo "  $(GREEN)✓$(NC) Console        → http://localhost:3000"
+	@echo "  $(GREEN)✓$(NC) Agent Worker    → BullMQ worker (queue: ai-processing)"
 	@echo ""
 	@sleep 2
 	@$(MAKE) docker-health
@@ -240,15 +240,15 @@ docker-logs: ## Show Docker logs
 	$(BANNER)
 	cd docker && docker-compose -f docker-compose.dev.yml logs -f
 
-widget-deploy: ## Build and deploy widget to MinIO
+launcher-deploy: ## Build and deploy widget to MinIO
 	@echo "$(BLUE)📦 Building and deploying widget...$(NC)"
-	@cd apps/widget && pnpm run build && pnpm run deploy || { \
+	@cd apps/launcher && pnpm run build && pnpm run deploy || { \
 		echo "$(RED)❌ Widget deployment failed!$(NC)"; \
 		echo ""; \
 		echo "$(YELLOW)Make sure:$(NC)"; \
 		echo "  1. MinIO is running - Run: make docker-start"; \
 		echo "  2. Dependencies are installed - Run: make install"; \
-		echo "  3. Widget build completes - Check apps/widget/dist/"; \
+		echo "  3. Widget build completes - Check apps/launcher/dist/"; \
 		echo ""; \
 		exit 1; \
 	}
@@ -256,26 +256,29 @@ widget-deploy: ## Build and deploy widget to MinIO
 	@echo "$(BLUE)📍 Widget URL:$(NC) http://localhost:9001/interaone-widget/v1/InteraOne.js"
 	@echo ""
 
+# Legacy target name mapping for backward compatibility
+widget-deploy: launcher-deploy
+
 docker-setup-builder:
 	@docker buildx create --use --name interaone-builder 2>/dev/null || docker buildx use interaone-builder
 
-docker-build-api: docker-setup-builder ## Build API image
+docker-build-gateway: docker-setup-builder ## Build Gateway image
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-api:$(VERSION) \
-		--tag $(REGISTRY)/interaone-api:latest \
-		--push -f apps/api/Dockerfile apps/api
+		--tag $(REGISTRY)/interaone-gateway:$(VERSION) \
+		--tag $(REGISTRY)/interaone-gateway:latest \
+		--push -f apps/gateway/Dockerfile apps/gateway
 
-docker-build-web: docker-setup-builder ## Build Web image
+docker-build-console: docker-setup-builder ## Build Console image
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-web:$(VERSION) \
-		--tag $(REGISTRY)/interaone-web:latest \
-		--push -f apps/web/Dockerfile apps/web
+		--tag $(REGISTRY)/interaone-console:$(VERSION) \
+		--tag $(REGISTRY)/interaone-console:latest \
+		--push -f apps/console/Dockerfile apps/console
 
-docker-build-ai: docker-setup-builder ## Build AI worker image
+docker-build-agent: docker-setup-builder ## Build Agent worker image
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-ai:$(VERSION) \
-		--tag $(REGISTRY)/interaone-ai:latest \
-		--push -f apps/ai/Dockerfile apps/ai
+		--tag $(REGISTRY)/interaone-agent:$(VERSION) \
+		--tag $(REGISTRY)/interaone-agent:latest \
+		--push -f apps/agent/Dockerfile apps/agent
 
 docker-build-worker: docker-setup-builder ## Build Worker image
 	docker buildx build --platform $(PLATFORMS) \
@@ -283,36 +286,42 @@ docker-build-worker: docker-setup-builder ## Build Worker image
 		--tag $(REGISTRY)/interaone-worker:latest \
 		--push -f apps/worker/Dockerfile apps/worker
 
-docker-build-widget: docker-setup-builder ## Build Widget image
+docker-build-launcher: docker-setup-builder ## Build Launcher image
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-widget:$(VERSION) \
-		--tag $(REGISTRY)/interaone-widget:latest \
-		--push -f apps/widget/Dockerfile apps/widget
+		--tag $(REGISTRY)/interaone-launcher:$(VERSION) \
+		--tag $(REGISTRY)/interaone-launcher:latest \
+		--push -f apps/launcher/Dockerfile apps/launcher
 
-docker-images: docker-build-api docker-build-web docker-build-ai docker-build-worker docker-build-widget ## Build all images
+# Legacy aliases for backward compatibility
+docker-build-api: docker-build-gateway
+docker-build-web: docker-build-console
+docker-build-ai: docker-build-agent
+docker-build-widget: docker-build-launcher
+
+docker-images: docker-build-gateway docker-build-console docker-build-agent docker-build-worker docker-build-launcher ## Build all images
 
 docker-release: docker-setup-builder ## Build and push all images with RELEASE_VERSION (e.g. make docker-release RELEASE_VERSION=0.9.0-beta)
 	@[ "$(RELEASE_VERSION)" ] || { echo "$(RED)❌ RELEASE_VERSION is required$(NC)  usage: make docker-release RELEASE_VERSION=0.9.0-beta"; exit 1; }
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-api:$(RELEASE_VERSION) \
-		--tag $(REGISTRY)/interaone-api:latest \
-		--push -f apps/api/Dockerfile apps/api
+		--tag $(REGISTRY)/interaone-gateway:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/interaone-gateway:latest \
+		--push -f apps/gateway/Dockerfile apps/gateway
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-web:$(RELEASE_VERSION) \
-		--tag $(REGISTRY)/interaone-web:latest \
-		--push -f apps/web/Dockerfile apps/web
+		--tag $(REGISTRY)/interaone-console:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/interaone-console:latest \
+		--push -f apps/console/Dockerfile apps/console
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-ai:$(RELEASE_VERSION) \
-		--tag $(REGISTRY)/interaone-ai:latest \
-		--push -f apps/ai/Dockerfile apps/ai
+		--tag $(REGISTRY)/interaone-agent:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/interaone-agent:latest \
+		--push -f apps/agent/Dockerfile apps/agent
 	docker buildx build --platform $(PLATFORMS) \
 		--tag $(REGISTRY)/interaone-worker:$(RELEASE_VERSION) \
 		--tag $(REGISTRY)/interaone-worker:latest \
 		--push -f apps/worker/Dockerfile apps/worker
 	docker buildx build --platform $(PLATFORMS) \
-		--tag $(REGISTRY)/interaone-widget:$(RELEASE_VERSION) \
-		--tag $(REGISTRY)/interaone-widget:latest \
-		--push -f apps/widget/Dockerfile apps/widget
+		--tag $(REGISTRY)/interaone-launcher:$(RELEASE_VERSION) \
+		--tag $(REGISTRY)/interaone-launcher:latest \
+		--push -f apps/launcher/Dockerfile apps/launcher
 	@echo "$(GREEN)✅ Released $(RELEASE_VERSION) to Docker Hub$(NC)"
 
 clean: ## Clean artifacts

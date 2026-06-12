@@ -6,12 +6,12 @@ Thanks for your interest in contributing to InteraOne! Please read these guideli
 
 - Follow the Quick start guide in README to set up Docker services and run the apps.
 - Use Node.js >= 18 and npm 10+.
-- Copy `.env.development` to `.env` in `apps/api` and `apps/web` (adjust as needed).
+- Copy `.env.development` to `.env` in `apps/gateway` and `apps/console` (adjust as needed).
 
 ## Project structure
 
-- `apps/web`: Next.js 15 React 19 app (UI, pages, components)
-- `apps/api`: Express + Socket.IO backend (routes, sockets, models)
+- `apps/console`: Next.js 15 React 19 app (UI, pages, components)
+- `apps/gateway`: Express + Socket.IO backend (routes, sockets, models)
 - `packages/*`: shared configs (ESLint, TS)
 - `docker/`: local dev services
 

@@ -21,17 +21,17 @@
 {$API_HOST} {
     # WebSocket upgrade for Socket.IO must reach the API container
     handle /socket.io/* {
-        reverse_proxy api:3002
+        reverse_proxy gateway:3002
     }
     # REST API
     handle /api/* {
-        reverse_proxy api:3002
+        reverse_proxy gateway:3002
     }
 }
 
 # ── Web frontend on a separate domain ────────────────────────────────────────
 {$WEB_HOST} {
-    reverse_proxy web:3000
+    reverse_proxy console:3000
 }
 
 # ── MinIO CDN  (cdn.example.com → minio:9001) ────────────────────────────────

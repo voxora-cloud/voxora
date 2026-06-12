@@ -1,6 +1,9 @@
 import { Worker, ConnectionOptions } from "bullmq";
 import nodemailer, { Transporter } from "nodemailer";
-import { Resend } from "resend";
+import {
+  SESClient,
+  SendEmailCommand,
+} from "@aws-sdk/client-ses";
 import config, { type EmailProvider } from "../config";
 import logger from "../utils/logger";
 
@@ -54,26 +57,39 @@ class MailhogEmailAdapter implements EmailAdapter {
   }
 }
 
-class ResendEmailAdapter implements EmailAdapter {
-  private client: Resend;
+class SesEmailAdapter implements EmailAdapter {
+  private client: SESClient;
 
   constructor() {
-    if (!config.email.resendApiKey) throw new Error("RESEND_API_KEY is required for Resend provider");
-    this.client = new Resend(config.email.resendApiKey);
+    const { accessKeyId, secretAccessKey, region } = config.email.aws;
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error("AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are required for SES provider");
+    }
+    this.client = new SESClient({
+      region,
+      credentials: { accessKeyId, secretAccessKey },
+    });
   }
 
   async send(options: EmailJobData): Promise<void> {
     const fromName = options.from?.name || config.email.from.name;
     const fromEmail = options.from?.email || config.email.from.email;
 
-    const { error } = await this.client.emails.send({
-      from: `"${fromName}" <${fromEmail}>`,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-    });
-    if (error) throw new Error(`Resend error: ${error.message}`);
+    await this.client.send(
+      new SendEmailCommand({
+        Source: `"${fromName}" <${fromEmail}>`,
+        Destination: { ToAddresses: [options.to] },
+        Message: {
+          Subject: { Data: options.subject, Charset: "UTF-8" },
+          Body: {
+            Html: { Data: options.html, Charset: "UTF-8" },
+            ...(options.text
+              ? { Text: { Data: options.text, Charset: "UTF-8" } }
+              : {}),
+          },
+        },
+      }),
+    );
   }
 }
 
@@ -89,7 +105,7 @@ class DisabledEmailAdapter implements EmailAdapter {
 function buildAdapter(provider: EmailProvider): EmailAdapter {
   const providers: Record<EmailProvider, () => EmailAdapter> = {
     mailhog: () => new MailhogEmailAdapter(),
-    resend: () => new ResendEmailAdapter(),
+    ses: () => new SesEmailAdapter(),
     disabled: () => new DisabledEmailAdapter(),
   };
 

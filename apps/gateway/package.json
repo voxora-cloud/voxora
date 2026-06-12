@@ -1,0 +1,68 @@
+{
+  "name": "@InteraOne/gateway",
+  "version": "1.0.0",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/index.ts",
+    "build": "tsc && tsc-alias",
+    "start": "node dist/index.js",
+    "seed:email-templates": "ts-node -r tsconfig-paths/register src/scripts/seeds/email-templates.seed.ts",
+    "test:ee-missing": "ts-node -r tsconfig-paths/register src/scripts/ee-missing-smoke.ts"
+  },
+  "keywords": [
+    "chat",
+    "support",
+    "realtime",
+    "socket.io"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Real-time chat support application backend",
+  "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1064.0",
+    "@socket.io/redis-adapter": "^8.2.1",
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.0.0",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.20",
+    "dodopayments": "^2.27.0",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.1.5",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.3.2",
+    "joi": "^17.11.0",
+    "jsonwebtoken": "^9.0.2",
+    "mailparser": "^3.9.9",
+    "minio": "^8.0.6",
+    "mongoose": "^8.0.3",
+    "multer": "^1.4.5-lts.1",
+    "redis": "^4.6.12",
+    "sns-validator": "^0.3.5",
+    "socket.io": "^4.7.5",
+    "twilio": "^6.0.2",
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/mailparser": "^3.4.6",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^24.1.0",
+    "@types/sns-validator": "^0.3.3",
+    "@types/uuid": "^9.0.7",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.10",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
+  }
+}

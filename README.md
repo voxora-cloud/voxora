@@ -49,11 +49,11 @@ cd interaOne
 Copy all environment templates:
 
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
-cp apps/ai/.env.example apps/ai/.env
+cp apps/gateway/.env.example apps/gateway/.env
+cp apps/console/.env.example apps/console/.env
+cp apps/agent/.env.example apps/agent/.env
 cp apps/worker/.env.example apps/worker/.env
-cp apps/widget/.env.example apps/widget/.env
+cp apps/launcher/.env.example apps/launcher/.env
 ```
 
 Update the `.env` files as needed for your local setup.
