@@ -15,7 +15,7 @@ export async function buildContext(
   companyName?: string,
   fallbackToAgent?: boolean,
   collectUserInfo?: CollectUserInfo,
-  channel?: "widget" | "email" | "whatsapp" | "telegram" | "instagram",
+  channel?: "widget" | "email" | "whatsapp" | "telegram",
 ): Promise<ContextResult> {
   const canFallback = fallbackToAgent !== false;
   let knowledgeContext: string | undefined;

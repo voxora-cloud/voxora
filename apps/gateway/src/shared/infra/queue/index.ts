@@ -16,7 +16,7 @@ export interface AIJobData {
 		email?: boolean;
 		phone?: boolean;
 	};
-	channel?: "widget" | "email" | "whatsapp" | "telegram" | "instagram";
+	channel?: "widget" | "email" | "whatsapp" | "telegram";
 }
 
 export interface IngestionJobData {

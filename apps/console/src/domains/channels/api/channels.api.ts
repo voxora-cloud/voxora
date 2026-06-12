@@ -41,9 +41,6 @@ export const channelsApi = {
   getTelegramChannel: () =>
     apiClient.get<ChannelResponse>("/channels/telegram"),
 
-  /** Get the org's Instagram channel */
-  getInstagramChannel: () =>
-    apiClient.get<ChannelResponse>("/channels/instagram"),
 
   /** Create + provision the email channel */
   createEmailChannel: (payload: CreateEmailChannelPayload) =>

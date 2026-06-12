@@ -39,30 +39,7 @@ channelsRouter.post(
   ChannelsController.handleTelegramInbound,
 );
 
-// ── Public: Instagram inbound webhook (no auth — Meta challenges / sends events) ─
-// Verification challenge (GET request)
-channelsRouter.get(
-  "/instagram/inbound",
-  ChannelsController.handleInstagramWebhookValidation,
-);
-// Webhook events (POST request)
-channelsRouter.post(
-  "/instagram/inbound",
-  express.json(),
-  ChannelsController.handleInstagramInbound,
-);
 
-// ── Instagram OAuth Flow (Connect starts with authentication) ───────────────
-channelsRouter.get(
-  "/instagram/oauth/connect",
-  authenticate,
-  resolveOrganization,
-  ChannelsController.connectInstagramOauth,
-);
-channelsRouter.get(
-  "/instagram/oauth/callback",
-  ChannelsController.handleInstagramOauthCallback,
-);
 
 // ── AI tool: send via channel (AI secret protected) ───────────────────────────
 channelsRouter.post(
@@ -123,11 +100,7 @@ channelsRouter.post(
   ChannelsController.createTelegramChannel,
 );
 
-// Get the Instagram channel (one per org)
-channelsRouter.get(
-  "/instagram",
-  ChannelsController.getInstagramChannel,
-);
+
 
 // Trigger domain re-verification (admin+)
 channelsRouter.post(

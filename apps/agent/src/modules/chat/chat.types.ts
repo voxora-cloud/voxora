@@ -17,7 +17,7 @@ export interface AIJobData {
   companyName?: string;
   fallbackToAgent?: boolean;
   collectUserInfo?: CollectUserInfo;
-  channel?: "widget" | "email" | "whatsapp" | "telegram" | "instagram";
+  channel?: "widget" | "email" | "whatsapp" | "telegram";
 }
 
 export interface PipelineResult {

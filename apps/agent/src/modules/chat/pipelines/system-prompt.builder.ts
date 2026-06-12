@@ -6,7 +6,7 @@ interface BuildSystemPromptOptions {
   collectUserInfo?: CollectUserInfo;
   knowledgeContext?: string;
   knownVisitorDetails?: KnownVisitorDetails;
-  channel?: "widget" | "email" | "whatsapp" | "telegram" | "instagram";
+  channel?: "widget" | "email" | "whatsapp" | "telegram";
 }
 
 
@@ -96,9 +96,9 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     - use raw HTML
     - refer to internal technical systems or backend mechanics in your messages to the user. Never tell users that you searched, checked, queried, ran, or used any internal source or operation. Keep all internal operations (databases, knowledge bases, tool calls, retrieval, RAG, vectors, backend services, API queries, and system context) completely invisible to the user.
   </response_style>`;
-  } else if (channel === "whatsapp" || channel === "telegram" || channel === "instagram") {
+  } else if (channel === "whatsapp" || channel === "telegram") {
     responseStyleSection = `  <response_style>
-
+ 
     Responses must:
     - be extremely brief and direct, optimized for mobile messaging interfaces (${channel})
     - use spacing and line breaks to prevent blocks of text

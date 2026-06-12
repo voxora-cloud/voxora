@@ -14,15 +14,24 @@ const config = {
       apiKey: process.env.GEMINI_API_KEY,
       model: process.env.GEMINI_MODEL,
     },
+    bedrock: {
+      region: process.env.AWS_REGION || "us-east-1",
+      model: process.env.BEDROCK_MODEL || "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
   },
   ai: {
     systemPrompt:
       "You are a helpful customer support assistant. Be concise, friendly, and accurate.",
   },
   embeddings: {
-    provider: process.env.EMBEDDING_PROVIDER,
+    provider: process.env.EMBEDDING_PROVIDER || "gemini",
     geminiModel: process.env.GEMINI_EMBEDDING_MODEL,
-
+    bedrock: {
+      model: process.env.BEDROCK_EMBEDDING_MODEL || "amazon.titan-embed-text-v2:0",
+      dimensions: parseInt(process.env.BEDROCK_EMBEDDING_DIMENSIONS || "1024", 10),
+    },
     ragTopK: parseInt(process.env.RAG_TOP_K || "5", 10),
   },
   qdrant: {

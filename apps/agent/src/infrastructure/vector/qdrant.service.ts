@@ -76,20 +76,34 @@ class QdrantVectorStore implements VectorStore {
     console.log(`[Qdrant]   Organization  : ${options.organizationId}`);
     console.log(`[Qdrant]   Top K         : ${options.topK ?? 5}`);
 
-    // Check if collection exists
+    // Check if collection exists and check dimensions compatibility
     try {
       const collectionInfo = await this.client.getCollection(COLLECTION);
-      const pointsCount = collectionInfo.points_count || 0;
-      console.log(`[Qdrant]   Collection exists: YES`);
-      console.log(`[Qdrant]   Total points: ${pointsCount}`);
-
-      if (pointsCount === 0) {
-        console.log(`[Qdrant]   ⚠️  Collection is EMPTY - no documents ingested yet`);
+      const existingSize = (collectionInfo.config?.params?.vectors as any)?.size as number | undefined;
+      
+      if (existingSize && existingSize !== vector.length) {
+        console.warn(
+          `[Qdrant] Collection "${COLLECTION}" has ${existingSize}d but query has ${vector.length}d — recreating collection`,
+        );
+        await this.client.deleteCollection(COLLECTION);
+        await this.ensureCollection(vector.length);
+      } else {
+        const pointsCount = collectionInfo.points_count || 0;
+        console.log(`[Qdrant]   Collection exists: YES`);
+        console.log(`[Qdrant]   Total points: ${pointsCount}`);
+        if (pointsCount === 0) {
+          console.log(`[Qdrant]   ⚠️  Collection is EMPTY - no documents ingested yet`);
+        }
       }
     } catch (err: any) {
-      console.log(`[Qdrant]   ❌ Collection exists: NO`);
-      console.log(`[Qdrant]   Error: ${err?.message}`);
-      throw err;
+      const isNotFound = err?.status === 404 || String(err?.message || "").toLowerCase().includes("not found");
+      if (isNotFound) {
+        console.log(`[Qdrant]   Collection exists: NO — creating with ${vector.length}d`);
+        await this.ensureCollection(vector.length);
+      } else {
+        console.error(`[Qdrant]   Failed to verify collection`, err);
+        throw err;
+      }
     }
 
     const mustConditions: any[] = [

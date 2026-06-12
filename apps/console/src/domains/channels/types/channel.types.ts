@@ -1,4 +1,4 @@
-export type ChannelType = "email" | "whatsapp" | "telegram" | "instagram";
+export type ChannelType = "email" | "whatsapp" | "telegram";
 export type ChannelVerificationStatus = "pending" | "verified" | "failed";
 
 export interface DnsRecord {
@@ -32,13 +32,7 @@ export interface TelegramChannelConfig {
   verificationStatus: ChannelVerificationStatus;
 }
 
-export interface InstagramChannelConfig {
-  pageAccessToken: string;
-  instagramAccountId: string;
-  instagramUsername: string;
-  pageId: string;
-  verificationStatus: ChannelVerificationStatus;
-}
+
 
 export interface Channel {
   _id: string;
@@ -50,7 +44,6 @@ export interface Channel {
     email?: EmailChannelConfig;
     whatsapp?: WhatsAppChannelConfig;
     telegram?: TelegramChannelConfig;
-    instagram?: InstagramChannelConfig;
   };
   createdAt: string;
   updatedAt: string;

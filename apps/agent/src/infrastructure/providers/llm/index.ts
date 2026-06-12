@@ -1,5 +1,6 @@
 import { LLMProvider } from "./types";
 import { GeminiProvider } from "./gemini.provider";
+import { BedrockProvider } from "./bedrock.provider";
 
 const providers = new Map<string, LLMProvider>();
 
@@ -24,5 +25,6 @@ export function getDefaultProvider(): LLMProvider {
 }
 
 registerProvider(new GeminiProvider());
+registerProvider(new BedrockProvider());
 
 export type { LLMProvider, LLMMessage, LLMOptions } from "./types";

@@ -19,10 +19,4 @@ export interface CreateTelegramChannelInput {
   botToken: string;
 }
 
-export interface CreateInstagramChannelInput {
-  name: string;
-  pageAccessToken: string;
-  instagramAccountId: string;
-  instagramUsername: string;
-  pageId: string;
-}
+

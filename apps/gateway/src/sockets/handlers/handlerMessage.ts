@@ -107,8 +107,6 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 to = convMeta.phone || conversation.visitor?.name;
               } else if (convMeta.channel === "telegram_channel") {
                 to = convMeta.chatId || conversation.visitor?.sessionId?.replace("telegram-", "");
-              } else if (convMeta.channel === "instagram_channel") {
-                to = convMeta.customerId || conversation.visitor?.sessionId?.replace("instagram-", "");
               }
 
               if (to) {

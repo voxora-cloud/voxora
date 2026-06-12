@@ -8,7 +8,6 @@ import {
   CreateEmailChannelInput,
   CreateWhatsAppChannelInput,
   CreateTelegramChannelInput,
-  CreateInstagramChannelInput,
 } from "./channels.types";
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -185,61 +184,7 @@ export class ChannelService {
     return channel;
   }
 
-  /**
-   * Create an Instagram channel for an organization.
-   * One channel per org per type — enforced by model index + explicit check.
-   */
-  static async createInstagramChannel(
-    organizationId: string,
-    input: CreateInstagramChannelInput,
-  ): Promise<IChannel> {
-    // One channel per org per type
-    const existing = await Channel.findOne({ organizationId, type: "instagram" });
-    if (existing) {
-      throw new Error(
-        "An Instagram channel already exists for this organization. Delete it first to create a new one.",
-      );
-    }
 
-    // Build the initial channel config (pre-provision)
-    const channel = await Channel.create({
-      organizationId,
-      type: "instagram" as ChannelType,
-      name: input.name,
-      isActive: true,
-      config: {
-        instagram: {
-          pageAccessToken: input.pageAccessToken.trim(),
-          instagramAccountId: input.instagramAccountId.trim(),
-          instagramUsername: input.instagramUsername.trim(),
-          pageId: input.pageId.trim(),
-          verificationStatus: "pending",
-        },
-      },
-    });
-
-    // Provision with Instagram strategy — validates tokens
-    const strategy = ChannelStrategyFactory.create("instagram");
-    const provisionResult = await strategy.provision(channel._id.toString(), channel.config);
-
-    if (!provisionResult.success) {
-      // Clean up the orphaned channel doc
-      await Channel.findByIdAndDelete(channel._id);
-      throw new Error(provisionResult.error || "Failed to provision Instagram channel");
-    }
-
-    // Persist the updated config (marked as verified)
-    channel.config = provisionResult.updatedConfig;
-    await channel.save();
-
-    logger.info("[ChannelService] Instagram channel created and provisioned", {
-      channelId: channel._id.toString(),
-      organizationId,
-      instagramUsername: input.instagramUsername,
-    });
-
-    return channel;
-  }
 
   // ─── Read ────────────────────────────────────────────────────────────────────
 
@@ -255,9 +200,7 @@ export class ChannelService {
     return Channel.findOne({ organizationId, type: "telegram" }).lean() as unknown as Promise<IChannel | null>;
   }
 
-  static async getInstagramChannel(organizationId: string): Promise<IChannel | null> {
-    return Channel.findOne({ organizationId, type: "instagram" }).lean() as unknown as Promise<IChannel | null>;
-  }
+
 
   static async getAllChannels(organizationId: string): Promise<IChannel[]> {
     return Channel.find({ organizationId }).lean() as unknown as Promise<IChannel[]>;

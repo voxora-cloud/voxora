@@ -26,6 +26,6 @@ export interface Tool {
 
 export interface ToolFilterOptions {
   fallbackToAgent?: boolean;
-  channel?: "widget" | "email" | "whatsapp" | "telegram" | "instagram";
+  channel?: "widget" | "email" | "whatsapp" | "telegram";
 }
 

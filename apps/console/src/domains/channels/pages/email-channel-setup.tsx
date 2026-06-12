@@ -64,22 +64,41 @@ function StepIndicator({ current }: { current: Step }) {
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
   const copy = async () => {
     await navigator.clipboard.writeText(value);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const isLong = value.length > 50;
+
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        {label}
-      </label>
-      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border font-mono text-sm">
-        <span className="flex-1 truncate text-foreground/80">{value}</span>
+      <div className="flex justify-between items-center">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          {label}
+        </label>
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] font-semibold text-primary hover:underline transition-colors"
+          >
+            {expanded ? "Show Less" : "Show Full"}
+          </button>
+        )}
+      </div>
+      <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border font-mono text-sm">
+        <span className={`flex-1 text-foreground/85 break-all ${!expanded && isLong ? "line-clamp-1 truncate" : ""}`}>
+          {value}
+        </span>
         <button
           type="button"
           onClick={copy}
-          className="shrink-0 p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+          className="shrink-0 p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground mt-0.5"
+          title="Copy to clipboard"
         >
           {copied ? (
             <Check className="h-3.5 w-3.5 text-emerald-500" />

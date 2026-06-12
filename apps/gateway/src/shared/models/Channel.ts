@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 
-export type ChannelType = "email" | "whatsapp" | "telegram" | "instagram";
+export type ChannelType = "email" | "whatsapp" | "telegram";
 export type ChannelVerificationStatus = "pending" | "verified" | "failed";
 
 export interface IDnsRecord {
@@ -51,24 +51,12 @@ export interface ITelegramChannelConfig {
   verificationStatus: ChannelVerificationStatus;
 }
 
-export interface IInstagramChannelConfig {
-  /** Connected Meta page access token */
-  pageAccessToken: string;
-  /** Instagram Scoped Account ID */
-  instagramAccountId: string;
-  /** Instagram Username */
-  instagramUsername: string;
-  /** Connected Facebook Page ID */
-  pageId: string;
-  /** Verification status */
-  verificationStatus: ChannelVerificationStatus;
-}
+
 
 export interface IChannelConfig {
   email?: IEmailChannelConfig;
   whatsapp?: IWhatsAppChannelConfig;
   telegram?: ITelegramChannelConfig;
-  instagram?: IInstagramChannelConfig;
 }
 
 export interface IChannel extends Document {
@@ -147,23 +135,6 @@ const channelSchema = new Schema<IChannel>(
           {
             botToken: { type: String, required: true, trim: true },
             botUsername: { type: String, trim: true },
-            verificationStatus: {
-              type: String,
-              enum: ["pending", "verified", "failed"],
-              default: "verified",
-            },
-          },
-          { _id: false },
-        ),
-        default: undefined,
-      },
-      instagram: {
-        type: new Schema(
-          {
-            pageAccessToken: { type: String, required: true, trim: true },
-            instagramAccountId: { type: String, required: true, trim: true },
-            instagramUsername: { type: String, required: true, trim: true },
-            pageId: { type: String, required: true, trim: true },
             verificationStatus: {
               type: String,
               enum: ["pending", "verified", "failed"],

@@ -156,8 +156,6 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
             to = convMeta.phone || conv.visitor?.name;
           } else if (convMeta.channel === "telegram_channel") {
             to = convMeta.chatId || conv.visitor?.sessionId?.replace("telegram-", "");
-          } else if (convMeta.channel === "instagram_channel") {
-            to = convMeta.customerId || conv.visitor?.sessionId?.replace("instagram-", "");
           }
 
           if (to) {
