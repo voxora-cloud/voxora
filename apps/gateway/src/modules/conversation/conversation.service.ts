@@ -1,17 +1,13 @@
 import { Conversation, Message, User, Membership } from "@shared/models";
 import logger from "@shared/core/logger";
+import { ListConversationsOptions, UpdateVisitorInfoInput, RouteConversationInput } from "./conversation.types";
 
 export class ConversationService {
 
   /**
    * Get all conversations for an organization (filtered by status/agent)
    */
-  async getConversations(organizationId: string, options: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-    assignedTo?: string | null;
-  }) {
+  async getConversations(organizationId: string, options: ListConversationsOptions) {
     const { status, limit = 50, offset = 0, assignedTo } = options;
 
     const filter: any = { organizationId };
@@ -78,7 +74,7 @@ export class ConversationService {
   async updateVisitorInfo(
     organizationId: string,
     conversationId: string,
-    data: { name?: string; email?: string; sessionId?: string },
+    data: UpdateVisitorInfoInput,
     existingSessionId?: string,
   ) {
     const { name, email, sessionId } = data;
@@ -154,7 +150,7 @@ export class ConversationService {
   async routeConversation(
     organizationId: string,
     conversationId: string,
-    data: { agentId?: string; reason?: string },
+    data: RouteConversationInput,
     routedBy: string,
   ) {
     const { agentId, reason } = data;

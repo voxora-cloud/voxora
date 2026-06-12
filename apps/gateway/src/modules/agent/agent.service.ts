@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { Membership, Conversation } from "@shared/models";
 import { User } from "@shared/models";
 import logger from "@shared/core/logger";
+import { UpdateAgentProfileInput } from "./agent.types";
 
 export class AgentService {
   // ═══════════════════════════════════════════════════
@@ -14,7 +15,7 @@ export class AgentService {
     return membership;
   }
 
-  async updateAgentProfile(userId: string, updateData: { name?: string; phoneNumber?: string }) {
+  async updateAgentProfile(userId: string, updateData: UpdateAgentProfileInput) {
     const updates: any = {};
     if (updateData.name) updates.name = updateData.name;
     if (updateData.phoneNumber) updates.phoneNumber = updateData.phoneNumber;

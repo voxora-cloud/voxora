@@ -6,10 +6,10 @@ import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
 import { AuthenticatedRequest } from "@shared/security/middleware";
 import { WidgetService } from "./widget.service";
+import { AIInteractionSource } from "./widget.types";
 
 const widgetService = new WidgetService();
 
-type AIInteractionSource = "widget" | "qr" | "link";
 const AI_INTERACTION_SOURCES = new Set<AIInteractionSource>([
   "widget",
   "qr",

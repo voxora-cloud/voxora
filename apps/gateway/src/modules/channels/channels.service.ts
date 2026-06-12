@@ -2,37 +2,12 @@ import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
-
-// ─── Input shapes ─────────────────────────────────────────────────────────────
-
-export interface CreateEmailChannelInput {
-  name: string;
-  /** Full email address: support@acme.com */
-  email: string;
-  /** Domain only: acme.com */
-  domain: string;
-}
-
-export interface CreateWhatsAppChannelInput {
-  name: string;
-  phoneNumber: string;
-  accountSid: string;
-  authToken: string;
-  messagingServiceSid?: string;
-}
-
-export interface CreateTelegramChannelInput {
-  name: string;
-  botToken: string;
-}
-
-export interface CreateInstagramChannelInput {
-  name: string;
-  pageAccessToken: string;
-  instagramAccountId: string;
-  instagramUsername: string;
-  pageId: string;
-}
+import {
+  CreateEmailChannelInput,
+  CreateWhatsAppChannelInput,
+  CreateTelegramChannelInput,
+  CreateInstagramChannelInput,
+} from "./channels.types";
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -76,7 +51,7 @@ export class ChannelService {
       },
     });
 
-    // Provision with Resend — adds domain and fetches DNS records
+    // Provision with SES — adds domain and fetches DNS records
     const strategy = ChannelStrategyFactory.create("email");
     const provisionResult = await strategy.provision(channel._id.toString(), channel.config);
 
@@ -289,7 +264,7 @@ export class ChannelService {
   // ─── Verify ──────────────────────────────────────────────────────────────────
 
   /**
-   * Trigger Resend's domain verification and update the channel's DNS records +
+   * Trigger SES domain verification and update the channel's DNS records +
    * verification status in the database.
    */
   static async verifyChannel(

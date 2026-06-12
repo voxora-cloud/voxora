@@ -1,14 +1,6 @@
-import { INotification, Notification } from "@shared/models";
+import { Notification } from "@shared/models";
 import { getSocketManager } from "@sockets/index";
-
-type CreateNotificationInput = {
-  organizationId: string;
-  userId?: string;
-  type: INotification["type"];
-  title: string;
-  description: string;
-  metadata?: Record<string, unknown>;
-};
+import { CreateNotificationInput } from "./notification.types";
 
 class NotificationService {
   async create(input: CreateNotificationInput) {

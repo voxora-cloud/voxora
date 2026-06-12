@@ -2,18 +2,9 @@ import { AnalyticsEvent, Conversation, Message } from "@shared/models";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import mongoose from "mongoose";
+import { ConversationTrendRecord } from "./analytics.types";
 
 dayjs.extend(isSameOrBefore);
-
-type ConversationTrendRecord = {
-  createdAt: Date;
-  updatedAt: Date;
-  closedAt?: Date | null;
-  status: "open" | "pending" | "resolved" | "closed";
-  metadata?: {
-    statusUpdatedAt?: Date | string | null;
-  };
-};
 
 export class AnalyticsService {
   static async getOwnerSummary(organizationId: string, days = 30) {

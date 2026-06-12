@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { enqueueInviteEmail } from "@shared/queues/email.queue";
 import NotificationService from "@modules/notification/notification.service";
 import crypto from "crypto";
+import { InviteMemberInput } from "./membership.types";
 
 export class MembershipService {
     /**
@@ -32,12 +33,7 @@ export class MembershipService {
     static async inviteMember(
         invitedByUserId: string,
         organizationId: string,
-        data: {
-            email: string;
-            name: string;
-            role: MembershipRole;
-            password?: string;
-        },
+        data: InviteMemberInput,
     ) {
         // Enforce role assignment rules
         // Only owners can invite other owners.

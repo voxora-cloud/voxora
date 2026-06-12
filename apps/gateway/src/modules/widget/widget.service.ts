@@ -4,8 +4,7 @@ import logger from "@shared/core/logger";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
-
-type ServiceError = Error & { statusCode?: number };
+import { ServiceError } from "./widget.types";
 
 function createServiceError(message: string, statusCode: number): ServiceError {
   const err = new Error(message) as ServiceError;

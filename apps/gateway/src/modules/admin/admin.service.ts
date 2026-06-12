@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Membership, MembershipRole } from "@shared/models";
 import NotificationService from "@modules/notification/notification.service";
+import { GetAgentsOptions } from "./admin.types";
 
 export class AdminService {
   // ═══════════════════════════════════════════════════
@@ -9,7 +10,7 @@ export class AdminService {
 
   async getAgents(
     organizationId: string,
-    options: { page: number; limit: number; status?: string; search?: string },
+    options: GetAgentsOptions,
   ) {
     const { page, limit, status, search } = options;
 

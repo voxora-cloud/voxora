@@ -275,7 +275,7 @@ export class ChannelsController {
 
   /**
    * POST /channels/:channelId/verify
-   * Re-trigger Resend domain verification check.
+   * Re-trigger SES domain verification check.
    */
   static verifyChannel = asyncHandler(async (req: Request, res: Response) => {
     const { activeOrganizationId } = (req as AuthenticatedRequest).user;
@@ -310,7 +310,7 @@ export class ChannelsController {
 
   /**
    * DELETE /channels/:channelId
-   * Remove the channel + deprovision from Resend.
+   * Remove the channel + deprovision from SES.
    */
   static deleteChannel = asyncHandler(async (req: Request, res: Response) => {
     const { activeOrganizationId } = (req as AuthenticatedRequest).user;

@@ -3,8 +3,9 @@ import {
   authenticate,
   resolveOrganization,
   requireRole,
+  validateAiSecret,
+  validateRequest,
 } from "@shared/security/middleware";
-import { validateAiSecret, validateRequest } from "@shared/security/middleware";
 import { ChannelsController } from "./channels.controller";
 import { channelsSchema } from "./channels.schema";
 

@@ -4,42 +4,12 @@ import { enqueueTicketLifecycleEmail } from "@shared/queues/email.queue";
 import logger from "@shared/core/logger";
 import type { TicketEmailEvent } from "@shared/utils/email";
 import { getSocketManager } from "@sockets/index";
-
-interface CreateTicketInput {
-  organizationId: string;
-  conversationId?: string;
-  contactId?: string;
-  title: string;
-  description?: string;
-  priority?: "low" | "medium" | "high" | "urgent";
-  status?: "open" | "in_progress" | "resolved" | "closed";
-  source?: "ai" | "agent" | "api";
-  requesterName?: string;
-  requesterEmail?: string;
-  tags?: string[];
-  idempotencyKey?: string;
-}
-
-interface UpdateTicketInput {
-  title?: string;
-  description?: string;
-  priority?: "low" | "medium" | "high" | "urgent";
-  status?: "open" | "in_progress" | "resolved" | "closed";
-  assignedTo?: string | null;
-  tags?: string[];
-}
-
-interface CloseTicketInput {
-  resolutionNote?: string;
-}
-
-interface ListTicketsOptions {
-  status?: string;
-  priority?: string;
-  assignedTo?: string;
-  limit?: number;
-  page?: number;
-}
+import {
+  CreateTicketInput,
+  UpdateTicketInput,
+  CloseTicketInput,
+  ListTicketsOptions,
+} from "./tickets.types";
 
 export class TicketsService {
   // ─── Create ────────────────────────────────────────────────────────────────
