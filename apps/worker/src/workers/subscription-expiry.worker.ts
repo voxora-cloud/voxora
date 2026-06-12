@@ -13,7 +13,7 @@ const PAST_DUE_GRACE_PERIOD_MS = 2 * 24 * 60 * 60 * 1000;
 // ── Minimal inline schemas ────────────────────────────────────────────────────
 // The worker is a separate process from the API and does not share its module
 // graph. We define minimal schemas here — enough for the queries we need —
-// rather than importing the full @InteraOne/api models package.
+// rather than importing the full @InteraOne/gateway models package.
 
 interface IBillingSubscriptionLean {
   organizationId: string;

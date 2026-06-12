@@ -16,9 +16,9 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      web:
+      console:
         condition: service_healthy
-      api:
+      gateway:
         condition: service_healthy
     networks:
       - InteraOne-network
@@ -36,11 +36,11 @@ services:
   # One-shot: builds widget JS and deploys it to MinIO on every stack startup.
   # Exits after deploy (restart: no). Re-runs on `docker-compose up`.
   # Uses runtime config injection via entrypoint.sh (same pattern as the web app).
-  widget-deploy:
-    image: ompharate/interaone-widget:latest
+  launcher-deploy:
+    image: ompharate/interaone-launcher:latest
     restart: no
     env_file:
-      - ../apps/widget/.env.docker
+      - ../apps/launcher/.env.docker
     depends_on:
       minio:
         condition: service_healthy
@@ -52,15 +52,15 @@ services:
         max-size: "5m"
         max-file: "2"
 
-  web: 
-    image: ompharate/interaone-web:latest
+  console: 
+    image: ompharate/interaone-console:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"  # Caddy is the public entry-point; bind locally for health checks only
     env_file:
-      - ../apps/web/.env.docker
+      - ../apps/console/.env.docker
     depends_on:
-      api:
+      gateway:
         condition: service_healthy
     networks:
       - InteraOne-network
@@ -76,13 +76,13 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  api:
-    image: ompharate/interaone-api:latest
+  gateway:
+    image: ompharate/interaone-gateway:latest
     restart: unless-stopped
     ports:
       - "127.0.0.1:3002:3002"  # Caddy is the public entry-point; bind locally for health checks only
     env_file:
-      - ../apps/api/.env.docker
+      - ../apps/gateway/.env.docker
     volumes:
       - ../ee:/app/ee:ro
     depends_on:
@@ -106,11 +106,11 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  ai:
-    image: ompharate/interaone-ai:latest
+  agent:
+    image: ompharate/interaone-agent:latest
     restart: unless-stopped
     env_file:
-      - ../apps/ai/.env.docker
+      - ../apps/agent/.env.docker
     depends_on:
       mongodb:
         condition: service_healthy

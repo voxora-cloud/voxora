@@ -1,11 +1,11 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-type EmailProvider = "mailhog" | "resend" | "disabled";
+type EmailProvider = "mailhog" | "ses" | "disabled";
 
 function parseEmailProvider(value?: string): EmailProvider {
   const normalized = (value || "").toLowerCase() as EmailProvider;
-  const valid: EmailProvider[] = ["mailhog", "resend", "disabled"];
+  const valid: EmailProvider[] = ["mailhog", "ses", "disabled"];
   return valid.includes(normalized)
     ? normalized
     : process.env.NODE_ENV === "development"
@@ -15,8 +15,8 @@ function parseEmailProvider(value?: string): EmailProvider {
 
 /**
  * Returns true when the Enterprise Edition is active in this deployment.
- * Mirrors the logic in apps/api/src/shared/ee/env.ts — kept as a local
- * helper so the worker does not have to import from the api package.
+ * Mirrors the logic in apps/gateway/src/shared/ee/env.ts — kept as a local
+ * helper so the worker does not have to import from the gateway package.
  */
 export function isEeEnabled(): boolean {
   return true;
@@ -43,7 +43,11 @@ const config = {
       user: process.env.EMAIL_USER || undefined,
       pass: process.env.EMAIL_PASS || undefined,
     },
-    resendApiKey: process.env.RESEND_API_KEY || undefined,
+    aws: {
+      region: process.env.AWS_REGION || "us-east-1",
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || undefined,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || undefined,
+    },
     from: {
       name: "InteraOne",
       email:

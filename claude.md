@@ -17,7 +17,7 @@ At runtime, the backend enforces this by requiring a valid `INTERAONE_LICENSE_KE
 
 ## Technology Stack
 
-### Backend (apps/api)
+### Backend (apps/gateway)
 - **Runtime**: Node.js with TypeScript
 - **Framework**: Express.js
 - **Database**: MongoDB (Mongoose ODM)
@@ -27,7 +27,7 @@ At runtime, the backend enforces this by requiring a valid `INTERAONE_LICENSE_KE
 - **Email**: Nodemailer (other SMTP for production, MailHog for dev)
 - **Logging**: Winston
 
-### Frontend (apps/web)
+### Frontend (apps/console)
 - **Framework**: Next.js 15.4.2 (App Router)
 - **React**: 19.1.0
 - **Styling**: Tailwind CSS v4.1.11 with CSS variables
@@ -40,7 +40,7 @@ At runtime, the backend enforces this by requiring a valid `INTERAONE_LICENSE_KE
 
 ### Backend Structure
 ```
-apps/api/src/
+apps/gateway/src/
 ├── config/         # Environment & database configuration
 ├── controllers/    # Route handlers (admin, agent, auth, organization, membership, etc.)
 ├── models/         # MongoDB/Mongoose schemas (User, Organization, Membership, Conversation, Message, Widget)
@@ -59,7 +59,7 @@ apps/api/src/
 
 ### Frontend Structure
 ```
-apps/web/
+apps/console/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/            # Auth routes group (login, signup, setup)
 │   ├── admin/             # Admin dashboard (members, settings, widget, etc.)
@@ -110,7 +110,7 @@ apps/web/
 - **Images**: Use Next.js `<Image>` component for optimization
 
 ### UI Component Library (Shadcn)
-Located in `apps/web/components/ui/`:
+Located in `apps/console/components/ui/`:
 - **button.tsx**: Variants (default, outline, ghost, destructive)
 - **card.tsx**: Container with border and padding
 - **input.tsx**: Styled form inputs
@@ -379,10 +379,10 @@ Body: { email, name, password }
 npm install
 
 # Run backend
-cd apps/api && npm run dev
+cd apps/gateway && npm run dev
 
 # Run frontend
-cd apps/web && npm run dev
+cd apps/console && npm run dev
 
 # Run both (from root)
 npm run dev
