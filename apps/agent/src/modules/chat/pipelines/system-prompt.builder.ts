@@ -1,13 +1,4 @@
-export interface CollectUserInfo {
-  name?: boolean;
-  email?: boolean;
-  phone?: boolean;
-}
-
-export interface KnownVisitorDetails {
-  name?: string;
-  email?: string;
-}
+import { CollectUserInfo, KnownVisitorDetails } from "../chat.types";
 
 interface BuildSystemPromptOptions {
   companyName?: string;
@@ -16,6 +7,7 @@ interface BuildSystemPromptOptions {
   knowledgeContext?: string;
   knownVisitorDetails?: KnownVisitorDetails;
 }
+
 
 export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   const {

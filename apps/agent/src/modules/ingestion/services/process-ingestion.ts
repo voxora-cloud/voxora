@@ -3,7 +3,7 @@ import { getEmbeddingProvider } from "../../../infrastructure/providers/embeddin
 import { vectorStore } from "../../../infrastructure/vector";
 import { chunkText } from "../utils/chunker";
 import { generateDeterministicChunkId } from "../utils/chunk-id";
-import { ContentStreamItem } from "./content-stream";
+import { ContentStreamItem, ProcessIngestionInput, ProcessIngestionResult } from "../ingestion.types";
 
 const DEFAULT_BATCH_SIZE = parseInt(process.env.INGEST_BATCH_SIZE || "25", 10);
 const DEFAULT_EMBED_CONCURRENCY = parseInt(
@@ -16,29 +16,6 @@ const DEFAULT_RETRY_BASE_MS = parseInt(
   10,
 );
 
-export interface ProcessIngestionInput {
-  organizationId: string;
-  documentId: string;
-  fileName?: string;
-  fileKey?: string;
-  metadata?: Record<string, unknown>;
-  contentStream: AsyncIterable<ContentStreamItem>;
-  batchSize?: number;
-  chunkSize?: number;
-  chunkOverlap?: number;
-  embeddingConcurrency?: number;
-  embedRetries?: number;
-  retryBaseMs?: number;
-}
-
-export interface ProcessIngestionResult {
-  unitsProcessed: number;
-  chunksTotal: number;
-  chunksSucceeded: number;
-  chunksFailed: number;
-  wordCount: number;
-  durationMs: number;
-}
 
 interface PendingChunk {
   deterministicId: string;

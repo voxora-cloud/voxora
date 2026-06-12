@@ -1,10 +1,5 @@
 import { FetchedPage, crawlPages, fetchSinglePage } from "../sources/url.source";
-
-export interface ContentStreamItem {
-  sourceRef: string;
-  text: string;
-  metadata?: Record<string, unknown>;
-}
+import { ContentStreamItem } from "../ingestion.types";
 
 export async function* streamFromText(
   content: string,

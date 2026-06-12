@@ -3,7 +3,8 @@ import mammoth from "mammoth";
 import { StringDecoder } from "string_decoder";
 import config from "../../../config";
 import { minioClient } from "../../../infrastructure/storage/minio.client";
-import { ContentStreamItem } from "../services/content-stream";
+import { ContentStreamItem } from "../ingestion.types";
+
 
 const TEXT_STREAM_SEGMENT_CHARS = parseInt(
   process.env.INGEST_TEXT_STREAM_SEGMENT_CHARS || "100000",

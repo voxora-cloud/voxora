@@ -23,3 +23,8 @@ export interface Tool {
   readonly parameters: Record<string, ToolParameterSchema>;
   execute(args: Record<string, unknown>, context?: ToolExecutionContext): Promise<unknown>;
 }
+
+export interface ToolFilterOptions {
+  fallbackToAgent?: boolean;
+}
+

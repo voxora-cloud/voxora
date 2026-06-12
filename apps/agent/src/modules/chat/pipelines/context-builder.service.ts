@@ -1,13 +1,10 @@
-import { ContextResult, ContextMessage } from "../chat.types";
+import { ContextResult, ContextMessage, CollectUserInfo, KnownVisitorDetails } from "../chat.types";
 import { vectorStore } from "../../../infrastructure/vector";
 import config from "../../../config";
 import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
 import { internalApi } from "../../../infrastructure/api/internal.client";
 import { buildSystemPrompt } from "./system-prompt.builder";
-import type {
-  CollectUserInfo,
-  KnownVisitorDetails,
-} from "./system-prompt.builder";
+
 
 const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 

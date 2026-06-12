@@ -33,3 +33,34 @@ export interface Chunk {
   startPos: number;
   endPos: number;
 }
+
+export interface ContentStreamItem {
+  sourceRef: string;
+  text: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProcessIngestionInput {
+  organizationId: string;
+  documentId: string;
+  fileName?: string;
+  fileKey?: string;
+  metadata?: Record<string, unknown>;
+  contentStream: AsyncIterable<ContentStreamItem>;
+  batchSize?: number;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  embeddingConcurrency?: number;
+  embedRetries?: number;
+  retryBaseMs?: number;
+}
+
+export interface ProcessIngestionResult {
+  unitsProcessed: number;
+  chunksTotal: number;
+  chunksSucceeded: number;
+  chunksFailed: number;
+  wordCount: number;
+  durationMs: number;
+}
+
