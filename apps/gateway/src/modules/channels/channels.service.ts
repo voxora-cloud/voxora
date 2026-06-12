@@ -1,4 +1,6 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
+import { Conversation, Message } from "@shared/models";
+import { aiQueue } from "@shared/infra/queue";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
@@ -359,6 +361,42 @@ export class ChannelService {
 
     if (!result.success) {
       throw new Error(result.error || "Failed to process inbound message");
+    }
+
+    // Enqueue message to aiQueue for AI processing if conversation is not assigned to a human
+    if (result.conversationId && result.messageId) {
+      try {
+        const conversation = await Conversation.findById(result.conversationId);
+        if (
+          conversation &&
+          !conversation.assignedTo &&
+          !(conversation.metadata as any)?.escalatedAt &&
+          !(conversation.metadata as any)?.humanJoinedAt &&
+          !["active", "resolved", "closed"].includes(conversation.status)
+        ) {
+          const message = await Message.findById(result.messageId);
+          if (message && message.content) {
+            await aiQueue.add("process", {
+              organizationId: channel.organizationId.toString(),
+              conversationId: result.conversationId,
+              content: message.content,
+              messageId: result.messageId,
+              channel: channel.type,
+            });
+            logger.info("[ChannelService] Inbound message enqueued for AI processing", {
+              conversationId: result.conversationId,
+              messageId: result.messageId,
+              channel: channel.type,
+            });
+          }
+        }
+      } catch (err: any) {
+        logger.error("[ChannelService] Failed to enqueue inbound message to aiQueue", {
+          conversationId: result.conversationId,
+          messageId: result.messageId,
+          error: err.message,
+        });
+      }
     }
 
     return {

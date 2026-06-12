@@ -15,6 +15,7 @@ export async function buildContext(
   companyName?: string,
   fallbackToAgent?: boolean,
   collectUserInfo?: CollectUserInfo,
+  channel?: "widget" | "email" | "whatsapp" | "telegram" | "instagram",
 ): Promise<ContextResult> {
   const canFallback = fallbackToAgent !== false;
   let knowledgeContext: string | undefined;
@@ -25,6 +26,7 @@ export async function buildContext(
   );
   console.log(`[Context] Building context for conversation: ${conversationId}`);
   console.log(`[Context] organizationId : ${organizationId}`);
+  console.log(`[Context] channel        : ${channel ?? "widget"}`);
   console.log(`[Context] companyName    : ${companyName || "(not set)"}`);
   console.log(`[Context] fallbackToAgent: ${canFallback}`);
   console.log(
@@ -190,6 +192,7 @@ export async function buildContext(
     collectUserInfo,
     knowledgeContext,
     knownVisitorDetails,
+    channel,
   });
 
   // -- 3. Assemble: history + current user message ------------------------------

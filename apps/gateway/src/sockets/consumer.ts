@@ -1,5 +1,6 @@
 import { redisClient } from "@shared/infra/redis";
 import { Conversation, Message, Membership } from "@shared/models";
+import { ChannelService } from "@modules/channels/channels.service";
 import { incrementMessageUsage } from "@shared/security/middleware";
 import { tracker } from "@shared/utils/tracker";
 import logger from "@shared/core/logger";
@@ -100,9 +101,9 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         if (!claimed) return;
       }
 
-      // Resolve org from conversation record
+      // Resolve org and channel details from conversation record
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status metadata assignedTo")
+        .select("organizationId status metadata assignedTo visitor subject")
         .lean();
 
       if (!conv) return;
@@ -141,6 +142,39 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         metadata: { senderName: "AI Assistant", senderEmail: "ai@interaone.internal", source: "ai" },
       });
       await msg.save();
+
+      // Forward AI response to external channels if applicable
+      if (conv.metadata) {
+        const convMeta = conv.metadata as any;
+        if (convMeta.channel && convMeta.channelId) {
+          const channelId = convMeta.channelId.toString();
+          let to: string | undefined;
+
+          if (convMeta.channel === "email_channel") {
+            to = conv.visitor?.email;
+          } else if (convMeta.channel === "whatsapp_channel") {
+            to = convMeta.phone || conv.visitor?.name;
+          } else if (convMeta.channel === "telegram_channel") {
+            to = convMeta.chatId || conv.visitor?.sessionId?.replace("telegram-", "");
+          } else if (convMeta.channel === "instagram_channel") {
+            to = convMeta.customerId || conv.visitor?.sessionId?.replace("instagram-", "");
+          }
+
+          if (to) {
+            ChannelService.sendViaChannel(
+              organizationId,
+              channelId,
+              {
+                to,
+                subject: (conv as any).subject || "Reply from Support",
+                body: content,
+              }
+            ).catch((err: any) => {
+              logger.error(`[AI Response Consumer] Failed to forward AI response to channel ${convMeta.channel}:`, err);
+            });
+          }
+        }
+      }
       tracker.trackMessage(
         organizationId,
         "ai",

@@ -27,6 +27,13 @@ export function getToolsForContext(options: ToolFilterOptions): Tool[] {
     tools = tools.filter((tool) => tool.name !== "escalate_to_human");
   }
 
+  // If the channel is email, exclude tools not applicable/required for email flow
+  if (options.channel === "email") {
+    tools = tools.filter(
+      (tool) => tool.name !== "verify_email_otp" && tool.name !== "send_email"
+    );
+  }
+
   return tools;
 }
 
