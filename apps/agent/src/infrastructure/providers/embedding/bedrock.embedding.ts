@@ -6,34 +6,41 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
   readonly name = "bedrock";
   readonly dimensions: number;
 
-  private client: BedrockRuntimeClient;
+  private client?: BedrockRuntimeClient;
   private model: string;
 
   constructor() {
-    const bedrockConfig = config.llm.bedrock;
     const embedConfig = config.embeddings.bedrock;
-    if (!bedrockConfig || !embedConfig) {
-      throw new Error("Bedrock configuration is missing in config");
-    }
+    this.model = embedConfig?.model || "amazon.titan-embed-text-v2:0";
+    this.dimensions = embedConfig?.dimensions || 1024;
+  }
 
-    const clientConfig: any = {
-      region: bedrockConfig.region,
-    };
+  private getClient(): BedrockRuntimeClient {
+    if (!this.client) {
+      const bedrockConfig = config.llm.bedrock;
+      if (!bedrockConfig) {
+        throw new Error("Bedrock configuration is missing in config");
+      }
 
-    if (bedrockConfig.accessKeyId && bedrockConfig.secretAccessKey) {
-      clientConfig.credentials = {
-        accessKeyId: bedrockConfig.accessKeyId,
-        secretAccessKey: bedrockConfig.secretAccessKey,
+      const clientConfig: any = {
+        region: bedrockConfig.region || "us-east-1",
       };
-    }
 
-    this.client = new BedrockRuntimeClient(clientConfig);
-    this.model = embedConfig.model;
-    this.dimensions = embedConfig.dimensions;
+      if (bedrockConfig.accessKeyId && bedrockConfig.secretAccessKey) {
+        clientConfig.credentials = {
+          accessKeyId: bedrockConfig.accessKeyId,
+          secretAccessKey: bedrockConfig.secretAccessKey,
+        };
+      }
+
+      this.client = new BedrockRuntimeClient(clientConfig);
+    }
+    return this.client;
   }
 
   async embed(text: string): Promise<number[]> {
-    const response = await this.client.send(
+    const client = this.getClient();
+    const response = await client.send(
       new InvokeModelCommand({
         modelId: this.model,
         contentType: "application/json",
