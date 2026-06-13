@@ -8,7 +8,6 @@ import type {
   OrganizationResponse,
   VerifyInviteResponse,
   ForgotPasswordResponse,
-  ResetPasswordResponse,
   ChangePasswordResponse,
   CreateOrganizationResponse,
 } from "../types/types";
@@ -150,16 +149,7 @@ class AuthApi {
     return apiClient.post<ForgotPasswordResponse>("/auth/forgot-password", { email, verificationMethod });
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse> {
-    return apiClient.post<ResetPasswordResponse>("/auth/reset-password", {
-      token,
-      newPassword
-    });
-  }
 
-  async verifyResetToken(token: string): Promise<any> {
-    return apiClient.get(`/auth/reset-password/validate?token=${encodeURIComponent(token)}`);
-  }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResponse> {
     return apiClient.post<ChangePasswordResponse>("/auth/change-password", {

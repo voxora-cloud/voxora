@@ -3,6 +3,7 @@ import { ClientSession, Types } from "mongoose";
 import { generateTokens } from "@shared/security/auth/jwt";
 import crypto from "crypto";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
+import { CreateOrganizationInput, UpdateOrganizationInput } from "./organization.types";
 
 export class OrganizationService {
     /**
@@ -10,7 +11,7 @@ export class OrganizationService {
      */
     static async createOrganization(
         userId: string,
-        data: { name: string; slug?: string },
+        data: CreateOrganizationInput,
         options?: { session?: ClientSession },
     ): Promise<{
         organization: IOrganization;
@@ -106,12 +107,7 @@ export class OrganizationService {
      */
     static async updateOrganization(
         orgId: string,
-        data: {
-            name?: string;
-            slug?: string;
-            logoUrl?: string;
-            whiteLabelEnabled?: boolean;
-        },
+        data: UpdateOrganizationInput,
     ) {
         if (data.slug) {
             const existing = await Organization.findOne({ slug: data.slug, _id: { $ne: orgId } });

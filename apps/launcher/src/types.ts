@@ -22,10 +22,10 @@ export interface WidgetConfig {
   /** Floating button position */
   position?: 'bottom-right' | 'bottom-left';
   /** Override button accent color */
-  primaryColor?: string;
+
   // The following are populated from the API response, not the script tag:
   displayName?: string;
-  backgroundColor?: string;
+
   appearance?: WidgetServerAppearanceConfig;
   behavior?: WidgetServerBehaviorConfig;
   ai?: WidgetServerAiConfig;
@@ -91,8 +91,6 @@ export interface WidgetConfigApiResponse {
   data?: {
     config?: {
       displayName?: string;
-      backgroundColor?: string;
-      primaryColor?: string;
       appearance?: WidgetServerAppearanceConfig;
       behavior?: WidgetServerBehaviorConfig;
       ai?: WidgetServerAiConfig;
@@ -112,7 +110,6 @@ export interface WidgetAuthResponse {
     token: string;
     config?: {
       displayName: string;
-      backgroundColor: string;
     };
   };
 }

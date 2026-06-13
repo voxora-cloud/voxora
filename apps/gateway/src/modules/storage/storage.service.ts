@@ -12,26 +12,11 @@ import {
   listObjects,
 } from "@shared/utils/storage";
 import type { Readable } from "stream";
-
-export interface PresignedUrlResponse {
-  uploadUrl: string;
-  downloadUrl?: string;
-  fileKey: string;
-  fileName: string;
-  expiresIn: number;
-}
-
-export interface FileMetadata {
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  fileKey?: string;
-}
-
-export interface ProxyFilePayload {
-  contentType: string;
-  stream: Readable;
-}
+import {
+  PresignedUrlResponse,
+  FileMetadata,
+  ProxyFilePayload,
+} from "./storage.types";
 
 class StorageService {
   // ── Public URL ─────────────────────────────────────────────────────────────
@@ -52,11 +37,12 @@ class StorageService {
   async generatePresignedUploadUrl(
     fileName: string,
     mimeType: string,
+    organizationId: string,
     expiresIn: number = 900,
   ): Promise<PresignedUrlResponse> {
     try {
       const ext = fileName.split(".").pop();
-      const fileKey = `knowledge/${uuidv4()}.${ext}`;
+      const fileKey = `knowledge/${organizationId}/${uuidv4()}.${ext}`;
       const uploadUrl = await getPresignedUploadUrl(fileKey, expiresIn);
       logger.info(`Generated presigned upload URL for: ${fileName}`);
       return { uploadUrl, fileKey, fileName, expiresIn };
@@ -69,11 +55,12 @@ class StorageService {
   async generateConversationUploadUrl(
     fileName: string,
     mimeType: string,
+    organizationId: string,
     expiresIn: number = 300,
   ): Promise<PresignedUrlResponse> {
     try {
       const ext = fileName.split(".").pop();
-      const fileKey = `conversations/${uuidv4()}.${ext}`;
+      const fileKey = `conversations/${organizationId}/${uuidv4()}.${ext}`;
 
       // Upload + 7-day download URL generated together
       const [uploadUrl, downloadUrl] = await Promise.all([
@@ -137,14 +124,7 @@ class StorageService {
     return objectExists(fileKey);
   }
 
-  async listFiles(prefix: string = "knowledge/"): Promise<string[]> {
-    try {
-      return await listObjects(prefix);
-    } catch (error) {
-      logger.error("Error listing files:", error);
-      throw new Error("Failed to list files");
-    }
-  }
+
 
   async getProxyFilePayload(fileKey: string): Promise<ProxyFilePayload> {
     try {

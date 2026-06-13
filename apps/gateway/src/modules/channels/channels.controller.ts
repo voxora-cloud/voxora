@@ -131,151 +131,11 @@ export class ChannelsController {
     });
   });
 
-  /**
-   * GET /channels/instagram
-   * Get the organization's Instagram channel (single channel per org).
-   */
-  static getInstagramChannel = asyncHandler(async (req: Request, res: Response) => {
-    const { activeOrganizationId } = (req as AuthenticatedRequest).user;
-    const channel = await Channel.findOne({ organizationId: activeOrganizationId, type: "instagram" }).lean();
-    if (!channel) {
-      return sendError(res, 404, "No Instagram channel configured for this organization");
-    }
-    sendResponse(res, 200, true, "Instagram channel fetched", { channel });
-  });
 
-  /**
-   * GET /channels/instagram/oauth/connect
-   * Redirects users to Meta OAuth dialog.
-   */
-  static connectInstagramOauth = asyncHandler(async (req: Request, res: Response) => {
-    const { activeOrganizationId } = (req as AuthenticatedRequest).user;
-    const appId = config.meta.appId;
-    const redirectUri = encodeURIComponent(config.meta.redirectUri);
-    const scope = "instagram_manage_messages,pages_manage_metadata,pages_read_engagement,pages_show_list,instagram_basic";
-    
-    // Pass activeOrganizationId in the state parameter
-    const oauthUrl = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId}&redirect_uri=${redirectUri}&scope=${scope}&state=${activeOrganizationId}&response_type=code`;
-    
-    res.redirect(oauthUrl);
-  });
-
-  /**
-   * GET /channels/instagram/oauth/callback
-   * Processes the auth code, requests tokens, and configures the channel.
-   */
-  static handleInstagramOauthCallback = asyncHandler(async (req: Request, res: Response) => {
-    const code = req.query.code as string;
-    const organizationId = req.query.state as string;
-
-    if (!code) {
-      logger.error("[Meta OAuth Callback] Missing authorization code");
-      return res.redirect(`${config.app.clientUrl}/dashboard/channels?error=Missing+Auth+Code`);
-    }
-
-    if (!organizationId) {
-      logger.error("[Meta OAuth Callback] Missing state/organizationId parameter");
-      return res.redirect(`${config.app.clientUrl}/dashboard/channels?error=Invalid+State`);
-    }
-
-    try {
-      const appId = config.meta.appId;
-      const appSecret = config.meta.appSecret;
-      const redirectUri = config.meta.redirectUri;
-
-      // 1. Swap Code for User Access Token
-      const tokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`;
-      const tokenRes = await fetch(tokenUrl);
-      if (!tokenRes.ok) {
-        const errJson = await tokenRes.json() as any;
-        throw new Error(errJson.error?.message || "Token exchange failed");
-      }
-      const tokenData = await tokenRes.json() as any;
-      const userAccessToken = tokenData.access_token;
-
-      // 2. Fetch User's Facebook Pages
-      const pagesRes = await fetch(
-        `https://graph.facebook.com/v20.0/me/accounts?access_token=${userAccessToken}`
-      );
-      if (!pagesRes.ok) {
-        throw new Error("Failed to fetch user pages");
-      }
-      const pagesData = await pagesRes.json() as any;
-      const pages = pagesData.data || [];
-      if (pages.length === 0) {
-        throw new Error("No Facebook Pages linked to this account");
-      }
-
-      // 3. Find Page connected to Instagram Business account
-      let pageAccessToken = "";
-      let instagramAccountId = "";
-      let pageId = "";
-
-      for (const page of pages) {
-        const pageIdCheck = page.id;
-        const pageTokenCheck = page.access_token;
-
-        const igAcctRes = await fetch(
-          `https://graph.facebook.com/v20.0/${pageIdCheck}?fields=instagram_business_account&access_token=${pageTokenCheck}`
-        );
-        if (igAcctRes.ok) {
-          const igAcctData = await igAcctRes.json() as any;
-          if (igAcctData.instagram_business_account?.id) {
-            pageAccessToken = pageTokenCheck;
-            instagramAccountId = igAcctData.instagram_business_account.id;
-            pageId = pageIdCheck;
-            break;
-          }
-        }
-      }
-
-      if (!instagramAccountId) {
-        throw new Error("No Instagram Business Account linked to your Facebook Pages. Check connection settings in Facebook Page.");
-      }
-
-      // 4. Trade for Long-Lived Page Access Token
-      const llTokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${pageAccessToken}`;
-      const llTokenRes = await fetch(llTokenUrl);
-      if (!llTokenRes.ok) {
-        throw new Error("Failed to trade long-lived Page Token");
-      }
-      const llTokenData = await llTokenRes.json() as any;
-      const longLivedPageToken = llTokenData.access_token || pageAccessToken;
-
-      // 5. Get Instagram Username
-      const igProfileRes = await fetch(
-        `https://graph.facebook.com/v20.0/${instagramAccountId}?fields=username&access_token=${longLivedPageToken}`
-      );
-      let instagramUsername = "Instagram Bot";
-      if (igProfileRes.ok) {
-        const igProfileData = await igProfileRes.json() as any;
-        instagramUsername = igProfileData.username || instagramUsername;
-      }
-
-      // 6. Connect / Create the channel
-      await ChannelService.createInstagramChannel(organizationId, {
-        name: `${instagramUsername} Instagram`,
-        pageAccessToken: longLivedPageToken,
-        instagramAccountId,
-        instagramUsername,
-        pageId,
-      });
-
-      // Redirect back to frontend dashboard
-      res.redirect(`${config.app.clientUrl}/dashboard/channels?connected=instagram`);
-    } catch (err: any) {
-      logger.error("[Meta OAuth Callback] Flow failed", { error: err.message });
-      res.redirect(
-        `${config.app.clientUrl}/dashboard/channels?error=${encodeURIComponent(
-          err.message || "Failed to configure Instagram channel"
-        )}`
-      );
-    }
-  });
 
   /**
    * POST /channels/:channelId/verify
-   * Re-trigger Resend domain verification check.
+   * Re-trigger SES domain verification check.
    */
   static verifyChannel = asyncHandler(async (req: Request, res: Response) => {
     const { activeOrganizationId } = (req as AuthenticatedRequest).user;
@@ -310,7 +170,7 @@ export class ChannelsController {
 
   /**
    * DELETE /channels/:channelId
-   * Remove the channel + deprovision from Resend.
+   * Remove the channel + deprovision from SES.
    */
   static deleteChannel = asyncHandler(async (req: Request, res: Response) => {
     const { activeOrganizationId } = (req as AuthenticatedRequest).user;
@@ -320,12 +180,12 @@ export class ChannelsController {
     sendResponse(res, 200, true, "Channel deleted successfully", {});
   });
 
-  /**
-   * POST /channels/inbound/:channelId
+   /**
+   * POST /channels/inbound
    * Public endpoint — SES/SNS inbound email webhook.
    */
   static handleInbound = asyncHandler(async (req: Request, res: Response) => {
-    let channelId = req.params.channelId ? String(req.params.channelId) : "";
+    let channelId = "";
 
     // 1. Ensure body is parsed (AWS SNS sends text/plain)
     let payload = req.body;
@@ -540,66 +400,7 @@ export class ChannelsController {
     });
   });
 
-  /**
-   * GET /channels/instagram/inbound
-   * Handles webhook verification challenge from Meta.
-   */
-  static handleInstagramWebhookValidation = asyncHandler(async (req: Request, res: Response) => {
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
 
-    logger.info("[Meta Webhook Verification] Received request", { mode, token });
-
-    if (mode === "subscribe" && token === config.meta.verifyToken) {
-      logger.info("[Meta Webhook Verification] Subscription verified successfully");
-      res.status(200).send(challenge);
-      return;
-    }
-
-    logger.warn("[Meta Webhook Verification] Verification failed. Token mismatch");
-    res.sendStatus(403);
-  });
-
-  /**
-   * POST /channels/instagram/inbound
-   * Handles inbound Instagram DM webhook events from Meta.
-   */
-  static handleInstagramInbound = asyncHandler(async (req: Request, res: Response) => {
-    const entry = req.body.entry?.[0];
-    const messagingObj = entry?.messaging?.[0];
-    const recipientId = messagingObj?.recipient?.id;
-
-    if (!recipientId) {
-      logger.debug("[Instagram Inbound Webhook] Received empty or non-messaging webhook event");
-      return res.status(200).send("OK");
-    }
-
-    // 1. Resolve the Instagram channel config matching the receiving Instagram Scoped ID (recipientId)
-    const channel = await Channel.findOne({
-      type: "instagram",
-      $or: [
-        { "config.instagram.instagramAccountId": recipientId },
-        { "config.instagram.pageId": recipientId }
-      ]
-    });
-
-    if (!channel || !channel.isActive) {
-      logger.warn("[Instagram Inbound Webhook] Ignored message: No active channel found matching recipient", { recipientId });
-      return res.status(200).send("OK");
-    }
-
-    // 2. Respond Meta 200 OK immediately
-    res.status(200).send("OK");
-
-    // 3. Process the Inbound Message payload asynchronously
-    ChannelService.handleInbound(channel._id.toString(), req.body).catch((err) => {
-      logger.error("[ChannelsController] handleInstagramInbound async processing failed", {
-        channelId: channel._id.toString(),
-        error: err?.message,
-      });
-    });
-  });
 
   /**
    * POST /channels/telegram/inbound/:channelId

@@ -1,13 +1,4 @@
-export interface CollectUserInfo {
-  name?: boolean;
-  email?: boolean;
-  phone?: boolean;
-}
-
-export interface KnownVisitorDetails {
-  name?: string;
-  email?: string;
-}
+import { CollectUserInfo, KnownVisitorDetails } from "../chat.types";
 
 interface BuildSystemPromptOptions {
   companyName?: string;
@@ -15,7 +6,9 @@ interface BuildSystemPromptOptions {
   collectUserInfo?: CollectUserInfo;
   knowledgeContext?: string;
   knownVisitorDetails?: KnownVisitorDetails;
+  channel?: "widget" | "email" | "whatsapp" | "telegram";
 }
+
 
 export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   const {
@@ -24,6 +17,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
     collectUserInfo,
     knowledgeContext,
     knownVisitorDetails,
+    channel,
   } = opts;
   const company =
     companyName?.trim() || process.env.AI_COMPANY_NAME || "our company";
@@ -52,6 +46,125 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
       ? `- email address: ${knownVisitorDetails.email}`
       : "",
   ].filter(Boolean);
+
+  let responseStyleSection = `  <response_style>
+
+    Responses must:
+    - be concise
+    - be operational
+    - be direct
+    - prioritize actions over explanations
+    - avoid unnecessary filler
+    - avoid excessive friendliness
+    - avoid long educational responses
+
+    Prefer:
+    - short paragraphs
+    - bullet points
+    - step-by-step instructions when needed
+
+    Use:
+    - Markdown only
+    - bold for important items
+    - inline code for IDs/technical values
+
+    Never:
+    - use raw HTML
+    - over-explain
+    - use motivational language
+    - sound like a generic assistant
+    - refer to internal technical systems or backend mechanics in your messages to the user. Never tell users that you searched, checked, queried, ran, or used any internal source or operation. Instead, speak conversationally (e.g., "Let me check that for you", "I'm looking into this", or "I don't have that information available right now"). Keep all internal operations (databases, knowledge bases, tool calls, retrieval, RAG, vectors, backend services, API queries, and system context) completely invisible to the user.
+  </response_style>`;
+
+  if (channel === "email") {
+    responseStyleSection = `  <response_style>
+
+    Responses must:
+    - use professional email etiquette (start with a greeting, e.g. "Hello [Name]" if known, or "Hello", and end with a professional closing/signature)
+    - be structured, using paragraph spacing, lists, or bolding where appropriate to make the email easy to read
+    - be clear, complete, and helpful, as email allows for more comprehensive information than a short chat window
+    - avoid excessive brevity, but still remain focused on answering the user's inquiry accurately
+    - prioritize actions over explanations
+    - avoid unnecessary filler or generic chatbot phrases
+
+    Use:
+    - Markdown only (but format as structured paragraphs for email)
+    - bold for important items
+    - inline code for IDs/technical values
+
+    Never:
+    - use raw HTML
+    - refer to internal technical systems or backend mechanics in your messages to the user. Never tell users that you searched, checked, queried, ran, or used any internal source or operation. Keep all internal operations (databases, knowledge bases, tool calls, retrieval, RAG, vectors, backend services, API queries, and system context) completely invisible to the user.
+  </response_style>`;
+  } else if (channel === "whatsapp" || channel === "telegram") {
+    responseStyleSection = `  <response_style>
+ 
+    Responses must:
+    - be extremely brief and direct, optimized for mobile messaging interfaces (${channel})
+    - use spacing and line breaks to prevent blocks of text
+    - avoid long headers, formal email greetings, or signatures
+    - focus on one topic or question at a time to keep the exchange interactive
+    - use bullet points and bold formatting where appropriate
+
+    Use:
+    - Markdown only
+    - bold for important items
+    - inline code for IDs/technical values
+
+    Never:
+    - use raw HTML
+    - refer to internal technical systems or backend mechanics in your messages to the user. Keep all internal operations (databases, knowledge bases, tool calls, retrieval, RAG, vectors, backend services, API queries, and system context) completely invisible to the user.
+  </response_style>`;
+  }
+
+  let identityVerificationSection = `  <identity_verification>
+
+    <rules>
+      1. Mandatory Verification Trigger: Before performing any sensitive or account-related work, you MUST verify the visitor through an email OTP. This includes:
+         - searching for or disclosing an existing contact or CRM record
+         - retrieving account history, private conversation history, or existing ticket details
+         - updating or closing an existing/account-linked ticket
+         - handling account changes, access issues, billing/refund/payment details, privacy/data requests, or other private information
+         - any action where confirming that the visitor owns the account matters
+
+      2. Safe Pre-Verification Actions: You MAY answer public product questions, create a new general support ticket from information the visitor voluntarily supplied, and save newly supplied contact details or non-sensitive support notes with "update_contact_profile" before verification. Do NOT retrieve, disclose, or modify existing private account data before verification succeeds.
+
+      3. Request Email When Needed: If a sensitive or account-related request begins and there is no email address in the conversation, ask the visitor for the email associated with their account specifically so you can send a verification code. Do not perform the sensitive action while waiting.
+
+      4. OTP Generation and Sending: Once an email address is available for a sensitive or account-related request:
+         - Immediately invoke the "send_email" tool with parameters:
+           * to: The visitor's email address.
+           * template: "agent_verification_otp"
+           * variables: {}
+         - The server generates and stores the verification code securely. You must NEVER generate, guess, store, or disclose the OTP yourself.
+         - Tell the user that you have sent a 6-digit verification code to their email, and ask them to input it here (e.g., "To protect your account security, I've sent a 6-digit verification code to your email. Please enter it here so I can verify your identity and pull up your records.").
+         - Until a matching code is received, do not call tools that read or change existing account, contact, ticket, billing, or private-history data.
+
+      5. OTP Validation:
+         - Once the user replies with a code, call "verify_email_otp" with the email address and code.
+         - If the reply is exactly six digits, it is correctly formatted for OTP verification. Never assess its length yourself or tell the visitor that such a value is not six digits; invoke "verify_email_otp".
+         - If the tool returns verified: true, inform the user that verification was successful, and only then proceed with the requested sensitive or account-related tool action.
+         - If the tool does not return verified: true, inform them politely that verification failed and ask them to double-check the code or request a new one.
+
+      6. Strict Security:
+         - You must NEVER disclose or modify existing tickets, CRM/account information, billing information, or historical records until verification is complete.
+         - Verification is per visitor identity in the active conversation. If the visitor changes to a different email/account, run verification again for that account.
+         - Do NOT claim verification succeeded unless the OTP matches, and do NOT bypass verification under any circumstances.
+    </rules>
+
+  </identity_verification>`;
+
+  if (channel === "email") {
+    identityVerificationSection = `  <identity_verification>
+
+    <rules>
+      1. Email Channel Exception: The visitor is contacting support directly from their email address. Therefore, their email identity is ALREADY VERIFIED.
+      2. Do NOT send an OTP code or ask them to verify via email OTP.
+      3. You are fully authorized to access, create, update, or close tickets and CRM/contact records linked to their email address immediately.
+    </rules>
+
+  </identity_verification>`;
+  }
 
   const prompt = `<system>
 
@@ -227,34 +340,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
         - live website content is required
   </tool_usage>
 
-  <response_style>
-
-    Responses must:
-    - be concise
-    - be operational
-    - be direct
-    - prioritize actions over explanations
-    - avoid unnecessary filler
-    - avoid excessive friendliness
-    - avoid long educational responses
-
-    Prefer:
-    - short paragraphs
-    - bullet points
-    - step-by-step instructions when needed
-
-    Use:
-    - Markdown only
-    - bold for important items
-    - inline code for IDs/technical values
-
-    Never:
-    - use raw HTML
-    - over-explain
-    - use motivational language
-    - sound like a generic assistant
-    - refer to internal technical systems or backend mechanics in your messages to the user. Never tell users that you searched, checked, queried, ran, or used any internal source or operation. Instead, speak conversationally (e.g., "Let me check that for you", "I'm looking into this", or "I don't have that information available right now"). Keep all internal operations (databases, knowledge bases, tool calls, retrieval, RAG, vectors, backend services, API queries, and system context) completely invisible to the user.
-  </response_style>
+\${responseStyleSection}
 
   <internal_visibility>
 
@@ -298,42 +384,7 @@ ${fieldList}
 
   </visitor_information_collection>
 
-  <identity_verification>
-
-    <rules>
-      1. Mandatory Verification Trigger: Before performing any sensitive or account-related work, you MUST verify the visitor through an email OTP. This includes:
-         - searching for or disclosing an existing contact or CRM record
-         - retrieving account history, private conversation history, or existing ticket details
-         - updating or closing an existing/account-linked ticket
-         - handling account changes, access issues, billing/refund/payment details, privacy/data requests, or other private information
-         - any action where confirming that the visitor owns the account matters
-
-      2. Safe Pre-Verification Actions: You MAY answer public product questions, create a new general support ticket from information the visitor voluntarily supplied, and save newly supplied contact details or non-sensitive support notes with "update_contact_profile" before verification. Do NOT retrieve, disclose, or modify existing private account data before verification succeeds.
-
-      3. Request Email When Needed: If a sensitive or account-related request begins and there is no email address in the conversation, ask the visitor for the email associated with their account specifically so you can send a verification code. Do not perform the sensitive action while waiting.
-
-      4. OTP Generation and Sending: Once an email address is available for a sensitive or account-related request:
-         - Immediately invoke the "send_email" tool with parameters:
-           * to: The visitor's email address.
-           * template: "agent_verification_otp"
-           * variables: {}
-         - The server generates and stores the verification code securely. You must NEVER generate, guess, store, or disclose the OTP yourself.
-         - Tell the user that you have sent a 6-digit verification code to their email, and ask them to input it here (e.g., "To protect your account security, I've sent a 6-digit verification code to your email. Please enter it here so I can verify your identity and pull up your records.").
-         - Until a matching code is received, do not call tools that read or change existing account, contact, ticket, billing, or private-history data.
-
-      5. OTP Validation:
-         - Once the user replies with a code, call "verify_email_otp" with the email address and code.
-         - If the reply is exactly six digits, it is correctly formatted for OTP verification. Never assess its length yourself or tell the visitor that such a value is not six digits; invoke "verify_email_otp".
-         - If the tool returns verified: true, inform the user that verification was successful, and only then proceed with the requested sensitive or account-related tool action.
-         - If the tool does not return verified: true, inform them politely that verification failed and ask them to double-check the code or request a new one.
-
-      6. Strict Security:
-         - You must NEVER disclose or modify existing tickets, CRM/account information, billing information, or historical records until verification is complete.
-         - Verification is per visitor identity in the active conversation. If the visitor changes to a different email/account, run verification again for that account.
-         - Do NOT claim verification succeeded unless the OTP matches, and do NOT bypass verification under any circumstances.
-    </rules>
-
-  </identity_verification>
+\${identityVerificationSection}
 
   <resolution_tracking>
 

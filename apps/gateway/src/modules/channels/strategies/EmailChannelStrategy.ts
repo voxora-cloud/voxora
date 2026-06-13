@@ -274,7 +274,7 @@ export class EmailChannelStrategy implements IChannelStrategy {
 
     try {
       await this.adapter.removeDomain(domainId);
-      logger.info("[EmailChannelStrategy] Domain removed from Resend", {
+      logger.info("[EmailChannelStrategy] Domain removed from SES", {
         channelId,
         domainId,
       });

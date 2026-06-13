@@ -1,38 +1,14 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
+import { Conversation, Message } from "@shared/models";
+import { aiQueue } from "@shared/infra/queue";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
-
-// ─── Input shapes ─────────────────────────────────────────────────────────────
-
-export interface CreateEmailChannelInput {
-  name: string;
-  /** Full email address: support@acme.com */
-  email: string;
-  /** Domain only: acme.com */
-  domain: string;
-}
-
-export interface CreateWhatsAppChannelInput {
-  name: string;
-  phoneNumber: string;
-  accountSid: string;
-  authToken: string;
-  messagingServiceSid?: string;
-}
-
-export interface CreateTelegramChannelInput {
-  name: string;
-  botToken: string;
-}
-
-export interface CreateInstagramChannelInput {
-  name: string;
-  pageAccessToken: string;
-  instagramAccountId: string;
-  instagramUsername: string;
-  pageId: string;
-}
+import {
+  CreateEmailChannelInput,
+  CreateWhatsAppChannelInput,
+  CreateTelegramChannelInput,
+} from "./channels.types";
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -76,7 +52,7 @@ export class ChannelService {
       },
     });
 
-    // Provision with Resend — adds domain and fetches DNS records
+    // Provision with SES — adds domain and fetches DNS records
     const strategy = ChannelStrategyFactory.create("email");
     const provisionResult = await strategy.provision(channel._id.toString(), channel.config);
 
@@ -208,61 +184,7 @@ export class ChannelService {
     return channel;
   }
 
-  /**
-   * Create an Instagram channel for an organization.
-   * One channel per org per type — enforced by model index + explicit check.
-   */
-  static async createInstagramChannel(
-    organizationId: string,
-    input: CreateInstagramChannelInput,
-  ): Promise<IChannel> {
-    // One channel per org per type
-    const existing = await Channel.findOne({ organizationId, type: "instagram" });
-    if (existing) {
-      throw new Error(
-        "An Instagram channel already exists for this organization. Delete it first to create a new one.",
-      );
-    }
 
-    // Build the initial channel config (pre-provision)
-    const channel = await Channel.create({
-      organizationId,
-      type: "instagram" as ChannelType,
-      name: input.name,
-      isActive: true,
-      config: {
-        instagram: {
-          pageAccessToken: input.pageAccessToken.trim(),
-          instagramAccountId: input.instagramAccountId.trim(),
-          instagramUsername: input.instagramUsername.trim(),
-          pageId: input.pageId.trim(),
-          verificationStatus: "pending",
-        },
-      },
-    });
-
-    // Provision with Instagram strategy — validates tokens
-    const strategy = ChannelStrategyFactory.create("instagram");
-    const provisionResult = await strategy.provision(channel._id.toString(), channel.config);
-
-    if (!provisionResult.success) {
-      // Clean up the orphaned channel doc
-      await Channel.findByIdAndDelete(channel._id);
-      throw new Error(provisionResult.error || "Failed to provision Instagram channel");
-    }
-
-    // Persist the updated config (marked as verified)
-    channel.config = provisionResult.updatedConfig;
-    await channel.save();
-
-    logger.info("[ChannelService] Instagram channel created and provisioned", {
-      channelId: channel._id.toString(),
-      organizationId,
-      instagramUsername: input.instagramUsername,
-    });
-
-    return channel;
-  }
 
   // ─── Read ────────────────────────────────────────────────────────────────────
 
@@ -278,9 +200,7 @@ export class ChannelService {
     return Channel.findOne({ organizationId, type: "telegram" }).lean() as unknown as Promise<IChannel | null>;
   }
 
-  static async getInstagramChannel(organizationId: string): Promise<IChannel | null> {
-    return Channel.findOne({ organizationId, type: "instagram" }).lean() as unknown as Promise<IChannel | null>;
-  }
+
 
   static async getAllChannels(organizationId: string): Promise<IChannel[]> {
     return Channel.find({ organizationId }).lean() as unknown as Promise<IChannel[]>;
@@ -289,7 +209,7 @@ export class ChannelService {
   // ─── Verify ──────────────────────────────────────────────────────────────────
 
   /**
-   * Trigger Resend's domain verification and update the channel's DNS records +
+   * Trigger SES domain verification and update the channel's DNS records +
    * verification status in the database.
    */
   static async verifyChannel(
@@ -384,6 +304,42 @@ export class ChannelService {
 
     if (!result.success) {
       throw new Error(result.error || "Failed to process inbound message");
+    }
+
+    // Enqueue message to aiQueue for AI processing if conversation is not assigned to a human
+    if (result.conversationId && result.messageId) {
+      try {
+        const conversation = await Conversation.findById(result.conversationId);
+        if (
+          conversation &&
+          !conversation.assignedTo &&
+          !(conversation.metadata as any)?.escalatedAt &&
+          !(conversation.metadata as any)?.humanJoinedAt &&
+          !["active", "resolved", "closed"].includes(conversation.status)
+        ) {
+          const message = await Message.findById(result.messageId);
+          if (message && message.content) {
+            await aiQueue.add("process", {
+              organizationId: channel.organizationId.toString(),
+              conversationId: result.conversationId,
+              content: message.content,
+              messageId: result.messageId,
+              channel: channel.type,
+            });
+            logger.info("[ChannelService] Inbound message enqueued for AI processing", {
+              conversationId: result.conversationId,
+              messageId: result.messageId,
+              channel: channel.type,
+            });
+          }
+        }
+      } catch (err: any) {
+        logger.error("[ChannelService] Failed to enqueue inbound message to aiQueue", {
+          conversationId: result.conversationId,
+          messageId: result.messageId,
+          error: err.message,
+        });
+      }
     }
 
     return {

@@ -1,5 +1,10 @@
 import StorageService from "@modules/storage/storage.service";
 import { Knowledge, Notification } from "@shared/models";
+import {
+  RequestFileUploadInput,
+  CreateTextEntryInput,
+  UpdateKnowledgeItemInput,
+} from "./knowledge.types";
 import { ingestionQueue } from "@shared/infra/queue";
 import logger from "@shared/core/logger";
 import { getSocketManager } from "../../sockets/index";
@@ -10,20 +15,12 @@ class KnowledgeService {
    * Creates the DB record and returns a presigned PUT URL.
    */
   async requestFileUpload(
-    meta: {
-      title: string;
-      description?: string;
-      catalog?: string;
-      source: "pdf" | "docx";
-      fileName: string;
-      fileSize: number;
-      mimeType: string;
-    },
+    meta: RequestFileUploadInput,
     uploadedBy: string,
     organizationId: string,
   ) {
     const { uploadUrl: presignedUrl, fileKey } =
-      await StorageService.generatePresignedUploadUrl(meta.fileName, meta.mimeType, 600);
+      await StorageService.generatePresignedUploadUrl(meta.fileName, meta.mimeType, organizationId, 600);
 
     const doc = await Knowledge.create({
       organizationId,
@@ -97,17 +94,7 @@ class KnowledgeService {
    * Create a text/URL knowledge entry and immediately enqueue for indexing.
    */
   async createTextEntry(
-    data: {
-      title: string;
-      description?: string;
-      catalog?: string;
-      source: "text" | "url" | "faq";
-      content?: string;
-      url?: string;
-      fetchMode?: "single" | "crawl";
-      crawlDepth?: number;
-      syncFrequency?: string;
-    },
+    data: CreateTextEntryInput,
     createdBy: string,
     organizationId: string,
   ) {
@@ -222,7 +209,7 @@ class KnowledgeService {
   async updateItem(
     documentId: string,
     organizationId: string,
-    patch: { isPaused?: boolean; syncFrequency?: "manual" | "1hour" | "6hours" | "daily"; status?: "queued" | "indexed" | "failed" | "pending" },
+    patch: UpdateKnowledgeItemInput,
   ) {
     const doc = await Knowledge.findOneAndUpdate(
       { _id: documentId, organizationId },

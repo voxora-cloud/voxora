@@ -1,8 +1,6 @@
 export const DEFAULT_WIDGET_CONFIG = {
-    backgroundColor: "#845C6C",
     appearance: {
         theme: "dark" as const,
-        primaryColor: "#845C6C",
         welcomeMessage: "Need help? Ask here and we’ll point you in the right direction.",
     },
     behavior: {
@@ -34,7 +32,6 @@ export const DEFAULT_WIDGET_CONFIG = {
 };
 
 export const buildDefaultWidgetConfig = () => ({
-    backgroundColor: DEFAULT_WIDGET_CONFIG.backgroundColor,
     appearance: { ...DEFAULT_WIDGET_CONFIG.appearance },
     behavior: { ...DEFAULT_WIDGET_CONFIG.behavior },
     ai: { ...DEFAULT_WIDGET_CONFIG.ai },

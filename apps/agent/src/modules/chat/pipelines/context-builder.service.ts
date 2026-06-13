@@ -1,13 +1,10 @@
-import { ContextResult, ContextMessage } from "../chat.types";
+import { ContextResult, ContextMessage, CollectUserInfo, KnownVisitorDetails } from "../chat.types";
 import { vectorStore } from "../../../infrastructure/vector";
 import config from "../../../config";
 import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
 import { internalApi } from "../../../infrastructure/api/internal.client";
 import { buildSystemPrompt } from "./system-prompt.builder";
-import type {
-  CollectUserInfo,
-  KnownVisitorDetails,
-} from "./system-prompt.builder";
+
 
 const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 
@@ -18,6 +15,7 @@ export async function buildContext(
   companyName?: string,
   fallbackToAgent?: boolean,
   collectUserInfo?: CollectUserInfo,
+  channel?: "widget" | "email" | "whatsapp" | "telegram",
 ): Promise<ContextResult> {
   const canFallback = fallbackToAgent !== false;
   let knowledgeContext: string | undefined;
@@ -28,12 +26,28 @@ export async function buildContext(
   );
   console.log(`[Context] Building context for conversation: ${conversationId}`);
   console.log(`[Context] organizationId : ${organizationId}`);
+  console.log(`[Context] channel        : ${channel ?? "widget"}`);
   console.log(`[Context] companyName    : ${companyName || "(not set)"}`);
   console.log(`[Context] fallbackToAgent: ${canFallback}`);
   console.log(
     `[Context] collectUserInfo: ${JSON.stringify(collectUserInfo ?? {})}`,
   );
   console.log(`[Context] messageLength  : ${currentMessage.length} chars`);
+
+  // Start fetching history early in parallel to avoid blocking on RAG operations
+  console.log(
+    `[History] Fetching history from API for conversation: ${conversationId} (Parallel)`
+  );
+  const historyPromise = internalApi.get(
+    `/conversations/ai/${conversationId}/memory`,
+    { params: { organizationId, limit: HISTORY_LIMIT } }
+  ).catch(err => {
+    console.warn(
+      "[Context] Failed to fetch conversation history via API:",
+      err.message || err,
+    );
+    return null;
+  });
 
   // -- 1. RAG: search knowledge base for relevant chunks -----------------------
   try {
@@ -67,8 +81,8 @@ export async function buildContext(
 
     if (results.length > 0) {
       knowledgeContext = results
-        .map((r, i) => `[${i + 1}] ${r.payload.text}`)
-        .join("\n\n");
+         .map((r, i) => `[${i + 1}] ${r.payload.text}`)
+         .join("\n\n");
 
       console.log(
         `[Context] OK RAG retrieved ${results.length} chunk(s) successfully`,
@@ -142,47 +156,40 @@ export async function buildContext(
     }
   }
 
-  // -- 2. Conversation history from API ----------------------------------------
+  // -- 2. Conversation history processing --------------------------------------
   const history: ContextMessage[] = [];
   try {
-    console.log(
-      `[History] Fetching history from API for conversation: ${conversationId}`,
-    );
-    console.log(`[History] HISTORY_LIMIT: ${HISTORY_LIMIT}`);
+    const response = await historyPromise;
+    if (response) {
+      const apiMemory = response.data?.data?.memory || [];
+      const visitor = response.data?.data?.visitor || {};
+      knownVisitorDetails = {
+        name: visitor.name,
+        email: visitor.email,
+      };
 
-    const response = await internalApi.get(
-      `/conversations/ai/${conversationId}/memory`,
-      { params: { organizationId, limit: HISTORY_LIMIT } },
-    );
-
-    const apiMemory = response.data?.data?.memory || [];
-    const visitor = response.data?.data?.visitor || {};
-    knownVisitorDetails = {
-      name: visitor.name,
-      email: visitor.email,
-    };
-
-    console.log(
-      `[History] API returned ${apiMemory.length} message(s) for conversation ${conversationId}`,
-    );
-
-    for (const m of apiMemory) {
-      const role = m.role === "user" ? "user" : "assistant";
-      history.push({
-        role,
-        content: m.content as string,
-        timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-      });
       console.log(
-        `  [History] ${role.padEnd(9)} | ${String(m.content)
-          .replace(/\b\d{6}\b/g, "[6-digit verification code]")
-          .slice(0, 80)
-          .replace(/\n/g, " ")}`,
+        `[History] Parallel fetch complete. API returned ${apiMemory.length} message(s) for conversation ${conversationId}`,
       );
+
+      for (const m of apiMemory) {
+        const role = m.role === "user" ? "user" : "assistant";
+        history.push({
+          role,
+          content: m.content as string,
+          timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+        });
+        console.log(
+          `  [History] ${role.padEnd(9)} | ${String(m.content)
+            .replace(/\b\d{6}\b/g, "[6-digit verification code]")
+            .slice(0, 80)
+            .replace(/\n/g, " ")}`,
+        );
+      }
     }
   } catch (err: any) {
     console.warn(
-      "[Context] Failed to fetch conversation history via API:",
+      "[Context] Failed to process conversation history:",
       err.message || err,
     );
   }
@@ -193,6 +200,7 @@ export async function buildContext(
     collectUserInfo,
     knowledgeContext,
     knownVisitorDetails,
+    channel,
   });
 
   // -- 3. Assemble: history + current user message ------------------------------

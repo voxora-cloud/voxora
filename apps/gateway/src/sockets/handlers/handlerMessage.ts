@@ -107,8 +107,6 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 to = convMeta.phone || conversation.visitor?.name;
               } else if (convMeta.channel === "telegram_channel") {
                 to = convMeta.chatId || conversation.visitor?.sessionId?.replace("telegram-", "");
-              } else if (convMeta.channel === "instagram_channel") {
-                to = convMeta.customerId || conversation.visitor?.sessionId?.replace("instagram-", "");
               }
 
               if (to) {
@@ -262,8 +260,31 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
   // Handler for joining conversation rooms
   socket.on("join_conversation", async (conversationId: string) => {
     try {
+      const orgId = socket.data?.user?.orgId;
+      const isWidget = socket.data?.user?.isWidget;
+      const userId = socket.data?.user?.userId;
+
+      if (!orgId) {
+        logger.error(`Unauthorized join_conversation attempt by socket ${socket.id}: No organization ID`);
+        return;
+      }
+
+      // Fetch the conversation to verify organization/tenant ownership
+      const conversation = await Conversation.findById(conversationId).select("organizationId").lean();
+      if (!conversation || conversation.organizationId.toString() !== orgId) {
+        logger.warn(
+          `Unauthorized join_conversation attempt by ${isWidget ? 'Widget' : 'User'} ${userId} (org: ${orgId}) for conversation ${conversationId}`
+        );
+        return;
+      }
+
       const roomName = `conversation:${conversationId}`;
+      const orgScopedRoom = `org:${orgId}:conv:${conversationId}`;
+
       socket.join(roomName);
+      socket.join(orgScopedRoom);
+
+      logger.debug(`${isWidget ? 'Widget' : 'User'} ${userId} joined org:${orgId}:conv:${conversationId}`);
 
       if (
         socket.data?.user?.orgRole === "agent" ||
@@ -303,8 +324,12 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
   // Handler for leaving conversation rooms
   socket.on("leave_conversation", (conversationId: string) => {
+    const orgId = socket.data?.user?.orgId;
     const roomName = `conversation:${conversationId}`;
     socket.leave(roomName);
+    if (orgId) {
+      socket.leave(`org:${orgId}:conv:${conversationId}`);
+    }
     logger.info(`User left conversation ${conversationId}`);
   });
 

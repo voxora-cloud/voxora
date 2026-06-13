@@ -5,7 +5,6 @@ import type { CreateEmailChannelPayload, CreateWhatsAppChannelPayload, CreateTel
 const CHANNEL_KEY = ["channels", "email"];
 const WHATSAPP_CHANNEL_KEY = ["channels", "whatsapp"];
 const TELEGRAM_CHANNEL_KEY = ["channels", "telegram"];
-const INSTAGRAM_CHANNEL_KEY = ["channels", "instagram"];
 
 export const useEmailChannel = () => {
   return useQuery({
@@ -85,23 +84,6 @@ export const useCreateTelegramChannel = () => {
   });
 };
 
-export const useInstagramChannel = () => {
-  return useQuery({
-    queryKey: INSTAGRAM_CHANNEL_KEY,
-    queryFn: () => channelsApi.getInstagramChannel(),
-    select: (res) => res.data?.channel,
-    retry: (failureCount, error: any) => {
-      // 404 means no channel yet — don't retry
-      if (
-        error?.message?.includes("404") ||
-        error?.message?.includes("No Instagram channel")
-      ) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
-};
 
 export const useVerifyChannel = () => {
   const queryClient = useQueryClient();
@@ -121,7 +103,6 @@ export const useDeleteChannel = () => {
       queryClient.invalidateQueries({ queryKey: CHANNEL_KEY });
       queryClient.invalidateQueries({ queryKey: WHATSAPP_CHANNEL_KEY });
       queryClient.invalidateQueries({ queryKey: TELEGRAM_CHANNEL_KEY });
-      queryClient.invalidateQueries({ queryKey: INSTAGRAM_CHANNEL_KEY });
     },
   });
 };

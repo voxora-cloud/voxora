@@ -4,42 +4,12 @@ import { enqueueTicketLifecycleEmail } from "@shared/queues/email.queue";
 import logger from "@shared/core/logger";
 import type { TicketEmailEvent } from "@shared/utils/email";
 import { getSocketManager } from "@sockets/index";
-
-interface CreateTicketInput {
-  organizationId: string;
-  conversationId?: string;
-  contactId?: string;
-  title: string;
-  description?: string;
-  priority?: "low" | "medium" | "high" | "urgent";
-  status?: "open" | "in_progress" | "resolved" | "closed";
-  source?: "ai" | "agent" | "api";
-  requesterName?: string;
-  requesterEmail?: string;
-  tags?: string[];
-  idempotencyKey?: string;
-}
-
-interface UpdateTicketInput {
-  title?: string;
-  description?: string;
-  priority?: "low" | "medium" | "high" | "urgent";
-  status?: "open" | "in_progress" | "resolved" | "closed";
-  assignedTo?: string | null;
-  tags?: string[];
-}
-
-interface CloseTicketInput {
-  resolutionNote?: string;
-}
-
-interface ListTicketsOptions {
-  status?: string;
-  priority?: string;
-  assignedTo?: string;
-  limit?: number;
-  page?: number;
-}
+import {
+  CreateTicketInput,
+  UpdateTicketInput,
+  CloseTicketInput,
+  ListTicketsOptions,
+} from "./tickets.types";
 
 export class TicketsService {
   // ─── Create ────────────────────────────────────────────────────────────────
@@ -72,13 +42,16 @@ export class TicketsService {
 
     // Auto-assign logic: if the ticket is created within an existing conversation
     // that is already assigned to a human agent, automatically assign the ticket to them.
+    const orgIdObj = new Types.ObjectId(input.organizationId);
+    const convIdObj = input.conversationId ? new Types.ObjectId(input.conversationId) : null;
+
     let assignedTo: Types.ObjectId | null = null;
     let contactId = input.contactId ? new Types.ObjectId(input.contactId) : null;
     let conversation: any = null;
-    if (input.conversationId) {
+    if (convIdObj) {
       conversation = await Conversation.findOne({
-        _id: input.conversationId,
-        organizationId: input.organizationId,
+        _id: convIdObj,
+        organizationId: orgIdObj,
       })
         .select("assignedTo visitor.sessionId")
         .lean();
@@ -88,11 +61,11 @@ export class TicketsService {
     }
 
     if (requesterName && requesterEmail) {
-      if (input.conversationId) {
+      if (convIdObj) {
         const sessionId = conversation?.visitor?.sessionId || `conv:${input.conversationId}`;
 
         await Conversation.updateOne(
-          { _id: input.conversationId, organizationId: input.organizationId },
+          { _id: convIdObj, organizationId: orgIdObj },
           {
             $set: {
               "visitor.name": requesterName,
@@ -108,30 +81,19 @@ export class TicketsService {
         );
 
         const contact = await Contact.findOneAndUpdate(
-          { organizationId: input.organizationId, sessionId },
+          { organizationId: orgIdObj, sessionId },
           {
             $set: {
-              organizationId: input.organizationId,
+              organizationId: orgIdObj,
               sessionId,
-              conversationId: input.conversationId,
+              conversationId: convIdObj,
               name: requesterName,
               email: requesterEmail,
               source: "ai",
               lastActivityAt: new Date(),
               metadata: {
                 updatedBy: "ai_ticket_create",
-                conversationId: input.conversationId,
-              },
-            },
-            $setOnInsert: {
-              tags: [],
-              notes: [],
-              conversations: [],
-              timeline: [],
-              insights: {
-                summary: "No insights yet.",
-                sentiment: "neutral",
-                topics: [],
+                conversationId: convIdObj,
               },
             },
           },
@@ -145,8 +107,8 @@ export class TicketsService {
     let ticket: ITicket;
     try {
       ticket = await Ticket.create({
-        organizationId: new Types.ObjectId(input.organizationId),
-        ...(input.conversationId ? { conversationId: new Types.ObjectId(input.conversationId) } : {}),
+        organizationId: orgIdObj,
+        ...(convIdObj ? { conversationId: convIdObj } : {}),
         ...(contactId ? { contactId } : {}),
         title: input.title.trim(),
         description: input.description?.trim(),
@@ -167,7 +129,7 @@ export class TicketsService {
     } catch (error: any) {
       if (idempotencyKey && error?.code === 11000) {
         const existingTicket = await Ticket.findOne({
-          organizationId: input.organizationId,
+          organizationId: orgIdObj,
           "metadata.idempotencyKey": idempotencyKey,
         });
         if (existingTicket) return existingTicket;

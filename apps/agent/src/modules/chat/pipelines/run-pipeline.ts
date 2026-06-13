@@ -43,6 +43,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   console.log(`[Pipeline] conversationId : ${conversationId}`);
   console.log(`[Pipeline] messageId      : ${job.messageId}`);
   console.log(`[Pipeline] organizationId : ${job.organizationId}`);
+  console.log(`[Pipeline] channel        : ${job.channel ?? "widget"}`);
   console.log(`[Pipeline] fallbackToAgent: ${job.fallbackToAgent ?? true}`);
   console.log(`[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`);
   console.log(`[Pipeline] content        : ${redactOtpForLog(content).slice(0, 120).replace(/\n/g, " ")}`);
@@ -86,6 +87,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     job.companyName,
     job.fallbackToAgent,
     job.collectUserInfo,
+    job.channel,
   );
   if (verifiedIdentityEmail) {
     const verifiedCodePattern = new RegExp(`\\b${otpCode}\\b`, "g");
@@ -125,7 +127,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   try {
     const provider = getDefaultProvider();
     const generated = await provider.generate(messages, {
-      tools: getToolsForContext({ fallbackToAgent: job.fallbackToAgent }),
+      tools: getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel }),
       toolContext: {
         organizationId: job.organizationId,
         conversationId: job.conversationId,

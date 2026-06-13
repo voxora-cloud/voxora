@@ -1,17 +1,14 @@
+import { Types } from "mongoose";
 import { Conversation, Message, User, Membership } from "@shared/models";
 import logger from "@shared/core/logger";
+import { ListConversationsOptions, UpdateVisitorInfoInput, RouteConversationInput } from "./conversation.types";
 
 export class ConversationService {
 
   /**
    * Get all conversations for an organization (filtered by status/agent)
    */
-  async getConversations(organizationId: string, options: {
-    status?: string;
-    limit?: number;
-    offset?: number;
-    assignedTo?: string | null;
-  }) {
+  async getConversations(organizationId: string, options: ListConversationsOptions) {
     const { status, limit = 50, offset = 0, assignedTo } = options;
 
     const filter: any = { organizationId };
@@ -43,15 +40,63 @@ export class ConversationService {
       .skip(Number(offset))
       .lean();
 
-    const conversationsWithMeta = await Promise.all(
-      conversations.map(async (conv) => {
-        const [lastMessage, unreadCount] = await Promise.all([
-          Message.findOne({ conversationId: conv._id, organizationId }).sort({ createdAt: -1 }).lean(),
-          Message.countDocuments({ conversationId: conv._id, organizationId, "metadata.source": "widget" }),
-        ]);
-        return { ...conv, lastMessage, unreadCount, lastMessageAt: lastMessage?.createdAt || conv.updatedAt };
-      }),
+    const conversationIds = conversations.map((c) => c._id);
+    const orgIdObj = new Types.ObjectId(organizationId);
+
+    const [latestMessages, unreadCounts] = await Promise.all([
+      Message.aggregate([
+        {
+          $match: {
+            conversationId: { $in: conversationIds },
+            organizationId: orgIdObj,
+          },
+        },
+        {
+          $sort: { conversationId: 1, createdAt: -1 },
+        },
+        {
+          $group: {
+            _id: "$conversationId",
+            message: { $first: "$$ROOT" },
+          },
+        },
+      ]),
+      Message.aggregate([
+        {
+          $match: {
+            conversationId: { $in: conversationIds },
+            organizationId: orgIdObj,
+            "metadata.source": "widget",
+          },
+        },
+        {
+          $group: {
+            _id: "$conversationId",
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const latestMessagesMap = new Map<string, any>(
+      latestMessages.map((item) => [item._id.toString(), item.message]),
     );
+
+    const unreadCountsMap = new Map<string, number>(
+      unreadCounts.map((item) => [item._id.toString(), item.count]),
+    );
+
+    const conversationsWithMeta = conversations.map((conv) => {
+      const convIdStr = conv._id.toString();
+      const lastMessage = latestMessagesMap.get(convIdStr) || null;
+      const unreadCount = unreadCountsMap.get(convIdStr) || 0;
+      return {
+        ...conv,
+        lastMessage,
+        unreadCount,
+        lastMessageAt: lastMessage?.createdAt || conv.updatedAt,
+      };
+    });
 
     return { conversations: conversationsWithMeta, total: conversations.length };
   }
@@ -67,18 +112,12 @@ export class ConversationService {
     return { conversation, messages };
   }
 
-  async patchConversationStatus(organizationId: string, conversationId: string, status: string) {
-    return Conversation.findOneAndUpdate(
-      { _id: conversationId, organizationId },
-      { status, updatedAt: new Date() },
-      { new: true },
-    );
-  }
+
 
   async updateVisitorInfo(
     organizationId: string,
     conversationId: string,
-    data: { name?: string; email?: string; sessionId?: string },
+    data: UpdateVisitorInfoInput,
     existingSessionId?: string,
   ) {
     const { name, email, sessionId } = data;
@@ -154,7 +193,7 @@ export class ConversationService {
   async routeConversation(
     organizationId: string,
     conversationId: string,
-    data: { agentId?: string; reason?: string },
+    data: RouteConversationInput,
     routedBy: string,
   ) {
     const { agentId, reason } = data;

@@ -55,12 +55,6 @@ interface Config {
     accessKeyId?: string;
     secretAccessKey?: string;
   };
-  meta: {
-    appId: string;
-    appSecret: string;
-    redirectUri: string;
-    verifyToken: string;
-  };
 }
 
 function parseEmailProvider(value?: string): Config["email"]["provider"] {
@@ -172,12 +166,6 @@ const config: Config = {
     region: process.env.AWS_REGION || "us-east-1",
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-  meta: {
-    appId: process.env.META_APP_ID || "",
-    appSecret: process.env.META_APP_SECRET || "",
-    redirectUri: process.env.META_REDIRECT_URI || "http://localhost:3002/api/v1/channels/instagram/oauth/callback",
-    verifyToken: process.env.META_VERIFY_TOKEN || "voxora_meta_token_verify",
   },
 };
 

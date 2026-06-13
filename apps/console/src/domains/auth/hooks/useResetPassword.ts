@@ -2,14 +2,15 @@ import { useMutation } from "@tanstack/react-query";
 import { authApi } from "../api/auth.api";
 
 interface ResetPasswordPayload {
-  token: string;
+  email: string;
+  code: string;
   newPassword: string;
 }
 
 export const useResetPassword = () => {
   return useMutation({
-    mutationFn: ({ token, newPassword }: ResetPasswordPayload) => 
-      authApi.resetPassword(token, newPassword),
+    mutationFn: (data: ResetPasswordPayload) => 
+      authApi.resetPasswordWithOTP(data),
     onSuccess: () => {
       console.log("Password reset successfully");
     },

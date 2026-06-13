@@ -91,20 +91,9 @@ export const widgetSchema = {
   createConversation: Joi.object({
     InteraOnePublicKey: Joi.string().required(),
     message: Joi.string().required(),
-    visitorName: Joi.string().min(1).max(100).optional(),
-    visitorEmail: Joi.string().email().optional(),
-    sessionId: Joi.string().optional(),
-    source: Joi.string().max(50).optional(),
-    department: Joi.string().max(100).optional(),
-  }).options({ stripUnknown: true }),
-
-  updateVisitor: Joi.object({
-    name: Joi.string().min(1).max(100),
-    email: Joi.string().email(),
     sessionId: Joi.string().required(),
-  })
-    .or("name", "email")
-    .options({ stripUnknown: true }),
+    source: Joi.string().max(50).required(),
+  }).options({ stripUnknown: true }),
 
   qrScan: Joi.object({
     publicKey: Joi.string().required(),

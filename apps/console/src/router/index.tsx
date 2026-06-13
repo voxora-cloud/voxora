@@ -3,7 +3,7 @@ import App from "../App";
 import LoginPage from "../domains/auth/pages/login/page";
 import SetupPage from "../domains/auth/pages/setup/page";
 import PasswordRecoveryPage from "../domains/auth/pages/password-recovery/page";
-import ResetPasswordPage from "../domains/auth/pages/reset-password/page";
+
 import AcceptInvitePage from "../domains/auth/pages/accept-invite/page";
 import { SelectOrgPage } from "@/domains/auth/pages/select-org/page";
 import { DashboardHomePage } from "@/domains/dashboard/pages/page";
@@ -53,10 +53,6 @@ const router = createBrowserRouter([
     {
         path: "/auth/password-recovery",
         element: <PasswordRecoveryPage />,
-    },
-    {
-        path: "/auth/reset-password",
-        element: <ResetPasswordPage />,
     },
     {
         path: "/auth/accept-invite",

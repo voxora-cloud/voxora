@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 import {
   Mail,
   MessageSquare,
@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   Plus,
   ExternalLink,
-  Instagram,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import {
@@ -23,7 +22,6 @@ import {
   useDeleteChannel,
   useWhatsAppChannel,
   useTelegramChannel,
-  useInstagramChannel,
 } from "../hooks/use-channels";
 import type { DnsRecord } from "../types/channel.types";
 
@@ -73,45 +71,116 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function DnsRecordRow({ record }: { record: DnsRecord }) {
+  const [copiedName, setCopiedName] = useState(false);
+  const [copiedValue, setCopiedValue] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const copyName = async () => {
+    await navigator.clipboard.writeText(record.name);
+    setCopiedName(true);
+    setTimeout(() => setCopiedName(false), 2000);
+  };
+
+  const copyValue = async () => {
+    await navigator.clipboard.writeText(record.value);
+    setCopiedValue(true);
+    setTimeout(() => setCopiedValue(false), 2000);
+  };
+
+  const isLong = record.value.length > 50;
+
+  return (
+    <div className="p-4 space-y-3.5 hover:bg-muted/5 transition-colors">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-xs uppercase tracking-wide">
+            {record.type}
+          </span>
+          {record.priority !== undefined && (
+            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded font-medium">
+              Priority: {record.priority}
+            </span>
+          )}
+        </div>
+        {isLong && (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs font-semibold text-primary hover:underline transition-colors"
+          >
+            {expanded ? "Show Less" : "Show Full"}
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Name / Host */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Name / Host
+          </span>
+          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-[11px]">
+            <span className="flex-1 truncate text-foreground/80" title={record.name}>
+              {record.name}
+            </span>
+            <button
+              type="button"
+              onClick={copyName}
+              className="p-1.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground shrink-0"
+              title="Copy Host/Name"
+            >
+              {copiedName ? (
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Value / Content */}
+        <div className="space-y-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            Value / Content
+          </span>
+          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 border border-border font-mono text-[11px]">
+            <span className={`flex-1 text-foreground/80 break-all ${!expanded && isLong ? "line-clamp-1 truncate" : ""}`}>
+              {record.value}
+            </span>
+            <button
+              type="button"
+              onClick={copyValue}
+              className="p-1.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground shrink-0 mt-0.5"
+              title="Copy Value/Content"
+            >
+              {copiedValue ? (
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DnsRecordsTable({ records }: { records: DnsRecord[] }) {
   if (!records.length) return null;
   return (
-    <div className="mt-4 rounded-xl border border-border overflow-hidden">
+    <div className="mt-4 rounded-xl border border-border overflow-hidden bg-card/40">
       <div className="px-4 py-3 bg-muted/40 border-b border-border">
         <p className="text-sm font-semibold text-foreground">DNS Records to Configure</p>
         <p className="text-xs text-muted-foreground mt-0.5">
           Add these records at your DNS provider. Propagation may take up to 48 hours.
         </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border bg-muted/20">
-              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Type</th>
-              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Name</th>
-              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Value</th>
-              <th className="px-4 py-2 text-left font-medium text-muted-foreground">Priority</th>
-              <th className="px-4 py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {records.map((rec, i) => (
-              <tr key={i} className="hover:bg-muted/20 transition-colors">
-                <td className="px-4 py-2.5">
-                  <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-[11px]">
-                    {rec.type}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 font-mono text-foreground/80 max-w-[200px] truncate">{rec.name}</td>
-                <td className="px-4 py-2.5 font-mono text-foreground/80 max-w-[300px] truncate">{rec.value}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{rec.priority ?? "—"}</td>
-                <td className="px-4 py-2.5">
-                  <CopyButton text={rec.value} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="divide-y divide-border">
+        {records.map((rec, i) => (
+          <DnsRecordRow key={i} record={rec} />
+        ))}
       </div>
     </div>
   );
@@ -119,41 +188,16 @@ function DnsRecordsTable({ records }: { records: DnsRecord[] }) {
 
 // ── Channel cards ─────────────────────────────────────────────────────────────
 
-interface ComingSoonCardProps {
-  icon: React.ReactNode;
-  name: string;
-  description: string;
-}
-function ComingSoonCard({ icon, name, description }: ComingSoonCardProps) {
-  return (
-    <div className="relative rounded-2xl border border-border bg-card p-6 opacity-60 select-none">
-      <div className="absolute top-4 right-4">
-        <span className="text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full border border-border bg-muted text-muted-foreground">
-          Coming Soon
-        </span>
-      </div>
-      <div className="flex items-center gap-4 mb-4">
-        <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-          {icon}
-        </div>
-        <div>
-          <p className="font-semibold text-foreground">{name}</p>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function ChannelsPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+
   const { data: emailChannel, isLoading: emailLoading } = useEmailChannel();
   const { data: whatsappChannel, isLoading: whatsappLoading } = useWhatsAppChannel();
   const { data: telegramChannel, isLoading: telegramLoading } = useTelegramChannel();
-  const { data: instagramChannel, isLoading: instagramLoading } = useInstagramChannel();
   const verifyMutation = useVerifyChannel();
   const deleteMutation = useDeleteChannel();
   
@@ -165,9 +209,6 @@ export function ChannelsPage() {
 
   const [showTelegramInfo, setShowTelegramInfo] = useState(false);
   const [deleteTgConfirm, setDeleteTgConfirm] = useState(false);
-
-  const [showInstagramInfo, setShowInstagramInfo] = useState(false);
-  const [deleteIgConfirm, setDeleteIgConfirm] = useState(false);
 
   const handleVerify = () => {
     if (!emailChannel) return;
@@ -207,16 +248,7 @@ export function ChannelsPage() {
     });
   };
 
-  const handleDeleteInstagram = () => {
-    if (!instagramChannel) return;
-    if (!deleteIgConfirm) {
-      setDeleteIgConfirm(true);
-      return;
-    }
-    deleteMutation.mutate(instagramChannel._id, {
-      onSuccess: () => setDeleteIgConfirm(false),
-    });
-  };
+
 
   const apiBase = import.meta.env.VITE_API_URL || "http://localhost:3002/api/v1";
   const hostBase = apiBase.replace(/\/api\/v1\/?$/, "");
@@ -231,48 +263,7 @@ export function ChannelsPage() {
         </p>
       </div>
 
-      {/* Success/Error banners from OAuth redirects */}
-      {searchParams.get("connected") === "instagram" && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/20 relative pr-10">
-          <CheckCircle2 className="h-5 w-5 text-emerald-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold text-emerald-800 dark:text-emerald-400 text-sm">Instagram Connected!</p>
-            <p className="text-xs text-emerald-700 dark:text-emerald-500/90 mt-0.5">
-              Your Instagram account was connected successfully. Voxora is now listening for incoming Direct Messages.
-            </p>
-          </div>
-          <button 
-            onClick={() => {
-              searchParams.delete("connected");
-              setSearchParams(searchParams);
-            }}
-            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-xs font-semibold"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
-      {searchParams.get("error") && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/5 border border-destructive/20 relative pr-10">
-          <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
-          <div>
-            <p className="font-semibold text-destructive text-sm">Failed to Connect Instagram</p>
-            <p className="text-xs text-destructive/90 mt-0.5">
-              {searchParams.get("error") || "An unknown error occurred during authentication."}
-            </p>
-          </div>
-          <button 
-            onClick={() => {
-              searchParams.delete("error");
-              setSearchParams(searchParams);
-            }}
-            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground text-xs font-semibold"
-          >
-            ✕
-          </button>
-        </div>
-      )}
 
       {/* Email Channel */}
       <section className="space-y-3">
@@ -649,144 +640,7 @@ export function ChannelsPage() {
         )}
       </section>
 
-      {/* Instagram Channel */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-1">
-          Instagram
-        </h2>
 
-        {instagramLoading ? (
-          <div className="rounded-2xl border border-border bg-card p-6 animate-pulse h-32" />
-        ) : instagramChannel ? (
-          /* Existing Instagram card */
-          <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-            {/* Top row */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-500">
-                  <Instagram className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-foreground">{instagramChannel.name}</p>
-                    <VerificationBadge
-                      status={instagramChannel.config.instagram?.verificationStatus ?? "verified"}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    @{instagramChannel.config.instagram?.instagramUsername || "Instagram Account"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowInstagramInfo((p) => !p)}
-                  className="gap-1.5"
-                  id="btn-toggle-instagram-info"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Connection Info
-                </Button>
-                {deleteIgConfirm ? (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={handleDeleteInstagram}
-                    disabled={deleteMutation.isPending}
-                    id="btn-confirm-delete-instagram"
-                  >
-                    {deleteMutation.isPending ? "Deleting…" : "Confirm Delete"}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleDeleteInstagram}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                    id="btn-delete-instagram"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Connection Information */}
-            {showInstagramInfo && (
-              <div className="mt-4 p-4 rounded-xl border border-border bg-muted/30 space-y-3 text-xs">
-                <p className="font-semibold text-sm">Instagram Connection Details</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-muted-foreground font-medium block">Instagram Username</span>
-                    <span className="font-mono text-foreground/80 break-all">@{instagramChannel.config.instagram?.instagramUsername}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium block">Instagram Business Account ID</span>
-                    <span className="font-mono text-foreground/80 break-all">{instagramChannel.config.instagram?.instagramAccountId}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground font-medium block">Connected Facebook Page ID</span>
-                    <span className="font-mono text-foreground/80 break-all">{instagramChannel.config.instagram?.pageId}</span>
-                  </div>
-                </div>
-                <div className="pt-2 border-t border-border space-y-2">
-                  <span className="text-muted-foreground font-medium block">Global Webhook URL</span>
-                  <div className="flex items-center gap-2 p-2 rounded bg-muted/65 font-mono">
-                    <span className="flex-1 truncate text-foreground/75">
-                      {`${hostBase}/api/v1/channels/instagram/inbound`}
-                    </span>
-                    <CopyButton text={`${hostBase}/api/v1/channels/instagram/inbound`} />
-                  </div>
-                  <span className="text-muted-foreground block">
-                    Register this URL in your Meta App Dashboard under the **Instagram Webhook** settings. Use the verification token from your server configuration to verify.
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Add Instagram channel CTA */
-          <button
-            type="button"
-            onClick={() => {
-              const token = localStorage.getItem("token");
-              window.location.href = `${apiBase}/channels/instagram/oauth/connect?token=${token}`;
-            }}
-            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-pink-500/40 hover:bg-pink-500/5 transition-all duration-200 p-8 group text-left"
-            id="btn-add-instagram-channel"
-          >
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-14 w-14 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-500 group-hover:scale-110 transition-transform">
-                <Plus className="h-7 w-7" />
-              </div>
-              <div className="text-center animate-fade-in">
-                <p className="font-semibold text-foreground">Connect Instagram Channel</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Authenticate with Facebook to link your Instagram Business inbox.
-                </p>
-              </div>
-            </div>
-          </button>
-        )}
-      </section>
-
-      {/* Coming Soon Channels */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-1">
-          More Channels
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <ComingSoonCard
-            icon={<MessageSquare className="h-6 w-6 text-indigo-500" />}
-            name="Discord"
-            description="AI-powered Discord bot and support tickets integration"
-          />
-        </div>
-      </section>
     </div>
   );
 }

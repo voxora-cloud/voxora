@@ -1,27 +1,6 @@
 import { Types } from "mongoose";
 import { Contact, Conversation } from "@shared/models";
-
-interface ListContactsOptions {
-  search?: string;
-  limit?: number;
-}
-
-interface UpsertFromAIInput {
-  organizationId: string;
-  conversationId: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  tags?: string[];
-  note?: string;
-  status?: "active" | "inactive" | "blocked";
-  sentiment?: "positive" | "neutral" | "negative";
-  summary?: string;
-  topics?: string[];
-  timelineLabel?: string;
-  timelineDetail?: string;
-}
+import { ListContactsOptions, UpsertFromAIInput } from "./contacts.types";
 
 export class ContactsService {
   async listContacts(organizationId: string, options: ListContactsOptions = {}) {
@@ -161,11 +140,13 @@ export class ContactsService {
 
     await Conversation.updateOne({ _id: conversationId }, { $set: visitorUpdate });
 
+    const orgObjectId = new Types.ObjectId(organizationId);
+
     const contact = await Contact.findOneAndUpdate(
-      { organizationId, sessionId },
+      { organizationId: orgObjectId, sessionId },
       {
         $set: {
-          organizationId,
+          organizationId: orgObjectId,
           sessionId,
           conversationId,
           name: resolvedName,
@@ -220,17 +201,6 @@ export class ContactsService {
               },
             }
           : {}),
-        $setOnInsert: {
-          tags: [],
-          notes: [],
-          conversations: [],
-          timeline: [],
-          insights: {
-            summary: "No insights yet.",
-            sentiment: "neutral",
-            topics: [],
-          },
-        },
       },
       { upsert: true, new: true, runValidators: true },
     ).lean();

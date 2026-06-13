@@ -1,5 +1,6 @@
 import { EmbeddingProvider } from "./types";
 import { GeminiEmbeddingProvider } from "./gemini.embedding";
+import { BedrockEmbeddingProvider } from "./bedrock.embedding";
 
 const providers = new Map<string, EmbeddingProvider>();
 
@@ -22,6 +23,7 @@ export function getEmbeddingProvider(name?: string): EmbeddingProvider {
 }
 
 registerEmbeddingProvider(new GeminiEmbeddingProvider());
+registerEmbeddingProvider(new BedrockEmbeddingProvider());
 
 
 export type { EmbeddingProvider } from "./types";

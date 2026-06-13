@@ -1,4 +1,4 @@
-import { Tool } from "../agent.types";
+import { Tool, ToolFilterOptions } from "../agent.types";
 
 
 const registry = new Map<string, Tool>();
@@ -17,9 +17,6 @@ export function getAllTools(): Tool[] {
   return [...registry.values()];
 }
 
-export interface ToolFilterOptions {
-  fallbackToAgent?: boolean;
-}
 
 /** Returns dynamically filtered tools based on conversation context/configuration */
 export function getToolsForContext(options: ToolFilterOptions): Tool[] {
@@ -28,6 +25,13 @@ export function getToolsForContext(options: ToolFilterOptions): Tool[] {
   // If escalation is disabled, exclude escalate_to_human tool completely
   if (options.fallbackToAgent === false) {
     tools = tools.filter((tool) => tool.name !== "escalate_to_human");
+  }
+
+  // If the channel is email, exclude tools not applicable/required for email flow
+  if (options.channel === "email") {
+    tools = tools.filter(
+      (tool) => tool.name !== "verify_email_otp" && tool.name !== "send_email"
+    );
   }
 
   return tools;
@@ -67,4 +71,4 @@ registerTool(new CloseTicketTool());
 registerTool(new EscalateToHumanTool());
 registerTool(new SeekContactTool());
 
-export type { Tool, ToolParameterSchema } from "../agent.types";
+export type { Tool, ToolParameterSchema, ToolFilterOptions } from "../agent.types";

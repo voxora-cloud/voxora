@@ -3,7 +3,6 @@ import { IChannelStrategy } from "./IChannelStrategy";
 import { EmailChannelStrategy } from "../strategies/EmailChannelStrategy";
 import { WhatsAppChannelStrategy } from "../strategies/WhatsAppChannelStrategy";
 import { TelegramChannelStrategy } from "../strategies/TelegramChannelStrategy";
-import { InstagramChannelStrategy } from "../strategies/InstagramChannelStrategy";
 import { SesAdapter } from "../adapters/SesAdapter";
 
 /**
@@ -25,9 +24,6 @@ export class ChannelStrategyFactory {
 
       case "telegram":
         return new TelegramChannelStrategy();
-
-      case "instagram":
-        return new InstagramChannelStrategy();
 
       default:
         throw new Error(`ChannelStrategyFactory: unknown channel type "${type}"`);

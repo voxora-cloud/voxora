@@ -9,8 +9,8 @@ import {
 } from "@shared/queues/email.queue";
 import { generateOTP, hashOTP, verifyOTP as checkOTP } from "@shared/security/auth/otp";
 import crypto from "crypto";
-import mongoose from "mongoose";
 import { OrganizationService } from "../organization/organization.service";
+import { SignupContext } from "./auth.types";
 
 export class AuthService {
 
@@ -48,15 +48,7 @@ export class AuthService {
     organizationName: string;
     password: string;
   }) {
-    type SignupContext = {
-      userId: string;
-      userName: string;
-      userEmail: string;
-      organizationId: string;
-      organizationName: string;
-      organizationSlug: string;
-      organizationPlan: string;
-    };
+
 
     const normalizedEmail = data.email.toLowerCase();
     let signupContext: SignupContext | undefined;

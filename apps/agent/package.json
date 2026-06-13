@@ -15,6 +15,7 @@
     "debug:qdrant": "npx tsx src/debug-qdrant.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1067.0",
     "@google/genai": "^0.7.0",
     "@qdrant/js-client-rest": "^1.17.0",
     "axios": "^1.13.5",

@@ -40,10 +40,7 @@ export interface UserIdentity {
  */
 export interface WidgetAppearance {
   displayName?: string;
-  primaryColor?: string;
-  backgroundColor?: string;
   appearance?: {
-    primaryColor?: string;
     textColor?: string;
     position?: 'bottom-right' | 'bottom-left';
     launcherText?: string;

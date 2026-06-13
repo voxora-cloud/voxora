@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router";
+import { useState } from "react";
+import { useNavigate, Link } from "react-router";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -22,22 +22,18 @@ import { ResendOTPTimer } from "./resend-otp-timer.tsx";
 import { motion, AnimatePresence } from "framer-motion";
 
 type RecoveryStep = "email" | "otp" | "reset";
-type VerificationMethod = "link" | "otp";
+
 
 export function PasswordRecoveryForm() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const resetToken = searchParams.get("token") || "";
-  const [step, setStep] = useState<RecoveryStep>(resetToken ? "reset" : "email");
-  const verificationMethod: VerificationMethod = resetToken ? "link" : "otp";
+
+  const [step, setStep] = useState<RecoveryStep>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isCheckingToken, setIsCheckingToken] = useState(Boolean(resetToken));
-  const [isTokenInvalid, setIsTokenInvalid] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -45,31 +41,6 @@ export function PasswordRecoveryForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
 
-  useEffect(() => {
-    if (!resetToken) return;
-
-    let isMounted = true;
-    setIsCheckingToken(true);
-    setError(null);
-
-    authApi.verifyResetToken(resetToken)
-      .then(() => {
-        if (isMounted) setStep("reset");
-      })
-      .catch((err: any) => {
-        if (isMounted) {
-          setIsTokenInvalid(true);
-          setError(err.message || "This reset link is invalid or has expired.");
-        }
-      })
-      .finally(() => {
-        if (isMounted) setIsCheckingToken(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [resetToken]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,11 +82,6 @@ export function PasswordRecoveryForm() {
 
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!resetToken && verificationMethod === "link") {
-      setIsTokenInvalid(true);
-      setError("This reset link is missing or invalid.");
-      return;
-    }
     const passwordError = validatePassword(password);
     if (passwordError) {
       setError(passwordError);
@@ -125,15 +91,10 @@ export function PasswordRecoveryForm() {
       setError("Passwords do not match");
       return;
     }
-
     setIsLoading(true);
     setError(null);
     try {
-      if (verificationMethod === "otp") {
-        await authApi.resetPasswordWithOTP({ email, code: otp, newPassword: password });
-      } else {
-        await authApi.resetPassword(resetToken, password);
-      }
+      await authApi.resetPasswordWithOTP({ email, code: otp, newPassword: password });
       setIsSuccess(true);
       setTimeout(() => navigate("/auth/login"), 3000);
     } catch (err: any) {
@@ -266,9 +227,6 @@ export function PasswordRecoveryForm() {
       {/* Step: reset */}
       {step === "reset" && (
         <form onSubmit={handleResetSubmit} className="space-y-4">
-          {isCheckingToken && (
-            <p className="text-sm text-muted-foreground text-center">Checking reset link...</p>
-          )}
           <div className="space-y-1.5">
             <Label className="type-label-caps text-muted-foreground">New Password</Label>
             <div className="relative">
@@ -277,9 +235,9 @@ export function PasswordRecoveryForm() {
                 type={showPassword ? "text" : "password"}
                 placeholder="Create a strong password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); if (!isTokenInvalid) setError(null); }}
+                onChange={(e) => { setPassword(e.target.value); setError(null); }}
                 className="pl-10 pr-11 h-12 rounded-sm border-border/60 bg-muted/30 focus:bg-background transition-colors cursor-text"
-                disabled={isLoading || (verificationMethod === "link" && (isCheckingToken || isTokenInvalid))}
+                disabled={isLoading}
                 required
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
@@ -296,9 +254,9 @@ export function PasswordRecoveryForm() {
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Repeat your password"
                 value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); if (!isTokenInvalid) setError(null); }}
+                onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
                 className="pl-10 pr-11 h-12 rounded-sm border-border/60 bg-muted/30 focus:bg-background transition-colors cursor-text"
-                disabled={isLoading || (verificationMethod === "link" && (isCheckingToken || isTokenInvalid))}
+                disabled={isLoading}
                 required
               />
               <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -309,7 +267,7 @@ export function PasswordRecoveryForm() {
           </div>
           <Button type="submit"
             className="w-full h-12 rounded-sm type-button shadow-lg shadow-primary/20 cursor-pointer"
-            disabled={isLoading || (verificationMethod === "link" && (isCheckingToken || isTokenInvalid))}>
+            disabled={isLoading}>
             {isLoading ? "Updating..." : (<>Reset Password<ArrowRight className="h-4 w-4 ml-2" /></>)}
           </Button>
         </form>

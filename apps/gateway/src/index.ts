@@ -14,7 +14,6 @@ import { startAIResponseConsumer } from "@sockets/consumer";
 import logger from "@shared/core/logger";
 import { seedEmailTemplates } from "@shared/seeds/emailTemplates.seed";
 import { authRouter } from "@modules/auth";
-import { adminRouter } from "@modules/admin";
 import { agentRouter } from "@modules/agent";
 import { conversationRouter } from "@modules/conversation";
 import { widgetRouter } from "@modules/widget";
@@ -28,6 +27,7 @@ import { analyticsRouter } from "@modules/analytics/analytics.routes";
 import { ticketsRouter } from "@modules/tickets";
 import { emailRouter } from "@modules/email";
 import { channelsRouter } from "@modules/channels";
+import { setupSwagger } from "@shared/infra/swagger";
 
 class Application {
   private app: express.Application;
@@ -53,7 +53,7 @@ class Application {
 
     this.app.use(
       cors({
-        origin: true, // Reflect request origin — allows requests from any origin (adjust in production),
+        origin: true, // Reflect request origin — allows requests from any origin
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -121,7 +121,6 @@ class Application {
     router.use("/auth", authRouter);
     router.use("/organizations", organizationRouter);
     router.use("/memberships", membershipRouter);
-    router.use("/admin", adminRouter);
     router.use("/agent", agentRouter);
     router.use("/widget", widgetRouter);
     router.use("/conversations", conversationRouter);
@@ -155,6 +154,9 @@ class Application {
         timestamp: new Date().toISOString(),
       });
     });
+
+    // Swagger API Documentation
+    setupSwagger(this.app);
   }
 
   private setupErrorHandling(): void {
@@ -235,10 +237,10 @@ class Application {
     process.on("unhandledRejection", (reason, promise) => {
       const details = reason instanceof Error
         ? {
-            errorName: reason.name,
-            message: reason.message,
-            stack: reason.stack,
-          }
+          errorName: reason.name,
+          message: reason.message,
+          stack: reason.stack,
+        }
         : { message: String(reason) };
       logger.error("Unhandled promise rejection", details);
       process.exit(1);

@@ -6,8 +6,6 @@ export interface IVisitor {
   name: string;
   email: string;
   isAnonymous: boolean;
-  ipAddress?: string;
-  userAgent?: string;
   providedInfoAt?: Date;
 }
 
@@ -22,7 +20,6 @@ export interface IConversation extends Document {
   tags: string[];
   createdBy: Types.ObjectId;
   closedAt?: Date;
-  closedBy?: Types.ObjectId | null;
   metadata: Record<string, any>;
   visitor?: IVisitor;
   createdAt: Date;
@@ -40,15 +37,12 @@ const conversationSchema = new Schema<IConversation>(
     tags: [{ type: String, trim: true }],
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     closedAt: { type: Date, default: null },
-    closedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     metadata: { type: Schema.Types.Mixed, default: {} },
     visitor: {
       sessionId: { type: String, index: true },
       name: { type: String, default: "Anonymous User" },
       email: { type: String, default: "anonymous@temp.local" },
       isAnonymous: { type: Boolean, default: true },
-      ipAddress: String,
-      userAgent: String,
       providedInfoAt: Date,
     },
   },
@@ -58,10 +52,7 @@ const conversationSchema = new Schema<IConversation>(
 conversationSchema.index({ organizationId: 1, status: 1 });
 conversationSchema.index({ organizationId: 1, assignedTo: 1 });
 conversationSchema.index({ participants: 1 });
-conversationSchema.index({ status: 1, priority: 1 });
-conversationSchema.index({ assignedTo: 1, status: 1 });
-conversationSchema.index({ createdBy: 1 });
-conversationSchema.index({ lastMessageAt: -1 });
+conversationSchema.index({ organizationId: 1, updatedAt: -1 });
 
 export const Conversation = mongoose.model<IConversation>(
   "Conversation",

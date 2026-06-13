@@ -6,6 +6,7 @@ const COLLECTION = "intearOne_knowledge";
 
 class QdrantVectorStore implements VectorStore {
   private client: QdrantClient;
+  private verifiedDimensions: number | null = null;
 
   constructor() {
     this.client = new QdrantClient({
@@ -46,6 +47,7 @@ class QdrantVectorStore implements VectorStore {
     console.log(
       `[Qdrant] Collection "${COLLECTION}" created (${dimensions}d, Cosine)`,
     );
+    this.verifiedDimensions = dimensions;
   }
 
   async upsert(
@@ -76,20 +78,39 @@ class QdrantVectorStore implements VectorStore {
     console.log(`[Qdrant]   Organization  : ${options.organizationId}`);
     console.log(`[Qdrant]   Top K         : ${options.topK ?? 5}`);
 
-    // Check if collection exists
-    try {
-      const collectionInfo = await this.client.getCollection(COLLECTION);
-      const pointsCount = collectionInfo.points_count || 0;
-      console.log(`[Qdrant]   Collection exists: YES`);
-      console.log(`[Qdrant]   Total points: ${pointsCount}`);
-
-      if (pointsCount === 0) {
-        console.log(`[Qdrant]   ⚠️  Collection is EMPTY - no documents ingested yet`);
+    // Check if collection exists and check dimensions compatibility
+    if (this.verifiedDimensions !== vector.length) {
+      try {
+        const collectionInfo = await this.client.getCollection(COLLECTION);
+        const existingSize = (collectionInfo.config?.params?.vectors as any)?.size as number | undefined;
+        
+        if (existingSize && existingSize !== vector.length) {
+          console.warn(
+            `[Qdrant] Collection "${COLLECTION}" has ${existingSize}d but query has ${vector.length}d — recreating collection`,
+          );
+          await this.client.deleteCollection(COLLECTION);
+          await this.ensureCollection(vector.length);
+        } else {
+          const pointsCount = collectionInfo.points_count || 0;
+          console.log(`[Qdrant]   Collection exists: YES`);
+          console.log(`[Qdrant]   Total points: ${pointsCount}`);
+          if (pointsCount === 0) {
+            console.log(`[Qdrant]   ⚠️  Collection is EMPTY - no documents ingested yet`);
+          }
+        }
+        this.verifiedDimensions = vector.length;
+      } catch (err: any) {
+        const isNotFound = err?.status === 404 || String(err?.message || "").toLowerCase().includes("not found");
+        if (isNotFound) {
+          console.log(`[Qdrant]   Collection exists: NO — creating with ${vector.length}d`);
+          await this.ensureCollection(vector.length);
+        } else {
+          console.error(`[Qdrant]   Failed to verify collection`, err);
+          throw err;
+        }
       }
-    } catch (err: any) {
-      console.log(`[Qdrant]   ❌ Collection exists: NO`);
-      console.log(`[Qdrant]   Error: ${err?.message}`);
-      throw err;
+    } else {
+      console.log(`[Qdrant]   Collection dimensions verified in-memory (${vector.length}d)`);
     }
 
     const mustConditions: any[] = [

@@ -5,35 +5,12 @@ import {
 } from "@shared/queues/email.queue";
 import { Conversation } from "@shared/models";
 import { generateOTP, hashOTP, verifyOTP } from "@shared/security/auth/otp";
-
-interface SendEmailInput {
-  to: string;
-  template: "agent_verification_otp" | "conversation_summary";
-  variables: Record<string, string>;
-  organizationId?: string;
-  conversationId?: string;
-}
-
-interface SendEmailResult {
-  success: boolean;
-  messageId?: string;
-  error?: string;
-}
-
-interface VerifyAgentOtpInput {
-  email?: string;
-  code: string;
-  organizationId: string;
-  conversationId: string;
-}
-
-interface VerifyAgentOtpResult {
-  success: boolean;
-  email?: string;
-  verifiedAt?: string;
-  statusCode?: number;
-  error?: string;
-}
+import {
+  SendEmailInput,
+  SendEmailResult,
+  VerifyAgentOtpInput,
+  VerifyAgentOtpResult,
+} from "./email.types";
 
 const AGENT_OTP_EXPIRY_MS = 10 * 60 * 1000;
 const AGENT_OTP_RESEND_COOLDOWN_MS = 60 * 1000;
