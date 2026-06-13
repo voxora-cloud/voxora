@@ -15,34 +15,42 @@ import config from "../../../config";
 
 export class BedrockProvider implements LLMProvider {
   readonly name = "bedrock";
-  private client: BedrockRuntimeClient;
+  private client?: BedrockRuntimeClient;
   private defaultModel: string;
 
   constructor() {
     const bedrockConfig = config.llm.bedrock;
-    if (!bedrockConfig) {
-      throw new Error("Bedrock configuration is missing in config");
-    }
+    this.defaultModel = bedrockConfig?.model || "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
+  }
 
-    const clientConfig: any = {
-      region: bedrockConfig.region,
-    };
+  private getClient(): BedrockRuntimeClient {
+    if (!this.client) {
+      const bedrockConfig = config.llm.bedrock;
+      if (!bedrockConfig) {
+        throw new Error("Bedrock configuration is missing in config");
+      }
 
-    if (bedrockConfig.accessKeyId && bedrockConfig.secretAccessKey) {
-      clientConfig.credentials = {
-        accessKeyId: bedrockConfig.accessKeyId,
-        secretAccessKey: bedrockConfig.secretAccessKey,
+      const clientConfig: any = {
+        region: bedrockConfig.region || "us-east-1",
       };
-    }
 
-    this.client = new BedrockRuntimeClient(clientConfig);
-    this.defaultModel = bedrockConfig.model || "us.anthropic.claude-3-5-sonnet-20241022-v2:0";
+      if (bedrockConfig.accessKeyId && bedrockConfig.secretAccessKey) {
+        clientConfig.credentials = {
+          accessKeyId: bedrockConfig.accessKeyId,
+          secretAccessKey: bedrockConfig.secretAccessKey,
+        };
+      }
+
+      this.client = new BedrockRuntimeClient(clientConfig);
+    }
+    return this.client;
   }
 
   async generate(
     messages: LLMMessage[],
     options: LLMOptions = {},
   ): Promise<LLMGenerateResult> {
+    const client = this.getClient();
     const {
       model = this.defaultModel,
       tools = [],
@@ -138,7 +146,7 @@ export class BedrockProvider implements LLMProvider {
           toolConfig,
         });
 
-        const response = await this.client.send(command);
+        const response = await client.send(command);
         let activeToolUse: {
           toolUseId: string;
           name: string;
@@ -215,7 +223,7 @@ export class BedrockProvider implements LLMProvider {
           toolConfig,
         });
 
-        const response = await this.client.send(command);
+        const response = await client.send(command);
 
         if (response.output?.message?.content) {
           for (const contentBlock of response.output.message.content) {
