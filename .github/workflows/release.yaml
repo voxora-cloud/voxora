@@ -36,48 +36,48 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ── API ──────────────────────────────────────────────────────────────
-      - name: Build & push API
+      # ── GATEWAY ──────────────────────────────────────────────────────────
+      - name: Build & push Gateway
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/api
-          file: ./apps/api/Dockerfile
+          context: ./apps/gateway
+          file: ./apps/gateway/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-api:${{ steps.version.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-gateway:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-gateway:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ── WEB ──────────────────────────────────────────────────────────────
+      # ── CONSOLE ──────────────────────────────────────────────────────────
       # Built with __VITE_*__ placeholder values.
       # entrypoint.sh replaces them at container startup from .env.docker
       # so this is a generic image that works with any domain.
-      - name: Build & push Web
+      - name: Build & push Console
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/web
-          file: ./apps/web/Dockerfile
+          context: ./apps/console
+          file: ./apps/console/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-web:${{ steps.version.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-web:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-console:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-console:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ── AI ───────────────────────────────────────────────────────────────
-      - name: Build & push AI worker
+      # ── AGENT ───────────────────────────────────────────────────────────
+      - name: Build & push Agent
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/ai
-          file: ./apps/ai/Dockerfile
+          context: ./apps/agent
+          file: ./apps/agent/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-ai:${{ steps.version.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-ai:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-agent:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-agent:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -95,20 +95,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # ── WIDGET ───────────────────────────────────────────────────────────
+      # ── LAUNCHER ───────────────────────────────────────────────────────────
       # Builds the widget JS bundle and packages it with the deploy script.
       # The widget-deploy service in docker-compose runs this image on startup
       # to push InteraOne.js into MinIO automatically.
-      - name: Build & push Widget
+      - name: Build & push Launcher
         uses: docker/build-push-action@v6
         with:
-          context: ./apps/widget
-          file: ./apps/widget/Dockerfile
+          context: ./apps/launcher
+          file: ./apps/launcher/Dockerfile
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-widget:${{ steps.version.outputs.tag }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-widget:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-launcher:${{ steps.version.outputs.tag }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/interaone-launcher:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -119,8 +119,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Image | Tag |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| interaone-api    | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| interaone-web    | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| interaone-ai     | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| interaone-worker | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| interaone-widget | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| interaone-gateway  | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| interaone-console  | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| interaone-agent    | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| interaone-worker   | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| interaone-launcher | \`${{ steps.version.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
