@@ -3,19 +3,26 @@ import { LLMProvider, LLMMessage, LLMOptions, LLMGenerateResult, LLMTokenUsage }
 
 export class GeminiProvider implements LLMProvider {
   readonly name = "gemini";
-  private ai: GoogleGenAI;
+  private ai?: GoogleGenAI;
   private defaultModel: string;
 
   constructor() {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is required for GeminiProvider");
-    }
-    this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     this.defaultModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  }
+
+  private getClient(): GoogleGenAI {
+    if (!this.ai) {
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is required for GeminiProvider");
+      }
+      this.ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    }
+    return this.ai;
   }
 
     async generate(messages: LLMMessage[], options: LLMOptions = {}): Promise<LLMGenerateResult> {
         const { model = this.defaultModel, tools = [], toolContext, onStream } = options;
+        const ai = this.getClient();
 
     let systemInstruction = messages.find((m) => m.role === "system")?.content;
     let turns = messages.filter((m) => m.role !== "system");
@@ -111,7 +118,7 @@ export class GeminiProvider implements LLMProvider {
         let functionCalls: any[] = [];
         
         if (onStream) {
-            const stream = await this.ai.models.generateContentStream({ model, contents, config });
+            const stream = await ai.models.generateContentStream({ model, contents, config });
             for await (const chunk of stream) {
                 const text = safeGetText(chunk);
                 if (text) {
@@ -130,7 +137,7 @@ export class GeminiProvider implements LLMProvider {
                         }
             }
         } else {
-            const response = await this.ai.models.generateContent({ model, contents, config });
+            const response = await ai.models.generateContent({ model, contents, config });
             const text = safeGetText(response);
             if (text) {
                 fullTextResponse = text;

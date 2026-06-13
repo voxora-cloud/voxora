@@ -335,18 +335,30 @@ prompt_config() {
                 
                 echo ""
                 echo "Choose AWS Bedrock Model:"
-                PS3="Enter selection [1-2]: "
-                select model_opt in "Claude 3.5 Sonnet" "Claude 3 Haiku"; do
+                PS3="Enter selection [1-5]: "
+                select model_opt in "Amazon Nova Pro" "Amazon Nova Lite" "Amazon Nova Micro" "Meta Llama 3.1 70B" "Claude 3.5 Sonnet"; do
                     case $model_opt in
+                        "Amazon Nova Pro")
+                            BEDROCK_MODEL="amazon.nova-pro-v1:0"
+                            break
+                            ;;
+                        "Amazon Nova Lite")
+                            BEDROCK_MODEL="amazon.nova-lite-v1:0"
+                            break
+                            ;;
+                        "Amazon Nova Micro")
+                            BEDROCK_MODEL="amazon.nova-micro-v1:0"
+                            break
+                            ;;
+                        "Meta Llama 3.1 70B")
+                            BEDROCK_MODEL="meta.llama3-1-70b-instruct-v1:0"
+                            break
+                            ;;
                         "Claude 3.5 Sonnet")
                             BEDROCK_MODEL="us.anthropic.claude-3-5-sonnet-20241022-v2:0"
                             break
                             ;;
-                        "Claude 3 Haiku")
-                            BEDROCK_MODEL="us.anthropic.claude-3-haiku-20240307-v1:0"
-                            break
-                            ;;
-                        *) echo "Invalid option. Please choose 1 or 2.";;
+                        *) echo "Invalid option. Please choose 1, 2, 3, 4, or 5.";;
                     esac
                 done
                 
