@@ -2,9 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/shared/lib/api-client";
 
 const analyticsQueryOptions = {
-  refetchInterval: 15_000,
-  refetchOnWindowFocus: true,
-  staleTime: 5_000,
+  // Cache strategy:
+  // - staleTime: 5 min (browser keeps data fresh, no background refetch)
+  // - gcTime (cacheTime): 30 min (keep data in memory for long-lived tabs)
+  // - refetchOnWindowFocus: false (don't refetch on tab switch - data is stable enough)
+  // - refetchInterval: disabled (manual refresh button preferred for analytics)
+  staleTime: 5 * 60 * 1000,      // 5 minutes
+  gcTime: 30 * 60 * 1000,        // 30 minutes (garbage collect after)
+  refetchOnWindowFocus: false,
+  refetchInterval: false as const,
 };
 
 export interface DashboardSummary {
@@ -64,7 +70,7 @@ export const hasInteractionSourceData = (source?: DashboardSummary["source"]) =>
   );
 
 export function useAnalyticsSummary() {
-  return useQuery({
+  return useQuery<DashboardSummary, Error>({
     queryKey: ["analytics", "summary"],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: DashboardSummary }>("/analytics/owner/summary");
@@ -75,7 +81,7 @@ export function useAnalyticsSummary() {
 }
 
 export function useAnalyticsTrends(days = 7) {
-  return useQuery({
+  return useQuery<DashboardTrends, Error>({
     queryKey: ["analytics", "trends", days],
     queryFn: async () => {
       const response = await apiClient.get<{ success: boolean; data: DashboardTrends }>(`/analytics/owner/trends?days=${days}`);
@@ -84,3 +90,39 @@ export function useAnalyticsTrends(days = 7) {
     ...analyticsQueryOptions,
   });
 }
+
+/**
+ * Utility functions for cache invalidation
+ * Call these when data changes to sync frontend with backend
+ */
+export const analyticsCache = {
+  invalidateSummary: async (queryClient: any) => {
+    await queryClient.invalidateQueries({
+      queryKey: ["analytics", "summary"],
+      refetchType: "active", // Only refetch if query is currently active
+    });
+  },
+
+  invalidateTrends: async (queryClient: any, days?: number) => {
+    if (days) {
+      // Invalidate specific day range
+      await queryClient.invalidateQueries({
+        queryKey: ["analytics", "trends", days],
+        refetchType: "active",
+      });
+    } else {
+      // Invalidate all trend queries
+      await queryClient.invalidateQueries({
+        queryKey: ["analytics", "trends"],
+        refetchType: "active",
+      });
+    }
+  },
+
+  invalidateAll: async (queryClient: any) => {
+    await queryClient.invalidateQueries({
+      queryKey: ["analytics"],
+      refetchType: "active",
+    });
+  },
+};

@@ -1,27 +1,14 @@
 import { Request, Response } from "express";
 import { sendResponse, sendError, asyncHandler } from "@shared/core/response";
 import { Conversation, Message } from "@shared/models";
-import { getSocketManager } from "@sockets/index";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
 import { AuthenticatedRequest } from "@shared/security/middleware";
 import { WidgetService } from "./widget.service";
-import { AIInteractionSource } from "./widget.types";
 
 const widgetService = new WidgetService();
 
-const AI_INTERACTION_SOURCES = new Set<AIInteractionSource>([
-  "widget",
-  "qr",
-  "link",
-]);
 const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
-
-function normalizeInteractionSource(value: unknown): AIInteractionSource {
-  if (typeof value !== "string") return "widget";
-  const normalized = value.trim().toLowerCase() as AIInteractionSource;
-  return AI_INTERACTION_SOURCES.has(normalized) ? normalized : "widget";
-}
 
 // ========================
 // WIDGET AUTH & CONFIG
@@ -179,11 +166,8 @@ export const initConversation = asyncHandler(
     const {
       message,
       InteraOnePublicKey,
-      visitorName,
-      visitorEmail,
       sessionId,
       source,
-      department,
     } = req.body;
 
     try {
@@ -191,12 +175,6 @@ export const initConversation = asyncHandler(
         return sendError(res, 400, "Message is required");
       }
 
-      const visitorSessionId =
-        sessionId ||
-        `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      const isAnonymous = !visitorName || !visitorEmail;
-      const interactionSource = normalizeInteractionSource(source);
       const widgetSession = (req as any).widgetSession as
         | { organizationId?: string; InteraOnePublicKey?: string }
         | undefined;
@@ -206,219 +184,31 @@ export const initConversation = asyncHandler(
         return sendError(res, 401, "Invalid widget session");
       }
 
-      const assignedAgentId: string | null = null;
-
-      // Keep new widget conversations unassigned.
-      // Human assignment should happen only after an explicit escalation.
-
-      const conversation = await Conversation.create({
+      const result = await widgetService.initConversation({
         organizationId,
-        participants: assignedAgentId ? [assignedAgentId] : [],
-        subject: department
-          ? `${department} - New conversation`
-          : `New conversation from widget`,
-        status: "open",
-        priority: "medium",
-        tags: department ? [department] : [],
-        assignedTo: assignedAgentId,
-        createdBy: assignedAgentId || undefined,
-        visitor: {
-          sessionId: visitorSessionId,
-          name: visitorName || "Anonymous User",
-          email: visitorEmail || "anonymous@temp.local",
-          isAnonymous,
-          ipAddress: req.ip,
-          userAgent: req.get("user-agent"),
-          providedInfoAt: isAnonymous ? undefined : new Date(),
-        },
-        metadata: {
-          customer: {
-            initialMessage: message,
-            startedAt: new Date(),
-          },
-          widgetKey: InteraOnePublicKey || widgetSession?.InteraOnePublicKey || null,
-          source: "widget",
-          interactionSource,
-          department: department || null,
-          routingStrategy: department ? "department" : "auto",
-        },
+        message,
+        InteraOnePublicKey: InteraOnePublicKey || widgetSession?.InteraOnePublicKey || undefined,
+        sessionId,
+        source,
       });
-
-      logger.info(
-        `New conversation initialized: ${conversation.id} from widget`,
-      );
-
-      tracker.trackEvent(
-        organizationId.toString(),
-        "conversation_started",
-        "system",
-        {
-          isAnonymous,
-          department: department || null,
-          initialMessageLength: message.length,
-          source: interactionSource,
-        },
-        {
-          conversationId: conversation.id,
-          widgetId: InteraOnePublicKey,
-          channel: interactionSource === "qr" ? "qr" : "widget",
-        },
-      );
-
-      const sm = getSocketManager();
-      if (sm) {
-        const payload = {
-          conversationId: conversation._id,
-          subject: conversation.subject,
-          message,
-          timestamp: new Date(),
-          priority: conversation.priority,
-          status: conversation.status,
-        };
-
-        try {
-          if (typeof sm.emitToAllUsers === "function") {
-            sm.emitToAllUsers("new_widget_conversation", payload);
-          } else if (sm.ioInstance) {
-            sm.ioInstance.emit("new_widget_conversation", payload);
-          }
-          logger.info(
-            `Emitted 'new_widget_conversation' for ${conversation._id}`,
-          );
-        } catch (emitErr: any) {
-          logger.error(
-            `Failed to emit 'new_widget_conversation': ${emitErr?.message || emitErr}`,
-          );
-        }
-      } else {
-        logger.warn(
-          "Socket manager instance not available; cannot emit new_widget_conversation",
-        );
-      }
 
       sendResponse(
         res,
         201,
         true,
         "Conversation initialized successfully",
-        {
-          conversationId: conversation.id,
-          sessionId: visitorSessionId,
-          isAnonymous,
-          assignedTo: assignedAgentId,
-          assignedAgent: assignedAgentId,
-          metadata: {
-            department: department || null,
-            routingStrategy: department ? "department" : "auto",
-          },
-        },
+        result,
       );
     } catch (error: any) {
       logger.error(`Failed to initialize conversation: ${error.message}`);
       sendError(
         res,
-        500,
+        error.statusCode || 500,
         "Failed to initialize conversation: " + error.message,
       );
     }
   },
 );
-
-export const updateVisitorInfo = asyncHandler(
-  async (req: Request, res: Response) => {
-    const conversationId = req.params.conversationId as string;
-    const { name, email, sessionId } = req.body;
-
-    try {
-      if (!name && !email) {
-        return sendError(res, 400, "At least name or email is required");
-      }
-
-      const conversation = await Conversation.findById(conversationId);
-
-      if (!conversation) {
-        return sendError(res, 404, "Conversation not found");
-      }
-
-      if (sessionId && conversation.visitor?.sessionId !== sessionId) {
-        return sendError(res, 403, "Invalid session ID");
-      }
-
-      const updateData: any = {};
-      if (name) updateData["visitor.name"] = name;
-      if (email) updateData["visitor.email"] = email;
-      if (name && email) {
-        updateData["visitor.isAnonymous"] = false;
-        updateData["visitor.providedInfoAt"] = new Date();
-      }
-
-      await Conversation.findByIdAndUpdate(
-        conversationId,
-        { $set: updateData },
-        { new: true },
-      );
-
-      await Message.updateMany(
-        {
-          conversationId,
-          "metadata.source": "widget",
-        },
-        {
-          $set: {
-            "metadata.senderName": name || conversation.visitor?.name,
-            "metadata.senderEmail": email || conversation.visitor?.email,
-          },
-        },
-      );
-
-      logger.info(
-        `Updated visitor info for conversation ${conversationId}: ${name} <${email}>`,
-      );
-
-      const sm = getSocketManager();
-      if (sm) {
-        const payload = {
-          conversationId,
-          visitorName: name,
-          visitorEmail: email,
-          timestamp: new Date(),
-        };
-
-        try {
-          if (typeof sm.emitToAllUsers === "function") {
-            sm.emitToAllUsers("visitor_info_updated", payload);
-          } else if (sm.ioInstance) {
-            sm.ioInstance.emit("visitor_info_updated", payload);
-          }
-        } catch (emitErr: any) {
-          logger.error(
-            `Failed to emit 'visitor_info_updated': ${emitErr?.message || emitErr}`,
-          );
-        }
-      }
-
-      sendResponse(
-        res,
-        200,
-        true,
-        "Visitor information updated successfully",
-        {
-          name,
-          email,
-          isAnonymous: !(name && email),
-        },
-      );
-    } catch (error: any) {
-      logger.error(`Failed to update visitor info: ${error.message}`);
-      sendError(
-        res,
-        500,
-        "Failed to update visitor information: " + error.message,
-      );
-    }
-  },
-);
-
 export const getWidgetConversations = asyncHandler(
   async (req: Request, res: Response) => {
     const { sessionId } = req.query;
@@ -428,7 +218,13 @@ export const getWidgetConversations = asyncHandler(
     }
 
     try {
+      const widgetSession = (req as any).widgetSession;
+      if (!widgetSession || !widgetSession.organizationId) {
+        return sendError(res, 401, "Invalid widget session");
+      }
+
       const conversations = await Conversation.find({
+        organizationId: widgetSession.organizationId,
         "visitor.sessionId": sessionId,
         "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
         status: { $ne: "closed" },   // hide conversations the visitor deleted
@@ -494,50 +290,6 @@ export const getWidgetConversations = asyncHandler(
   },
 );
 
-export const deleteConversation = asyncHandler(
-  async (req: Request, res: Response) => {
-    const conversationId = req.params.conversationId as string;
-    const { sessionId } = req.query;
-
-    if (!sessionId || typeof sessionId !== "string") {
-      return sendError(res, 400, "Session ID is required");
-    }
-
-    try {
-      const conversation = await Conversation.findOne({
-        _id: conversationId,
-        "visitor.sessionId": sessionId,
-        "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
-      });
-
-      if (!conversation) {
-        return sendError(res, 404, "Conversation not found");
-      }
-
-      // Soft-delete: mark as closed so it disappears from the visitor's list
-      await Conversation.findByIdAndUpdate(conversationId, {
-        $set: { status: "closed", closedAt: new Date() },
-      });
-
-      tracker.trackEvent(
-        conversation.organizationId.toString(),
-        "conversation_closed",
-        "system",
-        { reason: "visitor_closed" },
-        { conversationId, channel: "widget" },
-      );
-
-      logger.info(`Widget conversation ${conversationId} closed by visitor`);
-
-      return sendResponse(res, 200, true, "Conversation deleted successfully", {});
-    } catch (error: any) {
-      logger.error(`Error deleting widget conversation: ${error.message}`);
-      return sendError(res, 500, "Failed to delete conversation");
-    }
-  },
-);
-
-
 export const getConversationMessages = asyncHandler(
   async (req: Request, res: Response) => {
     const conversationId = req.params.conversationId as string;
@@ -548,8 +300,14 @@ export const getConversationMessages = asyncHandler(
     }
 
     try {
+      const widgetSession = (req as any).widgetSession;
+      if (!widgetSession || !widgetSession.organizationId) {
+        return sendError(res, 401, "Invalid widget session");
+      }
+
       const conversation = await Conversation.findOne({
         _id: conversationId,
+        organizationId: widgetSession.organizationId,
         "visitor.sessionId": sessionId,
         "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
       });

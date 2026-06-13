@@ -153,15 +153,16 @@ export class BedrockProvider implements LLMProvider {
               const text = chunk.contentBlockDelta.delta.text;
               responseText += text;
               
-              if (text.includes("<thinking>") || text.includes("<thought>")) {
-                insideThinking = true;
-              }
+              const lastOpenThinking = responseText.lastIndexOf("<thinking>");
+              const lastCloseThinking = responseText.lastIndexOf("</thinking>");
+              const lastOpenThought = responseText.lastIndexOf("<thought>");
+              const lastCloseThought = responseText.lastIndexOf("</thought>");
+
+              insideThinking = 
+                (lastOpenThinking !== -1 && lastOpenThinking > lastCloseThinking) || 
+                (lastOpenThought !== -1 && lastOpenThought > lastCloseThought);
               
               onStream(text, insideThinking);
-              
-              if (text.includes("</thinking>") || text.includes("</thought>")) {
-                insideThinking = false;
-              }
             }
 
             // Tool use start

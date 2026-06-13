@@ -180,12 +180,12 @@ export class ChannelsController {
     sendResponse(res, 200, true, "Channel deleted successfully", {});
   });
 
-  /**
-   * POST /channels/inbound/:channelId
+   /**
+   * POST /channels/inbound
    * Public endpoint — SES/SNS inbound email webhook.
    */
   static handleInbound = asyncHandler(async (req: Request, res: Response) => {
-    let channelId = req.params.channelId ? String(req.params.channelId) : "";
+    let channelId = "";
 
     // 1. Ensure body is parsed (AWS SNS sends text/plain)
     let payload = req.body;

@@ -20,9 +20,7 @@ export const storageSchema = {
     expiresIn: Joi.number().integer().min(60).max(86400).optional(),
   }),
 
-  listFilesQuery: Joi.object({
-    prefix: Joi.string().trim().allow("").optional(),
-  }),
+
 
   fileKeyParams: Joi.object({
     fileKey: Joi.string().trim().required(),

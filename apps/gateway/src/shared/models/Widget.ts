@@ -8,11 +8,11 @@ export interface IWidget extends Document {
   logoUrl?: string;
   appearance: {
     theme: "dark" | "light";
-    primaryColor: string;
+    // primaryColor removed, using theme only
     welcomeMessage: string;
     logoUrl?: string;
   };
-  backgroundColor: string;
+  // backgroundColor removed, using theme only
   behavior: {
     showWidget: boolean;
     showOnlyOnSelectedPages: boolean;
@@ -50,14 +50,14 @@ const WidgetSchema = new Schema<IWidget>(
     logoUrl: { type: String, required: false, default: "" },
     appearance: {
       theme: { type: String, enum: ["dark", "light"], default: "dark" },
-      primaryColor: { type: String, default: "#845C6C" },
+      // primaryColor removed, using theme only
       welcomeMessage: {
         type: String,
         default: DEFAULT_WIDGET_CONFIG.appearance.welcomeMessage,
       },
       logoUrl: { type: String, default: "" },
     },
-    backgroundColor: { type: String, default: "#845C6C" },
+    // backgroundColor removed, using theme only
     behavior: {
       showWidget: { type: Boolean, default: true },
       showOnlyOnSelectedPages: { type: Boolean, default: false },

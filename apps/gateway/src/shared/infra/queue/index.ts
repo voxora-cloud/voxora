@@ -1,4 +1,5 @@
-import { Queue, ConnectionOptions } from "bullmq";
+import { Queue } from "bullmq";
+import Redis from "ioredis";
 import config from "@shared/infra/config";
 
 export interface AIJobData {
@@ -55,12 +56,13 @@ export interface AnalyticsJobData {
 	eventVersion?: string;
 }
 
-const connection: ConnectionOptions = {
+// Shared ioredis client connection instance for BullMQ queues
+const connection = new Redis({
 	host: config.redis.host,
 	port: config.redis.port,
 	password: config.redis.password,
-	maxRetriesPerRequest: null,
-};
+	maxRetriesPerRequest: null, // Required by BullMQ
+});
 
 const defaultJobOptions = {
 	attempts: 1,
@@ -69,16 +71,16 @@ const defaultJobOptions = {
 };
 
 export const aiQueue = new Queue<AIJobData, void, string>("ai-processing", {
-	connection,
+	connection: connection as any,
 	defaultJobOptions,
 });
 
 export const ingestionQueue = new Queue<IngestionJobData, void, string>(
 	"document-ingestion",
-	{ connection, defaultJobOptions },
+	{ connection: connection as any, defaultJobOptions },
 );
 
 export const analyticsQueue = new Queue<AnalyticsJobData, void, string>(
 	"platform-analytics",
-	{ connection, defaultJobOptions },
+	{ connection: connection as any, defaultJobOptions },
 );

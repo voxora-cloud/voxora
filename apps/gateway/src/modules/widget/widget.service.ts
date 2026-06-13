@@ -1,10 +1,29 @@
 import crypto from "crypto";
-import { Widget } from "@shared/models";
+import { Widget, Conversation } from "@shared/models";
 import logger from "@shared/core/logger";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
-import { ServiceError } from "./widget.types";
+import {
+  ServiceError,
+  AIInteractionSource,
+  InitConversationInput,
+  InitConversationResult,
+} from "./widget.types";
+import { tracker } from "@shared/utils/tracker";
+import { getSocketManager } from "@sockets/index";
+
+const AI_INTERACTION_SOURCES = new Set<AIInteractionSource>([
+  "widget",
+  "qr",
+  "link",
+]);
+
+function normalizeInteractionSource(value: unknown): AIInteractionSource {
+  if (typeof value !== "string") return "widget";
+  const normalized = value.trim().toLowerCase() as AIInteractionSource;
+  return AI_INTERACTION_SOURCES.has(normalized) ? normalized : "widget";
+}
 
 function createServiceError(message: string, statusCode: number): ServiceError {
   const err = new Error(message) as ServiceError;
@@ -12,42 +31,61 @@ function createServiceError(message: string, statusCode: number): ServiceError {
   return err;
 }
 
-function withWidgetConfigDefaults(input: any): any {
+function withWidgetConfigDefaults(input: any, isUpdate = false): any {
   const defaults = buildDefaultWidgetConfig();
   const output = { ...input };
-  output.appearance = {
-    ...defaults.appearance,
-    ...(input.appearance || {}),
-  };
-  delete output.logoUrl;
-  delete output.appearance.logoUrl;
-  output.behavior = { ...defaults.behavior, ...(input.behavior || {}) };
-  output.behavior.allowedPageRules = Array.from(
-    new Set(
-      (Array.isArray(output.behavior.allowedPageRules)
-        ? output.behavior.allowedPageRules
-        : []
-      )
-        .map((rule: any) => String(rule || "").trim())
-        .filter(Boolean),
-    ),
-  ).slice(0, 50);
-  output.ai = { ...defaults.ai, ...(input.ai || {}) };
-  output.conversation = {
-    collectUserInfo: {
-      ...defaults.conversation.collectUserInfo,
-      ...(input.conversation?.collectUserInfo || {}),
-    },
-  };
-  output.features = { ...defaults.features, ...(input.features || {}) };
-  if (Array.isArray(input.suggestions)) {
-    output.suggestions = input.suggestions.slice(0, 4).map((s: any) => ({
-      text: String(s.text || "").trim(),
-      showOutside: Boolean(s.showOutside),
-    })).filter((s: any) => s.text.length > 0);
-  } else if (!output.suggestions) {
-    output.suggestions = defaults.suggestions;
+
+  if (!isUpdate || input.appearance !== undefined) {
+    output.appearance = {
+      ...defaults.appearance,
+      ...(input.appearance || {}),
+    };
+    delete output.logoUrl;
+    delete output.appearance.logoUrl;
   }
+
+  if (!isUpdate || input.behavior !== undefined) {
+    output.behavior = { ...defaults.behavior, ...(input.behavior || {}) };
+    output.behavior.allowedPageRules = Array.from(
+      new Set(
+        (Array.isArray(output.behavior.allowedPageRules)
+          ? output.behavior.allowedPageRules
+          : []
+        )
+          .map((rule: any) => String(rule || "").trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 50);
+  }
+
+  if (!isUpdate || input.ai !== undefined) {
+    output.ai = { ...defaults.ai, ...(input.ai || {}) };
+  }
+
+  if (!isUpdate || input.conversation !== undefined) {
+    output.conversation = {
+      collectUserInfo: {
+        ...defaults.conversation.collectUserInfo,
+        ...(input.conversation?.collectUserInfo || {}),
+      },
+    };
+  }
+
+  if (!isUpdate || input.features !== undefined) {
+    output.features = { ...defaults.features, ...(input.features || {}) };
+  }
+
+  if (!isUpdate || input.suggestions !== undefined) {
+    if (Array.isArray(input.suggestions)) {
+      output.suggestions = input.suggestions.slice(0, 4).map((s: any) => ({
+        text: String(s.text || "").trim(),
+        showOutside: Boolean(s.showOutside),
+      })).filter((s: any) => s.text.length > 0);
+    } else if (!output.suggestions) {
+      output.suggestions = defaults.suggestions;
+    }
+  }
+
   return output;
 }
 
@@ -116,7 +154,7 @@ export class WidgetService {
     }
 
     const widget = await Widget.findById(InteraOnePublicKey)
-      .select("organizationId displayName backgroundColor appearance behavior ai conversation features suggestions")
+      .select("organizationId displayName appearance behavior ai conversation features suggestions")
       .lean();
 
     if (!widget) {
@@ -134,7 +172,6 @@ export class WidgetService {
           ...defaults.appearance,
           ...appearance,
         },
-        backgroundColor: (widget as any).backgroundColor || defaults.backgroundColor,
         behavior: {
           ...defaults.behavior,
           ...((widget as any).behavior || {}),
@@ -240,7 +277,7 @@ export class WidgetService {
   }
 
   async updateWidget(organizationId: string, updateData: any) {
-    const normalizedUpdateData = withWidgetConfigDefaults(updateData || {});
+    const normalizedUpdateData = withWidgetConfigDefaults(updateData || {}, true);
     const allowedUpdates = {
       displayName: normalizedUpdateData.displayName,
       appearance: normalizedUpdateData.appearance,
@@ -275,5 +312,101 @@ export class WidgetService {
     }
 
     return widget;
+  }
+
+  async initConversation(input: InitConversationInput): Promise<InitConversationResult> {
+    const { organizationId, message, InteraOnePublicKey, sessionId, source } = input;
+
+    const interactionSource = normalizeInteractionSource(source);
+    const assignedAgentId: string | null = null;
+
+    const conversation = await Conversation.create({
+      organizationId,
+      participants: [],
+      subject: "New conversation from widget",
+      status: "open",
+      priority: "medium",
+      tags: [],
+      assignedTo: assignedAgentId,
+      createdBy: undefined,
+      visitor: {
+        sessionId,
+        name: "Anonymous User",
+        email: "anonymous@temp.local",
+        isAnonymous: true,
+        providedInfoAt: undefined,
+      },
+      metadata: {
+        customer: {
+          initialMessage: message,
+          startedAt: new Date(),
+        },
+        widgetKey: InteraOnePublicKey || null,
+        source: "widget",
+        interactionSource,
+        department: null,
+        routingStrategy: "auto",
+      },
+    });
+
+    logger.info(
+      `New conversation initialized: ${conversation.id} from widget`,
+    );
+
+    tracker.trackEvent(
+      organizationId.toString(),
+      "conversation_started",
+      "system",
+      {
+        isAnonymous: true,
+        department: null,
+        initialMessageLength: message.length,
+        source: interactionSource,
+      },
+      {
+        conversationId: conversation.id,
+        widgetId: InteraOnePublicKey,
+        channel: interactionSource === "qr" ? "qr" : "widget",
+      },
+    );
+
+    const sm = getSocketManager();
+    if (sm) {
+      const payload = {
+        conversationId: conversation._id,
+        subject: conversation.subject,
+        message,
+        timestamp: new Date(),
+        priority: conversation.priority,
+        status: conversation.status,
+      };
+
+      try {
+        sm.emitToOrg(organizationId.toString(), "new_widget_conversation", payload);
+        logger.info(
+          `Emitted 'new_widget_conversation' for ${conversation._id} to org ${organizationId}`,
+        );
+      } catch (emitErr: any) {
+        logger.error(
+          `Failed to emit 'new_widget_conversation': ${emitErr?.message || emitErr}`,
+        );
+      }
+    } else {
+      logger.warn(
+        "Socket manager instance not available; cannot emit new_widget_conversation",
+      );
+    }
+
+    return {
+      conversationId: conversation.id,
+      sessionId,
+      isAnonymous: true,
+      assignedTo: assignedAgentId,
+      assignedAgent: assignedAgentId,
+      metadata: {
+        department: null,
+        routingStrategy: "auto",
+      },
+    };
   }
 }

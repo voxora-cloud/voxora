@@ -56,10 +56,7 @@ export class WidgetUI {
     const appearance = serverConfig.appearance || {};
 
     if (serverConfig.displayName) this.config.displayName = serverConfig.displayName;
-    if (serverConfig.backgroundColor) this.config.backgroundColor = serverConfig.backgroundColor;
-    if (appearance.primaryColor || serverConfig.primaryColor) {
-      this.config.primaryColor = appearance.primaryColor || serverConfig.primaryColor;
-    }
+    // Color fields removed; rely on theme defaults
     if (appearance.position) this.config.position = appearance.position;
 
     this.config.appearance = appearance;
@@ -195,7 +192,7 @@ export class WidgetUI {
     this.button.setAttribute('aria-label', this.getLauncherLabel());
     this.button.setAttribute('title', this.getLauncherTitle());
 
-    const bgColor = this.config.primaryColor || this.config.backgroundColor || '#845C6C';
+    const bgColor = '#845C6C'; // fallback based on theme
     const buttonTextColor = this.config.appearance?.textColor || 'white';
     const shadowColor = bgColor.startsWith('#') ? `${bgColor}66` : 'rgba(132,92,108,0.4)';
 
@@ -297,7 +294,7 @@ export class WidgetUI {
     if (outside.length === 0) return;
 
     const isLeft = this.config.position === 'bottom-left';
-    const accentColor = this.config.primaryColor || this.config.backgroundColor || '#10b981';
+    const accentColor = '#10b981'; // fallback accent color
 
     this.outsideChipsContainer = document.createElement('div');
     this.outsideChipsContainer.id = 'InteraOne-outside-chips';

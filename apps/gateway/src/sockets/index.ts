@@ -111,6 +111,9 @@ export class SocketManager {
       // Join the org room so we can broadcast org-wide events
       socket.join(`org:${orgId}`);
 
+      // Join the user-specific room
+      socket.join(`user:${userId}`);
+
       if (!isWidget) {
         this.updateUserStatus(userId, "online");
       }
@@ -125,16 +128,7 @@ export class SocketManager {
         }
       });
 
-      // Join an org-scoped conversation room
-      socket.on("join_conversation", (conversationId: string) => {
-        socket.join(`org:${orgId}:conv:${conversationId}`);
-        logger.debug(`${isWidget ? 'Widget' : 'User'} ${userId} joined org:${orgId}:conv:${conversationId}`);
-      });
 
-      socket.on("leave_conversation", (conversationId: string) => {
-        socket.leave(`org:${orgId}:conv:${conversationId}`);
-        logger.debug(`${isWidget ? 'Widget' : 'User'} ${userId} left org:${orgId}:conv:${conversationId}`);
-      });
 
       socket.on("update_status", async (status: string) => {
         if (!isWidget) {
@@ -176,24 +170,10 @@ export class SocketManager {
   }
 
   /**
-   * Emit to a specific user. Uses in-memory map first, then Redis cross-instance lookup.
+   * Emit to a specific user. Uses native room routing.
    */
   public async emitToUser(userId: string, event: string, data: any): Promise<void> {
-    const local = this.connectedUsers.get(userId);
-    if (local) {
-      this.io.to(local.socketId).emit(event, data);
-      return;
-    }
-    // Cross-instance: try all org:*:socket:user:<userId> patterns (scan)
-    try {
-      const keys = await redisClient.keys(`org:*:socket:user:${userId}`);
-      if (keys.length > 0) {
-        const remoteSocketId = await redisClient.get(keys[0]);
-        if (remoteSocketId) this.io.to(remoteSocketId).emit(event, data);
-      }
-    } catch {
-      logger.warn(`[SocketManager] Redis lookup failed for emitToUser(${userId})`);
-    }
+    this.io.to(`user:${userId}`).emit(event, data);
   }
 
   public emitToAllUsers(event: string, data: any): void {

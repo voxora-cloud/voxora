@@ -9,7 +9,6 @@ import {
 } from "@shared/queues/email.queue";
 import { generateOTP, hashOTP, verifyOTP as checkOTP } from "@shared/security/auth/otp";
 import crypto from "crypto";
-import mongoose from "mongoose";
 import { OrganizationService } from "../organization/organization.service";
 import { SignupContext } from "./auth.types";
 

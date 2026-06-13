@@ -46,28 +46,7 @@ export const getConversationById = asyncHandler(async (req: Request, res: Respon
   sendResponse(res, 200, true, "Conversation fetched successfully", result);
 });
 
-// ─── PATCH status (simple) ──────────────────────────────────────────────────────
 
-export const patchStatus = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { status } = req.body;
-
-  const conversation = await conversationService.patchConversationStatus(
-    getOrgId(req),
-    conversationId,
-    status,
-  );
-  if (!conversation) return sendError(res, 404, "Conversation not found");
-
-  const sm = getSocketManager();
-  if (sm?.ioInstance) {
-    sm.ioInstance.to(`org:${getOrgId(req)}:conv:${conversationId}`).emit("status_updated", {
-      conversationId, status, updatedBy: (req as any).user?.name || "Agent", timestamp: new Date(),
-    });
-  }
-
-  sendResponse(res, 200, true, "Conversation status updated", { conversation });
-});
 
 // ─── Visitor info update ────────────────────────────────────────────────────────
 
@@ -309,7 +288,7 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
   if (!result.found) return sendError(res, 404, "Conversation not found");
 
   // Set status to pending
-  await conversationService.patchConversationStatus(organizationId, conversationId, "pending");
+  await conversationService.updateConversationStatus(organizationId, conversationId, "pending", "ai_tool");
 
   // Fire real-time events so the dashboard reacts immediately
   const sm = getSocketManager();

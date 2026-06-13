@@ -3,190 +3,246 @@ import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import mongoose from "mongoose";
 import { ConversationTrendRecord } from "./analytics.types";
+import { redisClient } from "@shared/infra/redis";
+import logger from "@shared/core/logger";
 
 dayjs.extend(isSameOrBefore);
 
+const CACHE_TTL = {
+  summary: 5 * 60,    // 5 minutes
+  trends: 10 * 60,    // 10 minutes
+};
+
+const CACHE_KEYS = {
+  ownerSummary: (orgId: string, days: number) => `analytics:owner:summary:${orgId}:${days}d`,
+  ownerTrends: (orgId: string, days: number) => `analytics:owner:trends:${orgId}:${days}d`,
+};
+
 export class AnalyticsService {
   static async getOwnerSummary(organizationId: string, days = 30) {
+    const cacheKey = CACHE_KEYS.ownerSummary(organizationId, days);
+
+    // Try Redis cache first
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        logger.debug("Analytics summary cache hit", { organizationId, days });
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      logger.warn("Redis cache read failed, proceeding with query", { error });
+    }
+
+    // Cache miss - compute result
+    const result = await this._computeOwnerSummary(organizationId, days);
+
+    // Store in Redis
+    try {
+      await redisClient.setEx(cacheKey, CACHE_TTL.summary, JSON.stringify(result));
+    } catch (error) {
+      logger.warn("Redis cache write failed", { error });
+    }
+
+    return result;
+  }
+
+  private static async _computeOwnerSummary(organizationId: string, days: number) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
 
-    const [conversationAgg, usersServedAgg, resolutionAgg, questionAgg, sourceAgg, widgetLoadAgg, tokenAgg, totalMessages] =
-      await Promise.all([
-        Conversation.aggregate([
-          {
-            $match: {
-              organizationId: orgObjectId,
-              createdAt: { $gte: startDate },
-            },
+    // Single $facet pipeline for all Conversation aggregations
+    const [conversationFacet, analyticsEventFacet, totalMessages] = await Promise.all([
+      // ─────── SINGLE FACET FOR CONVERSATION QUERIES ───────
+      Conversation.aggregate([
+        {
+          $match: {
+            organizationId: orgObjectId,
+            createdAt: { $gte: startDate },
           },
-          {
-            $group: {
-              _id: null,
-              totalConversations: { $sum: 1 },
-              resolvedConversations: {
-                $sum: { $cond: [{ $eq: ["$status", "resolved"] }, 1, 0] },
-              },
-              escalatedConversations: {
-                $sum: {
-                  $cond: [
-                    {
-                      $or: [
-                        { $ne: ["$assignedTo", null] },
-                        { $ifNull: ["$metadata.escalatedAt", false] },
+        },
+        {
+          $facet: {
+            // Conversation stats (resolved, escalated, total)
+            stats: [
+              {
+                $group: {
+                  _id: null,
+                  totalConversations: { $sum: 1 },
+                  resolvedConversations: {
+                    $sum: { $cond: [{ $eq: ["$status", "resolved"] }, 1, 0] },
+                  },
+                  escalatedConversations: {
+                    $sum: {
+                      $cond: [
+                        {
+                          $or: [
+                            { $ne: ["$assignedTo", null] },
+                            { $ifNull: ["$metadata.escalatedAt", false] },
+                          ],
+                        },
+                        1,
+                        0,
                       ],
                     },
-                    1,
-                    0,
-                  ],
+                  },
                 },
               },
-            },
-          },
-        ]),
-        Conversation.aggregate([
-          {
-            $match: {
-              organizationId: orgObjectId,
-              createdAt: { $gte: startDate },
-              "visitor.sessionId": { $exists: true, $ne: "" },
-            },
-          },
-          {
-            $group: {
-              _id: "$visitor.sessionId",
-            },
-          },
-          { $count: "totalUsersServed" },
-        ]),
-        Conversation.aggregate([
-          {
-            $match: {
-              organizationId: orgObjectId,
-              createdAt: { $gte: startDate },
-              status: { $in: ["resolved", "closed"] },
-              closedAt: { $ne: null },
-            },
-          },
-          {
-            $project: {
-              resolutionMs: { $subtract: ["$closedAt", "$createdAt"] },
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              avgResolutionTimeMs: { $avg: "$resolutionMs" },
-            },
-          },
-        ]),
-        Conversation.aggregate([
-          {
-            $match: {
-              organizationId: orgObjectId,
-              createdAt: { $gte: startDate },
-              "metadata.customer.initialMessage": { $exists: true, $type: "string", $ne: "" },
-            },
-          },
-          {
-            $project: {
-              question: {
-                $toLower: {
-                  $trim: { input: "$metadata.customer.initialMessage" },
+            ],
+            // Unique users served
+            usersServed: [
+              {
+                $match: {
+                  "visitor.sessionId": { $exists: true, $ne: "" },
                 },
               },
-            },
-          },
-          {
-            $group: {
-              _id: "$question",
-              count: { $sum: 1 },
-            },
-          },
-          { $sort: { count: -1 } },
-          { $limit: 5 },
-        ]),
-        Conversation.aggregate([
-          {
-            $match: {
-              organizationId: orgObjectId,
-              createdAt: { $gte: startDate },
-            },
-          },
-          {
-            $group: {
-              _id: {
-                $ifNull: ["$metadata.interactionSource", "$metadata.source"],
+              {
+                $group: {
+                  _id: "$visitor.sessionId",
+                },
               },
-              count: { $sum: 1 },
-            },
+              { $count: "totalUsersServed" },
+            ],
+            // Average resolution time
+            resolution: [
+              {
+                $match: {
+                  status: { $in: ["resolved", "closed"] },
+                  closedAt: { $ne: null },
+                },
+              },
+              {
+                $project: {
+                  resolutionMs: { $subtract: ["$closedAt", "$createdAt"] },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  avgResolutionTimeMs: { $avg: "$resolutionMs" },
+                },
+              },
+            ],
+            // Top 5 asked questions
+            questions: [
+              {
+                $match: {
+                  "metadata.customer.initialMessage": {
+                    $exists: true,
+                    $type: "string",
+                    $ne: "",
+                  },
+                },
+              },
+              {
+                $project: {
+                  question: {
+                    $toLower: {
+                      $trim: { input: "$metadata.customer.initialMessage" },
+                    },
+                  },
+                },
+              },
+              {
+                $group: {
+                  _id: "$question",
+                  count: { $sum: 1 },
+                },
+              },
+              { $sort: { count: -1 } },
+              { $limit: 5 },
+            ],
+            // Interaction sources
+            sources: [
+              {
+                $group: {
+                  _id: {
+                    $ifNull: ["$metadata.interactionSource", "$metadata.source"],
+                  },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
           },
-        ]),
-        AnalyticsEvent.aggregate([
-          {
-            $addFields: {
-              eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
-            },
+        },
+      ]),
+
+      // ─────── SINGLE FACET FOR ANALYTICS EVENT QUERIES ───────
+      AnalyticsEvent.aggregate([
+        {
+          $addFields: {
+            eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
           },
-          {
-            $match: {
-              organizationId: { $in: [organizationId, orgObjectId] },
-              type: "widget_load",
-              eventTime: { $gte: startDate },
-            },
+        },
+        {
+          $match: {
+            organizationId: { $in: [organizationId, orgObjectId] },
+            eventTime: { $gte: startDate },
           },
-          {
-            $count: "widgetLoads",
-          },
-        ]),
-        AnalyticsEvent.aggregate([
-          {
-            $addFields: {
-              eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
-            },
-          },
-          {
-            $match: {
-              organizationId: { $in: [organizationId, orgObjectId] },
-              eventTime: { $gte: startDate },
-              type: { $in: ["ai_response", "ai_token_usage"] },
-            },
-          },
-          {
-            $project: {
-              promptTokens: { $ifNull: ["$metadata.promptTokens", 0] },
-              completionTokens: { $ifNull: ["$metadata.completionTokens", 0] },
-              totalTokens: {
-                $ifNull: [
-                  "$metadata.totalTokens",
-                  {
-                    $add: [
-                      { $ifNull: ["$metadata.promptTokens", 0] },
-                      { $ifNull: ["$metadata.completionTokens", 0] },
+        },
+        {
+          $facet: {
+            // Widget loads
+            widgetLoads: [
+              {
+                $match: { type: "widget_load" },
+              },
+              { $count: "widgetLoads" },
+            ],
+            // AI token usage
+            aiCosts: [
+              {
+                $match: {
+                  type: { $in: ["ai_response", "ai_token_usage"] },
+                },
+              },
+              {
+                $project: {
+                  promptTokens: { $ifNull: ["$metadata.promptTokens", 0] },
+                  completionTokens: {
+                    $ifNull: ["$metadata.completionTokens", 0],
+                  },
+                  totalTokens: {
+                    $ifNull: [
+                      "$metadata.totalTokens",
+                      {
+                        $add: [
+                          { $ifNull: ["$metadata.promptTokens", 0] },
+                          { $ifNull: ["$metadata.completionTokens", 0] },
+                        ],
+                      },
                     ],
                   },
-                ],
+                  estimatedCostUsd: {
+                    $ifNull: ["$metadata.estimatedCostUsd", 0],
+                  },
+                },
               },
-              estimatedCostUsd: { $ifNull: ["$metadata.estimatedCostUsd", 0] },
-            },
+              {
+                $group: {
+                  _id: null,
+                  promptTokens: { $sum: "$promptTokens" },
+                  completionTokens: { $sum: "$completionTokens" },
+                  totalTokens: { $sum: "$totalTokens" },
+                  estimatedCostUsd: { $sum: "$estimatedCostUsd" },
+                },
+              },
+            ],
           },
-          {
-            $group: {
-              _id: null,
-              promptTokens: { $sum: "$promptTokens" },
-              completionTokens: { $sum: "$completionTokens" },
-              totalTokens: { $sum: "$totalTokens" },
-              estimatedCostUsd: { $sum: "$estimatedCostUsd" },
-            },
-          },
-        ]),
-        Message.countDocuments({
-          organizationId: { $in: [organizationId, orgObjectId] },
-          createdAt: { $gte: startDate },
-        }),
-      ]);
+        },
+      ]),
 
-    const conv = conversationAgg[0] || {
+      // ─────── SIMPLE COUNT FOR MESSAGES ───────
+      Message.countDocuments({
+        organizationId: { $in: [organizationId, orgObjectId] },
+        createdAt: { $gte: startDate },
+      }),
+    ]);
+
+    // Extract results from facets
+    const conversationResults = conversationFacet[0] || {};
+    const analyticsResults = analyticsEventFacet[0] || {};
+
+    const conv = conversationResults.stats?.[0] || {
       totalConversations: 0,
       resolvedConversations: 0,
       escalatedConversations: 0,
@@ -197,14 +253,14 @@ export class AnalyticsService {
       : 0;
 
     const source = { widget: 0, qr: 0, link: 0 };
-    sourceAgg.forEach((row) => {
+    (conversationResults.sources || []).forEach((row: any) => {
       const sourceKey = String(row._id || "unknown").toLowerCase();
       if (sourceKey === "widget" || sourceKey === "qr" || sourceKey === "link") {
         source[sourceKey] += row.count;
       }
     });
 
-    const ai = tokenAgg[0] || {
+    const ai = analyticsResults.aiCosts?.[0] || {
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
@@ -215,13 +271,16 @@ export class AnalyticsService {
       totalMessages,
       totalConversations: conv.totalConversations,
       resolvedConversations: conv.resolvedConversations,
-      totalUsersServed: usersServedAgg[0]?.totalUsersServed || 0,
+      totalUsersServed: conversationResults.usersServed?.[0]?.totalUsersServed || 0,
       humanEscalationRate,
-      avgResolutionTimeMs: resolutionAgg[0]?.avgResolutionTimeMs
-        ? Math.round(resolutionAgg[0].avgResolutionTimeMs)
+      avgResolutionTimeMs: conversationResults.resolution?.[0]?.avgResolutionTimeMs
+        ? Math.round(conversationResults.resolution[0].avgResolutionTimeMs)
         : null,
-      widgetLoads: widgetLoadAgg[0]?.widgetLoads || 0,
-      mostAskedQuestions: questionAgg.map((q) => ({ question: q._id, count: q.count })),
+      widgetLoads: analyticsResults.widgetLoads?.[0]?.widgetLoads || 0,
+      mostAskedQuestions: (conversationResults.questions || []).map((q: any) => ({
+        question: q._id,
+        count: q.count,
+      })),
       source,
       aiCost: {
         promptTokens: ai.promptTokens,
@@ -233,6 +292,33 @@ export class AnalyticsService {
   }
 
   static async getOwnerTrends(organizationId: string, days = 7) {
+    const cacheKey = CACHE_KEYS.ownerTrends(organizationId, days);
+
+    // Try Redis cache first
+    try {
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        logger.debug("Analytics trends cache hit", { organizationId, days });
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      logger.warn("Redis cache read failed, proceeding with query", { error });
+    }
+
+    // Cache miss - compute result
+    const result = await this._computeOwnerTrends(organizationId, days);
+
+    // Store in Redis
+    try {
+      await redisClient.setEx(cacheKey, CACHE_TTL.trends, JSON.stringify(result));
+    } catch (error) {
+      logger.warn("Redis cache write failed", { error });
+    }
+
+    return result;
+  }
+
+  private static async _computeOwnerTrends(organizationId: string, days: number) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const endDate = dayjs().endOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
@@ -394,6 +480,23 @@ export class AnalyticsService {
       messageVolume,
       aiCost,
     };
+  }
+
+  /**
+   * Invalidate analytics cache when data changes
+   * Call this from message/conversation services when updates occur
+   */
+  static async invalidateCache(organizationId: string) {
+    try {
+      // Delete all analytics caches for this organization
+      const pattern = `analytics:owner:*:${organizationId}:*`;
+      for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        await redisClient.del(key);
+      }
+      logger.debug("Analytics cache invalidated", { organizationId });
+    } catch (error) {
+      logger.warn("Failed to invalidate analytics cache", { error });
+    }
   }
 
 }

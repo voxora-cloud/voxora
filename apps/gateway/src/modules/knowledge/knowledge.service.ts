@@ -20,7 +20,7 @@ class KnowledgeService {
     organizationId: string,
   ) {
     const { uploadUrl: presignedUrl, fileKey } =
-      await StorageService.generatePresignedUploadUrl(meta.fileName, meta.mimeType, 600);
+      await StorageService.generatePresignedUploadUrl(meta.fileName, meta.mimeType, organizationId, 600);
 
     const doc = await Knowledge.create({
       organizationId,

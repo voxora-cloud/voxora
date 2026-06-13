@@ -14,18 +14,45 @@ export const channelsRouter = Router();
 import express from "express";
 
 // ── Public: SES/SNS inbound webhook (no auth — SNS posts to this) ─────────────
+
+/**
+ * @openapi
+ * /channels/inbound:
+ *   post:
+ *     summary: Handle inbound SES/SNS email webhook events
+ *     tags:
+ *       - Channels
+ *     responses:
+ *       200:
+ *         description: Event received successfully
+ */
 channelsRouter.post(
   "/inbound",
   express.text({ type: "*/*" }),
   ChannelsController.handleInbound,
 );
-channelsRouter.post(
-  "/inbound/:channelId",
-  express.text({ type: "*/*" }),
-  ChannelsController.handleInbound,
-);
+
+
 
 // ── Public: Twilio WhatsApp inbound webhook (no auth — Twilio posts to this) ───
+
+/**
+ * @openapi
+ * /channels/whatsapp/inbound/{channelId}:
+ *   post:
+ *     summary: Handle inbound Twilio WhatsApp message webhooks
+ *     tags:
+ *       - Channels
+ *     parameters:
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Webhook event processed successfully
+ */
 channelsRouter.post(
   "/whatsapp/inbound/:channelId",
   express.urlencoded({ extended: true }),
@@ -33,15 +60,70 @@ channelsRouter.post(
 );
 
 // ── Public: Telegram inbound webhook (no auth — Telegram posts to this) ────────
+
+/**
+ * @openapi
+ * /channels/telegram/inbound/{channelId}:
+ *   post:
+ *     summary: Handle inbound Telegram bot message webhooks
+ *     tags:
+ *       - Channels
+ *     parameters:
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Webhook event processed successfully
+ */
 channelsRouter.post(
   "/telegram/inbound/:channelId",
   express.json(),
   ChannelsController.handleTelegramInbound,
 );
 
-
-
 // ── AI tool: send via channel (AI secret protected) ───────────────────────────
+
+/**
+ * @openapi
+ * /channels/{channelId}/send:
+ *   post:
+ *     summary: Send a reply or message through a channel from AI context
+ *     tags:
+ *       - Channels
+ *     parameters:
+ *       - in: header
+ *         name: x-ai-tool-secret
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - to
+ *               - content
+ *             properties:
+ *               to:
+ *                 type: string
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Message sent successfully through the channel
+ *       401:
+ *         description: Invalid AI secret
+ */
 channelsRouter.post(
   "/:channelId/send",
   validateAiSecret,
@@ -52,19 +134,75 @@ channelsRouter.post(
 // ── All other routes require authenticated user ───────────────────────────────
 channelsRouter.use(authenticate, resolveOrganization);
 
-// List all channels for the org
+/**
+ * @openapi
+ * /channels:
+ *   get:
+ *     summary: List all active channels for the organization
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved channels list
+ *       401:
+ *         description: Unauthorized
+ */
 channelsRouter.get(
   "/",
   ChannelsController.listChannels,
 );
 
-// Get the email channel (one per org)
+/**
+ * @openapi
+ * /channels/email:
+ *   get:
+ *     summary: Get organization's Email channel details
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Email channel config details retrieved
+ *       404:
+ *         description: No active Email channel configured
+ */
 channelsRouter.get(
   "/email",
   ChannelsController.getEmailChannel,
 );
 
-// Create the email channel (admin+)
+/**
+ * @openapi
+ * /channels/email:
+ *   post:
+ *     summary: Configure and provision a new Email channel
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - domain
+ *             properties:
+ *               name:
+ *                 type: string
+ *               domain:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email channel configured successfully
+ *       400:
+ *         description: Invalid input payload
+ */
 channelsRouter.post(
   "/email",
   requireRole("admin"),
@@ -72,13 +210,59 @@ channelsRouter.post(
   ChannelsController.createEmailChannel,
 );
 
-// Get the WhatsApp channel (one per org)
+/**
+ * @openapi
+ * /channels/whatsapp:
+ *   get:
+ *     summary: Get organization's WhatsApp channel details
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: WhatsApp channel config details retrieved
+ *       404:
+ *         description: No active WhatsApp channel configured
+ */
 channelsRouter.get(
   "/whatsapp",
   ChannelsController.getWhatsAppChannel,
 );
 
-// Create the WhatsApp channel (admin+)
+/**
+ * @openapi
+ * /channels/whatsapp:
+ *   post:
+ *     summary: Configure and provision a new WhatsApp channel
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - phoneNumberId
+ *               - wabaId
+ *               - accessToken
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phoneNumberId:
+ *                 type: string
+ *               wabaId:
+ *                 type: string
+ *               accessToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: WhatsApp channel configured successfully
+ */
 channelsRouter.post(
   "/whatsapp",
   requireRole("admin"),
@@ -86,13 +270,53 @@ channelsRouter.post(
   ChannelsController.createWhatsAppChannel,
 );
 
-// Get the Telegram channel (one per org)
+/**
+ * @openapi
+ * /channels/telegram:
+ *   get:
+ *     summary: Get organization's Telegram channel details
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Telegram channel config details retrieved
+ *       404:
+ *         description: No active Telegram channel configured
+ */
 channelsRouter.get(
   "/telegram",
   ChannelsController.getTelegramChannel,
 );
 
-// Create the Telegram channel (admin+)
+/**
+ * @openapi
+ * /channels/telegram:
+ *   post:
+ *     summary: Configure and provision a new Telegram bot channel
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - botToken
+ *             properties:
+ *               name:
+ *                 type: string
+ *               botToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Telegram channel configured successfully
+ */
 channelsRouter.post(
   "/telegram",
   requireRole("admin"),
@@ -100,9 +324,25 @@ channelsRouter.post(
   ChannelsController.createTelegramChannel,
 );
 
-
-
-// Trigger domain re-verification (admin+)
+/**
+ * @openapi
+ * /channels/{channelId}/verify:
+ *   post:
+ *     summary: Trigger manual verification for a channel (e.g. DNS domain status)
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Channel verification triggered successfully
+ */
 channelsRouter.post(
   "/:channelId/verify",
   requireRole("admin"),
@@ -110,7 +350,25 @@ channelsRouter.post(
   ChannelsController.verifyChannel,
 );
 
-// Delete a channel (admin+)
+/**
+ * @openapi
+ * /channels/{channelId}:
+ *   delete:
+ *     summary: Delete a channel configuration
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Channel deleted successfully
+ */
 channelsRouter.delete(
   "/:channelId",
   requireRole("admin"),

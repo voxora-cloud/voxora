@@ -1,6 +1,37 @@
 import { Request, Response } from "express";
 import StorageService from "./storage.service";
 import logger from "@shared/core/logger";
+import { AuthenticatedRequest } from "@shared/security/middleware/auth";
+import { Knowledge, Message } from "@shared/models";
+
+const getOrgId = (req: Request): string => (req as AuthenticatedRequest).user.activeOrganizationId;
+
+async function verifyKeyOwnership(fileKey: string, orgId: string): Promise<boolean> {
+  if (
+    fileKey.startsWith(`knowledge/${orgId}/`) ||
+    fileKey.startsWith(`conversations/${orgId}/`)
+  ) {
+    return true;
+  }
+
+  if (fileKey.startsWith("knowledge/")) {
+    const exists = await Knowledge.exists({ fileKey, organizationId: orgId });
+    return !!exists;
+  }
+
+  if (fileKey.startsWith("conversations/")) {
+    const exists = await Message.exists({
+      organizationId: orgId,
+      $or: [
+        { "metadata.fileKey": fileKey },
+        { content: { $regex: fileKey } }
+      ]
+    });
+    return !!exists;
+  }
+
+  return false;
+}
 
 // Helper to ensure param is string (not string array)
 const getParamAsString = (param: string | string[] | undefined): string => {
@@ -32,6 +63,7 @@ export const storageController = {
 
   async generateUploadUrl(req: Request, res: Response): Promise<void> {
     try {
+      const orgId = getOrgId(req);
       const { fileName, mimeType, expiresIn } = req.body;
 
       if (!fileName || !mimeType) {
@@ -57,6 +89,7 @@ export const storageController = {
       const result = await StorageService.generatePresignedUploadUrl(
         fileName,
         mimeType,
+        orgId,
         expiresIn,
       );
 
@@ -72,10 +105,17 @@ export const storageController = {
 
   async generateDownloadUrl(req: Request, res: Response): Promise<void> {
     try {
+      const orgId = getOrgId(req);
       const { fileKey, expiresIn } = req.body;
 
       if (!fileKey) {
         res.status(400).json({ error: "fileKey is required" });
+        return;
+      }
+
+      const isOwner = await verifyKeyOwnership(fileKey, orgId);
+      if (!isOwner) {
+        res.status(403).json({ error: "Access denied" });
         return;
       }
 
@@ -106,6 +146,7 @@ export const storageController = {
 
   async deleteFile(req: Request, res: Response): Promise<void> {
     try {
+      const orgId = getOrgId(req);
       const fileKey = getParamAsString(req.params.fileKey);
 
       if (!fileKey) {
@@ -114,6 +155,12 @@ export const storageController = {
       }
 
       const decodedKey = decodeURIComponent(fileKey);
+
+      const isOwner = await verifyKeyOwnership(decodedKey, orgId);
+      if (!isOwner) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
 
       await StorageService.deleteFile(decodedKey);
 
@@ -132,6 +179,7 @@ export const storageController = {
 
   async getFileMetadata(req: Request, res: Response): Promise<void> {
     try {
+      const orgId = getOrgId(req);
       const fileKey = getParamAsString(req.params.fileKey);
 
       if (!fileKey) {
@@ -140,6 +188,13 @@ export const storageController = {
       }
 
       const decodedKey = decodeURIComponent(fileKey);
+
+      const isOwner = await verifyKeyOwnership(decodedKey, orgId);
+      if (!isOwner) {
+        res.status(403).json({ error: "Access denied" });
+        return;
+      }
+
       const metadata = await StorageService.getFileMetadata(decodedKey);
 
       res.status(200).json({
@@ -155,23 +210,7 @@ export const storageController = {
     }
   },
 
-  async listFiles(req: Request, res: Response): Promise<void> {
-    try {
-      const { prefix } = req.query;
-      const files = await StorageService.listFiles(prefix as string | undefined);
 
-      res.status(200).json({
-        message: "Files retrieved successfully",
-        data: {
-          count: files.length,
-          files,
-        },
-      });
-    } catch (error) {
-      logger.error("Error in listFiles:", error);
-      res.status(500).json({ error: "Failed to list files" });
-    }
-  },
 
   /**
    * GET /api/v1/storage/file?key=<fileKey>

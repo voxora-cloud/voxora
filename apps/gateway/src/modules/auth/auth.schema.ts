@@ -10,9 +10,8 @@ export const authSchema = {
     name: Joi.string().min(2).max(50).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(8).required(),
-    companyName: Joi.string().min(2).max(100),
-    organizationName: Joi.string().min(2).max(100),
-  }).or("companyName", "organizationName"),
+    organizationName: Joi.string().min(2).max(100).required(),
+  }),
 
   initiateSignup: Joi.object({
     name: Joi.string().min(2).max(50).required(),

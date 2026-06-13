@@ -36,7 +36,7 @@ class NotificationService {
     // Fetch org-wide and user-specific notifications
     const notifications = await Notification.find({
       organizationId,
-      $or: [{ userId: { $exists: false } }, { userId }],
+      $or: [{ userId: null }, { userId }],
     })
       .sort({ createdAt: -1 })
       .limit(limit)
@@ -47,7 +47,7 @@ class NotificationService {
 
   async markAsRead(organizationId: string, userId: string, notificationId: string) {
     return Notification.findOneAndUpdate(
-      { _id: notificationId, organizationId, $or: [{ userId: { $exists: false } }, { userId }] },
+      { _id: notificationId, organizationId, $or: [{ userId: null }, { userId }] },
       { isRead: true },
       { new: true }
     );
@@ -55,7 +55,7 @@ class NotificationService {
 
   async markAllAsRead(organizationId: string, userId: string) {
     return Notification.updateMany(
-      { organizationId, $or: [{ userId: { $exists: false } }, { userId }], isRead: false },
+      { organizationId, $or: [{ userId: null }, { userId }], isRead: false },
       { isRead: true }
     );
   }

@@ -140,11 +140,13 @@ export class ContactsService {
 
     await Conversation.updateOne({ _id: conversationId }, { $set: visitorUpdate });
 
+    const orgObjectId = new Types.ObjectId(organizationId);
+
     const contact = await Contact.findOneAndUpdate(
-      { organizationId, sessionId },
+      { organizationId: orgObjectId, sessionId },
       {
         $set: {
-          organizationId,
+          organizationId: orgObjectId,
           sessionId,
           conversationId,
           name: resolvedName,
@@ -199,17 +201,6 @@ export class ContactsService {
               },
             }
           : {}),
-        $setOnInsert: {
-          tags: [],
-          notes: [],
-          conversations: [],
-          timeline: [],
-          insights: {
-            summary: "No insights yet.",
-            sentiment: "neutral",
-            topics: [],
-          },
-        },
       },
       { upsert: true, new: true, runValidators: true },
     ).lean();
