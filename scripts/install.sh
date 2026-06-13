@@ -246,60 +246,149 @@ prompt_config() {
     echo ""
     
     # API Host
-    read -p "Enter API domain (e.g., apiInteraOne.InteraOne.cloud): " API_HOST
+    read -p "Enter API domain (e.g., api.interaone.cloud): " API_HOST
     if [ -z "$API_HOST" ]; then
         log_error "API domain cannot be empty"
         exit 1
     fi
     
     # Web Host
-    read -p "Enter Web domain (e.g., app.InteraOne.cloud): " WEB_HOST
+    read -p "Enter Web domain (e.g., app.interaone.cloud): " WEB_HOST
     if [ -z "$WEB_HOST" ]; then
         log_error "Web domain cannot be empty"
         exit 1
     fi
     
     # CDN Host
-    read -p "Enter CDN domain (e.g., cdn.InteraOne.cloud): " CDN_HOST
+    read -p "Enter CDN domain (e.g., cdn.interaone.cloud): " CDN_HOST
     if [ -z "$CDN_HOST" ]; then
         log_error "CDN domain cannot be empty"
         exit 1
     fi
 
     echo ""
-    log_info "=== API Keys Configuration ==="
+    log_info "=== Email Provider Configuration ==="
     echo ""
 
-    # Gemini API Key (required for AI features)
-    read -p "Enter Gemini API key (required for AI features): " GEMINI_API_KEY
-    if [ -z "$GEMINI_API_KEY" ]; then
-        log_warning "Gemini API key not provided. AI features will not work."
-        GEMINI_API_KEY=""
-    fi
+    echo "Choose an Email Provider:"
+    # Temporarily set PS3 prompt for select statement
+    OLD_PS3="$PS3"
+    PS3="Enter selection [1-3]: "
+    select email_opt in "AWS SES" "MailHog (local dev)" "Disabled"; do
+        case $email_opt in
+            "AWS SES")
+                EMAIL_PROVIDER="ses"
+                read -p "Enter AWS Access Key ID: " AWS_ACCESS_KEY_ID
+                read -p "Enter AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
+                read -p "Enter AWS Region [us-east-1]: " AWS_REGION
+                AWS_REGION=${AWS_REGION:-us-east-1}
+                break
+                ;;
+            "MailHog (local dev)")
+                EMAIL_PROVIDER="mailhog"
+                AWS_ACCESS_KEY_ID=""
+                AWS_SECRET_ACCESS_KEY=""
+                AWS_REGION="us-east-1"
+                break
+                ;;
+            "Disabled")
+                EMAIL_PROVIDER="disabled"
+                AWS_ACCESS_KEY_ID=""
+                AWS_SECRET_ACCESS_KEY=""
+                AWS_REGION="us-east-1"
+                break
+                ;;
+            *) echo "Invalid option. Please choose 1, 2, or 3.";;
+        esac
+    done
 
-    # Resend API Key (optional — for transactional email)
-    read -p "Enter Resend API key (optional, for transactional email): " RESEND_API_KEY
-    if [ -z "$RESEND_API_KEY" ]; then
-        log_warning "Resend API key not provided. Email will be set to 'disabled'."
-        EMAIL_PROVIDER="disabled"
-    else
-        EMAIL_PROVIDER="resend"
-    fi
+    echo ""
+    log_info "=== LLM Provider Configuration ==="
+    echo ""
+
+    echo "Choose an LLM Provider:"
+    PS3="Enter selection [1-2]: "
+    select llm_opt in "Google Gemini" "AWS Bedrock"; do
+        case $llm_opt in
+            "Google Gemini")
+                LLM_PROVIDER="gemini"
+                EMBEDDING_PROVIDER="gemini"
+                GEMINI_MODEL="gemini-2.5-flash"
+                GEMINI_EMBEDDING_MODEL="gemini-embedding-001"
+                read -p "Enter Gemini API Key: " GEMINI_API_KEY
+                if [ -z "$GEMINI_API_KEY" ]; then
+                    log_warning "Gemini API key not provided. AI features will not work."
+                fi
+                break
+                ;;
+            "AWS Bedrock")
+                LLM_PROVIDER="bedrock"
+                EMBEDDING_PROVIDER="bedrock"
+                
+                # If AWS keys were not collected in SES step, prompt for them
+                if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+                    read -p "Enter AWS Access Key ID: " AWS_ACCESS_KEY_ID
+                    read -p "Enter AWS Secret Access Key: " AWS_SECRET_ACCESS_KEY
+                    read -p "Enter AWS Region [us-east-1]: " AWS_REGION
+                    AWS_REGION=${AWS_REGION:-us-east-1}
+                fi
+                
+                echo ""
+                echo "Choose AWS Bedrock Model:"
+                PS3="Enter selection [1-2]: "
+                select model_opt in "Claude 3.5 Sonnet" "Claude 3 Haiku"; do
+                    case $model_opt in
+                        "Claude 3.5 Sonnet")
+                            BEDROCK_MODEL="us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+                            break
+                            ;;
+                        "Claude 3 Haiku")
+                            BEDROCK_MODEL="us.anthropic.claude-3-haiku-20240307-v1:0"
+                            break
+                            ;;
+                        *) echo "Invalid option. Please choose 1 or 2.";;
+                    esac
+                done
+                
+                echo ""
+                echo "Choose AWS Bedrock Embedding Model:"
+                PS3="Enter selection [1-2]: "
+                select embed_opt in "Titan Embeddings v2 (1024 dim)" "Cohere Embed Multilingual v3 (1024 dim)"; do
+                    case $embed_opt in
+                        "Titan Embeddings v2 (1024 dim)")
+                            BEDROCK_EMBEDDING_MODEL="amazon.titan-embed-text-v2:0"
+                            BEDROCK_EMBEDDING_DIMENSIONS="1024"
+                            break
+                            ;;
+                        "Cohere Embed Multilingual v3 (1024 dim)")
+                            BEDROCK_EMBEDDING_MODEL="cohere.embed-multilingual-v3"
+                            BEDROCK_EMBEDDING_DIMENSIONS="1024"
+                            break
+                            ;;
+                        *) echo "Invalid option. Please choose 1 or 2.";;
+                    esac
+                done
+                break
+                ;;
+            *) echo "Invalid option. Please choose 1 or 2.";;
+        esac
+    done
+    PS3="$OLD_PS3"
     
     # Generate (or reuse) secure passwords
-    # On re-runs, reuse the existing passwords from docker/.env so that the
-    # already-initialised MongoDB volume stays in sync with the credentials.
     if [ -f "docker/.env" ] && grep -q "^MONGO_ROOT_PASSWORD=" docker/.env; then
         log_info "Existing docker/.env detected — reusing database passwords to preserve MongoDB data."
         MONGO_PASSWORD=$(grep "^MONGO_ROOT_PASSWORD=" docker/.env | cut -d= -f2-)
         REDIS_PASSWORD=$(grep "^REDIS_PASSWORD=" docker/.env | cut -d= -f2-)
         MINIO_PASSWORD=$(grep "^MINIO_ROOT_PASSWORD=" docker/.env | cut -d= -f2-)
         JWT_SECRET=$(grep "^JWT_SECRET=" docker/.env | cut -d= -f2-)
+        AI_TOOL_SECRET=$(grep "^AI_TOOL_SECRET=" docker/.env | cut -d= -f2-)
     else
         MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         REDIS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         MINIO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         JWT_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
+        AI_TOOL_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
     fi
     
     echo ""
@@ -342,6 +431,9 @@ CDN_URL_PRODUCTION=https://$CDN_HOST
 
 # JWT (used for re-run password recovery)
 JWT_SECRET=$JWT_SECRET
+
+# AI Tool auth (stored to keep re-runs in sync)
+AI_TOOL_SECRET=$AI_TOOL_SECRET
 EOF
     
     # apps/gateway/.env.docker
@@ -390,7 +482,19 @@ RATE_LIMIT_MAX_REQUESTS=1000
 EMAIL_PROVIDER=$EMAIL_PROVIDER
 EMAIL_FROM_NAME=InteraOne
 EMAIL_FROM_EMAIL=noreply@interaone.app
-RESEND_API_KEY=$RESEND_API_KEY
+
+# AWS SES credentials
+AWS_REGION=$AWS_REGION
+AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+SKIP_SNS_VALIDATION=true
+SKIP_TWILIO_VALIDATION=true
+
+# AI Tool auth (shared secret between gateway and agent services)
+AI_TOOL_SECRET=$AI_TOOL_SECRET
+
+# Public API URL for webhooks
+PUBLIC_API_URL=https://$API_HOST
 EOF
     
     # apps/console/.env.docker
@@ -457,13 +561,21 @@ MINIO_BUCKET_NAME=interaone-chat
 QDRANT_URL=http://qdrant:6333
 
 # LLM Provider
-LLM_PROVIDER=gemini
+LLM_PROVIDER=$LLM_PROVIDER
 GEMINI_API_KEY=$GEMINI_API_KEY
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=$GEMINI_MODEL
+
+# AWS Bedrock Configuration
+AWS_REGION=$AWS_REGION
+BEDROCK_MODEL=$BEDROCK_MODEL
+AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
 # Embeddings
-EMBEDDING_PROVIDER=gemini
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
+EMBEDDING_PROVIDER=$EMBEDDING_PROVIDER
+GEMINI_EMBEDDING_MODEL=$GEMINI_EMBEDDING_MODEL
+BEDROCK_EMBEDDING_MODEL=$BEDROCK_EMBEDDING_MODEL
+BEDROCK_EMBEDDING_DIMENSIONS=$BEDROCK_EMBEDDING_DIMENSIONS
 
 # RAG Configuration
 RAG_TOP_K=5
@@ -474,7 +586,7 @@ WORKER_CONCURRENCY=5
 INGESTION_CONCURRENCY=2
 
 # Tool auth (shared secret between api and ai services)
-AI_TOOL_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+AI_TOOL_SECRET=$AI_TOOL_SECRET
 EOF
     fi
     
@@ -496,11 +608,13 @@ REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
 
-# Email provider: resend | disabled
+# Email provider: mailhog | ses | disabled
 EMAIL_PROVIDER=$EMAIL_PROVIDER
 
-# Resend (used when EMAIL_PROVIDER=resend)
-RESEND_API_KEY=$RESEND_API_KEY
+# AWS SES (required when EMAIL_PROVIDER=ses)
+AWS_REGION=$AWS_REGION
+AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
 
 # Email sender identity
 EMAIL_FROM_NAME=InteraOne
