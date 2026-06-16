@@ -10,6 +10,7 @@ import {
   LLMOptions,
   LLMGenerateResult,
   LLMTokenUsage,
+  LLMGenerateStep,
 } from "./types";
 import config from "../../../config";
 
@@ -103,6 +104,9 @@ export class BedrockProvider implements LLMProvider {
               const required: string[] = [];
 
               for (const [k, v] of Object.entries(t.parameters)) {
+                if (k === "organizationId" || k === "conversationId") {
+                  continue;
+                }
                 const paramDef = v as any;
                 const { required: req, ...rest } = paramDef;
                 properties[k] = rest;
@@ -129,6 +133,7 @@ export class BedrockProvider implements LLMProvider {
     const MAX_TOOL_LOOPS = 5;
     let usage: LLMTokenUsage | undefined;
     const createTicketResults = new Map<string, unknown>();
+    const steps: LLMGenerateStep[] = [];
 
     let loop = 0;
     let responseText = "";
@@ -138,15 +143,34 @@ export class BedrockProvider implements LLMProvider {
       responseText = "";
       let toolUses: any[] = [];
 
-      if (onStream) {
-        const command = new ConverseStreamCommand({
-          modelId: model,
-          messages: converseMessages,
-          system,
-          toolConfig,
-        });
+      let runStream = !!onStream;
+      let response: any;
+      if (runStream) {
+        try {
+          const command = new ConverseStreamCommand({
+            modelId: model,
+            messages: converseMessages,
+            system,
+            toolConfig,
+          });
+          response = await client.send(command);
+        } catch (streamErr: any) {
+          if (
+            streamErr.name === "ValidationException" ||
+            streamErr.message?.toLowerCase().includes("streaming mode") ||
+            streamErr.message?.toLowerCase().includes("tool use in streaming")
+          ) {
+            console.warn(
+              `[BedrockProvider] Model ${model} does not support tool use in streaming mode: ${streamErr.message}. Falling back to non-streaming mode.`
+            );
+            runStream = false;
+          } else {
+            throw streamErr;
+          }
+        }
+      }
 
-        const response = await client.send(command);
+      if (runStream && response) {
         let activeToolUse: {
           toolUseId: string;
           name: string;
@@ -170,7 +194,7 @@ export class BedrockProvider implements LLMProvider {
                 (lastOpenThinking !== -1 && lastOpenThinking > lastCloseThinking) || 
                 (lastOpenThought !== -1 && lastOpenThought > lastCloseThought);
               
-              onStream(text, insideThinking);
+              onStream?.(text, insideThinking);
             }
 
             // Tool use start
@@ -259,6 +283,7 @@ export class BedrockProvider implements LLMProvider {
         return {
           text: cleanText || "Sorry, I could not generate a response.",
           usage,
+          steps,
         };
       }
 
@@ -289,14 +314,21 @@ export class BedrockProvider implements LLMProvider {
             }
           }
 
+          let result: unknown;
+          let stepError: string | undefined;
+          const stepTimestamp = new Date();
+          const sanitizedInput = {
+            ...(call.input || {}),
+            ...(toolContext?.conversationId ? { conversationId: toolContext.conversationId } : {}),
+            ...(toolContext?.organizationId ? { organizationId: toolContext.organizationId } : {}),
+          };
           try {
             const requestKey = `${toolContext?.organizationId || ""}:${toolContext?.conversationId || ""}:${toolContext?.messageId || ""}`;
-            let result: unknown;
 
             if (call.name === "create_ticket" && createTicketResults.has(requestKey)) {
               result = createTicketResults.get(requestKey);
             } else {
-              result = await tool.execute(call.input, toolContext);
+              result = await tool.execute(sanitizedInput, toolContext);
               if (call.name === "create_ticket") {
                 createTicketResults.set(requestKey, result);
               }
@@ -318,20 +350,30 @@ export class BedrockProvider implements LLMProvider {
             });
 
             if (onStream && call.name === "web_crawl") {
-              onStream(`✅ Found content.\n`, true);
+              onStream("✅ Found content.\n", true);
             }
           } catch (e: any) {
+            stepError = e.message || String(e);
+            result = { error: stepError };
             toolResultsContent.push({
               toolResult: {
                 toolUseId: call.toolUseId,
                 status: "error",
-                content: [{ text: e.message }],
+                content: [{ text: stepError }],
               },
             });
             if (onStream && call.name === "web_crawl") {
-              onStream(`❌ Failed.\n`, true);
+              onStream("❌ Failed.\n", true);
             }
           }
+
+          steps.push({
+            toolName: call.name,
+            args: sanitizedInput,
+            result,
+            error: stepError,
+            timestamp: stepTimestamp,
+          });
         }
       }
 
@@ -349,6 +391,7 @@ export class BedrockProvider implements LLMProvider {
     return {
       text: finalCleanText || "Tool execution limit reached.",
       usage,
+      steps,
     };
   }
 }

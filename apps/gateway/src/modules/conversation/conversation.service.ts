@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { Conversation, Message, User, Membership } from "@shared/models";
+import { Conversation, Message, User, Membership, AgentRun } from "@shared/models";
 import logger from "@shared/core/logger";
 import { ListConversationsOptions, UpdateVisitorInfoInput, RouteConversationInput } from "./conversation.types";
 
@@ -286,5 +286,73 @@ export class ConversationService {
     );
 
     return result.matchedCount > 0;
+  }
+
+  /**
+   * Fetch recent conversation messages and visitor info for AI memory context.
+   */
+  async getConversationMemory(organizationId: string, conversationId: string, limit = 10) {
+    const [messages, conversation] = await Promise.all([
+      Message.find({ conversationId, organizationId })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean(),
+      Conversation.findOne({ _id: conversationId, organizationId })
+        .select("visitor.name visitor.email")
+        .lean(),
+    ]);
+
+    const memory = messages.reverse().map((m) => ({
+      role: m.metadata?.source === "widget" ? "user" : "assistant",
+      content: m.content,
+      senderName: m.metadata?.senderName || null,
+      timestamp: m.createdAt,
+    }));
+
+    const visitorName = conversation?.visitor?.name && conversation.visitor.name !== "Anonymous User"
+      ? conversation.visitor.name
+      : null;
+    const visitorEmail = conversation?.visitor?.email && conversation.visitor.email !== "anonymous@temp.local"
+      ? conversation.visitor.email
+      : null;
+
+    return { memory, visitor: { name: visitorName, email: visitorEmail } };
+  }
+
+  /**
+   * Save a record of an AI agent run / execution.
+   */
+  async createAgentRun(payload: {
+    organizationId: string;
+    conversationId: string;
+    messageId: string;
+    steps: any[];
+    duration: number;
+    status: "success" | "failed";
+    error?: string;
+    usage?: any;
+  }) {
+    return AgentRun.create({
+      organizationId: new Types.ObjectId(payload.organizationId),
+      conversationId: new Types.ObjectId(payload.conversationId),
+      messageId: payload.messageId,
+      steps: payload.steps,
+      duration: payload.duration,
+      status: payload.status,
+      error: payload.error,
+      usage: payload.usage,
+    });
+  }
+
+  /**
+   * Retrieve all agent run logs for a specific conversation.
+   */
+  async getAgentRuns(organizationId: string, conversationId: string) {
+    return AgentRun.find({
+      organizationId: new Types.ObjectId(organizationId),
+      conversationId: new Types.ObjectId(conversationId),
+    })
+      .sort({ createdAt: -1 })
+      .lean();
   }
 }

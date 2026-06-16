@@ -5,7 +5,6 @@ import { AuthenticatedRequest } from "@shared/security/middleware/auth";
 import { getSocketManager } from "@sockets/index";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
-import { Conversation, Message } from "@shared/models";
 
 const conversationService = new ConversationService();
 
@@ -233,34 +232,13 @@ export const aiGetMemory = asyncHandler(async (req: Request, res: Response) => {
 
   if (!organizationId) return sendError(res, 400, "organizationId is required");
 
-  const messages = await Message.find({ conversationId, organizationId })
-    .sort({ createdAt: -1 })
-    .limit(Number(limit) || 10)
-    .lean();
-  const conversation = await Conversation.findOne({ _id: conversationId, organizationId })
-    .select("visitor.name visitor.email")
-    .lean();
+  const result = await conversationService.getConversationMemory(
+    organizationId,
+    conversationId,
+    Number(limit) || 10,
+  );
 
-  const memory = messages.reverse().map((m) => ({
-    role: m.metadata?.source === "widget" ? "user" : "assistant",
-    content: m.content,
-    senderName: m.metadata?.senderName || null,
-    timestamp: m.createdAt,
-  }));
-
-  sendResponse(res, 200, true, "Conversation memory fetched", {
-    memory,
-    visitor: {
-      name:
-        conversation?.visitor?.name && conversation.visitor.name !== "Anonymous User"
-          ? conversation.visitor.name
-          : null,
-      email:
-        conversation?.visitor?.email && conversation.visitor.email !== "anonymous@temp.local"
-          ? conversation.visitor.email
-          : null,
-    },
-  });
+  sendResponse(res, 200, true, "Conversation memory fetched", result);
 });
 
 // ─── AI-Internal: Escalate to Human ──────────────────────────────────────────
@@ -328,4 +306,38 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     agentName: result.agentName || null,
     status: "pending",
   });
+});
+
+// ─── Save Agent Run (AI-Internal) ───────────────────────────────────────────────
+
+export const aiSaveAgentRun = asyncHandler(async (req: Request, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const { organizationId, messageId, steps, duration, status, error, usage } = req.body;
+
+  if (!organizationId || !messageId || duration === undefined || !status) {
+    return sendError(res, 400, "Missing required fields");
+  }
+
+  const result = await conversationService.createAgentRun({
+    organizationId,
+    conversationId,
+    messageId,
+    steps: steps || [],
+    duration,
+    status,
+    error,
+    usage,
+  });
+
+  sendResponse(res, 201, true, "Agent run logged successfully", result);
+});
+
+// ─── Get Agent Runs (Agent/Admin Dashboard) ─────────────────────────────────────
+
+export const getAgentRuns = asyncHandler(async (req: Request, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const orgId = getOrgId(req);
+
+  const runs = await conversationService.getAgentRuns(orgId, conversationId);
+  sendResponse(res, 200, true, "Agent runs fetched successfully", runs);
 });

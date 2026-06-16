@@ -1,5 +1,6 @@
 import StorageService from "@modules/storage/storage.service";
-import { Knowledge, Notification } from "@shared/models";
+import NotificationService from "@modules/notification/notification.service";
+import { Knowledge } from "@shared/models";
 import {
   RequestFileUploadInput,
   CreateTextEntryInput,
@@ -7,7 +8,6 @@ import {
 } from "./knowledge.types";
 import { ingestionQueue } from "@shared/infra/queue";
 import logger from "@shared/core/logger";
-import { getSocketManager } from "../../sockets/index";
 
 class KnowledgeService {
   /**
@@ -72,20 +72,11 @@ class KnowledgeService {
 
     logger.info("✅ Knowledge document confirmed & queued", { documentId, organizationId });
     
-    const notif = await Notification.create({
+    await NotificationService.create({
       organizationId,
       type: "ai_sync",
       title: "Knowledge Base Queued",
-      description: `'${doc.title}' has been added to the processing queue.`
-    });
-
-    getSocketManager()?.emitToOrg(organizationId, "notification", {
-      id: notif._id,
-      type: notif.type,
-      title: notif.title,
-      description: notif.description,
-      timestamp: notif.createdAt,
-      isRead: notif.isRead
+      description: `'${doc.title}' has been added to the processing queue.`,
     });
     return doc;
   }
@@ -131,20 +122,11 @@ class KnowledgeService {
 
     logger.info("📝 Knowledge text/URL entry created & queued", { documentId: String(doc._id), organizationId, title: doc.title });
     
-    const notif = await Notification.create({
+    await NotificationService.create({
       organizationId,
       type: "ai_sync",
       title: "Knowledge Base Queued",
-      description: `'${doc.title}' has been added to the processing queue.`
-    });
-
-    getSocketManager()?.emitToOrg(organizationId, "notification", {
-      id: notif._id,
-      type: notif.type,
-      title: notif.title,
-      description: notif.description,
-      timestamp: notif.createdAt,
-      isRead: notif.isRead
+      description: `'${doc.title}' has been added to the processing queue.`,
     });
     return doc;
   }
@@ -188,20 +170,11 @@ class KnowledgeService {
 
     logger.info("🔄 Knowledge item re-queued for reindex", { documentId, organizationId });
     
-    const notif = await Notification.create({
+    await NotificationService.create({
       organizationId,
       type: "ai_sync",
       title: "Knowledge Base Re-queued",
-      description: `'${doc.title}' has been added back to the processing queue.`
-    });
-
-    getSocketManager()?.emitToOrg(organizationId, "notification", {
-      id: notif._id,
-      type: notif.type,
-      title: notif.title,
-      description: notif.description,
-      timestamp: notif.createdAt,
-      isRead: notif.isRead
+      description: `'${doc.title}' has been added back to the processing queue.`,
     });
     return doc;
   }

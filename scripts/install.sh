@@ -559,7 +559,7 @@ REDIS_PORT=6379
 REDIS_PASSWORD=$REDIS_PASSWORD
 
 # API (internal service hostname)
-API_URL=http://api:3002/api/v1
+API_URL=http://gateway:3002/api/v1
 
 # MinIO (service hostname: minio)
 MINIO_ENDPOINT=minio

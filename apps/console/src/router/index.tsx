@@ -5,7 +5,7 @@ import SetupPage from "../domains/auth/pages/setup/page";
 import PasswordRecoveryPage from "../domains/auth/pages/password-recovery/page";
 
 import AcceptInvitePage from "../domains/auth/pages/accept-invite/page";
-import { SelectOrgPage } from "@/domains/auth/pages/select-org/page";
+import { SelectOrgPage } from "../domains/auth/pages/select-org/page";
 import { DashboardHomePage } from "@/domains/dashboard/pages/page";
 import { TicketsPage } from "@/domains/tickets/pages/tickets-page";
 

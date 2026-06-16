@@ -6,6 +6,7 @@ import { AIJobData } from "../chat.types";
 import { getTool, getToolsForContext } from "../../agents/tools";
 import { getConversationGate } from "../../../infrastructure/cache";
 import { publishStreamWithSeq } from "../services/stream.service";
+import { internalApi } from "../../../infrastructure/api/internal.client";
 
 function shouldSkipConversation(gate: {
   status?: string;
@@ -48,10 +49,17 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   console.log(`[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`);
   console.log(`[Pipeline] content        : ${redactOtpForLog(content).slice(0, 120).replace(/\n/g, " ")}`);
 
+  const startTime = Date.now();
+  const steps: any[] = [];
+  let status: "success" | "failed" = "success";
+  let error: string | undefined;
+  let usage: any;
+
   let verifiedIdentityEmail: string | null = null;
   const otpCode = exactOtpCode(content);
   if (otpCode) {
     const verifyTool = getTool("verify_email_otp");
+    const stepTimestamp = new Date();
     const verification = verifyTool
       ? (await verifyTool.execute(
           { code: otpCode },
@@ -62,6 +70,14 @@ export async function runPipeline(job: AIJobData): Promise<void> {
           },
         )) as { status?: string; verified?: boolean; email?: string | null; message?: string }
       : { status: "error", verified: false, message: "OTP verifier is unavailable" };
+
+    steps.push({
+      toolName: "verify_email_otp",
+      args: { code: otpCode },
+      result: verification,
+      error: verification.status === "error" ? verification.message : undefined,
+      timestamp: stepTimestamp,
+    });
 
     if (verification.verified === true) {
       verifiedIdentityEmail = verification.email || null;
@@ -75,93 +91,128 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         reply = "I could not verify that code right now. Please try again in a moment.";
       }
       await publishResponse({ conversationId, content: reply });
+
+      // Save run logs on early return
+      try {
+        const duration = Date.now() - startTime;
+        await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, {
+          organizationId: job.organizationId,
+          messageId: job.messageId,
+          steps,
+          duration,
+          status,
+          error,
+          usage,
+        });
+      } catch (apiErr: any) {
+        console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
+      }
       return;
     }
   }
 
-  // -- 1. Context -------------------------------------------------------------
-  const context = await buildContext(
-    conversationId,
-    job.organizationId,
-    content,
-    job.companyName,
-    job.fallbackToAgent,
-    job.collectUserInfo,
-    job.channel,
-  );
-  if (verifiedIdentityEmail) {
-    const verifiedCodePattern = new RegExp(`\\b${otpCode}\\b`, "g");
-    context.messages = context.messages.map((message) => ({
-      ...message,
-      content: message.content.replace(verifiedCodePattern, "[verified code omitted]"),
-    }));
-    context.systemPrompt += `
-
-  <runtime_identity_verification>
-    The visitor successfully verified the one-time email code in this turn for ${verifiedIdentityEmail}.
-    Inform them briefly that verification succeeded, then continue the pending account-related request using available tools.
-    Do NOT request or verify another code for this email unless the visitor changes account identity or explicitly requests a new verification.
-  </runtime_identity_verification>`;
-  }
-
-  console.log(`[Pipeline] turnCount      : ${context.turnCount}`);
-
-  // -- 2. Build message thread for LLM ----------------------------------------
-  const messages: LLMMessage[] = [
-    { role: "system", content: context.systemPrompt },
-    ...context.messages.map((m) => ({
-      role: m.role as LLMMessage["role"],
-      content: m.content,
-    })),
-  ];
-
-  // -- 3. Generate response ----------------------------------------------------
-  let generatedText: string;
-  let usage:
-    | {
-        promptTokens?: number;
-        completionTokens?: number;
-        totalTokens?: number;
-      }
-    | undefined;
   try {
-    const provider = getDefaultProvider();
-    const generated = await provider.generate(messages, {
-      tools: getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel }),
-      toolContext: {
-        organizationId: job.organizationId,
-        conversationId: job.conversationId,
-        messageId: job.messageId,
-      },
-      onStream: (chunk, isThought = false) => {
-        publishStreamWithSeq({
-          conversationId,
+    // -- 1. Context -------------------------------------------------------------
+    const context = await buildContext(
+      conversationId,
+      job.organizationId,
+      content,
+      job.companyName,
+      job.fallbackToAgent,
+      job.collectUserInfo,
+      job.channel,
+    );
+    if (verifiedIdentityEmail) {
+      const verifiedCodePattern = new RegExp(`\\b${otpCode}\\b`, "g");
+      context.messages = context.messages.map((message) => ({
+        ...message,
+        content: message.content.replace(verifiedCodePattern, "[verified code omitted]"),
+      }));
+      context.systemPrompt += `
+
+    <runtime_identity_verification>
+      The visitor successfully verified the one-time email code in this turn for ${verifiedIdentityEmail}.
+      Inform them briefly that verification succeeded, then continue the pending account-related request using available tools.
+      Do NOT request or verify another code for this email unless the visitor changes account identity or explicitly requests a new verification.
+    </runtime_identity_verification>`;
+    }
+
+    console.log(`[Pipeline] turnCount      : ${context.turnCount}`);
+
+    // -- 2. Build message thread for LLM ----------------------------------------
+    const messages: LLMMessage[] = [
+      { role: "system", content: context.systemPrompt },
+      ...context.messages.map((m) => ({
+        role: m.role as LLMMessage["role"],
+        content: m.content,
+      })),
+    ];
+
+    // -- 3. Generate response ----------------------------------------------------
+    let generatedText: string;
+    try {
+      const provider = getDefaultProvider();
+      const generated = await provider.generate(messages, {
+        tools: getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel }),
+        toolContext: {
+          organizationId: job.organizationId,
+          conversationId: job.conversationId,
           messageId: job.messageId,
-          chunk,
-          isThought,
-        }).catch((err) =>
-          console.error("[Pipeline] Stream publish failed:", err.message),
-        );
-      },
-    });
-    generatedText = generated.text;
-    usage = generated.usage;
-  } catch (providerErr) {
-    console.error("[Pipeline] LLM provider threw an error:", providerErr);
-    const canEscalate = job.fallbackToAgent !== false;
-    const fallback =
-      "I'm sorry - I'm having trouble connecting right now. Please try again in a moment." +
-      (canEscalate
-        ? " If you need immediate help, I can connect you to a human agent."
-        : "");
-    await publishResponse({ conversationId, content: fallback });
-    return;
+        },
+        onStream: (chunk, isThought = false) => {
+          publishStreamWithSeq({
+            conversationId,
+            messageId: job.messageId,
+            chunk,
+            isThought,
+          }).catch((err) =>
+            console.error("[Pipeline] Stream publish failed:", err.message),
+          );
+        },
+      });
+      generatedText = generated.text;
+      usage = generated.usage;
+      if (generated.steps) {
+        steps.push(...generated.steps);
+      }
+    } catch (providerErr) {
+      console.error("[Pipeline] LLM provider threw an error:", providerErr);
+      const canEscalate = job.fallbackToAgent !== false;
+      const fallback =
+        "I'm sorry - I'm having trouble connecting right now. Please try again in a moment." +
+        (canEscalate
+          ? " If you need immediate help, I can connect you to a human agent."
+          : "");
+      await publishResponse({ conversationId, content: fallback });
+      status = "failed";
+      error = providerErr instanceof Error ? providerErr.message : String(providerErr);
+      return;
+    }
+
+    console.log(
+      `[Pipeline] raw LLM response: ${generatedText.slice(0, 200).replace(/\n/g, " ")}`,
+    );
+
+    // -- 4. Publish regular response ---------------------------------------------
+    await publishResponse({ conversationId, content: generatedText, usage });
+  } catch (err: any) {
+    status = "failed";
+    error = err.message || String(err);
+    throw err;
+  } finally {
+    const duration = Date.now() - startTime;
+    try {
+      await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, {
+        organizationId: job.organizationId,
+        messageId: job.messageId,
+        steps,
+        duration,
+        status,
+        error,
+        usage,
+      });
+    } catch (apiErr: any) {
+      console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
+    }
   }
-
-  console.log(
-    `[Pipeline] raw LLM response: ${generatedText.slice(0, 200).replace(/\n/g, " ")}`,
-  );
-
-  // -- 4. Publish regular response ---------------------------------------------
-  await publishResponse({ conversationId, content: generatedText, usage });
 }

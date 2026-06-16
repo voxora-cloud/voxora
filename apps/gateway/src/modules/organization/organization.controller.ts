@@ -2,8 +2,6 @@ import { Request, Response } from "express";
 import { OrganizationService } from "./organization.service";
 import { AuthenticatedRequest } from "@shared/security/middleware";
 import { sendResponse, sendError } from "@shared/core/response";
-import { loadEeModule } from "@shared/ee";
-import { Organization } from "@shared/models";
 
 export class OrganizationController {
     static async createOrganization(req: Request, res: Response): Promise<void> {
@@ -107,31 +105,9 @@ export class OrganizationController {
         try {
             const { activeOrganizationId } = (req as AuthenticatedRequest).user;
             const removeBranding = Boolean(req.body?.removeBranding);
-            const ee = loadEeModule();
 
-            if (ee?.whiteLabel?.updateSettings) {
-                const data = await ee.whiteLabel.updateSettings({
-                    organizationId: activeOrganizationId,
-                    removeBranding,
-                    core: {
-                        OrganizationModel: Organization,
-                    },
-                });
-                await OrganizationService.updateOrganization(activeOrganizationId, {
-                    whiteLabelEnabled: data.removeBranding,
-                });
-                sendResponse(res, 200, true, "White-label settings updated", data);
-                return;
-            }
-
-            // Keep a safe fallback for OSS deployments where the EE module isn't shipped.
-            await OrganizationService.updateOrganization(activeOrganizationId, {
-                whiteLabelEnabled: removeBranding,
-            });
-
-            sendResponse(res, 200, true, "White-label settings updated", {
-                removeBranding,
-            });
+            const data = await OrganizationService.updateWhiteLabelSettings(activeOrganizationId, removeBranding);
+            sendResponse(res, 200, true, "White-label settings updated", data);
         } catch (error: any) {
             sendError(res, 400, error.message);
         }

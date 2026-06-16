@@ -2,36 +2,8 @@ import { Request, Response } from "express";
 import StorageService from "./storage.service";
 import logger from "@shared/core/logger";
 import { AuthenticatedRequest } from "@shared/security/middleware/auth";
-import { Knowledge, Message } from "@shared/models";
 
 const getOrgId = (req: Request): string => (req as AuthenticatedRequest).user.activeOrganizationId;
-
-async function verifyKeyOwnership(fileKey: string, orgId: string): Promise<boolean> {
-  if (
-    fileKey.startsWith(`knowledge/${orgId}/`) ||
-    fileKey.startsWith(`conversations/${orgId}/`)
-  ) {
-    return true;
-  }
-
-  if (fileKey.startsWith("knowledge/")) {
-    const exists = await Knowledge.exists({ fileKey, organizationId: orgId });
-    return !!exists;
-  }
-
-  if (fileKey.startsWith("conversations/")) {
-    const exists = await Message.exists({
-      organizationId: orgId,
-      $or: [
-        { "metadata.fileKey": fileKey },
-        { content: { $regex: fileKey } }
-      ]
-    });
-    return !!exists;
-  }
-
-  return false;
-}
 
 // Helper to ensure param is string (not string array)
 const getParamAsString = (param: string | string[] | undefined): string => {
@@ -113,7 +85,7 @@ export const storageController = {
         return;
       }
 
-      const isOwner = await verifyKeyOwnership(fileKey, orgId);
+      const isOwner = await StorageService.verifyKeyOwnership(fileKey, orgId);
       if (!isOwner) {
         res.status(403).json({ error: "Access denied" });
         return;
@@ -156,7 +128,7 @@ export const storageController = {
 
       const decodedKey = decodeURIComponent(fileKey);
 
-      const isOwner = await verifyKeyOwnership(decodedKey, orgId);
+      const isOwner = await StorageService.verifyKeyOwnership(decodedKey, orgId);
       if (!isOwner) {
         res.status(403).json({ error: "Access denied" });
         return;
@@ -189,7 +161,7 @@ export const storageController = {
 
       const decodedKey = decodeURIComponent(fileKey);
 
-      const isOwner = await verifyKeyOwnership(decodedKey, orgId);
+      const isOwner = await StorageService.verifyKeyOwnership(decodedKey, orgId);
       if (!isOwner) {
         res.status(403).json({ error: "Access denied" });
         return;

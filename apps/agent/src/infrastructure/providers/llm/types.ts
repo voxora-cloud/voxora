@@ -21,9 +21,18 @@ export interface LLMTokenUsage {
   totalTokens?: number;
 }
 
+export interface LLMGenerateStep {
+  toolName: string;
+  args: any;
+  result: any;
+  error?: string;
+  timestamp: Date;
+}
+
 export interface LLMGenerateResult {
   text: string;
   usage?: LLMTokenUsage;
+  steps?: LLMGenerateStep[];
 }
 
 export interface LLMProvider {

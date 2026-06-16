@@ -3,6 +3,7 @@ import { ClientSession, Types } from "mongoose";
 import { generateTokens } from "@shared/security/auth/jwt";
 import crypto from "crypto";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
+import { loadEeModule } from "@shared/ee";
 import { CreateOrganizationInput, UpdateOrganizationInput } from "./organization.types";
 
 export class OrganizationService {
@@ -163,6 +164,28 @@ export class OrganizationService {
     }
 
     // ─── Helpers ───
+
+    /**
+     * Apply white-label settings for an organization.
+     * Delegates to the EE module if available, falls back gracefully for OSS.
+     */
+    static async updateWhiteLabelSettings(organizationId: string, removeBranding: boolean) {
+        const ee = loadEeModule();
+
+        if (ee?.whiteLabel?.updateSettings) {
+            const data = await ee.whiteLabel.updateSettings({
+                organizationId,
+                removeBranding,
+                core: { OrganizationModel: Organization },
+            });
+            await this.updateOrganization(organizationId, { whiteLabelEnabled: data.removeBranding });
+            return data;
+        }
+
+        // OSS fallback
+        await this.updateOrganization(organizationId, { whiteLabelEnabled: removeBranding });
+        return { removeBranding };
+    }
 
     static generateSlug(name: string): string {
         const slug = name

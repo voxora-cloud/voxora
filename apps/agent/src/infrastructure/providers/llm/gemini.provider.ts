@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { LLMProvider, LLMMessage, LLMOptions, LLMGenerateResult, LLMTokenUsage } from "./types";
+import { LLMProvider, LLMMessage, LLMOptions, LLMGenerateResult, LLMTokenUsage, LLMGenerateStep } from "./types";
 
 export class GeminiProvider implements LLMProvider {
   readonly name = "gemini";
@@ -57,6 +57,9 @@ export class GeminiProvider implements LLMProvider {
             functionDeclarations: tools.map(t => {
                 const props: any = {};
                 for (const [k, v] of Object.entries(t.parameters)) {
+                    if (k === "organizationId" || k === "conversationId") {
+                        continue;
+                    }
                     const paramDef = v as any;
                     const { required, ...rest } = paramDef;
                     const normalized: any = { ...rest, type: String(paramDef.type).toUpperCase() as Type };
@@ -70,7 +73,7 @@ export class GeminiProvider implements LLMProvider {
                 }
 
                 const requiredKeys = Object.entries(t.parameters)
-                    .filter(([k, v]) => v.required)
+                    .filter(([k, v]) => v.required && k !== "organizationId" && k !== "conversationId")
                     .map(([k]) => k);
 
                 const schema: Schema = {
@@ -101,6 +104,7 @@ export class GeminiProvider implements LLMProvider {
     let fullTextResponse = "";
     let usage: LLMTokenUsage | undefined;
     const createTicketResults = new Map<string, unknown>();
+    const steps: LLMGenerateStep[] = [];
 
     const createTicketRequestKey = (call: any): string | null => {
         if (call.name !== "create_ticket") return null;
@@ -158,6 +162,7 @@ export class GeminiProvider implements LLMProvider {
                         return {
                                 text: fullTextResponse || "Sorry, I could not generate a response.",
                                 usage,
+                                steps,
                         };
         }
 
@@ -182,13 +187,20 @@ export class GeminiProvider implements LLMProvider {
                         onStream(`*Executing ${call.name}...*\n`, true);
                     }
                 }
+                let result: unknown;
+                let stepError: string | undefined;
+                const stepTimestamp = new Date();
+                const sanitizedArgs = {
+                    ...(call.args || {}),
+                    ...(toolContext?.conversationId ? { conversationId: toolContext.conversationId } : {}),
+                    ...(toolContext?.organizationId ? { organizationId: toolContext.organizationId } : {}),
+                };
                 try {
                     const requestKey = createTicketRequestKey(call);
-                    let result: unknown;
                     if (requestKey && createTicketResults.has(requestKey)) {
                         result = createTicketResults.get(requestKey);
                     } else {
-                        result = await tool.execute(call.args, toolContext);
+                        result = await tool.execute(sanitizedArgs, toolContext);
                         if (requestKey) {
                             createTicketResults.set(requestKey, result);
                         }
@@ -206,12 +218,14 @@ export class GeminiProvider implements LLMProvider {
                         onStream(`✅ Found content.\n`, true);
                     }
                 } catch (e: any) {
+                    stepError = e.message || String(e);
+                    result = { error: stepError };
                     functionResponses.push({
                         role: "user",
                         parts: [{
                             functionResponse: {
                                 name: call.name,
-                                response: { error: e.message }
+                                response: { error: stepError }
                             }
                         }]
                     });
@@ -219,6 +233,13 @@ export class GeminiProvider implements LLMProvider {
                         onStream(`❌ Failed.\n`, true);
                     }
                 }
+                steps.push({
+                    toolName: call.name,
+                    args: sanitizedArgs,
+                    result,
+                    error: stepError,
+                    timestamp: stepTimestamp,
+                });
             }
         }
         
@@ -229,6 +250,7 @@ export class GeminiProvider implements LLMProvider {
         return {
             text: fullTextResponse || "Tool execution limit reached.",
             usage,
+            steps,
         };
   }
 }

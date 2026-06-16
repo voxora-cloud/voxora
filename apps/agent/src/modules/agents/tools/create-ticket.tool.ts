@@ -80,9 +80,13 @@ export class CreateTicketTool implements Tool {
       const ticketTitle = title || description.slice(0, 120);
 
       const organizationId =
-        (typeof args.organizationId === "string" ? args.organizationId : "") || context?.organizationId || "";
+        context?.organizationId ||
+        (typeof args.organizationId === "string" && args.organizationId !== "ORGANIZATION_ID" ? args.organizationId : "") ||
+        "";
       const conversationId =
-        (typeof args.conversationId === "string" ? args.conversationId : "") || context?.conversationId || "";
+        context?.conversationId ||
+        (typeof args.conversationId === "string" && args.conversationId !== "CONVERSATION_ID" ? args.conversationId : "") ||
+        "";
 
       if (!organizationId) return { status: "error", message: "organizationId is required" };
 
