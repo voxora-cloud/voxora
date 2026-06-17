@@ -23,6 +23,22 @@ const validateSnsMessage = (payload: any): Promise<any> => {
   });
 };
 
+const sanitizeChannel = (channel: any): any => {
+  if (!channel) return channel;
+  const obj = typeof channel.toObject === "function" ? channel.toObject() : JSON.parse(JSON.stringify(channel));
+  if (obj.config?.whatsapp?.authToken) {
+    obj.config.whatsapp.authToken = "********";
+  }
+  if (obj.config?.telegram?.botToken) {
+    obj.config.telegram.botToken = "********";
+  }
+  return obj;
+};
+
+const sanitizeChannels = (channels: any[]): any[] => {
+  return (channels || []).map(sanitizeChannel);
+};
+
 export class ChannelsController {
   /**
    * GET /channels
@@ -31,7 +47,7 @@ export class ChannelsController {
   static listChannels = asyncHandler(async (req: Request, res: Response) => {
     const { activeOrganizationId } = (req as AuthenticatedRequest).user;
     const channels = await ChannelService.getAllChannels(activeOrganizationId);
-    sendResponse(res, 200, true, "Channels fetched", { channels });
+    sendResponse(res, 200, true, "Channels fetched", { channels: sanitizeChannels(channels) });
   });
 
   /**
@@ -44,7 +60,7 @@ export class ChannelsController {
     if (!channel) {
       return sendError(res, 404, "No email channel configured for this organization");
     }
-    sendResponse(res, 200, true, "Email channel fetched", { channel });
+    sendResponse(res, 200, true, "Email channel fetched", { channel: sanitizeChannel(channel) });
   });
 
   /**
@@ -62,7 +78,7 @@ export class ChannelsController {
     });
 
     sendResponse(res, 201, true, "Email channel created. Configure your DNS records to complete setup.", {
-      channel,
+      channel: sanitizeChannel(channel),
     });
   });
 
@@ -76,7 +92,7 @@ export class ChannelsController {
     if (!channel) {
       return sendError(res, 404, "No WhatsApp channel configured for this organization");
     }
-    sendResponse(res, 200, true, "WhatsApp channel fetched", { channel });
+    sendResponse(res, 200, true, "WhatsApp channel fetched", { channel: sanitizeChannel(channel) });
   });
 
   /**
@@ -96,7 +112,7 @@ export class ChannelsController {
     });
 
     sendResponse(res, 201, true, "WhatsApp channel connected and verified successfully.", {
-      channel,
+      channel: sanitizeChannel(channel),
     });
   });
 
@@ -110,7 +126,7 @@ export class ChannelsController {
     if (!channel) {
       return sendError(res, 404, "No Telegram channel configured for this organization");
     }
-    sendResponse(res, 200, true, "Telegram channel fetched", { channel });
+    sendResponse(res, 200, true, "Telegram channel fetched", { channel: sanitizeChannel(channel) });
   });
 
   /**
@@ -127,7 +143,7 @@ export class ChannelsController {
     });
 
     sendResponse(res, 201, true, "Telegram channel connected and verified successfully.", {
-      channel,
+      channel: sanitizeChannel(channel),
     });
   });
 
@@ -178,6 +194,24 @@ export class ChannelsController {
 
     await ChannelService.deleteChannel(activeOrganizationId, channelId);
     sendResponse(res, 200, true, "Channel deleted successfully", {});
+  });
+
+  /**
+   * PATCH /channels/:channelId/email/addresses
+   * Update the email addresses of an email channel.
+   */
+  static updateEmailChannelAddresses = asyncHandler(async (req: Request, res: Response) => {
+    const { activeOrganizationId } = (req as AuthenticatedRequest).user;
+    const channelId = String(req.params.channelId);
+    const { emails } = req.body;
+
+    const channel = await ChannelService.updateEmailChannelAddresses(
+      activeOrganizationId,
+      channelId,
+      emails,
+    );
+
+    sendResponse(res, 200, true, "Email channel addresses updated successfully", { channel: sanitizeChannel(channel) });
   });
 
    /**

@@ -106,3 +106,14 @@ export const useDeleteChannel = () => {
     },
   });
 };
+
+export const useUpdateEmailChannelAddresses = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ channelId, emails }: { channelId: string; emails: string[] }) =>
+      channelsApi.updateEmailChannelAddresses(channelId, emails),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CHANNEL_KEY });
+    },
+  });
+};

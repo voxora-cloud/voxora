@@ -11,7 +11,7 @@ export class AgentService {
 
   async getAgentProfile(userId: string, organizationId: string) {
     const membership = await Membership.findOne({ userId, organizationId })
-      .populate("userId", "-password");
+      .populate("userId", "name email status lastSeen isActive emailVerified");
     return membership;
   }
 

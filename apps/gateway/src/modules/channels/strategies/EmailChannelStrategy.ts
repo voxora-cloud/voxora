@@ -126,8 +126,9 @@ export class EmailChannelStrategy implements IChannelStrategy {
     }
 
     try {
+      const fromAddress = input.from || emailCfg.address;
       const { messageId } = await this.adapter.sendEmail({
-        from: emailCfg.address,
+        from: fromAddress,
         to: input.to,
         subject: input.subject ?? "(No Subject)",
         html: input.html ?? `<p>${input.body}</p>`,
@@ -152,6 +153,7 @@ export class EmailChannelStrategy implements IChannelStrategy {
       let subject = "(No Subject)";
       let bodyHtml = "";
       let bodyText = "";
+      let toEmail = "";
 
       if (data.content) {
         // SES provides the raw email as a Base64-encoded MIME string
@@ -169,6 +171,14 @@ export class EmailChannelStrategy implements IChannelStrategy {
         subject = parsed.subject?.trim() || data.mail?.commonHeaders?.subject || "(No Subject)";
         bodyHtml = parsed.html || "";
         bodyText = parsed.text || bodyHtml.replace(/<[^>]+>/g, "") || "";
+
+        const parsedTo = parsed.to as any;
+        if (parsedTo) {
+          const toAddresses = Array.isArray(parsedTo)
+            ? parsedTo
+            : (parsedTo.value || []);
+          toEmail = toAddresses[0]?.address?.trim().toLowerCase() || "";
+        }
       } else if (data.mail) {
         // Fallback for SES notifications without content body (headers only)
         fromEmail = data.mail.source?.trim() || "";
@@ -181,6 +191,13 @@ export class EmailChannelStrategy implements IChannelStrategy {
         subject = data.subject?.trim() || "(No Subject)";
         bodyHtml = data.html || "";
         bodyText = data.text || bodyHtml.replace(/<[^>]+>/g, "");
+        toEmail = data.to?.trim().toLowerCase() || "";
+      }
+
+      if (!toEmail && data.mail?.destination) {
+        toEmail = Array.isArray(data.mail.destination)
+          ? data.mail.destination[0]?.trim().toLowerCase()
+          : data.mail.destination.trim().toLowerCase();
       }
 
       // Look up the channel to get the organizationId
@@ -193,6 +210,11 @@ export class EmailChannelStrategy implements IChannelStrategy {
       }
 
       const organizationId = channel.organizationId;
+      const emailConfig = channel.config.email;
+      const addresses = emailConfig?.addresses || [emailConfig?.address];
+      const supportEmail = toEmail && addresses.includes(toEmail)
+        ? toEmail
+        : (emailConfig?.address || "");
 
       // Find or create a Conversation for this inbound email thread.
       // We key on the sender email + organizationId so replies are threaded.
@@ -200,8 +222,10 @@ export class EmailChannelStrategy implements IChannelStrategy {
         organizationId,
         "visitor.email": fromEmail,
         status: { $in: ["open", "pending"] },
-        "metadata.channel": "email_channel",
-        "metadata.channelId": payload.channelId,
+        $or: [
+          { channel: "email_channel", channelId: payload.channelId },
+          { "metadata.channel": "email_channel", "metadata.channelId": payload.channelId }
+        ],
       });
 
       if (!conversation) {
@@ -216,9 +240,10 @@ export class EmailChannelStrategy implements IChannelStrategy {
           priority: "medium",
           createdBy: systemId,
           tags: ["email"],
+          channel: "email_channel",
+          channelId: payload.channelId,
           metadata: {
-            channel: "email_channel",
-            channelId: payload.channelId,
+            supportEmail,
           },
           visitor: {
             sessionId: `email-${fromEmail}-${Date.now()}`,
@@ -233,6 +258,18 @@ export class EmailChannelStrategy implements IChannelStrategy {
           from: fromEmail,
           channelId: payload.channelId,
         });
+      } else {
+        // Update supportEmail to the latest one they emailed if it is one of our configured addresses
+        if (supportEmail && conversation.metadata?.supportEmail !== supportEmail) {
+          conversation.metadata = {
+            ...conversation.metadata,
+            supportEmail,
+          };
+          await Conversation.updateOne(
+            { _id: conversation._id },
+            { $set: { "metadata.supportEmail": supportEmail } }
+          );
+        }
       }
 
       // Add the inbound email as a visitor message

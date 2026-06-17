@@ -75,7 +75,7 @@ export class OrganizationService {
     static async getUserOrganizations(userId: string) {
         const memberships = await Membership.find({ userId, inviteStatus: "active" }).populate<{
             organizationId: IOrganization;
-        }>("organizationId");
+        }>("organizationId", "name slug logoUrl plan whiteLabelEnabled");
 
         return memberships
             .filter((m) => m.organizationId && (m.organizationId as any).isActive)

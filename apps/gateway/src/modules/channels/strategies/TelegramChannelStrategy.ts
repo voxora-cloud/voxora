@@ -211,8 +211,10 @@ export class TelegramChannelStrategy implements IChannelStrategy {
         organizationId,
         "visitor.sessionId": `telegram-${chatId}`,
         status: { $in: ["open", "pending"] },
-        "metadata.channel": "telegram_channel",
-        "metadata.channelId": payload.channelId,
+        $or: [
+          { channel: "telegram_channel", channelId: payload.channelId },
+          { "metadata.channel": "telegram_channel", "metadata.channelId": payload.channelId }
+        ],
       });
 
       if (!conversation) {
@@ -226,9 +228,9 @@ export class TelegramChannelStrategy implements IChannelStrategy {
           priority: "medium",
           createdBy: systemId,
           tags: ["telegram"],
+          channel: "telegram_channel",
+          channelId: payload.channelId,
           metadata: {
-            channel: "telegram_channel",
-            channelId: payload.channelId,
             chatId: chatId.toString(),
           },
           visitor: {

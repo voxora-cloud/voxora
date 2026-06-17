@@ -11,6 +11,7 @@ export interface DnsRecord {
 
 export interface EmailChannelConfig {
   address: string;
+  addresses: string[];
   domain: string;
   providerDomainId?: string;
   verificationStatus: ChannelVerificationStatus;

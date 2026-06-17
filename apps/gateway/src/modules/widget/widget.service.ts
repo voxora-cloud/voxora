@@ -4,6 +4,8 @@ import logger from "@shared/core/logger";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
+import dns from "dns";
+import { normalizeDomain } from "@shared/utils/domain";
 import {
   ServiceError,
   AIInteractionSource,
@@ -148,21 +150,37 @@ export class WidgetService {
     };
   }
 
-  async getWidgetConfigByPublicKey(InteraOnePublicKey: string) {
+  async getWidgetConfigByPublicKey(InteraOnePublicKey: string, requestOrigin?: string) {
     if (!InteraOnePublicKey) {
       throw createServiceError("InteraOne public key is required", 400);
     }
 
     const widget = await Widget.findById(InteraOnePublicKey)
-      .select("organizationId displayName appearance behavior ai conversation features suggestions")
+      .select("organizationId displayName appearance behavior ai conversation features suggestions verifiedDomain domainVerificationStatus")
       .lean();
 
     if (!widget) {
       throw createServiceError("Widget not found", 404);
     }
 
+    // Origin Enforcement Security check
+    if (widget.domainVerificationStatus === "verified" && widget.verifiedDomain) {
+      if (!requestOrigin) {
+        throw createServiceError("Origin header is required for verified widgets", 403);
+      }
+      const clientDomain = normalizeDomain(requestOrigin);
+      const allowedDomain = normalizeDomain(widget.verifiedDomain);
+      if (clientDomain !== allowedDomain && clientDomain !== "localhost" && clientDomain !== "127.0.0.1") {
+        throw createServiceError(`Unauthorized origin: widget is locked to domain "${allowedDomain}"`, 403);
+      }
+    }
+
     const defaults = buildDefaultWidgetConfig();
     const { logoUrl: _ignoredLogoUrl, ...appearance } = (widget as any).appearance || {};
+    
+    // Override DOM access to false if domain is not verified
+    const isDomainVerified = widget.domainVerificationStatus === "verified";
+    const endUserDomAccess = isDomainVerified ? ((widget as any).features?.endUserDomAccess ?? false) : false;
 
     return {
       organizationId: (widget as any).organizationId,
@@ -177,8 +195,8 @@ export class WidgetService {
           ...((widget as any).behavior || {}),
         },
         ai: {
-          ...defaults.ai,
-          ...((widget as any).ai || {}),
+          enabled: (widget as any).ai?.enabled ?? defaults.ai.enabled,
+          fallbackToAgent: (widget as any).ai?.fallbackToAgent ?? defaults.ai.fallbackToAgent,
         },
         conversation: {
           collectUserInfo: {
@@ -189,6 +207,7 @@ export class WidgetService {
         features: {
           ...defaults.features,
           ...((widget as any).features || {}),
+          endUserDomAccess,
         },
         suggestions: Array.isArray((widget as any).suggestions)
           ? (widget as any).suggestions
@@ -218,15 +237,50 @@ export class WidgetService {
     const existingWidget = await Widget.findOne({ organizationId });
 
     if (existingWidget) {
+      const cleanUpdates: any = { ...normalizedWidgetData, organizationId };
+      if (widgetData?.verifiedDomain !== undefined) {
+        const normalizedNew = widgetData.verifiedDomain ? normalizeDomain(widgetData.verifiedDomain) : "";
+        const normalizedOld = existingWidget.verifiedDomain ? normalizeDomain(existingWidget.verifiedDomain) : "";
+        if (normalizedNew !== normalizedOld) {
+          if (normalizedNew) {
+            cleanUpdates.verifiedDomain = normalizedNew;
+            if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+              cleanUpdates.domainVerificationToken = null;
+              cleanUpdates.domainVerificationStatus = "verified";
+            } else {
+              cleanUpdates.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+              cleanUpdates.domainVerificationStatus = "pending";
+            }
+          } else {
+            cleanUpdates.verifiedDomain = null;
+            cleanUpdates.domainVerificationToken = null;
+            cleanUpdates.domainVerificationStatus = null;
+          }
+        }
+      }
+
       return Widget.findOneAndUpdate(
         { organizationId },
-        { ...normalizedWidgetData, organizationId },
+        cleanUpdates,
         { new: true, runValidators: true },
       );
     }
 
+    const newWidgetData = { ...normalizedWidgetData };
+    if (widgetData?.verifiedDomain) {
+      const normalizedNew = normalizeDomain(widgetData.verifiedDomain);
+      newWidgetData.verifiedDomain = normalizedNew;
+      if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+        newWidgetData.domainVerificationToken = null;
+        newWidgetData.domainVerificationStatus = "verified";
+      } else {
+        newWidgetData.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+        newWidgetData.domainVerificationStatus = "pending";
+      }
+    }
+
     const widget = new Widget({
-      ...normalizedWidgetData,
+      ...newWidgetData,
       organizationId,
     });
 
@@ -278,7 +332,7 @@ export class WidgetService {
 
   async updateWidget(organizationId: string, updateData: any) {
     const normalizedUpdateData = withWidgetConfigDefaults(updateData || {}, true);
-    const allowedUpdates = {
+    const allowedUpdates: any = {
       displayName: normalizedUpdateData.displayName,
       appearance: normalizedUpdateData.appearance,
       behavior: normalizedUpdateData.behavior,
@@ -292,13 +346,37 @@ export class WidgetService {
       Object.entries(allowedUpdates).filter(([_, v]) => v !== undefined),
     );
 
+    const existingWidget = await Widget.findOne({ organizationId });
+
+    if (updateData?.verifiedDomain !== undefined) {
+      const normalizedNew = updateData.verifiedDomain ? normalizeDomain(updateData.verifiedDomain) : "";
+      const normalizedOld = existingWidget?.verifiedDomain ? normalizeDomain(existingWidget.verifiedDomain) : "";
+      
+      if (normalizedNew !== normalizedOld) {
+        if (normalizedNew) {
+          cleanUpdates.verifiedDomain = normalizedNew;
+          if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+            cleanUpdates.domainVerificationToken = null;
+            cleanUpdates.domainVerificationStatus = "verified";
+          } else {
+            cleanUpdates.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+            cleanUpdates.domainVerificationStatus = "pending";
+          }
+        } else {
+          cleanUpdates.verifiedDomain = null;
+          cleanUpdates.domainVerificationToken = null;
+          cleanUpdates.domainVerificationStatus = null;
+        }
+      }
+    }
+
     let widget = await Widget.findOneAndUpdate({ organizationId }, cleanUpdates, {
       new: true,
       runValidators: true,
     });
 
     if (!widget) {
-      widget = new Widget({
+      const initData: any = {
         organizationId,
         displayName: normalizedUpdateData.displayName || "InteraOne AI",
         appearance: normalizedUpdateData.appearance,
@@ -307,11 +385,66 @@ export class WidgetService {
         conversation: normalizedUpdateData.conversation,
         features: normalizedUpdateData.features,
         publicKey: crypto.randomBytes(16).toString("hex"),
-      });
+      };
+      if (updateData?.verifiedDomain) {
+        const normalizedNew = normalizeDomain(updateData.verifiedDomain);
+        initData.verifiedDomain = normalizedNew;
+        if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+          initData.domainVerificationToken = null;
+          initData.domainVerificationStatus = "verified";
+        } else {
+          initData.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+          initData.domainVerificationStatus = "pending";
+        }
+      }
+      widget = new Widget(initData);
       await widget.save();
     }
 
     return widget;
+  }
+
+  async verifyWidgetDomain(organizationId: string) {
+    const widget = await Widget.findOne({ organizationId });
+    if (!widget) {
+      throw createServiceError("Widget not found", 404);
+    }
+
+    if (!widget.verifiedDomain || !widget.domainVerificationToken) {
+      throw createServiceError("Domain verification has not been configured for this widget", 400);
+    }
+
+    const host = normalizeDomain(widget.verifiedDomain);
+
+    let txtRecords: string[][];
+    try {
+      txtRecords = await dns.promises.resolveTxt(host);
+    } catch (dnsError: any) {
+      logger.warn(`DNS lookup failed for domain ${host}: ${dnsError.message}`);
+      throw createServiceError(`Verification failed: Could not find any TXT records for "${host}". Please make sure the record has propagated.`, 400);
+    }
+
+    const isTokenFound = txtRecords.some((record) =>
+      record.some((value) => value.trim() === widget.domainVerificationToken),
+    );
+
+    if (!isTokenFound) {
+      throw createServiceError(
+        `Verification failed: Token "${widget.domainVerificationToken}" not found in DNS TXT records for "${host}".`,
+        400,
+      );
+    }
+
+    widget.domainVerificationStatus = "verified";
+    await widget.save();
+
+    logger.info(`Widget domain verified successfully for org ${organizationId}: ${widget.verifiedDomain}`);
+
+    return {
+      success: true,
+      domainVerificationStatus: "verified",
+      verifiedDomain: widget.verifiedDomain,
+    };
   }
 
   async initConversation(input: InitConversationInput): Promise<InitConversationResult> {

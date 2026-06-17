@@ -45,6 +45,9 @@ export interface CreateWidgetData {
   conversation: WidgetConversationSettings;
   features: WidgetFeatureSettings;
   suggestions: WidgetSuggestion[];
+  verifiedDomain?: string | null;
+  domainVerificationToken?: string | null;
+  domainVerificationStatus?: "pending" | "verified" | null;
 }
 
 export interface UpdateWidgetData {
@@ -56,11 +59,17 @@ export interface UpdateWidgetData {
   conversation?: WidgetConversationSettings;
   features?: WidgetFeatureSettings;
   suggestions?: WidgetSuggestion[];
+  verifiedDomain?: string | null;
+  domainVerificationToken?: string | null;
+  domainVerificationStatus?: "pending" | "verified" | null;
 }
 
 export interface Widget extends CreateWidgetData {
   createdAt?: Date;
   updatedAt?: Date;
+  verifiedDomain?: string | null;
+  domainVerificationToken?: string | null;
+  domainVerificationStatus?: "pending" | "verified" | null;
 }
 
 

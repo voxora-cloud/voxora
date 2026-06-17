@@ -14,14 +14,17 @@ import {
   AlertTriangle,
   Plus,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
+import { Input } from "@/shared/ui/input";
 import {
   useEmailChannel,
   useVerifyChannel,
   useDeleteChannel,
   useWhatsAppChannel,
   useTelegramChannel,
+  useUpdateEmailChannelAddresses,
 } from "../hooks/use-channels";
 import type { DnsRecord } from "../types/channel.types";
 
@@ -167,6 +170,188 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
   );
 }
 
+function ManageEmailsSection({
+  channel,
+  onClose,
+}: {
+  channel: any;
+  onClose: () => void;
+}) {
+  const emailConfig = channel.config.email;
+  const domain = emailConfig?.domain || "";
+  const addresses = emailConfig?.addresses || [emailConfig?.address || ""];
+  const primaryAddress = emailConfig?.address || "";
+
+  const updateMutation = useUpdateEmailChannelAddresses();
+  const [newEmail, setNewEmail] = useState("");
+  const [error, setError] = useState("");
+
+  const handleAddEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    const email = newEmail.trim().toLowerCase();
+    if (!email) return;
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!email.endsWith(`@${domain}`)) {
+      setError(`Email must end with @${domain}`);
+      return;
+    }
+
+    if (addresses.includes(email)) {
+      setError("This email address is already added");
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        channelId: channel._id,
+        emails: [...addresses, email],
+      });
+      setNewEmail("");
+    } catch (err: any) {
+      setError(err?.message || "Failed to add email address");
+    }
+  };
+
+  const handleDeleteEmail = async (emailToDelete: string) => {
+    setError("");
+    if (addresses.length <= 1) {
+      setError("You must keep at least one email address");
+      return;
+    }
+
+    const updated = addresses.filter((email: string) => email !== emailToDelete);
+
+    try {
+      await updateMutation.mutateAsync({
+        channelId: channel._id,
+        emails: updated,
+      });
+    } catch (err: any) {
+      setError(err?.message || "Failed to delete email address");
+    }
+  };
+
+  const handleMakePrimary = async (email: string) => {
+    setError("");
+    // Move selected email to the front of the list
+    const updated = [email, ...addresses.filter((e: string) => e !== email)];
+
+    try {
+      await updateMutation.mutateAsync({
+        channelId: channel._id,
+        emails: updated,
+      });
+    } catch (err: any) {
+      setError(err?.message || "Failed to set primary email");
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-border overflow-hidden bg-card/40 p-4 space-y-4">
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Manage Support Emails</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Add multiple email addresses under your verified domain <strong className="text-foreground">@{domain}</strong>.
+          </p>
+        </div>
+        <Button size="xs" variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+
+      {/* List of current email addresses */}
+      <div className="space-y-2">
+        {addresses.map((email: string) => (
+          <div
+            key={email}
+            className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">{email}</span>
+              {email === primaryAddress ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-wider">
+                  Primary
+                </span>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {email !== primaryAddress && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => handleMakePrimary(email)}
+                  disabled={updateMutation.isPending}
+                  className="h-7 text-[11px] px-2"
+                >
+                  Make Primary
+                </Button>
+              )}
+              {addresses.length > 1 && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => handleDeleteEmail(email)}
+                  disabled={updateMutation.isPending}
+                  className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 flex items-center justify-center p-0"
+                  title="Delete Email"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add new email form */}
+      <form onSubmit={handleAddEmail} className="space-y-2 pt-2 border-t border-border">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={`support-new@${domain}`}
+              className="pl-9 h-9 text-sm"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              disabled={updateMutation.isPending}
+            />
+          </div>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={updateMutation.isPending || !newEmail.trim()}
+            className="h-9"
+          >
+            {updateMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Add Email"
+            )}
+          </Button>
+        </div>
+
+        {error && <p className="text-xs text-destructive font-medium">{error}</p>}
+        {updateMutation.isError && !error && (
+          <p className="text-xs text-destructive font-medium">
+            {(updateMutation.error as Error)?.message || "Failed to update email addresses"}
+          </p>
+        )}
+      </form>
+    </div>
+  );
+}
+
 function DnsRecordsTable({ records }: { records: DnsRecord[] }) {
   if (!records.length) return null;
   return (
@@ -202,6 +387,7 @@ export function ChannelsPage() {
   const deleteMutation = useDeleteChannel();
   
   const [showDns, setShowDns] = useState(false);
+  const [showEmailsSection, setShowEmailsSection] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   
   const [showWhatsAppInfo, setShowWhatsAppInfo] = useState(false);
@@ -289,9 +475,28 @@ export function ChannelsPage() {
                       status={emailChannel.config.email?.verificationStatus ?? "pending"}
                     />
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {emailChannel.config.email?.address}
-                  </p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {(emailChannel.config.email?.addresses?.length
+                      ? emailChannel.config.email.addresses
+                      : [emailChannel.config.email?.address || ""]
+                    ).map((addr) => (
+                      <span
+                        key={addr}
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                          addr === emailChannel.config.email?.address
+                            ? "bg-primary/5 text-primary border-primary/20"
+                            : "bg-muted text-muted-foreground border-border"
+                        }`}
+                      >
+                        {addr}
+                        {addr === emailChannel.config.email?.address && (
+                          <span className="ml-1 text-[9px] uppercase tracking-wider opacity-75 font-semibold">
+                            (Primary)
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -315,7 +520,23 @@ export function ChannelsPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setShowDns((p) => !p)}
+                  onClick={() => {
+                    setShowEmailsSection((p) => !p);
+                    setShowDns(false);
+                  }}
+                  className="gap-1.5"
+                  id="btn-manage-emails"
+                >
+                  <Mail className="h-3.5 w-3.5" />
+                  Manage Emails
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setShowDns((p) => !p);
+                    setShowEmailsSection(false);
+                  }}
                   className="gap-1.5"
                   id="btn-toggle-dns"
                 >
@@ -362,9 +583,8 @@ export function ChannelsPage() {
               <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
                 <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                  Domain verified! Incoming emails to{" "}
-                  <strong>{emailChannel.config.email?.address}</strong> will create conversations
-                  in your inbox. Outgoing emails are sent from this address.
+                  Domain verified! Incoming emails to configured addresses will create conversations
+                  in your inbox. Outgoing emails are sent from the corresponding address.
                 </p>
               </div>
             )}
@@ -375,6 +595,14 @@ export function ChannelsPage() {
                 ✓ Verification status refreshed:{" "}
                 <strong>{verifyMutation.data?.data?.status}</strong>
               </p>
+            )}
+
+            {/* Manage Emails Section */}
+            {showEmailsSection && (
+              <ManageEmailsSection
+                channel={emailChannel}
+                onClose={() => setShowEmailsSection(false)}
+              />
             )}
 
             {/* DNS Records */}

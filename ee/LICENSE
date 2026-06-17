@@ -1,21 +1,22 @@
 InteraOne Enterprise License
 
-Copyright (c) 2026 Om Pharate
+Copyright (c) 2026 Om Pharate.
+All Rights Reserved.
 
-The software contained in this directory ("Enterprise Software")
-is proprietary and confidential.
+The Enterprise Edition (EE) components of InteraOne are proprietary software.
 
-You may not use, copy, modify, distribute, sublicense,
-or sell the Enterprise Software without explicit written
-permission from the copyright holder.
+You may not copy, modify, distribute, sublicense, sell, lease, host, or
+provide the Enterprise Edition to third parties except as expressly permitted
+under a separate written agreement with the copyright holder.
 
-You may use and modify the Enterprise Software internally
-for development and evaluation purposes only.
+The Enterprise Edition is licensed, not sold.
 
-This license applies only to files located inside the /ee
-directory or otherwise explicitly marked as Enterprise Edition (EE).
+UNAUTHORIZED USE, REPRODUCTION, OR DISTRIBUTION OF THE ENTERPRISE EDITION IS
+STRICTLY PROHIBITED.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
-AND NONINFRINGEMENT.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.

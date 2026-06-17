@@ -156,7 +156,9 @@ class Application {
     });
 
     // Swagger API Documentation
-    setupSwagger(this.app);
+    if (config.app.env !== "production") {
+      setupSwagger(this.app);
+    }
   }
 
   private setupErrorHandling(): void {

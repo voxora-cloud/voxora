@@ -48,7 +48,6 @@ const behaviorSchema = Joi.object({
 
 const aiSchema = Joi.object({
   enabled: Joi.boolean().required(),
-  model: Joi.string().min(1).max(120).required(),
   fallbackToAgent: Joi.boolean().required(),
 });
 
@@ -81,6 +80,7 @@ export const widgetSchema = {
     ai: aiSchema,
     conversation: conversationSchema,
     features: featuresSchema,
+    verifiedDomain: Joi.string().trim().max(256).optional().allow("", null),
     _id: Joi.string().optional(),
     userId: Joi.string().optional(),
     createdAt: Joi.date().optional(),

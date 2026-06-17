@@ -165,8 +165,10 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
         organizationId,
         "visitor.sessionId": `whatsapp-${fromPhone}`,
         status: { $in: ["open", "pending"] },
-        "metadata.channel": "whatsapp_channel",
-        "metadata.channelId": payload.channelId,
+        $or: [
+          { channel: "whatsapp_channel", channelId: payload.channelId },
+          { "metadata.channel": "whatsapp_channel", "metadata.channelId": payload.channelId }
+        ],
       });
 
       if (!conversation) {
@@ -180,9 +182,9 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
           priority: "medium",
           createdBy: systemId,
           tags: ["whatsapp"],
+          channel: "whatsapp_channel",
+          channelId: payload.channelId,
           metadata: {
-            channel: "whatsapp_channel",
-            channelId: payload.channelId,
             phone: fromPhone,
           },
           visitor: {

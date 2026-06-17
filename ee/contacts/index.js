@@ -1,3 +1,12 @@
+/*
+ * Copyright (c) 2026 Om Pharate
+ *
+ * This file is part of InteraOne Enterprise Edition (EE).
+ *
+ * Licensed under the InteraOne Enterprise License.
+ * See LICENSE for details.
+ */
+
 // @ts-check
 "use strict";
 

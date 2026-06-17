@@ -27,7 +27,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       try {
         // Fetch conversation to get visitor info and widget config
         const conversation = await Conversation.findById(conversationId)
-          .select("organizationId visitor metadata assignedTo status subject")
+          .select("organizationId visitor channel channelId metadata assignedTo status subject")
           .lean();
 
         if (!conversation) {
@@ -95,33 +95,35 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           );
 
           // Forward agent reply to channels if applicable
-          if (conversation.metadata) {
-            const convMeta = conversation.metadata as any;
-            if (convMeta.channel && convMeta.channelId) {
-              const channelId = convMeta.channelId;
-              let to: string | undefined;
+          const channelType = (conversation as any).channel || (conversation as any).metadata?.channel;
+          const channelId = (conversation as any).channelId || (conversation as any).metadata?.channelId;
 
-              if (convMeta.channel === "email_channel") {
-                to = conversation.visitor?.email;
-              } else if (convMeta.channel === "whatsapp_channel") {
-                to = convMeta.phone || conversation.visitor?.name;
-              } else if (convMeta.channel === "telegram_channel") {
-                to = convMeta.chatId || conversation.visitor?.sessionId?.replace("telegram-", "");
-              }
+          if (channelType && channelId) {
+            const channelIdStr = channelId.toString();
+            let to: string | undefined;
+            const convMeta = conversation.metadata as any || {};
 
-              if (to) {
-                ChannelService.sendViaChannel(
-                  organizationId,
-                  channelId.toString(),
-                  {
-                    to,
-                    subject: conversation.subject || "Reply from Support",
-                    body: content,
-                  }
-                ).catch((err: any) => {
-                  logger.error(`[handleMessage] Failed to forward agent reply to channel ${convMeta.channel}:`, err);
-                });
-              }
+            if (channelType === "email_channel") {
+              to = conversation.visitor?.email;
+            } else if (channelType === "whatsapp_channel") {
+              to = convMeta.phone || conversation.visitor?.name;
+            } else if (channelType === "telegram_channel") {
+              to = convMeta.chatId || conversation.visitor?.sessionId?.replace("telegram-", "");
+            }
+
+            if (to) {
+              ChannelService.sendViaChannel(
+                organizationId,
+                channelIdStr,
+                {
+                  to,
+                  subject: conversation.subject || "Reply from Support",
+                  body: content,
+                  from: conversation.metadata?.supportEmail,
+                }
+              ).catch((err: any) => {
+                logger.error(`[handleMessage] Failed to forward agent reply to channel ${channelType}:`, err);
+              });
             }
           }
 

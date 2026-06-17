@@ -14,6 +14,13 @@ export const channelsSchema = {
     }),
   }),
 
+  updateEmailChannelAddresses: Joi.object({
+    emails: Joi.array().items(Joi.string().pattern(emailPattern)).min(1).required().messages({
+      "array.min": "At least one email address is required",
+      "string.pattern.base": "Must be a valid email address",
+    }),
+  }),
+
   createWhatsAppChannel: Joi.object({
     name: Joi.string().min(2).max(100).required(),
     phoneNumber: Joi.string().required().messages({

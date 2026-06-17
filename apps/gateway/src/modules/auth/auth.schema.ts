@@ -22,6 +22,7 @@ export const authSchema = {
     email: Joi.string().email().required(),
     organizationName: Joi.string().min(2).max(100).required(),
     password: Joi.string().min(8).required(),
+    domain: Joi.string().trim().max(256).optional().allow("", null),
   }),
 
   forgotPassword: Joi.object({
