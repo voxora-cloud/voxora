@@ -1046,6 +1046,7 @@ body {
   line-height: 1.6;
   color: #e4e4e7;
   word-wrap: break-word;
+  white-space: pre-wrap;
 }
 
 .message.agent .message-bubble {

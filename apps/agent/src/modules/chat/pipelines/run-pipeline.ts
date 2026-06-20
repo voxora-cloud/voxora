@@ -7,6 +7,8 @@ import { getTool, getToolsForContext } from "../../agents/tools";
 import { getConversationGate } from "../../../infrastructure/cache";
 import { publishStreamWithSeq } from "../services/stream.service";
 import { internalApi } from "../../../infrastructure/api/internal.client";
+import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
+import { vectorStore } from "../../../infrastructure/vector";
 
 function shouldSkipConversation(gate: {
   status?: string;
@@ -32,11 +34,23 @@ function redactOtpForLog(content: string): string {
 export async function runPipeline(job: AIJobData): Promise<void> {
   const { conversationId, content } = job;
 
+  // Short suffix used as a unique label for console.time so concurrent jobs don't collide
+  const cid = conversationId.slice(-8);
+  const t = (label: string) => `[${cid}] ${label}`;
+
+  // ── TOTAL pipeline timer ──────────────────────────────────────────────────
+  console.time(t("total"));
+
+  // ── GATE CHECK ────────────────────────────────────────────────────────────
+  console.time(t("gate:cache"));
   const gate = await getConversationGate(conversationId, job.organizationId);
+  console.timeEnd(t("gate:cache"));
+
   if (shouldSkipConversation(gate)) {
     console.log(
       `[Pipeline] Skipping job - conversation ${conversationId} already escalated/closed/assigned`,
     );
+    console.timeEnd(t("total"));
     return;
   }
 
@@ -55,9 +69,11 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   let error: string | undefined;
   let usage: any;
 
+  // ── OTP CHECK ─────────────────────────────────────────────────────────────
   let verifiedIdentityEmail: string | null = null;
   const otpCode = exactOtpCode(content);
   if (otpCode) {
+    console.time(t("otp:verify"));
     const verifyTool = getTool("verify_email_otp");
     const stepTimestamp = new Date();
     const verification = verifyTool
@@ -70,6 +86,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
           },
         )) as { status?: string; verified?: boolean; email?: string | null; message?: string }
       : { status: "error", verified: false, message: "OTP verifier is unavailable" };
+    console.timeEnd(t("otp:verify"));
 
     steps.push({
       toolName: "verify_email_otp",
@@ -107,12 +124,101 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       } catch (apiErr: any) {
         console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
       }
+      console.timeEnd(t("total"));
       return;
     }
   }
 
+  // ── FAQ SEMANTIC BYPASS ───────────────────────────────────────────────────
+  let faqMatched = false;
+  let queryVector: number[] | undefined;
+  if (!otpCode) {
+    try {
+      const embeddingProvider = getEmbeddingProvider();
+
+      console.time(t("embed:faq"));
+      queryVector = await embeddingProvider.embed(content.trim());
+      console.timeEnd(t("embed:faq"));
+
+      console.time(t("qdrant:faq"));
+      const results = await vectorStore.search(queryVector, {
+        organizationId: job.organizationId,
+        topK: 1,
+        type: "faq",
+      });
+      console.timeEnd(t("qdrant:faq"));
+
+      if (results.length > 0) {
+        const match = results[0];
+        if (match.score >= 0.85) {
+          const faqAnswer = (match.payload as any)?.answer || (match.payload as any)?.content || "";
+          if (faqAnswer) {
+            console.log(`[Pipeline] FAQ semantic match found (score: ${match.score.toFixed(4)}) - Bypassing AI LLM pipeline`);
+            faqMatched = true;
+
+            // Publish response
+            await publishResponse({ conversationId, content: faqAnswer });
+
+            // Save run logs
+            const duration = Date.now() - startTime;
+            steps.push({
+              toolName: "faq_semantic_bypass",
+              args: { query: content },
+              result: {
+                score: match.score,
+                question: (match.payload as any)?.question,
+                answer: faqAnswer,
+              },
+              timestamp: new Date(),
+            });
+
+            try {
+              await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, {
+                organizationId: job.organizationId,
+                messageId: job.messageId,
+                steps,
+                duration,
+                status: "success",
+                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              });
+            } catch (apiErr: any) {
+              console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
+            }
+
+            console.timeEnd(t("total"));
+            return;
+          }
+        }
+      }
+    } catch (faqErr: any) {
+      console.error("[Pipeline] FAQ semantic search failed:", faqErr.message);
+    }
+  }
+
+  // If FAQ did not match and AI is disabled/subscription is expired: escalate
+  const isAiEnabled = job.aiEnabled !== false;
+  const isSubActive = job.subscriptionExpired !== true;
+
+  if (!isAiEnabled || !isSubActive) {
+    console.log(`[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}) and no FAQ matched. Escalating conversation ${conversationId}`);
+    try {
+      await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
+        organizationId: job.organizationId,
+        reason: !isSubActive
+          ? "Subscription expired — auto-escalated to human"
+          : "AI disabled — auto-escalated to human",
+      });
+    } catch (escErr: any) {
+      console.error("[Pipeline] Failed to escalate conversation on AI disabled/expired:", escErr.message);
+    }
+    console.timeEnd(t("total"));
+    return;
+  }
+
   try {
     // -- 1. Context -------------------------------------------------------------
+    console.time(t("agent"));
+    console.time(t("context:build"));
     const context = await buildContext(
       conversationId,
       job.organizationId,
@@ -121,7 +227,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       job.fallbackToAgent,
       job.collectUserInfo,
       job.channel,
+      queryVector,
     );
+    console.timeEnd(t("context:build"));
+
     if (verifiedIdentityEmail) {
       const verifiedCodePattern = new RegExp(`\\b${otpCode}\\b`, "g");
       context.messages = context.messages.map((message) => ({
@@ -152,24 +261,45 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     let generatedText: string;
     try {
       const provider = getDefaultProvider();
+      const capabilities = await provider.getCapabilities();
+
+      console.time(t("llm"));
+      const llmStart = performance.now();
+      let hasReceivedFirstToken = false;
+
       const generated = await provider.generate(messages, {
-        tools: getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel }),
+        tools: capabilities.supportsTools
+          ? getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel })
+          : [],
         toolContext: {
           organizationId: job.organizationId,
           conversationId: job.conversationId,
           messageId: job.messageId,
         },
-        onStream: (chunk, isThought = false) => {
-          publishStreamWithSeq({
-            conversationId,
-            messageId: job.messageId,
-            chunk,
-            isThought,
-          }).catch((err) =>
-            console.error("[Pipeline] Stream publish failed:", err.message),
-          );
-        },
+        onStream: capabilities.supportsStreaming
+          ? (chunk, isThought = false) => {
+              if (!hasReceivedFirstToken) {
+                hasReceivedFirstToken = true;
+                const ttftPipeline = Date.now() - startTime;
+                const ttftLlm = performance.now() - llmStart;
+                console.log(
+                  `[${cid}] ttft: ${ttftPipeline.toFixed(2)}ms (from request) | llm_ttft: ${ttftLlm.toFixed(2)}ms (from LLM start) (isThought=${isThought})`,
+                );
+              }
+              publishStreamWithSeq({
+                conversationId,
+                messageId: job.messageId,
+                chunk,
+                isThought,
+              }).catch((err) =>
+                console.error("[Pipeline] Stream publish failed:", err.message),
+              );
+            }
+          : undefined,
       });
+      console.timeEnd(t("llm"));
+      console.timeEnd(t("agent"));
+
       generatedText = generated.text;
       usage = generated.usage;
       if (generated.steps) {
@@ -184,8 +314,23 @@ export async function runPipeline(job: AIJobData): Promise<void> {
           ? " If you need immediate help, I can connect you to a human agent."
           : "");
       await publishResponse({ conversationId, content: fallback });
+
+      if (canEscalate) {
+        try {
+          await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
+            organizationId: job.organizationId,
+            reason: "LLM provider error — auto-escalated to human",
+          });
+        } catch (escErr: any) {
+          console.error("[Pipeline] Failed to escalate conversation on provider error:", escErr.message);
+        }
+      }
+
+      try { console.timeEnd(t("llm")); } catch {}
+      try { console.timeEnd(t("agent")); } catch {}
       status = "failed";
       error = providerErr instanceof Error ? providerErr.message : String(providerErr);
+      console.timeEnd(t("total"));
       return;
     }
 
@@ -194,13 +339,17 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     );
 
     // -- 4. Publish regular response ---------------------------------------------
+    console.time(t("publish:response"));
     await publishResponse({ conversationId, content: generatedText, usage });
+    console.timeEnd(t("publish:response"));
+
   } catch (err: any) {
     status = "failed";
     error = err.message || String(err);
     throw err;
   } finally {
     const duration = Date.now() - startTime;
+    console.timeEnd(t("total"));
     try {
       await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, {
         organizationId: job.organizationId,

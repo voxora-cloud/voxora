@@ -1,10 +1,11 @@
-import { Organization, Membership, MembershipRole, IOrganization, Widget } from "@shared/models";
+import { Organization, Membership, MembershipRole, IOrganization, Widget, Knowledge } from "@shared/models";
 import { ClientSession, Types } from "mongoose";
 import { generateTokens } from "@shared/security/auth/jwt";
 import crypto from "crypto";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import { loadEeModule } from "@shared/ee";
 import { CreateOrganizationInput, UpdateOrganizationInput } from "./organization.types";
+import { ingestionQueue } from "@shared/infra/queue";
 
 export class OrganizationService {
     /**
@@ -29,6 +30,60 @@ export class OrganizationService {
             throw new Error("Failed to create organization");
         }
 
+        // Create 3 default generic FAQs
+        const defaultFaqs = [
+            {
+                title: "What is your refund policy?",
+                content: "We offer a 14-day money-back guarantee. If you are not satisfied with our service, you can request a full refund within 14 days of your purchase.",
+            },
+            {
+                title: "How can I contact support?",
+                content: "You can contact our support team by sending an email to support@company.com or by raising a ticket in the help desk.",
+            },
+            {
+                title: "Can I cancel my subscription anytime?",
+                content: "Yes, you can cancel your subscription at any time from your billing dashboard. Your access will remain active until the end of the current billing cycle.",
+            },
+        ];
+
+        const createdFaqs = [];
+        for (const faq of defaultFaqs) {
+            try {
+                const doc = await Knowledge.create(
+                    [{
+                        organizationId: organization._id,
+                        title: faq.title,
+                        description: "Default generic FAQ",
+                        catalog: "default",
+                        source: "faq",
+                        status: "queued",
+                        content: faq.content,
+                        uploadedBy: userId,
+                    }],
+                    { session },
+                );
+                
+                const createdDoc = doc[0];
+                createdFaqs.push(createdDoc);
+
+                await ingestionQueue.add("ingest", {
+                    documentId: String(createdDoc._id),
+                    organizationId: organization._id.toString(),
+                    source: "faq",
+                    fileKey: "",
+                    mimeType: "text/plain",
+                    fileName: faq.title,
+                    title: faq.title,
+                    catalog: "default",
+                    content: faq.content,
+                }).catch((err) => {
+                    console.error("[OrganizationService] Failed to enqueue default FAQ ingestion:", err);
+                });
+            } catch (err) {
+                console.error(`[OrganizationService] Failed to create default FAQ: ${faq.title}`, err);
+            }
+        }
+
         // Auto-create a default widget for the new organization
         const defaultWidgetConfig = buildDefaultWidgetConfig();
         await Widget.create(
@@ -36,7 +91,14 @@ export class OrganizationService {
                 organizationId: organization._id,
                 displayName: organization.name,
                 ...defaultWidgetConfig,
+                suggestions: createdFaqs.map((faq) => ({
+                    text: faq.title,
+                    showOutside: false,
+                    faqId: faq._id.toString(),
+                })),
                 publicKey: crypto.randomBytes(16).toString("hex"),
+                verifiedDomain: "localhost",
+                domainVerificationStatus: "verified",
             }],
             { session },
         );
@@ -75,7 +137,7 @@ export class OrganizationService {
     static async getUserOrganizations(userId: string) {
         const memberships = await Membership.find({ userId, inviteStatus: "active" }).populate<{
             organizationId: IOrganization;
-        }>("organizationId", "name slug logoUrl plan whiteLabelEnabled");
+        }>("organizationId", "name slug logoUrl plan whiteLabelEnabled isActive");
 
         return memberships
             .filter((m) => m.organizationId && (m.organizationId as any).isActive)

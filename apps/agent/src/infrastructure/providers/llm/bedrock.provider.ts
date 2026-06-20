@@ -12,6 +12,7 @@ import {
   LLMTokenUsage,
   LLMGenerateStep,
 } from "./types";
+import { ModelCapabilities } from "../types";
 import config from "../../../config";
 
 export class BedrockProvider implements LLMProvider {
@@ -392,6 +393,20 @@ export class BedrockProvider implements LLMProvider {
       text: finalCleanText || "Tool execution limit reached.",
       usage,
       steps,
+    };
+  }
+
+  async getCapabilities(modelId?: string): Promise<ModelCapabilities> {
+    const activeModel = modelId ?? this.defaultModel;
+    const isClaude = activeModel.includes("claude");
+    const isLlama = activeModel.includes("llama");
+    return {
+      modelId: activeModel,
+      contextWindow: isClaude ? 200000 : (isLlama ? 128000 : 8192),
+      supportsStreaming: true,
+      supportsTools: isClaude,
+      supportsVision: isClaude && (activeModel.includes("claude-3") || activeModel.includes("claude-3-5")),
+      supportsReasoning: isClaude && activeModel.includes("claude-3-7"),
     };
   }
 }

@@ -91,9 +91,7 @@ export function SignupForm() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [domainInput, setDomainInput] = useState("");
-  const [widgetDetails, setWidgetDetails] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
+
 
   const [formData, setFormData] = useState({
     name: "",

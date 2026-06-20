@@ -1,5 +1,5 @@
 import axios from "axios";
-import * as cheerio from "cheerio";
+import { chromium, Page } from "playwright";
 
 const USER_AGENT = "InteraOne/1.0 (knowledge indexer)";
 const REQUEST_TIMEOUT = 30_000;
@@ -9,30 +9,16 @@ export interface FetchedPage {
   text: string;
 }
 
-
-
-
-
-
-
 const STATIC_EXTENSIONS = new Set([
-  
   "css", "js", "mjs", "cjs", "map",
-  
   "png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "bmp", "avif", "tiff",
-  
   "woff", "woff2", "ttf", "eot", "otf",
-  
   "zip", "gz", "tar", "rar", "7z", "exe", "dmg", "pkg", "deb", "rpm",
-  
   "mp3", "mp4", "webm", "ogg", "wav", "avi", "mov", "mkv", "flac",
-  
   "pdf", "docx", "doc", "xlsx", "pptx",
-  
   "json", "xml", "csv", "yaml", "yml",
 ]);
 
- 
 function isStaticAssetUrl(url: string): boolean {
   try {
     const pathname = new URL(url).pathname;
@@ -43,137 +29,321 @@ function isStaticAssetUrl(url: string): boolean {
   }
 }
 
-
-
- 
-function htmlToText(html: string): string {
-  const $ = cheerio.load(html);
-  
-  
-  $("script, style, noscript, iframe").remove();
-  
-  return $("body").text().replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-
-
-
-function extractMetadataFallback(html: string): string {
-  const $ = cheerio.load(html);
-
-  const title = $("title").first().text().trim();
-  const h1 = $("h1").first().text().trim();
-  const h2 = $("h2").first().text().trim();
-  const description =
-    $("meta[name='description']").attr("content")?.trim() ||
-    $("meta[property='og:description']").attr("content")?.trim() ||
-    "";
-
-  return [title, h1, h2, description].filter(Boolean).join("\n\n").trim();
-}
-
- 
-function extractLinks(html: string, pageUrl: string): string[] {
-  const $ = cheerio.load(html);
-  const base = new URL(pageUrl);
-  const seen = new Set<string>();
-
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href");
-    if (!href) return;
-    try {
-      const resolved = new URL(href, pageUrl);
-      
-      if (
-        resolved.hostname === base.hostname &&
-        resolved.protocol.startsWith("http") &&
-        !isStaticAssetUrl(resolved.toString())
-      ) {
-        resolved.hash = "";
-        seen.add(resolved.toString());
-      }
-    } catch {
-       
-    }
-  });
-
-  
-  
-  $("[href], [data-href], [data-url], [content], [src]").each((_, el) => {
-    const attrValues = [
-      $(el).attr("href"),
-      $(el).attr("data-href"),
-      $(el).attr("data-url"),
-      $(el).attr("content"),
-      $(el).attr("src"),
-    ].filter(Boolean) as string[];
-
-    for (const raw of attrValues) {
-      try {
-        const resolved = new URL(raw, pageUrl);
-        if (
-          resolved.hostname === base.hostname &&
-          resolved.protocol.startsWith("http") &&
-          !isStaticAssetUrl(resolved.toString())
-        ) {
-          resolved.hash = "";
-          seen.add(resolved.toString());
-        }
-      } catch {
-         
-      }
-    }
-  });
-
-  
-  const absUrlPattern = /https?:\/\/[^\s"'<>`]+/g;
-  for (const match of html.match(absUrlPattern) || []) {
-    try {
-      const resolved = new URL(match);
-      if (
-        resolved.hostname === base.hostname &&
-        resolved.protocol.startsWith("http") &&
-        !isStaticAssetUrl(resolved.toString())
-      ) {
-        resolved.hash = "";
-        seen.add(resolved.toString());
-      }
-    } catch {
-       
-    }
-  }
-
-  
-  const relPathPattern = /["'`]\/(?!\/)([^"'`\s?#][^"'`\s]*)["'`]/g;
-  for (const match of html.matchAll(relPathPattern)) {
-    const pathPart = match[1]?.trim();
-    if (!pathPart) continue;
-    const candidate = `/${pathPart}`;
-    try {
-      const resolved = new URL(candidate, pageUrl);
-      if (!isStaticAssetUrl(resolved.toString())) {
-        resolved.hash = "";
-        seen.add(resolved.toString());
-      }
-    } catch {
-      /* skip malformed */
-    }
-  }
-
-  return [...seen];
-}
-
-function normalizeSameOriginCandidate(candidate: string, root: URL): string | null {
+/**
+ * Normalizes a URL:
+ * 1. Converts hostname to lowercase.
+ * 2. Drops hash fragments.
+ * 3. Strips trailing slashes from pathnames.
+ * 4. Strips marketing/analytics tracking parameters.
+ * 5. Sorts the remaining query parameters.
+ */
+export function normalizeUrl(urlString: string, baseUrl?: string): string | null {
   try {
-    const url = new URL(candidate, root.origin);
+    const url = new URL(urlString, baseUrl);
     if (!url.protocol.startsWith("http")) return null;
-    if (url.hostname !== root.hostname) return null;
+
+    url.hostname = url.hostname.toLowerCase();
     url.hash = "";
-    const normalized = url.toString();
-    if (isStaticAssetUrl(normalized)) return null;
-    return normalized;
+
+    // Strip trailing slash except for root pathname
+    if (url.pathname.endsWith("/") && url.pathname.length > 1) {
+      url.pathname = url.pathname.slice(0, -1);
+    }
+
+    const params = new URLSearchParams(url.search);
+    const keysToStrip = [
+      "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+      "ref", "fbclid", "gclid", "cx", "ie", "cof", "siteurl"
+    ];
+    keysToStrip.forEach(k => params.delete(k));
+    params.sort();
+
+    const searchStr = params.toString();
+    url.search = searchStr ? `?${searchStr}` : "";
+
+    return url.toString();
   } catch {
     return null;
+  }
+}
+
+const EXCLUDED_PATTERNS = [
+  /\/page\/\d+/i,
+  /\b(page|p)=\d+/i,
+  /\/tags?\//i,
+  /\/categor(y|ies)\//i,
+  /\/author\//i,
+  /\/archive\//i,
+  /\/date\//i,
+  /\/feed\/?$/i,
+  /\/rss\/?$/i,
+  /\/feed\/atom\/?$/i,
+  /\bs\s*=/i,
+  /\bsearch\b/i,
+  /\/calendar/i,
+  /\/events/i,
+];
+
+export function shouldCrawl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname;
+    const search = parsed.search;
+
+    return !EXCLUDED_PATTERNS.some(pattern => pattern.test(path) || pattern.test(search));
+  } catch {
+    return false;
+  }
+}
+
+async function extractCleanText(page: Page): Promise<string> {
+  // Strip style tags, scripts, navigation, headers, footers, etc. before pulling text
+  await page.evaluate(() => {
+    const selectors = ["script", "style", "nav", "header", "footer", "noscript", "iframe"];
+    selectors.forEach((sel) => {
+      document.querySelectorAll(sel).forEach((el: any) => el.remove());
+    });
+  });
+
+  const bodyText = await page.locator("body").innerText().catch(() => "");
+
+  // Metadata fallback if inner text is too short
+  if (bodyText.trim().length < 40) {
+    const metadata = await page.evaluate(() => {
+      const title = document.querySelector("title")?.textContent || "";
+      const h1 = document.querySelector("h1")?.textContent || "";
+      const h2 = document.querySelector("h2")?.textContent || "";
+      const description =
+        document.querySelector("meta[name='description']")?.getAttribute("content") ||
+        document.querySelector("meta[property='og:description']")?.getAttribute("content") ||
+        "";
+      return [title, h1, h2, description].filter(Boolean).join("\n\n");
+    });
+    return metadata.trim();
+  }
+
+  return bodyText
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Fetch only the given URL and return its text content */
+export async function fetchSinglePage(url: string): Promise<FetchedPage[]> {
+  const normalized = normalizeUrl(url);
+  if (!normalized) return [];
+
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+
+    // Block images, stylesheets, media and fonts to speed up load times
+    await page.route("**/*", (route) => {
+      const type = route.request().resourceType();
+      if (["image", "stylesheet", "media", "font"].includes(type)) {
+        route.abort();
+      } else {
+        route.continue();
+      }
+    });
+
+    await page.goto(normalized, { waitUntil: "domcontentloaded", timeout: REQUEST_TIMEOUT });
+
+    // Handle Canonical URL
+    const canonicalHref = await page.locator('link[rel="canonical"]').getAttribute("href").catch(() => null);
+    if (canonicalHref) {
+      const resolvedCanonical = normalizeUrl(canonicalHref, normalized);
+      if (resolvedCanonical && resolvedCanonical !== normalized) {
+        console.log(`[Crawler] Resolved canonical link to: ${resolvedCanonical}`);
+        const text = await extractCleanText(page);
+        return [{ url: resolvedCanonical, text }];
+      }
+    }
+
+    const text = await extractCleanText(page);
+    return [{ url: normalized, text }];
+  } catch (err: any) {
+    console.warn(`[Crawler] Failed to fetch single page ${url}: ${err.message}`);
+    return [];
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * BFS-crawl starting from `rootUrl` up to `maxDepth` levels.
+ * Yields pages one-by-one as they are fetched.
+ */
+export async function* crawlPages(
+  rootUrl: string,
+  maxDepth: number,
+): AsyncGenerator<FetchedPage> {
+  const rootNormalized = normalizeUrl(rootUrl);
+  if (!rootNormalized) return;
+
+  const visited = new Set<string>();
+  let totalYielded = 0;
+  const MAX_PAGES_LIMIT = parseInt(process.env.CRAWLER_MAX_PAGES || "150", 10);
+
+  const queue: Array<[string, number]> = [[rootNormalized, 0]];
+
+  // Discover sitemap candidates
+  if (maxDepth > 0) {
+    const sitemapCandidates = await discoverSitemapCandidates(rootNormalized);
+    if (sitemapCandidates.length > 0) {
+      console.log(
+        `[Crawler] Seeded ${sitemapCandidates.length} URL(s) from sitemap/robots for ${new URL(rootNormalized).hostname}`,
+      );
+      for (const url of sitemapCandidates) {
+        const normalizedCandidate = normalizeUrl(url);
+        if (normalizedCandidate && normalizedCandidate !== rootNormalized) {
+          queue.push([normalizedCandidate, 1]);
+        }
+      }
+    }
+  }
+
+  const browser = await chromium.launch({ headless: true });
+
+  try {
+    while (queue.length > 0) {
+      if (totalYielded >= MAX_PAGES_LIMIT) {
+        console.log(`[Crawler] Reached maximum crawl page limit of ${MAX_PAGES_LIMIT}. Stopping.`);
+        break;
+      }
+
+      const [currentUrl, depth] = queue.shift()!;
+      if (visited.has(currentUrl)) continue;
+
+      if (isStaticAssetUrl(currentUrl)) {
+        console.log(`[Crawler] Skipping static asset: ${currentUrl}`);
+        continue;
+      }
+
+      if (!shouldCrawl(currentUrl) && currentUrl !== rootNormalized) {
+        console.log(`[Crawler] Excluded link matching blog noise pattern: ${currentUrl}`);
+        continue;
+      }
+
+      visited.add(currentUrl);
+
+      let page: Page | null = null;
+      try {
+        page = await browser.newPage();
+
+        // Block static layout assets to speed up execution
+        await page.route("**/*", (route) => {
+          const type = route.request().resourceType();
+          if (["image", "stylesheet", "media", "font"].includes(type)) {
+            route.abort();
+          } else {
+            route.continue();
+          }
+        });
+
+        await page.goto(currentUrl, { waitUntil: "domcontentloaded", timeout: REQUEST_TIMEOUT });
+
+        const isHtml = await page.evaluate(() => document.contentType?.includes("text/html") !== false);
+        if (!isHtml) {
+          console.log(`[Crawler] Skipping non-HTML page: ${currentUrl}`);
+          continue;
+        }
+
+        // --- Handle Canonical URL Deduplication ---
+        const canonicalHref = await page.locator('link[rel="canonical"]').getAttribute("href").catch(() => null);
+        let resolvedUrl = currentUrl;
+
+        if (canonicalHref) {
+          const resolvedCanonical = normalizeUrl(canonicalHref, currentUrl);
+          if (resolvedCanonical) {
+            const rootHost = new URL(rootNormalized).hostname;
+            const canonicalHost = new URL(resolvedCanonical).hostname;
+
+            if (canonicalHost === rootHost) {
+              if (visited.has(resolvedCanonical) && resolvedCanonical !== currentUrl) {
+                console.log(`[Crawler] Skipping duplicate page (canonical URL ${resolvedCanonical} already visited)`);
+                continue;
+              }
+              resolvedUrl = resolvedCanonical;
+              visited.add(resolvedCanonical);
+            }
+          }
+        }
+
+        const text = await extractCleanText(page);
+        if (text) {
+          totalYielded++;
+          console.log(`[Crawler] Yielding page ${totalYielded} (depth ${depth}): ${resolvedUrl}`);
+          yield { url: resolvedUrl, text };
+        }
+
+        // --- Extract and Queue Links ---
+        if (depth < maxDepth) {
+          const rawLinks = await page.evaluate(() => {
+            const seen = new Set<string>();
+
+            // 1. Standard anchors
+            document.querySelectorAll("a[href]").forEach((el: any) => {
+              const href = el.getAttribute("href");
+              if (href) seen.add(href);
+            });
+
+            // 2. Custom attributes
+            document.querySelectorAll("[href], [data-href], [data-url], [src]").forEach((el: any) => {
+              const attrs = ["href", "data-href", "data-url", "src"];
+              attrs.forEach((attr) => {
+                const val = el.getAttribute(attr);
+                if (val) seen.add(val);
+              });
+            });
+
+            // 3. Absolute URL patterns in body
+            const bodyHtml = document.body.innerHTML;
+            const absUrlPattern = /https?:\/\/[^\s"'<>`]+/g;
+            const matches = bodyHtml.match(absUrlPattern) || [];
+            matches.forEach((m: any) => seen.add(m));
+
+            // 4. Relative paths in body
+            const relPathPattern = /["'`]\/(?!\/)([^"'`\s?#][^"'`\s]*)["'`]/g;
+            for (const match of bodyHtml.matchAll(relPathPattern)) {
+              const pathPart = match[1]?.trim();
+              if (pathPart) seen.add(`/${pathPart}`);
+            }
+
+            return Array.from(seen);
+          });
+
+          const rootHost = new URL(rootNormalized).hostname;
+
+          for (const rawLink of rawLinks) {
+            const normalizedLink = normalizeUrl(rawLink, currentUrl);
+            if (normalizedLink) {
+              try {
+                const linkHost = new URL(normalizedLink).hostname;
+                if (
+                  linkHost === rootHost &&
+                  !visited.has(normalizedLink) &&
+                  !isStaticAssetUrl(normalizedLink) &&
+                  shouldCrawl(normalizedLink)
+                ) {
+                  queue.push([normalizedLink, depth + 1]);
+                }
+              } catch {
+                // Ignore malformed URL parsing errors
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Crawler] Skipping ${currentUrl} due to error: ${err.message}`);
+      } finally {
+        if (page) {
+          await page.close().catch(() => {});
+        }
+      }
+    }
+  } finally {
+    await browser.close();
   }
 }
 
@@ -182,7 +352,7 @@ async function discoverSitemapCandidates(rootUrl: string): Promise<string[]> {
   const candidates = new Set<string>();
 
   const addCandidate = (value: string) => {
-    const normalized = normalizeSameOriginCandidate(value, root);
+    const normalized = normalizeUrl(value, root.origin);
     if (normalized) candidates.add(normalized);
   };
 
@@ -232,110 +402,4 @@ async function discoverSitemapCandidates(rootUrl: string): Promise<string[]> {
   }
 
   return [...candidates];
-}
-
-/**
- * Fetch a URL and return its HTML string, or null if the response is not
- * an HTML page (wrong Content-Type, redirect to a static file, etc.).
- */
-async function getPage(url: string): Promise<string | null> {
-  const res = await axios.get<string>(url, {
-    timeout: REQUEST_TIMEOUT,
-    headers: { "User-Agent": USER_AGENT, "Accept": "text/html" },
-    responseType: "text",
-  });
-
-  const contentType: string = String(res.headers["content-type"] ?? "").toLowerCase();
-  if (!contentType.includes("text/html")) {
-    return null; // binary, JSON, plain-text feed, etc.
-  }
-
-  return res.data;
-}
-
-// ── Public API ───────────────────────────────────────────────────────────────
-
-/** Fetch only the given URL and return its text content */
-export async function fetchSinglePage(url: string): Promise<FetchedPage[]> {
-  const html = await getPage(url);
-  if (!html) return [];
-  const text = htmlToText(html);
-  const fallback = extractMetadataFallback(html);
-  const bestEffortText = text.length >= 40 ? text : fallback;
-  return bestEffortText ? [{ url, text: bestEffortText }] : [];
-}
-
-/**
- * BFS-crawl starting from `rootUrl` up to `maxDepth` levels.
- * Yields pages one-by-one as they are fetched so the pipeline can flush
- * embeddings in configurable page-count batches without waiting for the
- * entire crawl to finish.
- *
- * depth=0 → only the root page (same as single)
- * depth=1 → root + direct links
- * depth=2 → root + direct links + their links
- */
-export async function* crawlPages(
-  rootUrl: string,
-  maxDepth: number,
-): AsyncGenerator<FetchedPage> {
-  const visited = new Set<string>();
-  let totalYielded = 0;
-
-  // BFS queue: [url, depth]
-  const queue: Array<[string, number]> = [[rootUrl, 0]];
-
-  if (maxDepth > 0) {
-    const sitemapCandidates = await discoverSitemapCandidates(rootUrl);
-    if (sitemapCandidates.length > 0) {
-      console.log(
-        `[Crawler] Seeded ${sitemapCandidates.length} URL(s) from sitemap/robots for ${new URL(rootUrl).hostname}`,
-      );
-      for (const url of sitemapCandidates) {
-        if (url !== rootUrl) queue.push([url, 1]);
-      }
-    }
-  }
-
-  while (queue.length > 0) {
-    const [currentUrl, depth] = queue.shift()!;
-    if (visited.has(currentUrl)) continue;
-    // Pre-flight: skip known static assets before making a request
-    if (isStaticAssetUrl(currentUrl)) {
-      console.log(`[Crawler] Skipping static asset: ${currentUrl}`);
-      continue;
-    }
-    visited.add(currentUrl);
-
-    try {
-      const html = await getPage(currentUrl);
-      // Skip non-HTML responses (getPage returns null for wrong Content-Type)
-      if (!html) {
-        console.log(`[Crawler] Skipping non-HTML response: ${currentUrl}`);
-        continue;
-      }
-
-      const text = htmlToText(html);
-      const fallback = extractMetadataFallback(html);
-      const bestEffortText = text.length >= 40 ? text : fallback;
-
-      if (bestEffortText) {
-        totalYielded++;
-        console.log(`[Crawler] Yielding page ${totalYielded} (depth ${depth}): ${currentUrl}`);
-        yield { url: currentUrl, text: bestEffortText };
-      }
-
-      if (depth < maxDepth) {
-        const links = extractLinks(html, currentUrl);
-        if (links.length === 0) {
-          console.log(`[Crawler] No same-origin links found on: ${currentUrl}`);
-        }
-        for (const link of links) {
-          if (!visited.has(link)) queue.push([link, depth + 1]);
-        }
-      }
-    } catch (err: any) {
-      console.warn(`[Crawler] Skipping ${currentUrl}: ${err.message}`);
-    }
-  }
 }

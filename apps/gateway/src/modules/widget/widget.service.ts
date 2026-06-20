@@ -1,6 +1,7 @@
 import crypto from "crypto";
-import { Widget, Conversation } from "@shared/models";
+import { Widget, Conversation, Membership } from "@shared/models";
 import logger from "@shared/core/logger";
+import { enqueueDomainVerificationPendingEmail, enqueueDomainVerificationCompletedEmail } from "@shared/queues/email.queue";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
@@ -79,9 +80,10 @@ function withWidgetConfigDefaults(input: any, isUpdate = false): any {
 
   if (!isUpdate || input.suggestions !== undefined) {
     if (Array.isArray(input.suggestions)) {
-      output.suggestions = input.suggestions.slice(0, 4).map((s: any) => ({
+      output.suggestions = input.suggestions.slice(0, 3).map((s: any) => ({
         text: String(s.text || "").trim(),
         showOutside: Boolean(s.showOutside),
+        faqId: s.faqId ? String(s.faqId) : null,
       })).filter((s: any) => s.text.length > 0);
     } else if (!output.suggestions) {
       output.suggestions = defaults.suggestions;
@@ -401,6 +403,14 @@ export class WidgetService {
       await widget.save();
     }
 
+    const oldStatus = existingWidget?.domainVerificationStatus;
+    const newStatus = widget?.domainVerificationStatus;
+    if (widget && newStatus === "pending" && oldStatus !== "pending" && widget.verifiedDomain && widget.domainVerificationToken) {
+      this.sendDomainVerificationEmail(organizationId, "pending", widget.verifiedDomain, widget.domainVerificationToken).catch(err => {
+        logger.error(`Failed to send domain pending email for org ${organizationId}:`, err);
+      });
+    }
+
     return widget;
   }
 
@@ -440,11 +450,41 @@ export class WidgetService {
 
     logger.info(`Widget domain verified successfully for org ${organizationId}: ${widget.verifiedDomain}`);
 
+    if (widget.verifiedDomain) {
+      this.sendDomainVerificationEmail(organizationId, "completed", widget.verifiedDomain).catch(err => {
+        logger.error(`Failed to send domain completed email for org ${organizationId}:`, err);
+      });
+    }
+
     return {
       success: true,
       domainVerificationStatus: "verified",
       verifiedDomain: widget.verifiedDomain,
     };
+  }
+
+  async sendDomainVerificationEmail(
+    organizationId: string,
+    event: "pending" | "completed",
+    domain: string,
+    token?: string,
+  ) {
+    const admins = await Membership.find({
+      organizationId,
+      role: { $in: ["owner", "admin"] },
+      inviteStatus: "active",
+    }).populate("userId", "name email");
+
+    for (const admin of admins) {
+      const user = admin.userId as any;
+      if (user && user.email) {
+        if (event === "pending" && token) {
+          await enqueueDomainVerificationPendingEmail(user.email, user.name || "Administrator", domain, token);
+        } else if (event === "completed") {
+          await enqueueDomainVerificationCompletedEmail(user.email, user.name || "Administrator", domain);
+        }
+      }
+    }
   }
 
   async initConversation(input: InitConversationInput): Promise<InitConversationResult> {

@@ -16,10 +16,15 @@ export async function buildContext(
   fallbackToAgent?: boolean,
   collectUserInfo?: CollectUserInfo,
   channel?: "widget" | "email" | "whatsapp" | "telegram",
+  passedQueryVector?: number[],
 ): Promise<ContextResult> {
   const canFallback = fallbackToAgent !== false;
   let knowledgeContext: string | undefined;
   let knownVisitorDetails: KnownVisitorDetails | undefined;
+
+  // Short suffix so concurrent jobs don't collide in the console
+  const cid = conversationId.slice(-8);
+  const t = (label: string) => `[${cid}] ${label}`;
 
   console.log(
     `[Context] ------------------------------------------------------`,
@@ -34,10 +39,11 @@ export async function buildContext(
   );
   console.log(`[Context] messageLength  : ${currentMessage.length} chars`);
 
-  // Start fetching history early in parallel to avoid blocking on RAG operations
+  // ── HISTORY (parallel fetch — fired before RAG so both run concurrently) ──
   console.log(
     `[History] Fetching history from API for conversation: ${conversationId} (Parallel)`
   );
+  console.time(t("history"));
   const historyPromise = internalApi.get(
     `/conversations/ai/${conversationId}/memory`,
     { params: { organizationId, limit: HISTORY_LIMIT } }
@@ -49,15 +55,23 @@ export async function buildContext(
     return null;
   });
 
-  // -- 1. RAG: search knowledge base for relevant chunks -----------------------
+  // ── RAG: embed ───────────────────────────────────────────────────────────
   try {
     console.log(`[Context] Starting RAG search...`);
     const provider = getEmbeddingProvider();
+    const capabilities = await provider.getCapabilities();
+    const dimensions = capabilities.embeddingDimensions || provider.dimensions;
     console.log(
-      `[Context] Embedding provider: ${provider.constructor.name}, dimensions: ${provider.dimensions}`,
+      `[Context] Embedding provider: ${provider.constructor.name}, dimensions: ${dimensions}`,
     );
 
-    const queryVector = await provider.embed(currentMessage);
+    console.time(t("embed:rag"));
+    if (passedQueryVector) {
+      console.log(`[Context] Reusing query vector from FAQ semantic bypass`);
+    }
+    const queryVector = passedQueryVector || await provider.embed(currentMessage);
+    console.timeEnd(t("embed:rag"));
+
     console.log(`[Context] Generated query vector (${queryVector.length}d)`);
     console.log(
       `[Context] Vector sample: [${queryVector
@@ -66,14 +80,17 @@ export async function buildContext(
         .join(", ")}...]`,
     );
 
+    // ── RAG: Qdrant search ─────────────────────────────────────────────────
     console.log(`[Context] Calling vectorStore.search with:`);
     console.log(`[Context]   - organizationId: ${organizationId}`);
     console.log(`[Context]   - topK: ${config.embeddings.ragTopK}`);
 
+    console.time(t("qdrant:rag"));
     const results = await vectorStore.search(queryVector, {
       organizationId,
       topK: config.embeddings.ragTopK,
     });
+    console.timeEnd(t("qdrant:rag"));
 
     console.log(
       `[Context] OK Search completed, received ${results.length} result(s)`,
@@ -156,10 +173,11 @@ export async function buildContext(
     }
   }
 
-  // -- 2. Conversation history processing --------------------------------------
+  // ── HISTORY: await parallel fetch ─────────────────────────────────────────
   const history: ContextMessage[] = [];
   try {
     const response = await historyPromise;
+    console.timeEnd(t("history")); // ends here — covers network + processing wait
     if (response) {
       const apiMemory = response.data?.data?.memory || [];
       const visitor = response.data?.data?.visitor || {};
@@ -188,12 +206,15 @@ export async function buildContext(
       }
     }
   } catch (err: any) {
+    console.timeEnd(t("history"));
     console.warn(
       "[Context] Failed to process conversation history:",
       err.message || err,
     );
   }
 
+  // ── PROMPT ASSEMBLY ───────────────────────────────────────────────────────
+  console.time(t("prompt:build"));
   const systemPrompt = buildSystemPrompt({
     companyName,
     fallbackToAgent: canFallback,
@@ -202,6 +223,7 @@ export async function buildContext(
     knownVisitorDetails,
     channel,
   });
+  console.timeEnd(t("prompt:build"));
 
   // -- 3. Assemble: history + current user message ------------------------------
   const allMessages: ContextMessage[] = [

@@ -1,5 +1,5 @@
 import { Card } from "@/shared/ui/card";
-import { HelpCircle, MessageCircleQuestion, TrendingUp } from "lucide-react";
+import { MessageCircleQuestion, TrendingUp } from "lucide-react";
 
 type QuestionRow = {
   question: string;
@@ -75,15 +75,9 @@ export function MostAskedQuestionsCard({ questions = [] }: MostAskedQuestionsCar
         </div>
       ) : (
         <div className="flex min-h-[15rem] items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
-          <div>
-            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-md border border-border bg-muted/30">
-              <HelpCircle className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <p className="text-sm font-medium text-foreground">No question data yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Customer questions will appear here once conversations start.
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Currently, we don’t have enough data to show this information.
+          </p>
         </div>
       )}
     </Card>

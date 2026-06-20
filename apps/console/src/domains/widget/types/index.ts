@@ -33,6 +33,7 @@ export interface WidgetFeatureSettings {
 export interface WidgetSuggestion {
   text: string;
   showOutside: boolean;
+  faqId?: string | null;
 }
 
 export interface CreateWidgetData {

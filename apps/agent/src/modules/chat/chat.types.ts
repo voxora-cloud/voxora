@@ -18,6 +18,8 @@ export interface AIJobData {
   fallbackToAgent?: boolean;
   collectUserInfo?: CollectUserInfo;
   channel?: "widget" | "email" | "whatsapp" | "telegram";
+  aiEnabled?: boolean;
+  subscriptionExpired?: boolean;
 }
 
 export interface PipelineResult {

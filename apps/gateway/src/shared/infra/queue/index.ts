@@ -18,6 +18,8 @@ export interface AIJobData {
 		phone?: boolean;
 	};
 	channel?: "widget" | "email" | "whatsapp" | "telegram";
+	aiEnabled?: boolean;
+	subscriptionExpired?: boolean;
 }
 
 export interface IngestionJobData {

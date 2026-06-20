@@ -89,18 +89,42 @@ const sourceChartConfig = {
     label: "Direct Link",
     color: "#D97706",
   },
+  email: {
+    label: "Email",
+    color: "#3b82f6",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    color: "#25d366",
+  },
+  telegram: {
+    label: "Telegram",
+    color: "#0088cc",
+  },
+  web: {
+    label: "Dashboard",
+    color: "#6b7280",
+  },
 } satisfies ChartConfig;
 
 const sourceLabels: Record<keyof DashboardSummary["source"], string> = {
   widget: "Widget",
   qr: "QR Code",
   link: "Direct Link",
+  email: "Email",
+  whatsapp: "WhatsApp",
+  telegram: "Telegram",
+  web: "Dashboard",
 };
 
 const sourceColors: Record<keyof DashboardSummary["source"], string> = {
   widget: "#845C6C",
   qr: "#2F6D6B",
   link: "#D97706",
+  email: "#3b82f6",
+  whatsapp: "#25d366",
+  telegram: "#0088cc",
+  web: "#6b7280",
 };
 
 const formatIntegerTick = (value: number) => Math.round(value).toLocaleString();

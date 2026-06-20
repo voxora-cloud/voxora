@@ -114,11 +114,7 @@ export class AuthService {
     );
 
     const widgetService = new WidgetService();
-    const widgetData: any = {
-      displayName: "InteraOne AI",
-      verifiedDomain: "localhost",
-    };
-    const widget = await widgetService.createWidget(ctx.organizationId, widgetData);
+    const widget = await widgetService.getWidget(ctx.organizationId);
 
     return {
       success: true,

@@ -9,16 +9,14 @@ export class OrganizationController {
             const { userId, email } = (req as AuthenticatedRequest).user;
             const { name, slug } = req.body;
 
-            // Create org + owner membership, then switch context to new org
-            await OrganizationService.createOrganization(userId, { name, slug });
-            const org = await OrganizationService.getUserOrganizations(userId);
-            const newOrg = org.find((o) => o.organization.name === name);
-            if (!newOrg) throw new Error("Failed to create organization");
+            // Create org + owner membership + default FAQs + default widget
+            const { organization } = await OrganizationService.createOrganization(userId, { name, slug });
 
+            // Issue JWT scoped to the new org
             const tokens = await OrganizationService.switchOrganization(
                 userId,
                 email,
-                newOrg.organization._id.toString(),
+                organization._id.toString(),
             );
 
             sendResponse(res, 201, true, "Organization created successfully", {

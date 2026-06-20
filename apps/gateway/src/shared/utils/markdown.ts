@@ -1,4 +1,4 @@
-export function escapeHtml(str: string) {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -6,18 +6,10 @@ export function escapeHtml(str: string) {
     .replace(/"/g, '&quot;');
 }
 
-export function stripMarkdown(text: string) {
-  if (!text) return "";
-  return text
-    .replace(/```[\s\S]*?```/g, '') // remove code blocks
-    .replace(/`([^`]+)`/g, '$1') // remove inline code
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // remove link URLs
-    .replace(/[#*_-]/g, '') // remove formatting characters
-    .replace(/\n+/g, ' ') // replace newlines with space
-    .trim();
-}
-
-export function parseMarkdown(text: string) {
+/**
+ * Converts markdown text into valid semantic HTML for emails.
+ */
+export function parseMarkdown(text: string): string {
   let s = escapeHtml(text || "");
 
   // Code blocks (``` ... ```)
@@ -102,17 +94,76 @@ export function parseMarkdown(text: string) {
     .join('');
 }
 
-export function extractThoughtSteps(thoughtText: string) {
-  if (!thoughtText) return [];
+/**
+ * Converts markdown text into Telegram-compatible HTML tags for parse_mode="HTML".
+ * Note that Telegram only supports <b>, <i>, <code>, <pre>, and <a> tags.
+ */
+export function parseTelegramHtml(text: string): string {
+  if (!text) return "";
 
-  const byLines = thoughtText
-    .replace(/\r/g, '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/^[-*\d.)\s]+/, '').trim())
-    .filter(Boolean);
+  let s = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-  if (byLines.length > 0) return byLines;
-  return [thoughtText.trim()].filter(Boolean);
+  // Code blocks
+  s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, function (_, code) {
+    return '<pre>' + code.trim() + '</pre>';
+  });
+
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Links
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2">$1</a>');
+
+  // Bold + italic
+  s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<b><i>$1</i></b>');
+  s = s.replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>');
+  s = s.replace(/\*([^\n*]+?)\*/g, '<i>$1</i>');
+  s = s.replace(/__([\s\S]+?)__/g, '<b>$1</b>');
+  s = s.replace(/_([^\n_]+?)_/g, '<i>$1</i>');
+
+  // Headers
+  s = s.replace(/^### (.+)$/gm, '<b>$1</b>');
+  s = s.replace(/^## (.+)$/gm, '<b>$1</b>');
+  s = s.replace(/^# (.+)$/gm, '<b>$1</b>');
+
+  // Horizontal divider
+  s = s.replace(/^[-*]{3,}$/gm, '───');
+
+  // Lists (convert to unicode bullets)
+  s = s.replace(/^[ \t]*[-*+] (.+)$/gm, '• $1');
+
+  return s;
+}
+
+/**
+ * Converts markdown text into native WhatsApp-compatible syntax formatting.
+ */
+export function parseWhatsAppMarkdown(text: string): string {
+  if (!text) return "";
+
+  let s = text;
+
+  // Links: [text](url) -> text (url)
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1 ($2)');
+
+  // Bold + italic
+  s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '*_$1_*');
+  s = s.replace(/\*\*([\s\S]+?)\*\*/g, '*$1*');
+  s = s.replace(/__([\s\S]+?)__/g, '*$1*');
+
+  s = s.replace(/\*([^\n*]+?)\*/g, '_$1_');
+  s = s.replace(/_([^\n_]+?)_/g, '_$1_');
+
+  // Headers
+  s = s.replace(/^### (.+)$/gm, '*$1*');
+  s = s.replace(/^## (.+)$/gm, '*$1*');
+  s = s.replace(/^# (.+)$/gm, '*$1*');
+
+  // Horizontal divider
+  s = s.replace(/^[-*]{3,}$/gm, '───');
+
+  return s;
 }

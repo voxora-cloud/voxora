@@ -1,4 +1,4 @@
-import { Message, Conversation, Widget } from "@shared/models";
+import { Message, Conversation, Widget, Organization } from "@shared/models";
 import logger from "@shared/core/logger";
 import { aiQueue } from "@shared/infra/queue";
 import { getSocketManager } from "@sockets/index";
@@ -184,62 +184,15 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               collectUserInfo = (widget as any).conversation?.collectUserInfo || {};
             }
           } catch {
-            // Non-fatal â€” fall back to defaults
+            // Non-fatal — fall back to defaults
             logger.warn(`[handleMessage] Could not fetch widget config for key ${widgetKey}`);
           }
         }
 
-        // Keep conversation unassigned when AI is disabled.
-        // Human routing should happen only through escalation/manual pickup.
-        if (!aiEnabled) {
-          logger.info(`[handleMessage] AI disabled for widget ${widgetKey} — attempting auto-escalation`);
+        const org = await Organization.findById(conversation.organizationId).select("subscriptionStatus").lean();
+        const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active" && org.subscriptionStatus !== "trialing") : false;
 
-          const { agentId } = await conversationService.autoAssignConversation(conversation.organizationId.toString());
-
-          if (agentId) {
-            await Conversation.findByIdAndUpdate(conversationId, {
-              $set: {
-                status: "open",
-                assignedTo: agentId,
-                "metadata.escalatedAt": new Date(),
-                "metadata.routeReason": "AI disabled — auto-assigned to available agent",
-              },
-              $addToSet: { participants: agentId },
-            });
-
-            tracker.trackEvent(
-              conversation.organizationId.toString(),
-              "agent_assigned",
-              "system",
-              { reason: "ai_disabled_auto_assign" },
-              { conversationId, agentId, channel: "widget" },
-            );
-
-            const sm = getSocketManager();
-            if (sm) {
-              sm.emitToUser(agentId, "new_widget_conversation", {
-                conversationId,
-                subject: conversation.subject,
-                message: content,
-                timestamp: new Date(),
-                routeReason: "AI disabled — auto-assigned to you",
-              });
-            }
-          } else {
-            // No one online - mark as pending escalation so it's hidden until someone picks it up
-            await Conversation.findByIdAndUpdate(conversationId, {
-              $set: {
-                status: "pending",
-                "metadata.pendingEscalation": true,
-                "metadata.routeReason": "AI disabled — awaiting human (no one online)",
-              },
-            });
-          }
-
-          return; // Do not enqueue AI job
-        }
-
-        // â”€â”€ Route: AI enabled â†’ enqueue AI job with full config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Route: enqueue AI job with full config ─────────────────
         aiQueue
           .add("process", {
             organizationId: conversation.organizationId!.toString(),
@@ -249,6 +202,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             companyName,
             fallbackToAgent,
             collectUserInfo,
+            channel: "widget",
+            aiEnabled,
+            subscriptionExpired,
           })
           .catch((err) =>
             logger.error("Failed to enqueue AI job:", err),

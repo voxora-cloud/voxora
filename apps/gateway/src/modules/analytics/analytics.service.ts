@@ -151,12 +151,15 @@ export class AnalyticsService {
               { $sort: { count: -1 } },
               { $limit: 5 },
             ],
-            // Interaction sources
             sources: [
               {
                 $group: {
                   _id: {
-                    $ifNull: ["$metadata.interactionSource", "$metadata.source"],
+                    $ifNull: [
+                      "$metadata.interactionSource",
+                      "$metadata.source",
+                      "$channel",
+                    ],
                   },
                   count: { $sum: 1 },
                 },
@@ -252,11 +255,16 @@ export class AnalyticsService {
       ? Math.round((conv.escalatedConversations / conv.totalConversations) * 100)
       : 0;
 
-    const source = { widget: 0, qr: 0, link: 0 };
+    const source = { widget: 0, qr: 0, link: 0, email: 0, whatsapp: 0, telegram: 0, web: 0 };
     (conversationResults.sources || []).forEach((row: any) => {
-      const sourceKey = String(row._id || "unknown").toLowerCase();
-      if (sourceKey === "widget" || sourceKey === "qr" || sourceKey === "link") {
-        source[sourceKey] += row.count;
+      const rawKey = String(row._id || "unknown").toLowerCase();
+      let sourceKey = rawKey;
+      if (rawKey.includes("email")) sourceKey = "email";
+      else if (rawKey.includes("whatsapp")) sourceKey = "whatsapp";
+      else if (rawKey.includes("telegram")) sourceKey = "telegram";
+
+      if (sourceKey in source) {
+        source[sourceKey as keyof typeof source] += row.count;
       }
     });
 

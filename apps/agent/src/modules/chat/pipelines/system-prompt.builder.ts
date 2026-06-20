@@ -258,11 +258,6 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 
   <tool_usage>
 
-    You MUST always call:
-    - rewrite_and_think
-
-    before producing a final response.
-
     Tool usage rules:
 
     1. faq_retrieval

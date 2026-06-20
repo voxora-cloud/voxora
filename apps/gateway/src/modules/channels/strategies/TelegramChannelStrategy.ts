@@ -12,6 +12,7 @@ import { Conversation, Message } from "@shared/models";
 import logger from "@shared/core/logger";
 import { Types } from "mongoose";
 import config from "@shared/infra/config";
+import { parseTelegramHtml } from "@shared/utils/markdown";
 
 /**
  * Concrete Strategy for the Telegram channel.
@@ -144,12 +145,14 @@ export class TelegramChannelStrategy implements IChannelStrategy {
     try {
       // recipient is the customer's Telegram chat/user ID
       const chatId = input.to;
+      const formattedText = parseTelegramHtml(input.body);
       const res = await fetch(`https://api.telegram.org/bot${tgCfg.botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_id: chatId,
-          text: input.body,
+          text: formattedText,
+          parse_mode: "HTML",
         }),
       });
 

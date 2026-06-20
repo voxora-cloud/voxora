@@ -1,6 +1,6 @@
 import StorageService from "@modules/storage/storage.service";
 import NotificationService from "@modules/notification/notification.service";
-import { Knowledge } from "@shared/models";
+import { Knowledge, Widget } from "@shared/models";
 import {
   RequestFileUploadInput,
   CreateTextEntryInput,
@@ -235,6 +235,19 @@ class KnowledgeService {
       fileName: doc.title,
       title: doc.title,
     });
+
+    // Remove this FAQ from the widget's quick-action suggestions automatically.
+    // suggestions is a reference array (faqId) so deleting the source FAQ must
+    // also clean up the pointer — otherwise the widget holds a dangling entry.
+    try {
+      await Widget.updateOne(
+        { organizationId },
+        { $pull: { suggestions: { faqId: documentId } } },
+      );
+      logger.info("🔗  Removed deleted FAQ from widget suggestions", { documentId, organizationId });
+    } catch (widgetErr) {
+      logger.warn("Could not remove FAQ from widget suggestions", { documentId, widgetErr });
+    }
 
     logger.info("🗑️  Knowledge item deleted", { documentId, organizationId, title: doc.title });
     return doc;

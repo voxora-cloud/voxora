@@ -42,7 +42,7 @@ export function OwnerDashboard() {
   const conversationStatusData = trends?.conversationStatus ?? [];
   const hasMessageVolume = hasMessageVolumeData(messageVolumeData);
   const hasConversationStatus = hasConversationStatusData(conversationStatusData);
-  const sourceData = summary?.source ?? { widget: 0, qr: 0, link: 0 };
+  const sourceData = summary?.source ?? { widget: 0, qr: 0, link: 0, email: 0, whatsapp: 0, telegram: 0, web: 0 };
   const hasSourceData = hasInteractionSourceData(sourceData);
 
   if (summaryLoading || trendsLoading) {
@@ -110,7 +110,7 @@ export function OwnerDashboard() {
           title="Avg Messages / Conversation"
           value={
             (summary?.totalConversations ?? 0) > 0
-              ? ((summary?.totalMessages ?? 0) / summary!.totalConversations).toFixed(1)
+              ? Math.round((summary?.totalMessages ?? 0) / summary!.totalConversations)
               : "—"
           }
           icon={MessagesSquare}

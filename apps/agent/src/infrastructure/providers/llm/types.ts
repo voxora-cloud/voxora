@@ -1,4 +1,5 @@
 import { Tool, ToolExecutionContext } from "../../../modules/agents/agent.types";
+import { ModelCapabilities } from "../types";
 
 export interface LLMMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -36,8 +37,8 @@ export interface LLMGenerateResult {
 }
 
 export interface LLMProvider {
-   
   readonly name: string;
   generate(messages: LLMMessage[], options?: LLMOptions): Promise<LLMGenerateResult>;
+  getCapabilities(modelId?: string): Promise<ModelCapabilities>;
 }
 

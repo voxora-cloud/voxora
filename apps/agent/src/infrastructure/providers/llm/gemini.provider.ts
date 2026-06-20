@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { LLMProvider, LLMMessage, LLMOptions, LLMGenerateResult, LLMTokenUsage, LLMGenerateStep } from "./types";
+import { ModelCapabilities } from "../types";
 
 export class GeminiProvider implements LLMProvider {
   readonly name = "gemini";
@@ -252,5 +253,20 @@ export class GeminiProvider implements LLMProvider {
             usage,
             steps,
         };
+  }
+
+  async getCapabilities(modelId?: string): Promise<ModelCapabilities> {
+    const activeModel = modelId ?? this.defaultModel;
+    const isFlash = activeModel.includes("flash");
+    const isPro = activeModel.includes("pro");
+    const isThinking = activeModel.includes("thinking") || activeModel.includes("reasoning") || activeModel.includes("thought");
+    return {
+      modelId: activeModel,
+      contextWindow: isPro ? 2000000 : 1000000,
+      supportsStreaming: true,
+      supportsTools: true,
+      supportsVision: isFlash || isPro,
+      supportsReasoning: isThinking,
+    };
   }
 }

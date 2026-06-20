@@ -38,6 +38,7 @@ export interface IWidget extends Document {
   suggestions: Array<{
     text: string;
     showOutside: boolean;
+    faqId?: string | null;
   }>;
   publicKey?: string;
   verifiedDomain?: string;
@@ -87,6 +88,7 @@ const WidgetSchema = new Schema<IWidget>(
         {
           text: { type: String, required: true },
           showOutside: { type: Boolean, default: false },
+          faqId: { type: String, default: null },
         },
       ],
       default: DEFAULT_WIDGET_CONFIG.suggestions,

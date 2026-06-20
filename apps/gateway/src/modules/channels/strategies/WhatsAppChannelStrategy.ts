@@ -12,6 +12,7 @@ import { Conversation, Message } from "@shared/models";
 import logger from "@shared/core/logger";
 import { Types } from "mongoose";
 import twilio from "twilio";
+import { parseWhatsAppMarkdown } from "@shared/utils/markdown";
 
 /**
  * Concrete Strategy for the WhatsApp channel using Twilio.
@@ -116,10 +117,11 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
       
       const to = input.to.startsWith("whatsapp:") ? input.to : `whatsapp:${input.to}`;
 
+      const formattedBody = parseWhatsAppMarkdown(input.body);
       const message = await client.messages.create({
         from,
         to,
-        body: input.body,
+        body: formattedBody,
       });
 
       return { success: true, messageId: message.sid };

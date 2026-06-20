@@ -13,6 +13,7 @@ import { Conversation, Message } from "@shared/models";
 import logger from "@shared/core/logger";
 import { Types } from "mongoose";
 import { simpleParser } from "mailparser";
+import { parseMarkdown } from "@shared/utils/markdown";
 
 /**
  * Concrete Strategy for the Email channel.
@@ -127,11 +128,18 @@ export class EmailChannelStrategy implements IChannelStrategy {
 
     try {
       const fromAddress = input.from || emailCfg.address;
+      const parsedHtml = parseMarkdown(input.body);
+      const emailHtml = input.html ?? `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          ${parsedHtml}
+        </div>
+      `.trim();
+
       const { messageId } = await this.adapter.sendEmail({
         from: fromAddress,
         to: input.to,
         subject: input.subject ?? "(No Subject)",
-        html: input.html ?? `<p>${input.body}</p>`,
+        html: emailHtml,
         text: input.body,
         replyTo: input.replyTo,
       });

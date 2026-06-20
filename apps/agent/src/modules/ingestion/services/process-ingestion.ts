@@ -89,6 +89,8 @@ export async function processIngestion(
     input.embeddingConcurrency ?? DEFAULT_EMBED_CONCURRENCY;
 
   const provider = getEmbeddingProvider();
+  const capabilities = await provider.getCapabilities();
+  const dimensions = capabilities.embeddingDimensions || provider.dimensions;
   const limit = pLimit(Math.max(1, embeddingConcurrency));
 
   logEvent("ingestion.start", {
@@ -98,10 +100,10 @@ export async function processIngestion(
     embeddingConcurrency,
     embedRetries,
     provider: provider.name,
-    providerDimensions: provider.dimensions,
+    providerDimensions: dimensions,
   });
 
-  await vectorStore.ensureCollection(provider.dimensions);
+  await vectorStore.ensureCollection(dimensions);
   await vectorStore.deleteByDocumentId(input.documentId, input.organizationId);
 
   let unitsProcessed = 0;

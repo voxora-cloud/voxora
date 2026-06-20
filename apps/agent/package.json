@@ -26,7 +26,8 @@
     "mammoth": "^1.11.0",
     "minio": "^8.0.6",
     "p-limit": "^7.3.0",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.43.0"
   },
   "devDependencies": {
     "@types/cheerio": "^0.22.35",
