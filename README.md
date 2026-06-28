@@ -19,7 +19,7 @@
 ## ✨ About InteraOne
 
 <!-- <img width="1895" height="969" alt="interaOne Customer Support Platform" src="https://github.com/user-attachments/assets/7060ece4-0308-4b94-9d47-9f1655244a6e" /> -->
-<img width="1536" height="1024" alt="POSTER" src="https://github.com/user-attachments/assets/db2c29a2-1c50-49f7-bfa0-513d8585c86b" />
+<img width="1536" height="1024" alt="POSTER" src="https://github.com/user-attachments/assets/671150cc-bb07-4e53-8d8b-12fced32559b" />
 <hr/>
 ✨ InteraOne is an open-source platform built to automate the entire customer support lifecycle. <br/>
 🔄 From initial touchpoint to resolution, every interaction is handled seamlessly. </br>
