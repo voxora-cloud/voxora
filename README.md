@@ -1,30 +1,55 @@
-<p align="center">⭐️ Help us grow - Star us on GitHub! ⭐️</p>
-
 <p align="center">
-  <a href="https://interaOne.com">
-    <img width="120" alt="Open Source Customer Support Automation" src="https://avatars.githubusercontent.com/u/222506196?s=200&v=4">
+  <a href="https://interaone.app">
+    <img width="120" alt="InteraOne" src="https://avatars.githubusercontent.com/u/222506196?s=200&v=4">
   </a>
 </p>
 
-<h3 align="center">InteraOne</h3>
+<h2 align="center">InteraOne</h2>
 
 <p align="center">
-  AI Copilot for your Product
-  <br />
-  <a href="https://interaOne.com/">Website</a> · 
-  <a href="https://github.com/interaOne-com/interaOne/issues">Report Bug</a> · 
-  <a href="https://github.com/interaOne-com/interaOne/issues">Request Feature</a>
+  <b>Open source alternative to Intercom & Zendesk — with a Single AI Brain</b>
+  <br/>
+  <sub>Stop paying $74/month. Self-host for free, forever.</sub>
 </p>
 
-## ✨ About InteraOne
+<p align="center">
+  <a href="https://interaone.app">Website</a> ·
+  <a href="https://doc.interaone.app">Docs</a> ·
+  <a href="https://discord.gg/interaone">Discord</a> ·
+  <a href="https://github.com/InteraOne/InteraOne/issues">Report Bug</a> ·
+  <a href="https://github.com/InteraOne/InteraOne/issues">Request Feature</a>
+</p>
 
-<!-- <img width="1895" height="969" alt="interaOne Customer Support Platform" src="https://github.com/user-attachments/assets/7060ece4-0308-4b94-9d47-9f1655244a6e" /> -->
-<img width="1536" height="1024" alt="POSTER" src="https://github.com/user-attachments/assets/671150cc-bb07-4e53-8d8b-12fced32559b" />
+<p align="center">
+  <img src="https://img.shields.io/github/stars/InteraOne/InteraOne?style=social" alt="GitHub Stars">
+  <img src="https://img.shields.io/github/forks/InteraOne/InteraOne?style=social" alt="GitHub Forks">
+  <img src="https://img.shields.io/github/license/InteraOne/InteraOne" alt="License">
+  <img src="https://img.shields.io/badge/latency-500ms-brightgreen" alt="500ms latency">
+  <img src="https://img.shields.io/badge/self--hosted-one%20click-blue" alt="Self Hosted">
+</p>
+
+<br/>
+
+<img width="1536" height="1024" alt="InteraOne Dashboard" src="https://github.com/user-attachments/assets/671150cc-bb07-4e53-8d8b-12fced32559b" />
+
 <hr/>
-✨ InteraOne is an open-source platform built to automate the entire customer support lifecycle. <br/>
-🔄 From initial touchpoint to resolution, every interaction is handled seamlessly. </br>
-⚙️ Designed to be flexible, scalable, and effortlessly integrable.
+
+## Why InteraOne?
+
+| | InteraOne | Intercom | Zendesk | Chatwoot |
+|---|---|---|---|---|
+| **Price** | Free & Open Source | $74/month | $55/month | Limited free |
+| **Self-hosted** | ✅ One click | ❌ | ❌ | ✅ |
+| **Single AI Brain** | ✅ | ❌ | ❌ | ❌ |
+| **WhatsApp + Email + Telegram + Widget** | ✅ | Partial | Partial | ✅ |
+| **Agent Latency** | ⚡ 500ms | Slow | Slow | No AI |
+| **4 LLM Providers** | ✅ | ❌ | ❌ | ❌ |
+| **RAG Knowledge Base** | ✅ | Limited | Limited | ❌ |
+| **Ticket + Inbox + Contacts AI** | ✅ | Partial | ✅ | ❌ |
+| **QR Code Offline→Online** | ✅ | ❌ | ❌ | ❌ |
+
 <hr/>
+
 
 <img width="1536" height="1024" alt="tech-poster" src="https://github.com/user-attachments/assets/fd53d983-e9f6-4677-83f6-83df4a3b5f5f" />
 
