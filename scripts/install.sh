@@ -185,6 +185,49 @@ install_dependencies_amazon_linux_2023() {
     log_success "Dependencies ready"
 }
 
+# Install Docker and Docker Compose on Ubuntu/Debian
+install_docker_ubuntu_debian() {
+    if command -v docker &> /dev/null; then
+        log_success "Docker already installed: $(docker --version)"
+        if ! systemctl is-active --quiet docker; then
+            systemctl start docker
+            systemctl enable docker
+        fi
+        if [ -n "$SUDO_USER" ] && ! groups "$SUDO_USER" | grep -q docker; then
+            usermod -aG docker "$SUDO_USER"
+        fi
+        return 0
+    fi
+
+    log_info "Installing Docker on $OS_NAME using official Docker apt repository..."
+    apt-get update -y
+    apt-get install -y ca-certificates curl gnupg lsb-release git
+
+    # Add Docker's official GPG key
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL "https://download.docker.com/linux/${OS}/gpg" | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+
+    # Set up the repository
+    echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS} \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    systemctl start docker
+    systemctl enable docker
+
+    if [ -n "$SUDO_USER" ]; then
+        usermod -aG docker "$SUDO_USER"
+    fi
+
+    log_success "Docker installed: $(docker --version)"
+    log_success "Docker Compose installed: $(docker compose version)"
+}
+
 # Generic install function that routes to OS-specific installers
 install_docker_and_compose() {
     case "$OS" in
@@ -203,8 +246,7 @@ install_docker_and_compose() {
             fi
             ;;
         ubuntu|debian)
-            log_error "Ubuntu/Debian support coming soon. Please install Docker manually for now."
-            exit 1
+            install_docker_ubuntu_debian
             ;;
         centos|rhel|rocky|almalinux)
             log_error "RHEL-based distributions support coming soon. Please install Docker manually for now."
