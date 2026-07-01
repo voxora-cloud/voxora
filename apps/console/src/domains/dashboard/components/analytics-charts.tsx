@@ -568,7 +568,7 @@ export function AIInteractionSourcesPieChart({
             data={data}
             dataKey="value"
             nameKey="source"
-            shape={(props: PieSectorShapeProps, index: number) => (
+            shape={(props: PieSectorShapeProps, index: any) => (
               <SourceSectorShape
                 {...props}
                 index={index}
