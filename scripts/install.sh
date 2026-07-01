@@ -283,6 +283,34 @@ check_ports() {
 
 # Prompt for configuration
 prompt_config() {
+    # Initialize all configuration variables to prevent leakage/overwriting
+    API_HOST=""
+    WEB_HOST=""
+    CDN_HOST=""
+    EMAIL_PROVIDER=""
+    AWS_REGION=""
+    AWS_ACCESS_KEY_ID=""
+    AWS_SECRET_ACCESS_KEY=""
+    GEMINI_API_KEY=""
+    GEMINI_MODEL=""
+    GEMINI_EMBEDDING_MODEL=""
+    BEDROCK_MODEL=""
+    BEDROCK_EMBEDDING_MODEL=""
+    BEDROCK_EMBEDDING_DIMENSIONS=""
+    HF_TOKEN=""
+    HF_MODEL=""
+    HF_EMBEDDING_MODEL=""
+    HF_EMBEDDING_DIMENSIONS=""
+    OPENAI_API_KEY=""
+    OPENAI_MODEL=""
+    OPENAI_EMBEDDING_MODEL=""
+    OPENAI_EMBEDDING_DIMENSIONS=""
+    OLLAMA_HOST=""
+    OLLAMA_PORT=""
+    OLLAMA_MODEL=""
+    OLLAMA_EMBEDDING_MODEL=""
+    OLLAMA_EMBEDDING_DIMENSIONS=""
+
     echo ""
     log_info "=== InteraOne Configuration ==="
     echo ""
@@ -343,30 +371,6 @@ prompt_config() {
             *) echo "Invalid option. Please choose 1, 2, or 3.";;
         esac
     done
-
-    # Initialize LLM variables to prevent leakage
-    GEMINI_API_KEY=""
-    GEMINI_MODEL=""
-    GEMINI_EMBEDDING_MODEL=""
-    AWS_REGION=""
-    BEDROCK_MODEL=""
-    AWS_ACCESS_KEY_ID=""
-    AWS_SECRET_ACCESS_KEY=""
-    BEDROCK_EMBEDDING_MODEL=""
-    BEDROCK_EMBEDDING_DIMENSIONS=""
-    HF_TOKEN=""
-    HF_MODEL=""
-    HF_EMBEDDING_MODEL=""
-    HF_EMBEDDING_DIMENSIONS=""
-    OPENAI_API_KEY=""
-    OPENAI_MODEL=""
-    OPENAI_EMBEDDING_MODEL=""
-    OPENAI_EMBEDDING_DIMENSIONS=""
-    OLLAMA_HOST=""
-    OLLAMA_PORT=""
-    OLLAMA_MODEL=""
-    OLLAMA_EMBEDDING_MODEL=""
-    OLLAMA_EMBEDDING_DIMENSIONS=""
 
     echo ""
     log_info "=== LLM & Embedding Provider Configuration ==="
