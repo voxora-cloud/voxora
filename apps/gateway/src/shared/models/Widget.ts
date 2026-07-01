@@ -11,6 +11,7 @@ export interface IWidget extends Document {
     // primaryColor removed, using theme only
     welcomeMessage: string;
     logoUrl?: string;
+    pattern?: "none" | "uiverse-alexruix" | "dots" | "grid" | "island" | "3d-cubes" | "checkerboard" | "hexagonal" | "polka" | "radial-stripes" | "plaid";
   };
   // backgroundColor removed, using theme only
   behavior: {
@@ -59,6 +60,11 @@ const WidgetSchema = new Schema<IWidget>(
         default: DEFAULT_WIDGET_CONFIG.appearance.welcomeMessage,
       },
       logoUrl: { type: String, default: "" },
+      pattern: {
+        type: String,
+        enum: ["none", "uiverse-alexruix", "dots", "grid", "island", "3d-cubes", "checkerboard", "hexagonal", "polka", "radial-stripes", "plaid"],
+        default: "none",
+      },
     },
     // backgroundColor removed, using theme only
     behavior: {

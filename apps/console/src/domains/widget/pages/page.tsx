@@ -22,6 +22,7 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   appearance: {
     theme: "dark",
     welcomeMessage: "Need help? Ask here and we’ll point you in the right direction.",
+    pattern: "uiverse-alexruix",
   },
   behavior: {
     showWidget: true,

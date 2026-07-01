@@ -1,5 +1,5 @@
 import pLimit from "p-limit";
-import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
+import { ProviderFactory, EmbeddingProvider } from "../../../infrastructure/providers";
 import { vectorStore } from "../../../infrastructure/vector";
 import { chunkText } from "../utils/chunker";
 import { generateDeterministicChunkId } from "../utils/chunk-id";
@@ -50,14 +50,15 @@ async function embedWithRetry(params: {
   text: string;
   maxRetries: number;
   retryBaseMs: number;
-  provider: ReturnType<typeof getEmbeddingProvider>;
+  provider: EmbeddingProvider;
   trace: Record<string, unknown>;
 }): Promise<number[]> {
   const { text, maxRetries, retryBaseMs, provider, trace } = params;
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      return await provider.embed(text);
+      const orgId = typeof trace.organizationId === "string" ? trace.organizationId : undefined;
+      return await provider.embed(text, { organizationId: orgId });
     } catch (error: any) {
       const lastAttempt = attempt >= maxRetries;
       if (lastAttempt) {
@@ -88,7 +89,7 @@ export async function processIngestion(
   const embeddingConcurrency =
     input.embeddingConcurrency ?? DEFAULT_EMBED_CONCURRENCY;
 
-  const provider = getEmbeddingProvider();
+  const provider = ProviderFactory.getEmbeddingProvider();
   const capabilities = await provider.getCapabilities();
   const dimensions = capabilities.embeddingDimensions || provider.dimensions;
   const limit = pLimit(Math.max(1, embeddingConcurrency));

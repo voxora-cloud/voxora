@@ -119,17 +119,49 @@
     <!-- Input Area -->
     <div class="input-area">
       <div class="chat-input-box" id="chatInputBox">
-        <textarea id="messageInput" placeholder="Ask anything" rows="2"></textarea>
-        <div class="input-actions">
-          <button id="sendBtn" class="send-btn" disabled>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
+        <textarea id="messageInput" placeholder="Ask anything..." rows="2"></textarea>
+
+        <!-- Actions Row -->
+        <div class="input-actions-row">
+          <div class="right-actions" style="margin-left:auto; position:relative;">
+            <span id="charCounter" class="char-counter">0/1000</span>
+
+            <!-- Emoji Button -->
+            <button id="emojiBtn" class="input-utility-btn" title="Add emoji" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                <line x1="15" y1="9" x2="15.01" y2="9"></line>
+              </svg>
+            </button>
+
+            <!-- Emoji Picker Popup -->
+            <div id="emojiPicker" class="emoji-picker hidden" role="listbox" aria-label="Choose an emoji">
+              <button type="button" class="emoji-option" title="Smile">😄</button>
+              <button type="button" class="emoji-option" title="Thumbs up">👍</button>
+              <button type="button" class="emoji-option" title="Party">🎉</button>
+              <button type="button" class="emoji-option" title="Raised hands">🙌</button>
+              <button type="button" class="emoji-option" title="Fire">🔥</button>
+              <button type="button" class="emoji-option" title="Thinking">🤔</button>
+              <button type="button" class="emoji-option" title="Heart">❤️</button>
+              <button type="button" class="emoji-option" title="Star">⭐</button>
+              <button type="button" class="emoji-option" title="Rocket">🚀</button>
+              <button type="button" class="emoji-option" title="Bulb">💡</button>
+              <button type="button" class="emoji-option" title="Check">✅</button>
+              <button type="button" class="emoji-option" title="Wave">👋</button>
+            </div>
+
+            <button id="sendBtn" class="send-btn" disabled type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
+
       <div class="watermark">
         <span>Ask <span class="watermark-inline-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
@@ -143,6 +175,21 @@
     <!-- Kept for JS errors -->
     <div id="typingIndicator" style="display: none;"></div>
   </div>
+
+  <!-- SVG Filters for Island Noise Background Pattern -->
+  <svg style="display: none;" xmlns="http://www.w3.org/2000/svg">
+    <filter id="octave1">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" result="noise" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.2   0 0 0 0 0.25   0 0 0 0 0.28   1 0 0 0 0" />
+      <feComposite operator="in" in2="SourceGraphic" />
+    </filter>
+    <filter id="octave2">
+      <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" result="noise" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.2   0 0 0 0 0.25   0 0 0 0 0.28   1 0 0 0 0" />
+      <feComposite operator="in" in2="SourceGraphic" />
+    </filter>
+  </svg>
+
   <script type="module" src="/src/iframe/main.ts"></script>
 </body>
 

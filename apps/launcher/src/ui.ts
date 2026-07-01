@@ -294,7 +294,7 @@ export class WidgetUI {
     if (outside.length === 0) return;
 
     const isLeft = this.config.position === 'bottom-left';
-    const accentColor = '#10b981'; // fallback accent color
+    const accentColor = '#845C6C'; // InteraOne theme accent color
 
     this.outsideChipsContainer = document.createElement('div');
     this.outsideChipsContainer.id = 'InteraOne-outside-chips';
@@ -313,7 +313,7 @@ export class WidgetUI {
     outside.forEach((s) => {
       const chip = document.createElement('button');
       chip.innerHTML = `
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(16,185,129,0.14);color:${accentColor};flex-shrink:0;transition:all 0.2s ease;">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:rgba(132,92,108,0.14);color:${accentColor};flex-shrink:0;transition:all 0.2s ease;">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
@@ -359,7 +359,7 @@ export class WidgetUI {
         chip.style.boxShadow = '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
-          iconBubble.style.background = 'rgba(16,185,129,0.14)';
+          iconBubble.style.background = 'rgba(132,92,108,0.14)';
           iconBubble.style.color = accentColor;
         }
       });

@@ -8,7 +8,7 @@ export class ConversationMemoryTool implements Tool {
 
   readonly parameters: Record<string, ToolParameterSchema> = {
     limit: {
-      type: "number",
+      type: "string",
       description: "Number of recent messages to retrieve (default: 10, max: 30).",
       required: false,
     },
@@ -37,7 +37,15 @@ export class ConversationMemoryTool implements Tool {
         return { status: "error", message: "conversationId and organizationId are required" };
       }
 
-      const limit = typeof args.limit === "number" ? Math.min(args.limit, 30) : 10;
+      let limit = 10;
+      if (typeof args.limit === "number") {
+        limit = Math.min(args.limit, 30);
+      } else if (typeof args.limit === "string") {
+        const parsed = parseInt(args.limit, 10);
+        if (!isNaN(parsed)) {
+          limit = Math.min(parsed, 30);
+        }
+      }
 
       const response = await internalApi.get(
         `/conversations/ai/${conversationId}/memory`,

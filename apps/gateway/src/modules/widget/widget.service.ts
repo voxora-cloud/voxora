@@ -179,7 +179,7 @@ export class WidgetService {
 
     const defaults = buildDefaultWidgetConfig();
     const { logoUrl: _ignoredLogoUrl, ...appearance } = (widget as any).appearance || {};
-    
+
     // Override DOM access to false if domain is not verified
     const isDomainVerified = widget.domainVerificationStatus === "verified";
     const endUserDomAccess = isDomainVerified ? ((widget as any).features?.endUserDomAccess ?? false) : false;
@@ -353,7 +353,7 @@ export class WidgetService {
     if (updateData?.verifiedDomain !== undefined) {
       const normalizedNew = updateData.verifiedDomain ? normalizeDomain(updateData.verifiedDomain) : "";
       const normalizedOld = existingWidget?.verifiedDomain ? normalizeDomain(existingWidget.verifiedDomain) : "";
-      
+
       if (normalizedNew !== normalizedOld) {
         if (normalizedNew) {
           cleanUpdates.verifiedDomain = normalizedNew;

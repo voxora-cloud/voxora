@@ -325,7 +325,26 @@ export function WidgetAdvancedConfigForm({
           />
         </FieldRow>
 
-
+        <FieldRow label="Background Pattern" htmlFor="backgroundPattern">
+          <select
+            id="backgroundPattern"
+            value={formData.appearance.pattern || "none"}
+            onChange={(e) => updateAppearance("pattern", e.target.value)}
+            className="w-full h-10 px-3 text-sm rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer text-foreground"
+          >
+            <option value="none">None</option>
+            <option value="uiverse-alexruix">Geometric Pattern (Alexruix)</option>
+            <option value="dots">Dotted Pattern</option>
+            <option value="grid">Grid Pattern</option>
+            <option value="island">Island Noise</option>
+            <option value="3d-cubes">3D Cubes (Conic)</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="hexagonal">Hexagonal Triangles</option>
+            <option value="polka">Purple Polka Dots</option>
+            <option value="radial-stripes">Radial Stripes</option>
+            <option value="plaid">Plaid Grid</option>
+          </select>
+        </FieldRow>
       </div>
     ),
 

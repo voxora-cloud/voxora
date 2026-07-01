@@ -1,14 +1,32 @@
 import { buildContext } from "./context-builder.service";
-import { getDefaultProvider } from "../../../infrastructure/providers/llm";
-import { LLMMessage } from "../../../infrastructure/providers/llm/types";
+import {
+  ProviderFactory,
+  FallbackRouter,
+} from "../../../infrastructure/providers";
+import { LLMMessage } from "../../../infrastructure/providers/types/ai.types";
 import { publishResponse } from "../../../infrastructure/queue/reply.queue";
 import { AIJobData } from "../chat.types";
 import { getTool, getToolsForContext } from "../../agents/tools";
 import { getConversationGate } from "../../../infrastructure/cache";
 import { publishStreamWithSeq } from "../services/stream.service";
 import { internalApi } from "../../../infrastructure/api/internal.client";
-import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
 import { vectorStore } from "../../../infrastructure/vector";
+
+// ── FAQ pre-filter ─────────────────────────────────────────────────────────
+// Skip the FAQ embedding+search for messages that are clearly not questions.
+// This saves 3-4s of Bedrock embedding latency on casual messages.
+const FAQ_SKIP_WORDS = /^(ok|okay|sure|yes|no|yeah|nope|yep|alright|thanks|thank you|thx|ty|cool|nice|great|awesome|bye|goodbye|got it|understood|sounds good|right|exactly|perfect|gotcha|hey|hi|hello|yo|sup|howdy|greetings)\b/i;
+const FAQ_QUESTION_STARTERS = /^(what|who|where|when|why|how|which|can|could|would|should|is|are|do|does|did|will|may|might|tell me|explain|show me|help me|i need|i want|how to)\b/i;
+const FAQ_MIN_LENGTH = 10;
+
+function isLikelyQuestion(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length < FAQ_MIN_LENGTH) return false;
+  if (FAQ_SKIP_WORDS.test(trimmed)) return false;
+  if (trimmed.includes("?")) return true;
+  if (FAQ_QUESTION_STARTERS.test(trimmed)) return true;
+  return false;
+}
 
 function shouldSkipConversation(gate: {
   status?: string;
@@ -129,15 +147,19 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     }
   }
 
-  // ── FAQ SEMANTIC BYPASS ───────────────────────────────────────────────────
-  let faqMatched = false;
-  let queryVector: number[] | undefined;
-  if (!otpCode) {
+  // ── FAQ FAST-PATH ────────────────────────────────────────────────────────
+  // Check if the message matches a known FAQ (score >= 0.85). If so, return
+  // the canned answer immediately — no LLM call needed.
+  // Skip for messages that are clearly not questions (saves 3-4s embedding).
+  if (!otpCode && isLikelyQuestion(content)) {
     try {
-      const embeddingProvider = getEmbeddingProvider();
+      const embeddingProvider = ProviderFactory.getEmbeddingProvider();
 
       console.time(t("embed:faq"));
-      queryVector = await embeddingProvider.embed(content.trim());
+      const queryVector = await embeddingProvider.embed(content.trim(), {
+        organizationId: job.organizationId,
+        conversationId,
+      });
       console.timeEnd(t("embed:faq"));
 
       console.time(t("qdrant:faq"));
@@ -153,16 +175,13 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         if (match.score >= 0.85) {
           const faqAnswer = (match.payload as any)?.answer || (match.payload as any)?.content || "";
           if (faqAnswer) {
-            console.log(`[Pipeline] FAQ semantic match found (score: ${match.score.toFixed(4)}) - Bypassing AI LLM pipeline`);
-            faqMatched = true;
+            console.log(`[Pipeline] FAQ match (score: ${match.score.toFixed(4)}) - returning directly, no LLM`);
 
-            // Publish response
             await publishResponse({ conversationId, content: faqAnswer });
 
-            // Save run logs
             const duration = Date.now() - startTime;
             steps.push({
-              toolName: "faq_semantic_bypass",
+              toolName: "faq_fast_path",
               args: { query: content },
               result: {
                 score: match.score,
@@ -191,16 +210,18 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         }
       }
     } catch (faqErr: any) {
-      console.error("[Pipeline] FAQ semantic search failed:", faqErr.message);
+      console.error("[Pipeline] FAQ check failed:", faqErr.message);
     }
+  } else if (!otpCode) {
+    console.log(`[Pipeline] Skipping FAQ check (not a question): "${content.slice(0, 50)}"`);
   }
 
-  // If FAQ did not match and AI is disabled/subscription is expired: escalate
+  // ── AI DISABLED / SUBSCRIPTION EXPIRED CHECK ─────────────────────────────
   const isAiEnabled = job.aiEnabled !== false;
   const isSubActive = job.subscriptionExpired !== true;
 
   if (!isAiEnabled || !isSubActive) {
-    console.log(`[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}) and no FAQ matched. Escalating conversation ${conversationId}`);
+    console.log(`[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}). Escalating conversation ${conversationId}`);
     try {
       await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
         organizationId: job.organizationId,
@@ -227,7 +248,6 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       job.fallbackToAgent,
       job.collectUserInfo,
       job.channel,
-      queryVector,
     );
     console.timeEnd(t("context:build"));
 
@@ -260,14 +280,16 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     // -- 3. Generate response ----------------------------------------------------
     let generatedText: string;
     try {
-      const provider = getDefaultProvider();
+      // Capabilities are resolved from the registry — no string matching
+      const provider = ProviderFactory.getLLMProvider();
       const capabilities = await provider.getCapabilities();
 
       console.time(t("llm"));
       const llmStart = performance.now();
       let hasReceivedFirstToken = false;
 
-      const generated = await provider.generate(messages, {
+      // FallbackRouter wraps generation with an ordered provider fallback chain
+      const generated = await FallbackRouter.generate(messages, {
         tools: capabilities.supportsTools
           ? getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel })
           : [],
@@ -296,6 +318,17 @@ export async function runPipeline(job: AIJobData): Promise<void> {
               );
             }
           : undefined,
+        onToolEvent: (event) => {
+          publishStreamWithSeq({
+            conversationId,
+            messageId: job.messageId,
+            chunk: "",
+            isThought: false,
+            toolEvent: event,
+          }).catch((err) =>
+            console.error("[Pipeline] Tool event publish failed:", err.message),
+          );
+        },
       });
       console.timeEnd(t("llm"));
       console.timeEnd(t("agent"));

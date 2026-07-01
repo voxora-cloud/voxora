@@ -27,6 +27,7 @@ import { analyticsRouter } from "@modules/analytics/analytics.routes";
 import { ticketsRouter } from "@modules/tickets";
 import { emailRouter } from "@modules/email";
 import { channelsRouter } from "@modules/channels";
+import { observabilityRouter } from "@modules/observability/observability.routes";
 import { setupSwagger } from "@shared/infra/swagger";
 
 class Application {
@@ -132,6 +133,7 @@ class Application {
     router.use("/tickets", ticketsRouter);
     router.use("/email", emailRouter);
     router.use("/channels", channelsRouter);
+    router.use("/observability", observabilityRouter);
 
     // Health check
     router.get("/health", (req, res) => {

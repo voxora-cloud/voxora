@@ -239,18 +239,15 @@ export class ChannelsController {
       return sendError(res, 400, "Missing payload");
     }
 
-    // 2. Validate SNS Message Signature (optional skip for testing)
-    const skipValidation = process.env.SKIP_SNS_VALIDATION === "true";
-    if (!skipValidation) {
-      try {
-        await validateSnsMessage(payload);
-      } catch (err: any) {
-        logger.error("[ChannelsController] SNS signature verification failed", {
-          channelId,
-          error: err.message,
-        });
-        return sendError(res, 400, "SNS signature verification failed");
-      }
+    // 2. Validate SNS Message Signature
+    try {
+      await validateSnsMessage(payload);
+    } catch (err: any) {
+      logger.error("[ChannelsController] SNS signature verification failed", {
+        channelId,
+        error: err.message,
+      });
+      return sendError(res, 400, "SNS signature verification failed");
     }
 
     // 3. Handle SNS message types
@@ -390,36 +387,33 @@ export class ChannelsController {
       return res.status(200).send("<Response></Response>");
     }
 
-    // 2. Validate Twilio Signature (optional skip for testing)
-    const skipValidation = process.env.SKIP_TWILIO_VALIDATION === "true";
-    if (!skipValidation) {
-      const signature = req.headers["x-twilio-signature"] as string;
-      if (!signature) {
-        logger.error("[ChannelsController] Twilio inbound: missing x-twilio-signature header");
-        res.setHeader("Content-Type", "text/xml");
-        return res.status(400).send("<Response><Message>Missing signature</Message></Response>");
-      }
+    // 2. Validate Twilio Signature
+    const signature = req.headers["x-twilio-signature"] as string;
+    if (!signature) {
+      logger.error("[ChannelsController] Twilio inbound: missing x-twilio-signature header");
+      res.setHeader("Content-Type", "text/xml");
+      return res.status(400).send("<Response><Message>Missing signature</Message></Response>");
+    }
 
-      // Reconstruct the full request URL Twilio called
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const host = req.headers["x-forwarded-host"] || req.get("host");
-      const fullUrl = `${protocol}://${host}${req.originalUrl || req.path}`;
+    // Reconstruct the full request URL Twilio called
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.headers["x-forwarded-host"] || req.get("host");
+    const fullUrl = `${protocol}://${host}${req.originalUrl || req.path}`;
 
-      const verified = twilio.validateRequest(
-        waCfg.authToken,
-        signature,
+    const verified = twilio.validateRequest(
+      waCfg.authToken,
+      signature,
+      fullUrl,
+      req.body
+    );
+
+    if (!verified) {
+      logger.error("[ChannelsController] Twilio signature validation failed", {
+        channelId,
         fullUrl,
-        req.body
-      );
-
-      if (!verified) {
-        logger.error("[ChannelsController] Twilio signature validation failed", {
-          channelId,
-          fullUrl,
-        });
-        res.setHeader("Content-Type", "text/xml");
-        return res.status(400).send("<Response><Message>Invalid signature</Message></Response>");
-      }
+      });
+      res.setHeader("Content-Type", "text/xml");
+      return res.status(400).send("<Response><Message>Invalid signature</Message></Response>");
     }
 
     // 3. Process Inbound Message asynchronously

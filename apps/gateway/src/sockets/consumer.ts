@@ -227,10 +227,11 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
   // ── AI stream channel ──────────────────────────────────────────────────────
   await subscriber.subscribe("ai:stream", async (raw) => {
     try {
-      const { conversationId, chunk, isThought } = JSON.parse(raw) as {
+      const { conversationId, chunk, isThought, toolEvent } = JSON.parse(raw) as {
         conversationId: string;
         chunk: string;
         isThought: boolean;
+        toolEvent?: { type: "start" | "complete"; toolName: string; label: string; detail?: string };
       };
 
       // Do not forward stream chunks once a human has taken over
@@ -251,6 +252,7 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         conversationId,
         chunk,
         isThought,
+        toolEvent,
       });
     } catch (err) {
       logger.error("Failed to handle AI stream chunk:", err);

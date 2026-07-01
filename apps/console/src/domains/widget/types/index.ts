@@ -1,6 +1,7 @@
 export interface WidgetAppearanceSettings {
   theme: "dark" | "light";
   welcomeMessage: string;
+  pattern?: "none" | "uiverse-alexruix" | "dots" | "grid" | "island" | "3d-cubes" | "checkerboard" | "hexagonal" | "polka" | "radial-stripes" | "plaid";
 }
 
 export interface WidgetBehaviorSettings {

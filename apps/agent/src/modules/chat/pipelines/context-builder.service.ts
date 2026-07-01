@@ -1,12 +1,14 @@
 import { ContextResult, ContextMessage, CollectUserInfo, KnownVisitorDetails } from "../chat.types";
-import { vectorStore } from "../../../infrastructure/vector";
-import config from "../../../config";
-import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
 import { internalApi } from "../../../infrastructure/api/internal.client";
+import { cacheRedis } from "../../../infrastructure/cache/redis.client";
 import { buildSystemPrompt } from "./system-prompt.builder";
 
 
 const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
+const MEMORY_CACHE_TTL_SECONDS = parseInt(
+  process.env.MEMORY_CACHE_TTL_SECONDS || "5",
+  10,
+);
 
 export async function buildContext(
   conversationId: string,
@@ -16,178 +18,72 @@ export async function buildContext(
   fallbackToAgent?: boolean,
   collectUserInfo?: CollectUserInfo,
   channel?: "widget" | "email" | "whatsapp" | "telegram",
-  passedQueryVector?: number[],
 ): Promise<ContextResult> {
   const canFallback = fallbackToAgent !== false;
-  let knowledgeContext: string | undefined;
   let knownVisitorDetails: KnownVisitorDetails | undefined;
 
   // Short suffix so concurrent jobs don't collide in the console
   const cid = conversationId.slice(-8);
   const t = (label: string) => `[${cid}] ${label}`;
 
-  console.log(
-    `[Context] ------------------------------------------------------`,
-  );
   console.log(`[Context] Building context for conversation: ${conversationId}`);
   console.log(`[Context] organizationId : ${organizationId}`);
   console.log(`[Context] channel        : ${channel ?? "widget"}`);
   console.log(`[Context] companyName    : ${companyName || "(not set)"}`);
-  console.log(`[Context] fallbackToAgent: ${canFallback}`);
-  console.log(
-    `[Context] collectUserInfo: ${JSON.stringify(collectUserInfo ?? {})}`,
-  );
   console.log(`[Context] messageLength  : ${currentMessage.length} chars`);
 
-  // ── HISTORY (parallel fetch — fired before RAG so both run concurrently) ──
-  console.log(
-    `[History] Fetching history from API for conversation: ${conversationId} (Parallel)`
-  );
+  // ── HISTORY (cached fetch) ─────────────────────────────────────────────────
+  // Redis cache (5s TTL) avoids MongoDB round-trip on rapid follow-up messages.
+  console.log(`[History] Fetching history for conversation: ${conversationId}`);
   console.time(t("history"));
-  const historyPromise = internalApi.get(
-    `/conversations/ai/${conversationId}/memory`,
-    { params: { organizationId, limit: HISTORY_LIMIT } }
-  ).catch(err => {
-    console.warn(
-      "[Context] Failed to fetch conversation history via API:",
-      err.message || err,
-    );
-    return null;
-  });
-
-  // ── RAG: embed ───────────────────────────────────────────────────────────
-  try {
-    console.log(`[Context] Starting RAG search...`);
-    const provider = getEmbeddingProvider();
-    const capabilities = await provider.getCapabilities();
-    const dimensions = capabilities.embeddingDimensions || provider.dimensions;
-    console.log(
-      `[Context] Embedding provider: ${provider.constructor.name}, dimensions: ${dimensions}`,
-    );
-
-    console.time(t("embed:rag"));
-    if (passedQueryVector) {
-      console.log(`[Context] Reusing query vector from FAQ semantic bypass`);
-    }
-    const queryVector = passedQueryVector || await provider.embed(currentMessage);
-    console.timeEnd(t("embed:rag"));
-
-    console.log(`[Context] Generated query vector (${queryVector.length}d)`);
-    console.log(
-      `[Context] Vector sample: [${queryVector
-        .slice(0, 5)
-        .map((v) => v.toFixed(4))
-        .join(", ")}...]`,
-    );
-
-    // ── RAG: Qdrant search ─────────────────────────────────────────────────
-    console.log(`[Context] Calling vectorStore.search with:`);
-    console.log(`[Context]   - organizationId: ${organizationId}`);
-    console.log(`[Context]   - topK: ${config.embeddings.ragTopK}`);
-
-    console.time(t("qdrant:rag"));
-    const results = await vectorStore.search(queryVector, {
-      organizationId,
-      topK: config.embeddings.ragTopK,
-    });
-    console.timeEnd(t("qdrant:rag"));
-
-    console.log(
-      `[Context] OK Search completed, received ${results.length} result(s)`,
-    );
-
-    if (results.length > 0) {
-      knowledgeContext = results
-         .map((r, i) => `[${i + 1}] ${r.payload.text}`)
-         .join("\n\n");
-
-      console.log(
-        `[Context] OK RAG retrieved ${results.length} chunk(s) successfully`,
-      );
-      const redactedQuery = currentMessage.replace(
-        /\b\d{6}\b/g,
-        "[6-digit verification code]",
-      );
-      console.log(
-        `[Context] Query: "${redactedQuery.slice(0, 100)}${currentMessage.length > 100 ? "..." : ""}"`,
-      );
-      results.forEach((r, i) => {
-        console.log(
-          `[Context]   [${i + 1}] score=${r.score.toFixed(4)} orgId=${r.payload.organizationId} docId=${r.payload.documentId}`,
-        );
-        console.log(
-          `[Context]       text: ${String(r.payload.text).slice(0, 120).replace(/\n/g, " ")}...`,
-        );
-      });
-
-      console.log(
-        `[Context] OK System prompt enhanced with ${results.length} knowledge chunks`,
-      );
-    } else {
-      console.log(`[Context] WARN RAG search returned 0 results`);
-      console.log(`[Context]     Possible reasons:`);
-      console.log(
-        `[Context]     1. No documents ingested for organizationId: ${organizationId}`,
-      );
-      console.log(
-        `[Context]     2. Query doesn't semantically match indexed content`,
-      );
-      console.log(
-        `[Context]     3. Qdrant collection empty or not created yet`,
-      );
-    }
-  } catch (err: any) {
-    console.error(`[Context] ERROR RAG search error:`);
-    console.error(
-      `[Context]    Error type: ${err?.constructor?.name || typeof err}`,
-    );
-    console.error(`[Context]    Status: ${err?.status}`);
-    console.error(`[Context]    Message: ${err?.message || String(err)}`);
-
-    // Check if error is due to missing collection (404 on fresh deployment)
-    if (
-      err?.status === 404 &&
-      err?.data?.status?.error?.includes("doesn't exist")
-    ) {
-      console.log(
-        `[Context] WARN Qdrant collection doesn't exist yet - creating with ${getEmbeddingProvider().dimensions}d vectors`,
-      );
-      try {
-        await vectorStore.ensureCollection(getEmbeddingProvider().dimensions);
-        console.log(
-          `[Context] OK Collection created successfully. RAG will work after documents are ingested.`,
-        );
-      } catch (createErr) {
-        console.error(
-          "[Context] ERROR Failed to create collection:",
-          createErr,
-        );
+  const memoryCacheKey = `org:${organizationId}:conv:${conversationId}:memory:${HISTORY_LIMIT}`;
+  const historyPromise = (async () => {
+    // 1. Try Redis cache first
+    try {
+      const cached = await cacheRedis.get(memoryCacheKey);
+      if (cached) {
+        console.log(`[History] CACHE HIT for conversation: ${conversationId}`);
+        return JSON.parse(cached);
       }
-    } else {
-      console.error(
-        "[Context] WARN RAG search failed, continuing without context",
-      );
-      if (err?.stack) {
-        console.error(`[Context] Stack trace: ${err.stack}`);
-      }
+    } catch {
+      // Cache read failed — fall through to API
     }
-  }
 
-  // ── HISTORY: await parallel fetch ─────────────────────────────────────────
+    // 2. Fall back to gateway API
+    try {
+      const response = await internalApi.get(
+        `/conversations/ai/${conversationId}/memory`,
+        { params: { organizationId, limit: HISTORY_LIMIT } }
+      );
+      // Write to cache (non-blocking)
+      cacheRedis
+        .setex(memoryCacheKey, MEMORY_CACHE_TTL_SECONDS, JSON.stringify(response.data))
+        .catch(() => undefined);
+      return response.data;
+    } catch (err: any) {
+      console.warn(
+        "[Context] Failed to fetch conversation history via API:",
+        err.message || err,
+      );
+      return null;
+    }
+  })();
+
+  // ── AWAIT HISTORY ──────────────────────────────────────────────────────────
   const history: ContextMessage[] = [];
   try {
-    const response = await historyPromise;
-    console.timeEnd(t("history")); // ends here — covers network + processing wait
-    if (response) {
-      const apiMemory = response.data?.data?.memory || [];
-      const visitor = response.data?.data?.visitor || {};
+    const data = await historyPromise;
+    console.timeEnd(t("history"));
+    if (data) {
+      const apiMemory = data?.data?.memory || data?.memory || [];
+      const visitor = data?.data?.visitor || data?.visitor || {};
       knownVisitorDetails = {
         name: visitor.name,
         email: visitor.email,
       };
 
       console.log(
-        `[History] Parallel fetch complete. API returned ${apiMemory.length} message(s) for conversation ${conversationId}`,
+        `[History] Fetch complete. ${apiMemory.length} message(s) for conversation ${conversationId}`,
       );
 
       for (const m of apiMemory) {
@@ -214,32 +110,33 @@ export async function buildContext(
   }
 
   // ── PROMPT ASSEMBLY ───────────────────────────────────────────────────────
+  // RAG is no longer injected here — the LLM calls faq_retrieval tool when it
+  // needs knowledge context. This saves 3-4s embedding latency on every message.
   console.time(t("prompt:build"));
   const systemPrompt = buildSystemPrompt({
     companyName,
     fallbackToAgent: canFallback,
     collectUserInfo,
-    knowledgeContext,
     knownVisitorDetails,
     channel,
   });
   console.timeEnd(t("prompt:build"));
 
   // -- 3. Assemble: history + current user message ------------------------------
-  const allMessages: ContextMessage[] = [
-    ...history,
-    { role: "user", content: currentMessage, timestamp: new Date() },
-  ];
+  // The gateway saves the visitor message to DB before enqueuing the AI job,
+  // so /memory already includes the current message. Check the last history
+  // entry — if it matches the current message, don't append a duplicate.
+  const lastHistoryMsg = history[history.length - 1];
+  const currentAlreadyInHistory =
+    lastHistoryMsg &&
+    lastHistoryMsg.role === "user" &&
+    lastHistoryMsg.content.trim() === currentMessage.trim();
+
+  const allMessages: ContextMessage[] = currentAlreadyInHistory
+    ? history
+    : [...history, { role: "user", content: currentMessage, timestamp: new Date() }];
 
   console.log(`[History] Thread sent to LLM: ${allMessages.length} turn(s)`);
-  allMessages.forEach((m, i) =>
-    console.log(
-      `  [LLM turn ${i + 1}] ${m.role.padEnd(9)} | ${m.content
-        .replace(/\b\d{6}\b/g, "[6-digit verification code]")
-        .slice(0, 100)
-        .replace(/\n/g, " ")}`,
-    ),
-  );
 
   return {
     systemPrompt,

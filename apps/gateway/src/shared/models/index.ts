@@ -16,3 +16,5 @@ export { AnalyticsEvent, IAnalyticsEvent, AnalyticsEventType, AnalyticsEventChan
 export { Ticket, ITicket, TicketStatus, TicketPriority, TicketSource } from "./Ticket";
 export { Channel, IChannel, ChannelType, ChannelVerificationStatus, IDnsRecord, IEmailChannelConfig, IChannelConfig } from "./Channel";
 export { AgentRun, IAgentRun, IAgentRunStep } from "./AgentRun";
+export { AICallEvent, IAICallEvent, CallType, AIProviderType } from "./AICallEvent";
+

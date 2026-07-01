@@ -1,5 +1,5 @@
 import { cacheRedis } from "../../../infrastructure/cache/redis.client";
-import { publishStreamChunk } from "../../../infrastructure/queue/reply.queue";
+import { publishStreamChunk, ToolEventData } from "../../../infrastructure/queue/reply.queue";
 
 const STREAM_SEQ_TTL_SECONDS = parseInt(
   process.env.AI_STREAM_SEQ_TTL_SECONDS || "300",
@@ -11,8 +11,9 @@ export async function publishStreamWithSeq(params: {
   messageId?: string;
   chunk: string;
   isThought?: boolean;
+  toolEvent?: ToolEventData;
 }): Promise<void> {
-  const { conversationId, messageId, chunk, isThought = false } = params;
+  const { conversationId, messageId, chunk, isThought = false, toolEvent } = params;
   const key = messageId
     ? `ai:stream:seq:${conversationId}:${messageId}`
     : `ai:stream:seq:${conversationId}`;
@@ -22,5 +23,5 @@ export async function publishStreamWithSeq(params: {
     await cacheRedis.expire(key, STREAM_SEQ_TTL_SECONDS);
   }
 
-  await publishStreamChunk({ conversationId, chunk, isThought, seq, messageId });
+  await publishStreamChunk({ conversationId, chunk, isThought, seq, messageId, toolEvent });
 }
