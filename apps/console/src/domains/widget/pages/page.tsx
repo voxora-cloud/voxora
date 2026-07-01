@@ -22,6 +22,7 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
   appearance: {
     theme: "dark",
     welcomeMessage: "Need help? Ask here and we’ll point you in the right direction.",
+    pattern: "uiverse-alexruix",
   },
   behavior: {
     showWidget: true,
@@ -51,6 +52,9 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
     { text: "Learn about services", showOutside: false },
     { text: "Contact support", showOutside: true },
   ],
+  verifiedDomain: null,
+  domainVerificationToken: null,
+  domainVerificationStatus: null,
 };
 
 function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined): CreateWidgetData {
@@ -184,6 +188,7 @@ export function WidgetPage() {
         conversation: formData.conversation,
         features: formData.features,
         suggestions: formData.suggestions,
+        verifiedDomain: formData.verifiedDomain,
       };
 
       const response = await saveWidget.mutateAsync({

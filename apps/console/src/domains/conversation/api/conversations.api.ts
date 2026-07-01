@@ -52,7 +52,9 @@ class ConversationsApi {
     );
   }
 
-
+  async getAgentRuns(conversationId: string): Promise<any> {
+    return apiClient.get<any>(`/conversations/${conversationId}/agent-runs`);
+  }
 }
 
 export const conversationsApi = new ConversationsApi();

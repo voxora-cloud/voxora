@@ -6,9 +6,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "dev": "nodemon src/index.ts",
-    "build": "tsc && tsc-alias",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node dist/index.js",
     "seed:email-templates": "ts-node -r tsconfig-paths/register src/scripts/seeds/email-templates.seed.ts",
     "test:ee-missing": "ts-node -r tsconfig-paths/register src/scripts/ee-missing-smoke.ts"
@@ -60,13 +62,17 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^24.1.0",
     "@types/sns-validator": "^0.3.3",
+    "@types/supertest": "^7.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^9.0.7",
+    "@vitest/coverage-v8": "^4.1.9",
     "nodemon": "^3.0.2",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.10",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.9"
   }
 }

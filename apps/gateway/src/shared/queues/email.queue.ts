@@ -9,6 +9,8 @@ import {
   buildAgentVerificationOTPEmail,
   buildConversationSummaryEmail,
   buildTicketLifecycleEmail,
+  buildDomainVerificationPendingEmail,
+  buildDomainVerificationCompletedEmail,
   type TicketEmailDetails,
   type TicketEmailEvent,
   type EmailOptions,
@@ -45,7 +47,9 @@ async function enqueueEmail(
     | "ticket_created"
     | "ticket_updated"
     | "ticket_resolved"
-    | "ticket_closed",
+    | "ticket_closed"
+    | "domain_verification_pending"
+    | "domain_verification_completed",
   payload: { to: string; subject: string; html: string; text?: string },
 ): Promise<void> {
   const from = await resolveFromEmail();
@@ -139,6 +143,29 @@ export async function enqueueTicketLifecycleEmail(
   if (!isEmailEnabled()) return false;
   const { subject, html, text } = await buildTicketLifecycleEmail(event, details);
   await enqueueEmail(`ticket_${event}`, { to, subject, html, text });
+  return true;
+}
+
+export async function enqueueDomainVerificationPendingEmail(
+  to: string,
+  name: string,
+  domain: string,
+  token: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildDomainVerificationPendingEmail(name, domain, token);
+  await enqueueEmail("domain_verification_pending", { to, subject, html, text });
+  return true;
+}
+
+export async function enqueueDomainVerificationCompletedEmail(
+  to: string,
+  name: string,
+  domain: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildDomainVerificationCompletedEmail(name, domain);
+  await enqueueEmail("domain_verification_completed", { to, subject, html, text });
   return true;
 }
 

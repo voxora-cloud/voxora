@@ -58,6 +58,10 @@ export const channelsApi = {
   verifyChannel: (channelId: string) =>
     apiClient.post<VerifyChannelResponse>(`/channels/${channelId}/verify`),
 
+  /** Update email channel addresses */
+  updateEmailChannelAddresses: (channelId: string, emails: string[]) =>
+    apiClient.patch<ChannelResponse>(`/channels/${channelId}/email/addresses`, { emails }),
+
   /** Delete a channel */
   deleteChannel: (channelId: string) =>
     apiClient.delete<{ success: boolean }>(`/channels/${channelId}`),

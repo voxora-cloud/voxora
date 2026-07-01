@@ -1,4 +1,4 @@
-.PHONY: help install dev build lint format clean docker-start docker-stop docker-clean widget-deploy docker-images docker-release all check-docker check-ports docker-health verify
+.PHONY: help install dev build lint format clean docker-start docker-stop docker-clean widget-deploy docker-images docker-release all check-docker check-ports docker-health verify copy-env
 
 REGISTRY ?= ompharate
 VERSION := $(shell date +%Y.%m.%d)-$(shell git rev-parse --short HEAD)
@@ -120,6 +120,21 @@ verify: ## Verify system requirements (git, node, pnpm, ports)
 	@echo ""
 	@echo "$(GREEN)✅ System verification complete!$(NC)"
 
+copy-env: ## Copy .env.example to .env for all apps if they do not exist
+	@echo "$(BLUE)📋 Copying environment templates...$(NC)"
+	@for app in gateway console agent launcher worker; do \
+		if [ -f apps/$$app/.env.example ]; then \
+			if [ ! -f apps/$$app/.env ]; then \
+				cp apps/$$app/.env.example apps/$$app/.env; \
+				echo "$(GREEN)✓$(NC) Created apps/$$app/.env"; \
+			else \
+				echo "$(YELLOW)⚠️$(NC) apps/$$app/.env already exists, skipping"; \
+			fi; \
+		fi; \
+	done
+	@echo "$(GREEN)✅ Environment files setup complete!$(NC)"
+	@echo ""
+
 all: ## Install, start Docker, deploy widget, and run dev (api + web + ai)
 	$(BANNER)
 	@echo "$(BLUE)  Installing InteraOne...$(NC)"
@@ -127,6 +142,7 @@ all: ## Install, start Docker, deploy widget, and run dev (api + web + ai)
 	@sleep 2
 	@$(MAKE) verify
 	@$(MAKE) check-docker
+	@$(MAKE) copy-env
 	@$(MAKE) install
 	@$(MAKE) docker-start
 	@$(MAKE) widget-deploy

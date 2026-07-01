@@ -12,13 +12,13 @@ interface AuthState {
 
   // Actions
   login: (loginPayload: LoginPayload) => Promise<void>;
-  signup: (signupPayload: SignupPayload) => Promise<void>;
+  signup: (signupPayload: SignupPayload) => Promise<any>;
   acceptInvite: (token: string, password?: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (user: User) => void;
   setOrganization: (org: Organization | null) => void;
   initializeAuth: () => Promise<void>;
-  completeSignup: (data: any) => Promise<void>;
+  completeSignup: (data: any) => Promise<any>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -43,9 +43,7 @@ export const useAuthStore = create<AuthState>()(
               isAuthenticated: true,
             });
 
-            // Redirect to dashboard
-            window.location.href = "/dashboard";
-            return;
+            return response.data;
           }
 
           throw new Error(response.message || errorMessage);

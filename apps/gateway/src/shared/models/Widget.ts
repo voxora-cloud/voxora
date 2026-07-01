@@ -11,6 +11,7 @@ export interface IWidget extends Document {
     // primaryColor removed, using theme only
     welcomeMessage: string;
     logoUrl?: string;
+    pattern?: "none" | "uiverse-alexruix" | "dots" | "grid" | "island" | "3d-cubes" | "checkerboard" | "hexagonal" | "polka" | "radial-stripes" | "plaid";
   };
   // backgroundColor removed, using theme only
   behavior: {
@@ -23,7 +24,6 @@ export interface IWidget extends Document {
   };
   ai: {
     enabled: boolean;
-    model: string;
     fallbackToAgent: boolean;
   };
   conversation: {
@@ -39,8 +39,12 @@ export interface IWidget extends Document {
   suggestions: Array<{
     text: string;
     showOutside: boolean;
+    faqId?: string | null;
   }>;
   publicKey?: string;
+  verifiedDomain?: string;
+  domainVerificationToken?: string;
+  domainVerificationStatus?: "pending" | "verified" | null;
 }
 
 const WidgetSchema = new Schema<IWidget>(
@@ -56,6 +60,11 @@ const WidgetSchema = new Schema<IWidget>(
         default: DEFAULT_WIDGET_CONFIG.appearance.welcomeMessage,
       },
       logoUrl: { type: String, default: "" },
+      pattern: {
+        type: String,
+        enum: ["none", "uiverse-alexruix", "dots", "grid", "island", "3d-cubes", "checkerboard", "hexagonal", "polka", "radial-stripes", "plaid"],
+        default: "none",
+      },
     },
     // backgroundColor removed, using theme only
     behavior: {
@@ -68,7 +77,6 @@ const WidgetSchema = new Schema<IWidget>(
     },
     ai: {
       enabled: { type: Boolean, default: true },
-      model: { type: String, default: "gpt-4o-mini" },
       fallbackToAgent: { type: Boolean, default: true },
     },
     conversation: {
@@ -86,11 +94,19 @@ const WidgetSchema = new Schema<IWidget>(
         {
           text: { type: String, required: true },
           showOutside: { type: Boolean, default: false },
+          faqId: { type: String, default: null },
         },
       ],
       default: DEFAULT_WIDGET_CONFIG.suggestions,
     },
     publicKey: { type: String, default: null },
+    verifiedDomain: { type: String, default: null },
+    domainVerificationToken: { type: String, default: null },
+    domainVerificationStatus: {
+      type: String,
+      enum: ["pending", "verified", null],
+      default: null,
+    },
   },
   { timestamps: true },
 );

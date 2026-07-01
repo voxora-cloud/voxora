@@ -375,3 +375,43 @@ channelsRouter.delete(
   validateRequest(channelsSchema.channelParams, "params"),
   ChannelsController.deleteChannel,
 );
+
+/**
+ * @openapi
+ * /channels/{channelId}/email/addresses:
+ *   patch:
+ *     summary: Update email addresses for an Email channel
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: channelId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - emails
+ *             properties:
+ *               emails:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Email channel addresses updated successfully
+ */
+channelsRouter.patch(
+  "/:channelId/email/addresses",
+  requireRole("admin"),
+  validateRequest(channelsSchema.channelParams, "params"),
+  validateRequest(channelsSchema.updateEmailChannelAddresses),
+  ChannelsController.updateEmailChannelAddresses,
+);

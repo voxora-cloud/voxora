@@ -16,12 +16,20 @@ export interface PublishPayload {
   };
 }
 
+export interface ToolEventData {
+  type: "start" | "complete";
+  toolName: string;
+  label: string;
+  detail?: string;
+}
+
 export interface StreamPayload {
   conversationId: string;
   chunk: string;
   isThought: boolean;
   seq?: number;
   messageId?: string;
+  toolEvent?: ToolEventData;
 }
 
 export interface EscalationPayload {

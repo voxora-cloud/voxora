@@ -35,6 +35,7 @@ const pageRuleSchema = Joi.string()
 const appearanceSchema = Joi.object({
   theme: Joi.string().valid("dark", "light").required(),
   welcomeMessage: Joi.string().min(1).max(500).required(),
+  pattern: Joi.string().valid("none", "uiverse-alexruix", "dots", "grid", "island", "3d-cubes", "checkerboard", "hexagonal", "polka", "radial-stripes", "plaid").optional().default("none"),
 }).options({ stripUnknown: true });
 
 const behaviorSchema = Joi.object({
@@ -48,7 +49,6 @@ const behaviorSchema = Joi.object({
 
 const aiSchema = Joi.object({
   enabled: Joi.boolean().required(),
-  model: Joi.string().min(1).max(120).required(),
   fallbackToAgent: Joi.boolean().required(),
 });
 
@@ -81,6 +81,7 @@ export const widgetSchema = {
     ai: aiSchema,
     conversation: conversationSchema,
     features: featuresSchema,
+    verifiedDomain: Joi.string().trim().max(256).optional().allow("", null),
     _id: Joi.string().optional(),
     userId: Joi.string().optional(),
     createdAt: Joi.date().optional(),

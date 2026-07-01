@@ -97,6 +97,30 @@ router.put(
   WidgetController.updateWidget,
 );
 
+/**
+ * @openapi
+ * /widget/verify-domain:
+ *   post:
+ *     summary: Verify organization widget domain using DNS TXT record
+ *     tags:
+ *       - Widget
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Domain verified successfully
+ *       400:
+ *         description: DNS TXT verification failed or domain verification not set up
+ *       401:
+ *         description: Unauthorized
+ */
+router.post(
+  "/verify-domain",
+  authenticate,
+  requireRole("agent"),
+  WidgetController.verifyDomain,
+);
+
 // Widget auth
 
 /**

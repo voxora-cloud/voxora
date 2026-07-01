@@ -1,5 +1,5 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
-import { Conversation, Message } from "@shared/models";
+import { Conversation, Message, Organization } from "@shared/models";
 import { aiQueue } from "@shared/infra/queue";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
@@ -45,6 +45,7 @@ export class ChannelService {
       config: {
         email: {
           address: input.email.trim().toLowerCase(),
+          addresses: [input.email.trim().toLowerCase()],
           domain: input.domain.trim().toLowerCase(),
           verificationStatus: "pending",
           dnsRecords: [],
@@ -288,6 +289,44 @@ export class ChannelService {
     });
   }
 
+  static async updateEmailChannelAddresses(
+    organizationId: string,
+    channelId: string,
+    emails: string[],
+  ): Promise<IChannel> {
+    const channel = await Channel.findOne({ _id: channelId, organizationId });
+    if (!channel) {
+      throw new Error("Channel not found");
+    }
+    if (channel.type !== "email") {
+      throw new Error("Channel is not an email channel");
+    }
+    if (!channel.config.email) {
+      throw new Error("Email configuration is missing");
+    }
+
+    const domain = channel.config.email.domain;
+    const cleanEmails = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
+
+    if (cleanEmails.length === 0) {
+      throw new Error("At least one email address is required");
+    }
+
+    for (const email of cleanEmails) {
+      if (!email.endsWith(`@${domain}`)) {
+        throw new Error(`Email "${email}" must belong to the verified domain "${domain}"`);
+      }
+    }
+
+    channel.config.email.addresses = cleanEmails;
+    // The first email in the list is always treated as the primary address
+    channel.config.email.address = cleanEmails[0];
+
+    channel.markModified("config");
+    await channel.save();
+    return channel;
+  }
+
   // ─── Inbound ─────────────────────────────────────────────────────────────────
 
   static async handleInbound(
@@ -319,12 +358,17 @@ export class ChannelService {
         ) {
           const message = await Message.findById(result.messageId);
           if (message && message.content) {
+            const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
+            const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active" && org.subscriptionStatus !== "trialing") : false;
+
             await aiQueue.add("process", {
               organizationId: channel.organizationId.toString(),
               conversationId: result.conversationId,
               content: message.content,
               messageId: result.messageId,
               channel: channel.type,
+              aiEnabled: true,
+              subscriptionExpired,
             });
             logger.info("[ChannelService] Inbound message enqueued for AI processing", {
               conversationId: result.conversationId,

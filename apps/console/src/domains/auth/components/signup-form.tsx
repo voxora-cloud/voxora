@@ -81,8 +81,8 @@ function getFieldError(field: FieldName, formData: any) {
 }
 
 export function SignupForm() {
-  const { mutate: initiateSignup, isPending: isInitiating } = useInitiateSignup();
   const { mutate: completeSignup, isPending: isCompleting } = useCompleteSignup();
+  const { mutate: initiateSignup, isPending: isInitiating } = useInitiateSignup();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -90,6 +90,8 @@ export function SignupForm() {
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+
 
   const [formData, setFormData] = useState({
     name: "",
@@ -190,6 +192,9 @@ export function SignupForm() {
         password: formData.password,
       },
       {
+        onSuccess: () => {
+          window.location.href = "/dashboard";
+        },
         onError: (err: any) => setError(err.message || "Final setup failed"),
       }
     );
@@ -477,6 +482,7 @@ export function SignupForm() {
               </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
 
@@ -503,13 +509,7 @@ export function SignupForm() {
             {isInitiating || isVerifying || isCompleting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {currentStep === 4
-              ? "Complete Setup"
-              : currentStep === 2
-                ? "Verify Email"
-                : currentStep === 3
-                  ? "Next — Security"
-                  : "Continue"}
+            {currentStep === 4 ? "Complete Setup" : currentStep === 2 ? "Verify Email" : currentStep === 3 ? "Next — Security" : "Continue"}
             {!isInitiating && !isVerifying && !isCompleting && (
               <ArrowRight className="h-4 w-4 ml-2" />
             )}

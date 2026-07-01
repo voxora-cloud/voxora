@@ -21,6 +21,8 @@ export interface IConversation extends Document {
   createdBy: Types.ObjectId;
   closedAt?: Date;
   metadata: Record<string, any>;
+  channelId?: Types.ObjectId;
+  channel?: string;
   visitor?: IVisitor;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +40,8 @@ const conversationSchema = new Schema<IConversation>(
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     closedAt: { type: Date, default: null },
     metadata: { type: Schema.Types.Mixed, default: {} },
+    channelId: { type: Schema.Types.ObjectId, ref: "Channel" },
+    channel: { type: String, trim: true },
     visitor: {
       sessionId: { type: String, index: true },
       name: { type: String, default: "Anonymous User" },
@@ -53,6 +57,8 @@ conversationSchema.index({ organizationId: 1, status: 1 });
 conversationSchema.index({ organizationId: 1, assignedTo: 1 });
 conversationSchema.index({ participants: 1 });
 conversationSchema.index({ organizationId: 1, updatedAt: -1 });
+conversationSchema.index({ organizationId: 1, channelId: 1 });
+conversationSchema.index({ organizationId: 1, channel: 1 });
 
 export const Conversation = mongoose.model<IConversation>(
   "Conversation",

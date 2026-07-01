@@ -11,13 +11,13 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { useAuth } from "@/domains/auth/hooks";
-import { MoreVertical, Send, ArrowLeft, Clock, User } from "lucide-react";
+import { MoreVertical, Send, ArrowLeft, Clock, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Cpu, Bot } from "lucide-react";
 import { useNavigate } from "react-router";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversationDetail, useUpdateVisitorInfo } from "../hooks";
+import { useConversationDetail, useUpdateVisitorInfo, useAgentRuns } from "../hooks";
 import type { ConversationDetail, ConversationMessage } from "../types/types";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002/api/v1";
@@ -38,6 +38,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [updateForm, setUpdateForm] = useState({ name: "", email: "" });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "runs">("chat");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerTypingHideRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -524,74 +525,297 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
-        {messages.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p>No messages yet. Start the conversation!</p>
-          </div>
-        ) : (
-          <>
-            {messages.map((message) => (
-              <div
-                key={message._id}
-                className={`flex ${
-                  isAgentMessage(message) ? "justify-end" : "justify-start"
-                }`}
-              >
-                <div
-                  className={
-                    "max-w-[70%] px-4 py-3 rounded-lg " +
-                    (isAgentMessage(message)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card border border-border")
-                  }
-                >
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-medium opacity-75">
-                      {message.metadata?.senderName ||
-                        (isAgentMessage(message) ? "You" : "Customer")}
-                    </span>
-                    <span className="text-xs opacity-50 ml-2">
-                      {formatTime(message.createdAt)}
-                    </span>
-                  </div>
-                  {renderMessageContent(message)}
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </>
-        )}
+      {/* Tabs */}
+      <div className="flex border-b border-border bg-card/60 px-4 shrink-0">
+        <button
+          onClick={() => setActiveTab("chat")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+            activeTab === "chat"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Chat
+        </button>
+        <button
+          onClick={() => setActiveTab("runs")}
+          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+            activeTab === "runs"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Agent Execution Logs
+        </button>
       </div>
 
-      {isCustomerTyping && (
-        <div className="px-4 pb-2 text-sm text-muted-foreground italic">
-          Customer is typing...
-        </div>
-      )}
-
-      <div className="p-4 border-t border-border bg-card">
-        <div className="flex space-x-2">
-          <Textarea
-            value={newMessage}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyPress}
-            placeholder="Type your message..."
-            className="flex-1 min-h-[80px] resize-none cursor-text"
-            disabled={isLoading}
-          />
-          <div className="flex flex-col space-y-2">
-            <Button
-              onClick={sendMessage}
-              disabled={!newMessage.trim() || isLoading}
-              size="icon"
-              className="cursor-pointer"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+      {activeTab === "chat" ? (
+        <>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
+            {messages.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No messages yet. Start the conversation!</p>
+              </div>
+            ) : (
+              <>
+                {messages.map((message) => (
+                  <div
+                    key={message._id}
+                    className={`flex ${
+                      isAgentMessage(message) ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={
+                        "max-w-[70%] px-4 py-3 rounded-lg " +
+                        (isAgentMessage(message)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-card border border-border")
+                      }
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-medium opacity-75">
+                          {message.metadata?.senderName ||
+                            (isAgentMessage(message) ? "You" : "Customer")}
+                        </span>
+                        <span className="text-xs opacity-50 ml-2">
+                          {formatTime(message.createdAt)}
+                        </span>
+                      </div>
+                      {renderMessageContent(message)}
+                    </div>
+                  </div>
+                ))}
+                <div ref={messagesEndRef} />
+              </>
+            )}
           </div>
-        </div>
+
+          {isCustomerTyping && (
+            <div className="px-4 pb-2 text-sm text-muted-foreground italic">
+              Customer is typing...
+            </div>
+          )}
+
+          <div className="p-4 border-t border-border bg-card">
+            <div className="flex space-x-2">
+              <Textarea
+                value={newMessage}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyPress}
+                placeholder="Type your message..."
+                className="flex-1 min-h-[80px] resize-none cursor-text"
+                disabled={isLoading}
+              />
+              <div className="flex flex-col space-y-2">
+                <Button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim() || isLoading}
+                  size="icon"
+                  className="cursor-pointer"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <AgentRunsTab conversationId={conversationId} />
+      )}
+    </div>
+  );
+}
+
+function AgentRunsTab({ conversationId }: { conversationId: string }) {
+  const { data: runsResponse, isLoading, refetch } = useAgentRuns(conversationId);
+  const [expandedRuns, setExpandedRuns] = useState<Record<string, boolean>>({});
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
+
+  const runs = runsResponse?.data || [];
+
+  const toggleRun = (id: string) => {
+    setExpandedRuns(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleStep = (id: string) => {
+    setExpandedSteps(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center text-muted-foreground flex-1 flex flex-col items-center justify-center">
+        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+        <p>Loading agent execution history...</p>
+      </div>
+    );
+  }
+
+  if (runs.length === 0) {
+    return (
+      <div className="p-8 text-center text-muted-foreground flex-1 flex flex-col items-center justify-center bg-background">
+        <Bot className="h-12 w-12 text-muted-foreground/40 mb-3" />
+        <p className="font-semibold text-foreground">No agent runs recorded</p>
+        <p className="text-sm mt-1">The AI Agent hasn't processed any turns in this conversation yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-semibold text-foreground">Execution History ({runs.length})</h3>
+        <Button variant="ghost" size="sm" onClick={() => refetch()} className="text-xs cursor-pointer">
+          Refresh
+        </Button>
+      </div>
+      <div className="space-y-3">
+        {runs.map((run: any) => {
+          const isExpanded = !!expandedRuns[run._id];
+          const isSuccess = run.status === "success";
+          const dateStr = new Date(run.createdAt).toLocaleString();
+          const durationSec = (run.duration / 1000).toFixed(2);
+
+          return (
+            <div key={run._id} className="border border-border rounded-lg bg-card overflow-hidden transition-all duration-200">
+              {/* Header */}
+              <div
+                onClick={() => toggleRun(run._id)}
+                className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center space-x-3 min-w-0">
+                  {isSuccess ? (
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate text-foreground">{dateStr}</p>
+                    <p className="text-xs text-muted-foreground truncate font-mono">Msg Ref: {run.messageId}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4 shrink-0 self-end sm:self-auto">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs font-semibold text-foreground">{durationSec}s duration</p>
+                    {run.usage && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Tokens: {run.usage.totalTokens || 0} ({run.usage.promptTokens || 0} in / {run.usage.completionTokens || 0} out)
+                      </p>
+                    )}
+                  </div>
+                  {isExpanded ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+
+              {/* Collapsible details */}
+              {isExpanded && (
+                <div className="border-t border-border bg-card/50 p-4 space-y-4">
+                  {/* Summary/Error */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-muted/40 p-3 rounded-lg">
+                    <div>
+                      <span className="text-muted-foreground font-medium">Status: </span>
+                      <span className={`font-semibold capitalize ${isSuccess ? "text-emerald-600" : "text-rose-600"}`}>
+                        {run.status}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground font-medium">Duration: </span>
+                      <span className="font-semibold text-foreground">{run.duration} ms ({durationSec}s)</span>
+                    </div>
+                    {run.usage && (
+                      <div>
+                        <span className="text-muted-foreground font-medium">Token Usage: </span>
+                        <span className="font-semibold text-foreground">
+                          {run.usage.promptTokens || 0} prompt / {run.usage.completionTokens || 0} comp ({run.usage.totalTokens || 0} total)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {!isSuccess && run.error && (
+                    <div className="text-xs bg-rose-50 border border-rose-100 text-rose-700 p-3 rounded-lg font-mono whitespace-pre-wrap">
+                      <span className="font-bold">Error:</span> {run.error}
+                    </div>
+                  )}
+
+                  {/* Steps */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tool Execution Steps ({run.steps?.length || 0})</h4>
+                    {(!run.steps || run.steps.length === 0) ? (
+                      <p className="text-xs text-muted-foreground italic">No tools were executed during this run.</p>
+                    ) : (
+                      <div className="relative border-l border-border pl-4 ml-2 space-y-4">
+                        {run.steps.map((step: any, index: number) => {
+                          const stepId = `${run._id}-step-${index}`;
+                          const isStepExpanded = !!expandedSteps[stepId];
+                          const hasStepError = !!step.error;
+
+                          return (
+                            <div key={index} className="relative">
+                              {/* Timeline dot */}
+                              <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-card bg-primary" />
+                              
+                              <div className="border border-border rounded-md bg-background overflow-hidden">
+                                <div
+                                  onClick={() => toggleStep(stepId)}
+                                  className="px-3 py-2 flex items-center justify-between text-xs cursor-pointer hover:bg-muted/40 transition-colors"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <Cpu className="h-3.5 w-3.5 text-blue-500" />
+                                    <span className="font-semibold text-foreground font-mono">{step.toolName}</span>
+                                    {hasStepError ? (
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px] font-semibold border border-rose-100">Error</span>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-semibold border border-emerald-100">Success</span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-muted-foreground">{new Date(step.timestamp).toLocaleTimeString()}</span>
+                                    {isStepExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                                  </div>
+                                </div>
+
+                                {isStepExpanded && (
+                                  <div className="p-3 border-t border-border bg-muted/20 space-y-2 text-xs">
+                                    {step.error && (
+                                      <div className="bg-rose-50 text-rose-700 p-2 rounded border border-rose-100 font-mono text-[11px]">
+                                        <span className="font-bold">Execution Error:</span> {step.error}
+                                      </div>
+                                    )}
+                                    <div>
+                                      <div className="font-semibold text-muted-foreground mb-1">Arguments:</div>
+                                      <pre className="p-2 rounded bg-muted/80 text-[11px] font-mono overflow-x-auto text-foreground">
+                                        {JSON.stringify(step.args, null, 2)}
+                                      </pre>
+                                    </div>
+                                    {step.result !== undefined && (
+                                      <div>
+                                        <div className="font-semibold text-muted-foreground mb-1">Result:</div>
+                                        <pre className="p-2 rounded bg-muted/80 text-[11px] font-mono overflow-x-auto text-foreground">
+                                          {JSON.stringify(step.result, null, 2)}
+                                        </pre>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

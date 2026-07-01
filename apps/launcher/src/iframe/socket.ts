@@ -1,20 +1,34 @@
 import { io } from "socket.io-client";
 import { state, API_BASE_URL } from './config';
-import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon } from './ui';
+import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel } from './ui';
 import { parseMarkdown } from './utils/markdown';
 
 let authRetryCount = 0;
 const MAX_AUTH_RETRIES = 3;
-const STREAM_BOUNDARY_FLUSH_MS = 700;
-const STREAM_SENTENCE_MIN_CHARS = 90;
-const STREAM_LONG_PARAGRAPH_CHARS = 420;
-const STREAM_IDLE_WORD_FLUSH_CHARS = 36;
+const STREAM_BOUNDARY_FLUSH_MS = 400;
+const STREAM_SENTENCE_MIN_CHARS = 40;
+const STREAM_LONG_PARAGRAPH_CHARS = 160;
+const STREAM_IDLE_WORD_FLUSH_CHARS = 20;
 
 type ConversationVisualState = 'human' | 'closed' | 'pending' | 'open';
 
-function getInputArea(): HTMLElement | null {
-  return document.querySelector('.input-area') as HTMLElement | null;
+function setAiResponding(responding: boolean) {
+  state._aiResponding = responding;
+  const inputArea = document.querySelector('.input-area') as HTMLElement | null;
+  if (inputArea) inputArea.classList.toggle('is-disabled', responding);
+  if (elements.messageInput) {
+    elements.messageInput.disabled = responding;
+    if (responding) {
+      elements.messageInput.placeholder = 'AI is responding...';
+    } else {
+      elements.messageInput.placeholder = 'Type your message...';
+    }
+  }
+  if (elements.sendBtn) {
+    elements.sendBtn.disabled = responding || !elements.messageInput?.value.trim();
+  }
 }
+
 
 function getStateBanner(): HTMLElement | null {
   return document.getElementById('conversationStateBanner');
@@ -31,9 +45,11 @@ function resetStreamState() {
   state._streamBubbleEl = null;
   state._streamText = "";
   state._streamRenderedText = "";
-  state._thoughtText = "";
-  state._thoughtSteps = [];
+  state._aiResponding = false;
 }
+
+// Track the current tool step element so we can complete it
+let _currentToolStepEl: HTMLElement | null = null;
 
 function getNextStreamFlushText(force = false) {
   if (force) return state._streamText;
@@ -79,6 +95,20 @@ function getIdleStreamFlushText() {
   return state._streamText.slice(0, renderedLength + lastSpace + 1);
 }
 
+function renderStreamingText(text: string): string {
+  // During streaming, render plain text only — no markdown parsing.
+  // Running the full markdown parser on partial chunks causes regex
+  // patterns (bold, italic, lists) to partially match mid-word and
+  // reorder/scramble text until the next chunk arrives and "fixes" it.
+  // The full parseMarkdown() is called on stream_end with the complete text.
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '<br>');
+}
+
 function flushStreamContent(force = false, idle = false) {
   if (!state._streamBubbleEl) return;
 
@@ -87,12 +117,10 @@ function flushStreamContent(force = false, idle = false) {
 
   state._streamRenderedText = nextText;
   const responseContent = state._streamBubbleEl.querySelector('.response-content');
-  const inlineDots = state._streamBubbleEl.querySelector('.typing-dots-inline') as HTMLElement | null;
 
-  if (responseContent) responseContent.innerHTML = parseMarkdown(state._streamRenderedText);
-  if (inlineDots) {
-    inlineDots.style.display = force || state._streamRenderedText === state._streamText ? 'none' : 'inline-flex';
-  }
+  // Use plain-text rendering during streaming to prevent mid-stream word scrambling.
+  // stream_end will replace this with the fully parsed markdown output.
+  if (responseContent) responseContent.innerHTML = renderStreamingText(state._streamRenderedText);
 
   scrollToBottom();
 }
@@ -135,7 +163,7 @@ function showStateBanner(stateType: ConversationVisualState, title: string, subt
 }
 
 function setComposerEnabled(enabled: boolean, placeholder?: string) {
-  const inputArea = getInputArea();
+  const inputArea = document.querySelector('.input-area') as HTMLElement | null;
   if (inputArea) inputArea.classList.toggle('is-disabled', !enabled);
 
   if (elements.messageInput) {
@@ -274,33 +302,40 @@ function bindSocketEvents() {
     if (data.conversationId !== state.chatId) return;
     if (data.message?.metadata?.source === 'widget') return;
 
-    if (elements.sendBtn) elements.sendBtn.disabled = false;
+    // ── AI response complete — re-enable input, clean up all loaders ──────
+    setAiResponding(false);
 
     if (data.message?.metadata?.source === 'system') {
       removeTypingDots();
+      hideTyping();
       addSystemNotice(data.message.content);
       return;
     }
 
     if (data.message?.type === 'file' || data.message?.type === 'image') {
       removeTypingDots();
+      hideTyping();
       addMessage(data.message.content, 'agent', 'Support Agent', 'file');
       return;
     }
 
     if (state._streamBubbleEl) {
-      const inlineDots = state._streamBubbleEl.querySelector('.typing-dots-inline') as HTMLElement;
-      if (inlineDots) inlineDots.style.display = 'none';
-
       const responseContent = state._streamBubbleEl.querySelector('.response-content');
       if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
 
-      if (!state._streamBubbleEl.querySelector('.agent-response-icon')) {
-        state._streamBubbleEl.insertAdjacentHTML('afterbegin', renderAgentResponseIcon());
-      }
       removeTypingDots();
+      hideTyping();
+      removeToolStepsPanel();
       resetStreamState();
+    } else if (state._toolStepsEl) {
+      // Tool steps panel exists but no stream bubble — replace with final answer
+      removeToolStepsPanel();
+      removeTypingDots();
+      hideTyping();
+      typeMessage(data.message.content);
     } else {
+      removeTypingDots();
+      hideTyping();
       typeMessage(data.message.content);
     }
   });
@@ -309,30 +344,66 @@ function bindSocketEvents() {
   socket.on('ai_stream_chunk', (data: any) => {
     if (data.conversationId !== state.chatId) return;
 
+    // ── Handle tool events ────────────────────────────────────────────────
+    if (data.toolEvent) {
+      const ev = data.toolEvent;
+
+      if (ev.type === "start") {
+        if (!state._toolStepsEl) {
+          removeTypingDots();
+          hideTyping();
+          setAiResponding(true);
+
+          // Create the collapsible tool-call-block
+          const block = createToolStepsPanel();
+          elements.messagesContainer?.appendChild(block);
+          state._toolStepsEl = block;
+        }
+
+        _currentToolStepEl = addToolStep(state._toolStepsEl, ev.label);
+        scrollToBottom();
+        return;
+      }
+
+      if (ev.type === "complete" && _currentToolStepEl) {
+        completeToolStep(_currentToolStepEl, ev.detail);
+        _currentToolStepEl = null;
+        scrollToBottom();
+        return;
+      }
+
+      return;
+    }
+
+    // ── Handle text streaming ─────────────────────────────────────────────
     if (!state._streamBubbleEl) {
+      // First text chunk — remove skeleton/steps panel and create stream bubble
+      removeTypingDots();
+      hideTyping();
+
+      // If tool steps panel exists, remove it — the final answer replaces it
+      if (state._toolStepsEl) {
+        removeToolStepsPanel();
+      }
+
+      setAiResponding(true);
+
       state._streamBubbleEl = document.createElement('div');
       state._streamBubbleEl.className = 'message agent';
       state._streamBubbleEl.innerHTML = `
+        ${renderAgentResponseIcon()}
         <div class="message-bubble" style="min-width: 250px;">
           <div class="response-content md"></div>
-          <div class="typing-dots-inline" style="display: none;">
-            <span></span><span></span><span></span>
-          </div>
           <div class="message-time"></div>
         </div>`;
 
       elements.messagesContainer?.appendChild(state._streamBubbleEl);
     }
 
-    const inlineDots = state._streamBubbleEl.querySelector('.typing-dots-inline') as HTMLElement;
-
-    if (data.isThought) {
-      state._thoughtText += data.chunk;
-      if (inlineDots) inlineDots.style.display = 'none';
-    } else {
+    // Thought chunks are discarded — never shown to the user
+    if (!data.isThought && data.chunk) {
       state._streamText += data.chunk;
       flushStreamContent(false);
-      if (inlineDots && state._streamRenderedText !== state._streamText) inlineDots.style.display = 'inline-flex';
       if (state._streamRenderedText !== state._streamText) scheduleStreamFlush();
     }
 
@@ -346,7 +417,10 @@ function bindSocketEvents() {
 
   socket.off('agent_typing');
   socket.on('agent_typing', (data: any) => {
-    if (data.conversationId === state.chatId) showTyping();
+    if (data.conversationId !== state.chatId) return;
+    // Don't show typing dots if we're already streaming or if AI is responding
+    if (state._streamBubbleEl || state._aiResponding) return;
+    showTyping();
   });
 
   socket.off('agent_stopped_typing');
@@ -359,6 +433,7 @@ function bindSocketEvents() {
     if (data.conversationId !== state.chatId) return;
     removeTypingDots();
     hideTyping();
+    setAiResponding(false);
     clearOutcomePanel();
     setComposerEnabled(true, data.agent?.name ? `Reply to ${data.agent.name}...` : 'Reply to support...');
     if (data.agent?.name) {

@@ -203,3 +203,29 @@ export async function buildTicketLifecycleEmail(
     resolutionNote: escapeHtml(details.resolutionNote || "No additional resolution note was provided."),
   });
 }
+
+export async function buildDomainVerificationPendingEmail(
+  name: string,
+  domain: string,
+  token: string,
+): Promise<BuiltEmail> {
+  const settingsUrl = `${getClientUrl()}/settings/widget`;
+  return buildFromTemplate("domain_verification_pending", {
+    name: escapeHtml(name),
+    domain: escapeHtml(domain),
+    token: escapeHtml(token),
+    settingsUrl,
+  });
+}
+
+export async function buildDomainVerificationCompletedEmail(
+  name: string,
+  domain: string,
+): Promise<BuiltEmail> {
+  const settingsUrl = `${getClientUrl()}/settings/widget`;
+  return buildFromTemplate("domain_verification_completed", {
+    name: escapeHtml(name),
+    domain: escapeHtml(domain),
+    settingsUrl,
+  });
+}

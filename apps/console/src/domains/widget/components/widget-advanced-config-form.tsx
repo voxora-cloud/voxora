@@ -18,7 +18,13 @@ import {
   UserCheck,
   X,
   Zap,
+  Globe,
+  Copy,
+  Check,
+  Loader2,
 } from "lucide-react";
+import { useVerifyDomain } from "../hooks";
+import { toast } from "sonner";
 import type { CreateWidgetData } from "../types";
 import { Label } from "@/shared/ui/label";
 
@@ -34,7 +40,7 @@ interface WidgetAdvancedConfigFormProps {
   onChange: (next: CreateWidgetData) => void;
 }
 
-type TabId = "appearance" | "ai" | "behavior" | "conversation" | "features";
+type TabId = "appearance" | "ai" | "behavior" | "conversation" | "features" | "domain";
 
 interface TabDef {
   id: TabId;
@@ -49,6 +55,7 @@ interface ToggleCardProps {
   description: string;
   checked: boolean;
   onCheckedChange: (next: boolean) => void;
+  disabled?: boolean;
 }
 
 interface FieldRowProps {
@@ -65,23 +72,27 @@ function ToggleCard({
   description,
   checked,
   onCheckedChange,
+  disabled = false,
 }: ToggleCardProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
-      className={`w-full text-left flex items-center gap-4 rounded-xl border p-4 transition-all duration-200 cursor-pointer group ${
-        checked
-          ? "border-primary/40 bg-primary/5 shadow-sm shadow-primary/10"
-          : "border-border/60 bg-card/50 hover:border-border hover:bg-card"
+      className={`w-full text-left flex items-center gap-4 rounded-xl border p-4 transition-all duration-200 group ${
+        disabled
+          ? "opacity-50 cursor-not-allowed border-border/40 bg-muted/10"
+          : checked
+            ? "border-primary/40 bg-primary/5 shadow-sm shadow-primary/10 cursor-pointer"
+            : "border-border/60 bg-card/50 hover:border-border hover:bg-card cursor-pointer"
       }`}
     >
       {/* Icon badge */}
       <div
         className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-          checked
+          checked && !disabled
             ? "bg-primary/15 text-primary"
             : "bg-muted text-muted-foreground group-hover:bg-muted/80"
         }`}
@@ -91,7 +102,7 @@ function ToggleCard({
 
       {/* Text */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium ${checked ? "text-foreground" : "text-foreground/80"}`}>
+        <p className={`text-sm font-medium ${checked && !disabled ? "text-foreground" : "text-foreground/80"}`}>
           {label}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
@@ -100,12 +111,12 @@ function ToggleCard({
       {/* Pill toggle */}
       <div
         className={`relative h-5 w-9 rounded-full flex-shrink-0 transition-colors duration-200 ${
-          checked ? "bg-primary" : "bg-muted-foreground/30"
+          checked && !disabled ? "bg-primary" : "bg-muted-foreground/30"
         }`}
       >
         <span
           className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-            checked ? "translate-x-4" : "translate-x-0.5"
+            checked && !disabled ? "translate-x-4" : "translate-x-0.5"
           }`}
         />
       </div>
@@ -167,6 +178,9 @@ export function WidgetAdvancedConfigForm({
   const [activeTab, setActiveTab] = useState<TabId>("appearance");
   const [pageRuleInput, setPageRuleInput] = useState("");
   const [pageRuleError, setPageRuleError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const { mutate: verifyDomain, isPending: isVerifying } = useVerifyDomain();
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -237,6 +251,12 @@ export function WidgetAdvancedConfigForm({
     { id: "behavior", label: "Behavior", icon: Layers },
     { id: "conversation", label: "Conversation", icon: MessageSquareText },
     { id: "features", label: "Features", icon: Zap },
+    {
+      id: "domain",
+      label: "Domain",
+      icon: Globe,
+      badge: formData.domainVerificationStatus === "verified" ? "Verified" : (formData.verifiedDomain ? "Pending" : undefined),
+    },
   ];
 
   /* ── Tab panels ───────────────────────────────────────────────────────── */
@@ -305,7 +325,26 @@ export function WidgetAdvancedConfigForm({
           />
         </FieldRow>
 
-
+        <FieldRow label="Background Pattern" htmlFor="backgroundPattern">
+          <select
+            id="backgroundPattern"
+            value={formData.appearance.pattern || "none"}
+            onChange={(e) => updateAppearance("pattern", e.target.value)}
+            className="w-full h-10 px-3 text-sm rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer text-foreground"
+          >
+            <option value="none">None</option>
+            <option value="uiverse-alexruix">Geometric Pattern (Alexruix)</option>
+            <option value="dots">Dotted Pattern</option>
+            <option value="grid">Grid Pattern</option>
+            <option value="island">Island Noise</option>
+            <option value="3d-cubes">3D Cubes (Conic)</option>
+            <option value="checkerboard">Checkerboard</option>
+            <option value="hexagonal">Hexagonal Triangles</option>
+            <option value="polka">Purple Polka Dots</option>
+            <option value="radial-stripes">Radial Stripes</option>
+            <option value="plaid">Plaid Grid</option>
+          </select>
+        </FieldRow>
       </div>
     ),
 
@@ -496,19 +535,129 @@ export function WidgetAdvancedConfigForm({
             icon={Shield}
             label="Host-page DOM access"
             description="Allow the widget to read and interact with the host page's DOM."
-            checked={formData.features.endUserDomAccess}
+            checked={formData.domainVerificationStatus === "verified" ? formData.features.endUserDomAccess : false}
             onCheckedChange={(v) => updateFeatures("endUserDomAccess", v)}
+            disabled={formData.domainVerificationStatus !== "verified"}
           />
         </div>
 
-        {formData.features.endUserDomAccess && (
-          <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 p-4">
-            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-              <span className="font-semibold">⚠ Security note:</span> DOM access lets the widget
-              read page content and user inputs. Only enable this if you trust all embedding sites.
+        {formData.domainVerificationStatus !== "verified" ? (
+          <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-800/40 p-4">
+            <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+              <span className="font-semibold">ℹ Domain Verification Required:</span> Host-page DOM access is highly privileged and can only be enabled on verified client domains. Please configure and verify your domain in the <button type="button" onClick={() => setActiveTab("domain")} className="font-bold underline cursor-pointer text-primary hover:text-primary/80">Domain</button> tab to unlock this feature.
             </p>
           </div>
+        ) : (
+          formData.features.endUserDomAccess && (
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 p-4">
+              <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                <span className="font-semibold">⚠ Security note:</span> DOM access lets the widget
+                read page content and user inputs. Only enable this if you trust all embedding sites.
+              </p>
+            </div>
+          )
         )}
+      </div>
+    ),
+
+    domain: (
+      <div className="space-y-5">
+        <SectionHeader
+          title="Domain Verification"
+          subtitle="Add and verify the domain name where the widget will be embedded."
+        />
+
+        <div className="space-y-4">
+          <FieldRow label="Authorized Domain" htmlFor="verifiedDomain">
+            <div className="flex gap-2">
+              <Input
+                id="verifiedDomain"
+                value={formData.verifiedDomain || ""}
+                onChange={(e) => onChange({ ...formData, verifiedDomain: e.target.value })}
+                placeholder="example.com"
+                className="h-10 text-sm"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Changing the domain will reset the verification status and require a new TXT record. Keep empty to disable origin validation.
+            </p>
+          </FieldRow>
+
+          {formData.verifiedDomain && (
+            <div className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground">Verification Status</span>
+                {formData.domainVerificationStatus === "verified" ? (
+                  <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-xs px-2.5 py-0.5 font-semibold">
+                    Verified
+                  </Badge>
+                ) : (
+                  <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs px-2.5 py-0.5 font-semibold animate-pulse">
+                    Pending Verification
+                  </Badge>
+                )}
+              </div>
+
+              <div className="space-y-3 p-4 rounded-lg bg-muted/30 border border-border/40">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  To verify your domain, add the following TXT record to your DNS provider (e.g., Cloudflare, GoDaddy, Namecheap):
+                </p>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground font-semibold">Type</span>
+                  <span className="font-mono text-foreground bg-muted px-2 py-0.5 rounded">TXT</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground font-semibold">Host / Name</span>
+                  <span className="font-mono text-foreground bg-muted px-2 py-0.5 rounded">@</span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-muted-foreground font-semibold block uppercase">Value</span>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={formData.domainVerificationToken || ""}
+                      className="flex-1 bg-muted/50 border border-border/30 rounded px-2.5 py-1.5 text-xs text-foreground font-mono focus:outline-none"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(formData.domainVerificationToken || "");
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                      className="shrink-0 h-8 px-2.5 cursor-pointer"
+                    >
+                      {copied ? <Check className="h-3.5 w-3.5 text-green-500 animate-in fade-in" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {formData.domainVerificationStatus !== "verified" && (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    verifyDomain(undefined, {
+                      onSuccess: () => {
+                        toast.success("Domain verified successfully!");
+                      },
+                      onError: (err: any) => {
+                        toast.error(err.message || "Domain verification failed. Please check your DNS record.");
+                      },
+                    });
+                  }}
+                  disabled={isVerifying}
+                  className="w-full h-10 text-sm shadow-md"
+                >
+                  {isVerifying && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  Verify Domain
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     ),
   };

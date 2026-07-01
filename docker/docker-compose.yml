@@ -41,6 +41,10 @@ services:
     restart: no
     env_file:
       - ../apps/launcher/.env.docker
+    environment:
+      # Always sourced from docker/.env — single source of truth for MinIO credentials
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     depends_on:
       minio:
         condition: service_healthy
@@ -83,6 +87,10 @@ services:
       - "127.0.0.1:3002:3002"  # Caddy is the public entry-point; bind locally for health checks only
     env_file:
       - ../apps/gateway/.env.docker
+    environment:
+      # Always sourced from docker/.env — single source of truth for MinIO credentials
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ../ee:/app/ee:ro
     depends_on:
@@ -111,6 +119,10 @@ services:
     restart: unless-stopped
     env_file:
       - ../apps/agent/.env.docker
+    environment:
+      # Always sourced from docker/.env — single source of truth for MinIO credentials
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -131,6 +143,10 @@ services:
     restart: unless-stopped
     env_file:
       - ../apps/worker/.env.docker
+    environment:
+      # Always sourced from docker/.env — single source of truth for MinIO credentials
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ../ee:/app/ee:ro
     depends_on:

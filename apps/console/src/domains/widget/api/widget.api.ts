@@ -9,4 +9,7 @@ export const widgetApi = {
 
   updateWidget: (data: UpdateWidgetData) =>
     apiClient.put<WidgetResponse>("/widget/manage", data),
+
+  verifyDomain: () =>
+    apiClient.post<any>("/widget/verify-domain"),
 };

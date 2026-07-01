@@ -61,7 +61,8 @@ export const getWidgetConfig = asyncHandler(
   async (req: Request, res: Response) => {
     try {
       const { InteraOnePublicKey } = req.query as { InteraOnePublicKey?: string };
-      const data = await widgetService.getWidgetConfigByPublicKey(InteraOnePublicKey || "");
+      const requestOrigin = req.get("origin") || req.get("referer") || undefined;
+      const data = await widgetService.getWidgetConfigByPublicKey(InteraOnePublicKey || "", requestOrigin);
 
       try {
         const organizationId = data.organizationId;
@@ -133,6 +134,19 @@ export const updateWidget = asyncHandler(async (req: AuthenticatedRequest, res: 
   if (body.appearance) delete body.appearance.logoUrl;
   const widget = await widgetService.updateWidget(req.user.activeOrganizationId, body);
   sendResponse(res, 200, true, "Widget updated successfully", widget);
+});
+
+export const verifyDomain = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await widgetService.verifyWidgetDomain(req.user.activeOrganizationId);
+    sendResponse(res, 200, true, "Domain verified successfully", result);
+  } catch (error: any) {
+    sendError(
+      res,
+      error?.statusCode || 500,
+      error?.statusCode ? error.message : "Failed to verify domain: " + error.message,
+    );
+  }
 });
 
 export const trackQrScan = asyncHandler(async (req: Request, res: Response) => {

@@ -11,6 +11,7 @@ import {
   objectExists,
   listObjects,
 } from "@shared/utils/storage";
+import { Knowledge, Message } from "@shared/models";
 import type { Readable } from "stream";
 import {
   PresignedUrlResponse,
@@ -140,7 +141,37 @@ class StorageService {
       throw new Error("File not found");
     }
   }
+
+  /**
+   * Verify that a given fileKey belongs to the specified organization.
+   * Prevents cross-org file access without touching models in the controller.
+   */
+  async verifyKeyOwnership(fileKey: string, orgId: string): Promise<boolean> {
+    if (
+      fileKey.startsWith(`knowledge/${orgId}/`) ||
+      fileKey.startsWith(`conversations/${orgId}/`)
+    ) {
+      return true;
+    }
+
+    if (fileKey.startsWith("knowledge/")) {
+      const exists = await Knowledge.exists({ fileKey, organizationId: orgId });
+      return !!exists;
+    }
+
+    if (fileKey.startsWith("conversations/")) {
+      const exists = await Message.exists({
+        organizationId: orgId,
+        $or: [
+          { "metadata.fileKey": fileKey },
+          { content: { $regex: fileKey } },
+        ],
+      });
+      return !!exists;
+    }
+
+    return false;
+  }
 }
 
 export default new StorageService();
-

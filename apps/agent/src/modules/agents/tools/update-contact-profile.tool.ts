@@ -112,12 +112,12 @@ export class UpdateContactProfileTool implements Tool {
       }
 
       const organizationId =
-        (typeof args.organizationId === "string" ? args.organizationId : "") ||
         context?.organizationId ||
+        (typeof args.organizationId === "string" && args.organizationId !== "ORGANIZATION_ID" ? args.organizationId : "") ||
         "";
       const conversationId =
-        (typeof args.conversationId === "string" ? args.conversationId : "") ||
         context?.conversationId ||
+        (typeof args.conversationId === "string" && args.conversationId !== "CONVERSATION_ID" ? args.conversationId : "") ||
         "";
 
       if (!organizationId || !conversationId) {

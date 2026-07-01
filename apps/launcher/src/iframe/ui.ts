@@ -3,7 +3,144 @@ import { state } from './config';
 import { INTERAONE_LOGO_SVG } from '../shared/assets';
 export { INTERAONE_LOGO_SVG };
 
-// Pre-query safe DOM elements (since Vite injects script type=module at end of body)
+// ── Pegtop 3D loader ─────────────────────────────────────────────────────────
+
+const PEGTOP_SVG_PATH = `M63,37c-6.7-4-4-27-13-27s-6.3,23-13,27-27,4-27,13,20.3,9,27,13,4,27,13,27,6.3-23,13-27,27-4,27-13-20.3-9-27-13Z`;
+
+function pegtopSvg(id: string, delay?: string) {
+  const style = delay ? ` style="animation-delay:${delay}"` : '';
+  return `
+    <svg id="${id}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100"${style}>
+      ${id === 'pegtopone' ? `
+      <defs>
+        <filter id="shine-ldr"><feGaussianBlur stdDeviation="3"></feGaussianBlur></filter>
+        <mask id="mask-ldr">
+          <path d="${PEGTOP_SVG_PATH}" fill="white"></path>
+        </mask>
+        <radialGradient id="grad-ldr-1" cx="50" cy="66" fx="50" fy="66" r="30" gradientTransform="translate(0 35) scale(1 0.5)" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="black" stop-opacity="0.3"></stop>
+          <stop offset="50%" stop-color="black" stop-opacity="0.1"></stop>
+          <stop offset="100%" stop-color="black" stop-opacity="0"></stop>
+        </radialGradient>
+        <radialGradient id="grad-ldr-2" cx="55" cy="20" fx="55" fy="20" r="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="white" stop-opacity="0.3"></stop>
+          <stop offset="50%" stop-color="white" stop-opacity="0.1"></stop>
+          <stop offset="100%" stop-color="white" stop-opacity="0"></stop>
+        </radialGradient>
+      </defs>
+      <g>
+        <path d="${PEGTOP_SVG_PATH}" fill="currentColor"></path>
+        <path d="${PEGTOP_SVG_PATH}" fill="url(#grad-ldr-1)"></path>
+        <path d="${PEGTOP_SVG_PATH}" fill="none" stroke="white" opacity="0.3" stroke-width="3" filter="url(#shine-ldr)" mask="url(#mask-ldr)"></path>
+        <path d="${PEGTOP_SVG_PATH}" fill="url(#grad-ldr-2)"></path>
+      </g>` : `<g>
+        <path d="${PEGTOP_SVG_PATH}" fill="currentColor"></path>
+        <path d="${PEGTOP_SVG_PATH}" fill="url(#grad-ldr-1)"></path>
+        <path d="${PEGTOP_SVG_PATH}" fill="url(#grad-ldr-2)"></path>
+      </g>`}
+    </svg>`;
+}
+
+export function PegtopLoader(): string {
+  return `
+    <div class="pegtop-loader">
+      ${pegtopSvg('pegtopone')}
+      ${pegtopSvg('pegtoptwo', '0.3s')}
+      ${pegtopSvg('pegtopthree', '0.6s')}
+    </div>
+  `;
+}
+
+// ── Tool call collapsible card ────────────────────────────────────────────────
+
+export function createToolStepsPanel(): HTMLElement {
+  const block = document.createElement('div');
+  block.className = 'tool-call-block';
+
+  const card = document.createElement('div');
+  card.className = 'tool-call-card';
+
+  const header = document.createElement('div');
+  header.className = 'tool-call-header';
+  header.innerHTML = `
+    <span class="tool-call-header-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="16.5 9.4 7.5 4.21 7.5 14.79 16.5 9.4"></polyline>
+      </svg>
+    </span>
+    <span class="tool-call-title">Executing...</span>
+    <span class="tool-call-chevron">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </span>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'tool-call-body';
+
+  const timeline = document.createElement('div');
+  timeline.className = 'tool-steps-timeline';
+  timeline.style.padding = '10px 12px';
+
+  body.appendChild(timeline);
+  card.appendChild(header);
+  card.appendChild(body);
+  block.appendChild(card);
+
+  header.addEventListener('click', () => card.classList.toggle('is-collapsed'));
+  (block as any)._timeline = timeline;
+
+  return block;
+}
+
+export function addToolStep(panel: HTMLElement, label: string): HTMLElement {
+  const timeline = (panel as any)._timeline as HTMLElement
+    || panel.querySelector('.tool-steps-timeline') as HTMLElement;
+
+  const step = document.createElement('div');
+  step.className = 'tool-step is-loading';
+  step.innerHTML = `
+    <div class="tool-step-icon">
+      <div class="tool-step-spinner"></div>
+      <svg class="tool-step-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+    <div class="tool-step-content">
+      <div class="tool-step-label">${escapeHtml(label)}</div>
+    </div>
+  `;
+  timeline.appendChild(step);
+  scrollToBottom();
+  return step;
+}
+
+export function completeToolStep(step: HTMLElement, detail?: string) {
+  step.classList.remove('is-loading');
+  step.classList.add('is-done');
+
+  if (detail) {
+    const content = step.querySelector('.tool-step-content') as HTMLElement;
+    const detailEl = document.createElement('div');
+    detailEl.className = 'tool-step-detail';
+    detailEl.textContent = detail;
+    content.appendChild(detailEl);
+  }
+
+  scrollToBottom();
+}
+
+export function removeToolStepsPanel() {
+  if (state._toolStepsEl) {
+    const block = state._toolStepsEl.closest('.tool-call-block') || state._toolStepsEl;
+    block.remove();
+    state._toolStepsEl = null;
+  }
+}
+
+// ── DOM element references ────────────────────────────────────────────────────
+
 export const elements = {
   appRoot: document.getElementById("app"),
   welcomeScreen: document.getElementById("welcomeScreen"),
@@ -27,50 +164,23 @@ export const elements = {
   tabHistory: document.getElementById('tabHistory') as HTMLButtonElement | null,
 };
 
+// ── Typing / loading indicators ───────────────────────────────────────────────
+
 let _typingDotsEl: HTMLElement | null = null;
 let _agentTypingEl: HTMLElement | null = null;
-let _typingDotsInterval: number | null = null;
 let _openSkeletonTimer: number | null = null;
-
-export function InteraOneLoader() {
-  return `
-    <div class="interaone-loader-shell" role="status" aria-label="InteraOne is thinking">
-      <div class="interaone-loader" aria-hidden="true">
-        <svg class="interaone-loader-mark" viewBox="0 0 200 200" focusable="false" xmlns="http://www.w3.org/2000/svg">
-          <rect class="interaone-loader-bar interaone-loader-bar-1" x="50" y="90" width="10" height="40" rx="5" fill="currentColor"/>
-          <rect class="interaone-loader-bar interaone-loader-bar-2" x="70" y="70" width="10" height="60" rx="5" fill="currentColor"/>
-          <rect class="interaone-loader-bar interaone-loader-bar-3" x="90" y="50" width="10" height="80" rx="5" fill="currentColor"/>
-          <rect class="interaone-loader-bar interaone-loader-bar-4" x="110" y="70" width="10" height="60" rx="5" fill="currentColor"/>
-          <rect class="interaone-loader-bar interaone-loader-bar-5" x="130" y="90" width="10" height="40" rx="5" fill="currentColor"/>
-          <circle class="interaone-loader-dot interaone-loader-dot-1" cx="75" cy="145" r="6" fill="currentColor"/>
-          <circle class="interaone-loader-dot interaone-loader-dot-2" cx="100" cy="145" r="6" fill="currentColor"/>
-          <circle class="interaone-loader-dot interaone-loader-dot-3" cx="125" cy="145" r="6" fill="currentColor"/>
-        </svg>
-      </div>
-      <div class="interaone-loader-skeleton" aria-hidden="true">
-        <span class="interaone-loader-skeleton-line is-primary"></span>
-        <span class="interaone-loader-skeleton-line is-medium"></span>
-        <span class="interaone-loader-skeleton-line is-short"></span>
-      </div>
-    </div>
-  `;
-}
 
 export function showTypingDots(_context?: string) {
   if (_typingDotsEl) return;
   const wrapper = document.createElement('div');
-  wrapper.className = 'message agent';
-  wrapper.innerHTML = `<div class="message-bubble typing-bubble">${InteraOneLoader()}</div>`;
+  wrapper.className = 'loader-wrapper';
+  wrapper.innerHTML = PegtopLoader();
   _typingDotsEl = wrapper;
   elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();
 }
 
 export function removeTypingDots() {
-  if (_typingDotsInterval) {
-    window.clearInterval(_typingDotsInterval);
-    _typingDotsInterval = null;
-  }
   if (_typingDotsEl) {
     _typingDotsEl.remove();
     _typingDotsEl = null;
@@ -80,8 +190,8 @@ export function removeTypingDots() {
 export function showTyping() {
   if (_agentTypingEl) return;
   const wrapper = document.createElement('div');
-  wrapper.className = 'message agent';
-  wrapper.innerHTML = `<div class="message-bubble typing-bubble">${InteraOneLoader()}</div>`;
+  wrapper.className = 'loader-wrapper';
+  wrapper.innerHTML = PegtopLoader();
   _agentTypingEl = wrapper;
   elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();
@@ -104,6 +214,8 @@ export function showOpenSkeleton(durationMs = 1000) {
     _openSkeletonTimer = null;
   }, Math.max(200, durationMs));
 }
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
 
 export function showAgentConnectedCard(name: string) {
   if (!elements.messagesContainer) return;
@@ -173,8 +285,6 @@ export function addSystemNotice(text: string) {
   scrollToBottom();
 }
 
-
-
 export function escapeHtml(str: string) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -187,10 +297,6 @@ export function renderAgentResponseIcon() {
   `;
 }
 
-function renderFileBubble(content: string, _bubbleType: string) {
-  return escapeHtml(content);
-}
-
 export function addMessage(text: string, type: 'user' | 'agent', senderName: string, msgType: string = 'text') {
   if (!elements.messagesContainer) return;
   const messageDiv = document.createElement("div");
@@ -199,9 +305,9 @@ export function addMessage(text: string, type: 'user' | 'agent', senderName: str
 
   const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  let bodyHtml;
+  let bodyHtml: string;
   if (msgType === 'file' || msgType === 'file-uploading' || msgType === 'image') {
-    bodyHtml = renderFileBubble(text, type);
+    bodyHtml = escapeHtml(text);
   } else if (type === 'agent') {
     bodyHtml = '<div class="md">' + parseMarkdown(text) + '</div><div class="message-time">' + time + '</div>';
   } else {
@@ -227,58 +333,6 @@ export function typeMessage(text: string) {
   messageDiv.appendChild(bubble);
   elements.messagesContainer.appendChild(messageDiv);
   scrollToBottom();
-}
-
-export function renderThoughtSteps(stepsEl: Element, steps: string[], thinkingIndex: number) {
-  if (!stepsEl) return;
-
-  const openIndexes = new Set(
-    Array.from(stepsEl.querySelectorAll('.thought-step.completed.open')).map((el) =>
-      Number(el.getAttribute('data-step-index'))
-    )
-  );
-
-  if (!steps || steps.length === 0) {
-    (stepsEl as HTMLElement).style.display = 'none';
-    stepsEl.innerHTML = '';
-    return;
-  }
-
-  (stepsEl as HTMLElement).style.display = 'flex';
-  stepsEl.innerHTML = steps
-    .map((step, idx) => {
-      const isThinking = idx === thinkingIndex;
-      if (isThinking) {
-        return `
-          <div class="thought-step thinking open" data-step-index="${idx}">
-            <div class="thought-step-toggle interacting">
-              <svg class="vx-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-              Thinking Process
-            </div>
-            <div class="thought-step-detail md">${parseMarkdown(step)}</div>
-          </div>`;
-      }
-
-      return `
-        <div class="thought-step completed" data-step-index="${idx}">
-          <button type="button" class="thought-step-toggle" data-step-index="${idx}" aria-expanded="false" title="Show thought detail">
-            <svg class="vx-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            Thought Process
-          </button>
-          <div class="thought-step-detail md">${parseMarkdown(step)}</div>
-        </div>`;
-    })
-    .join('');
-
-  Array.from(stepsEl.querySelectorAll('.thought-step.completed')).forEach((el) => {
-    const idx = Number(el.getAttribute('data-step-index'));
-    const toggle = el.querySelector('.thought-step-toggle');
-    if (!toggle) return;
-    if (openIndexes.has(idx)) {
-      el.classList.add('open');
-      toggle.setAttribute('aria-expanded', 'true');
-    }
-  });
 }
 
 export function formatHistoryDateTime(value: string | number | Date | undefined): string {

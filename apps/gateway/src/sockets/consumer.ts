@@ -103,7 +103,7 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
 
       // Resolve org and channel details from conversation record
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status metadata assignedTo visitor subject")
+        .select("organizationId status channel channelId metadata assignedTo visitor subject")
         .lean();
 
       if (!conv) return;
@@ -144,33 +144,35 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       await msg.save();
 
       // Forward AI response to external channels if applicable
-      if (conv.metadata) {
-        const convMeta = conv.metadata as any;
-        if (convMeta.channel && convMeta.channelId) {
-          const channelId = convMeta.channelId.toString();
-          let to: string | undefined;
+      const channelType = (conv as any).channel || (conv as any).metadata?.channel;
+      const channelId = (conv as any).channelId || (conv as any).metadata?.channelId;
 
-          if (convMeta.channel === "email_channel") {
-            to = conv.visitor?.email;
-          } else if (convMeta.channel === "whatsapp_channel") {
-            to = convMeta.phone || conv.visitor?.name;
-          } else if (convMeta.channel === "telegram_channel") {
-            to = convMeta.chatId || conv.visitor?.sessionId?.replace("telegram-", "");
-          }
+      if (channelType && channelId) {
+        const channelIdStr = channelId.toString();
+        let to: string | undefined;
+        const convMeta = conv.metadata as any || {};
 
-          if (to) {
-            ChannelService.sendViaChannel(
-              organizationId,
-              channelId,
-              {
-                to,
-                subject: (conv as any).subject || "Reply from Support",
-                body: content,
-              }
-            ).catch((err: any) => {
-              logger.error(`[AI Response Consumer] Failed to forward AI response to channel ${convMeta.channel}:`, err);
-            });
-          }
+        if (channelType === "email_channel") {
+          to = conv.visitor?.email;
+        } else if (channelType === "whatsapp_channel") {
+          to = convMeta.phone || conv.visitor?.name;
+        } else if (channelType === "telegram_channel") {
+          to = convMeta.chatId || conv.visitor?.sessionId?.replace("telegram-", "");
+        }
+
+        if (to) {
+          ChannelService.sendViaChannel(
+            organizationId,
+            channelIdStr,
+            {
+              to,
+              subject: (conv as any).subject || "Reply from Support",
+              body: content,
+              from: (conv as any).metadata?.supportEmail,
+            }
+          ).catch((err: any) => {
+            logger.error(`[AI Response Consumer] Failed to forward AI response to channel ${channelType}:`, err);
+          });
         }
       }
       tracker.trackMessage(
@@ -225,10 +227,11 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
   // ── AI stream channel ──────────────────────────────────────────────────────
   await subscriber.subscribe("ai:stream", async (raw) => {
     try {
-      const { conversationId, chunk, isThought } = JSON.parse(raw) as {
+      const { conversationId, chunk, isThought, toolEvent } = JSON.parse(raw) as {
         conversationId: string;
         chunk: string;
         isThought: boolean;
+        toolEvent?: { type: "start" | "complete"; toolName: string; label: string; detail?: string };
       };
 
       // Do not forward stream chunks once a human has taken over
@@ -249,6 +252,7 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         conversationId,
         chunk,
         isThought,
+        toolEvent,
       });
     } catch (err) {
       logger.error("Failed to handle AI stream chunk:", err);

@@ -40,8 +40,6 @@ export const state = {
   _streamText: "",
   _streamRenderedText: "",
   _streamFlushTimer: null as NodeJS.Timeout | number | null,
-  _thoughtText: "",
-  _thoughtSteps: [] as string[],
   parentOrigin: params.get('origin') || null,
   _connectTimeout: null as NodeJS.Timeout | number | null,
   _isMaximized: false,
@@ -49,4 +47,6 @@ export const state = {
   currentSessionId: null as string | null,
   interactionSource: normalizeInteractionSource(params.get('source')),
   _historyCached: [] as any[],
+  _aiResponding: false,
+  _toolStepsEl: null as HTMLElement | null,
 };

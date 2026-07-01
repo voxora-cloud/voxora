@@ -43,6 +43,16 @@ function applyWidgetAppearance(cfg: any) {
   updateGreeting(state.userName, appearance.welcomeMessage);
   if (brandLabel && cfg.displayName) brandLabel.textContent = `${cfg.displayName} Assistant`;
 
+  // Apply Background Pattern
+  const welcomeScreen = document.getElementById('welcomeScreen');
+  if (welcomeScreen) {
+    welcomeScreen.classList.remove('pattern-none', 'pattern-uiverse-alexruix', 'pattern-dots', 'pattern-grid', 'pattern-island', 'pattern-3d-cubes', 'pattern-checkerboard', 'pattern-hexagonal', 'pattern-polka', 'pattern-radial-stripes', 'pattern-plaid');
+    const selectedPattern = appearance.pattern || 'none';
+    if (selectedPattern !== 'none') {
+      welcomeScreen.classList.add(`pattern-${selectedPattern}`);
+    }
+  }
+
   if (input && !input.value) {
     input.placeholder = 'Ask InteraOne anything';
   }

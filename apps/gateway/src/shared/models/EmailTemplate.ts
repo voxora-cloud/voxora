@@ -12,7 +12,9 @@ export type EmailTemplateType =
   | "ticket_created"
   | "ticket_updated"
   | "ticket_resolved"
-  | "ticket_closed";
+  | "ticket_closed"
+  | "domain_verification_pending"
+  | "domain_verification_completed";
 
 export interface IEmailTemplate extends Document {
   templateKey: string;
@@ -48,6 +50,8 @@ const EmailTemplateSchema = new Schema<IEmailTemplate>(
          "ticket_updated",
          "ticket_resolved",
          "ticket_closed",
+         "domain_verification_pending",
+         "domain_verification_completed",
       ],
       required: true,
       unique: true,

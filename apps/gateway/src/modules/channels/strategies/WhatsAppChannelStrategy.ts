@@ -12,6 +12,7 @@ import { Conversation, Message } from "@shared/models";
 import logger from "@shared/core/logger";
 import { Types } from "mongoose";
 import twilio from "twilio";
+import { parseWhatsAppMarkdown } from "@shared/utils/markdown";
 
 /**
  * Concrete Strategy for the WhatsApp channel using Twilio.
@@ -116,10 +117,11 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
       
       const to = input.to.startsWith("whatsapp:") ? input.to : `whatsapp:${input.to}`;
 
+      const formattedBody = parseWhatsAppMarkdown(input.body);
       const message = await client.messages.create({
         from,
         to,
-        body: input.body,
+        body: formattedBody,
       });
 
       return { success: true, messageId: message.sid };
@@ -165,8 +167,10 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
         organizationId,
         "visitor.sessionId": `whatsapp-${fromPhone}`,
         status: { $in: ["open", "pending"] },
-        "metadata.channel": "whatsapp_channel",
-        "metadata.channelId": payload.channelId,
+        $or: [
+          { channel: "whatsapp_channel", channelId: payload.channelId },
+          { "metadata.channel": "whatsapp_channel", "metadata.channelId": payload.channelId }
+        ],
       });
 
       if (!conversation) {
@@ -180,9 +184,9 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
           priority: "medium",
           createdBy: systemId,
           tags: ["whatsapp"],
+          channel: "whatsapp_channel",
+          channelId: payload.channelId,
           metadata: {
-            channel: "whatsapp_channel",
-            channelId: payload.channelId,
             phone: fromPhone,
           },
           visitor: {

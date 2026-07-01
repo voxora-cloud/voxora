@@ -125,6 +125,34 @@ router.post(
   ConversationController.aiEscalate,
 );
 
+/**
+ * @openapi
+ * /conversations/ai/{conversationId}/agent-runs:
+ *   post:
+ *     summary: Log a run of the AI agent
+ *     tags:
+ *       - Conversations
+ *     parameters:
+ *       - in: header
+ *         name: x-ai-tool-secret
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: conversationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Agent run logged successfully
+ */
+router.post(
+  "/ai/:conversationId/agent-runs",
+  validateAiSecret,
+  ConversationController.aiSaveAgentRun,
+);
+
 // ─── Agent Dashboard Routes (JWT required) ───────────────────────────────────
 
 // All agent dashboard conversation routes require org context.
@@ -277,6 +305,30 @@ router.patch(
 router.post(
   "/:conversationId/route",
   ConversationController.routeConversation,
+);
+
+/**
+ * @openapi
+ * /conversations/{conversationId}/agent-runs:
+ *   get:
+ *     summary: Get agent run history for a conversation
+ *     tags:
+ *       - Conversations
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: conversationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: History retrieved successfully
+ */
+router.get(
+  "/:conversationId/agent-runs",
+  ConversationController.getAgentRuns,
 );
 
 export default router;

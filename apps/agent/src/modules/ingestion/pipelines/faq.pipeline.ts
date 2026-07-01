@@ -1,6 +1,6 @@
 import { DocumentJob } from "../ingestion.types";
 import { setDocStatus } from "../services/doc-status.service";
-import { getEmbeddingProvider } from "../../../infrastructure/providers/embedding";
+import { ProviderFactory } from "../../../infrastructure/providers";
 import { vectorStore } from "../../../infrastructure/vector";
 import { generateDeterministicChunkId } from "../utils/chunk-id";
 import logger from "../../../utils/logger";
@@ -42,8 +42,8 @@ export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
 
   try {
     // Generate vector embedding on the curated Question (title) only
-    const embeddingProvider = getEmbeddingProvider();
-    const queryVector = await embeddingProvider.embed(question);
+    const embeddingProvider = ProviderFactory.getEmbeddingProvider();
+    const queryVector = await embeddingProvider.embed(question, { organizationId });
 
     // Delete any pre-existing vectors for this document
     await vectorStore.deleteByDocumentId(documentId, organizationId);

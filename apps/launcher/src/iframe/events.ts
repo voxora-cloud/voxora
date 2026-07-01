@@ -25,8 +25,6 @@ function setComposerEnabled(enabled: boolean, placeholder?: string) {
       elements.sendBtn.disabled = !elements.messageInput?.value.trim();
     }
   }
-
-
 }
 
 function showStateBanner(stateType: 'human' | 'closed', title: string, subtitle?: string) {
@@ -101,6 +99,14 @@ export function setupEventListeners() {
       adjustTextareaHeight();
       if (elements.sendBtn) elements.sendBtn.disabled = !this.value.trim();
       handleTypingChanged(this.value);
+
+      // Char counter update
+      const charCounter = document.getElementById('charCounter');
+      if (charCounter) {
+        const len = this.value.length;
+        charCounter.textContent = `${len}/1000`;
+        charCounter.classList.toggle('is-visible', len > 0);
+      }
     });
 
     elements.messageInput.addEventListener("keydown", function (e: KeyboardEvent) {
@@ -113,8 +119,136 @@ export function setupEventListeners() {
     elements.messageInput.addEventListener('blur', () => {
       typingStop();
     });
-  } if (elements.sendBtn) {
+  }
+
+  // ── Emoji picker ────────────────────────────────────────────────────────
+  const emojiBtn = document.getElementById('emojiBtn');
+  const emojiPicker = document.getElementById('emojiPicker');
+  if (emojiBtn && emojiPicker) {
+    emojiBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      emojiPicker.classList.toggle('hidden');
+    });
+
+    emojiPicker.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const btn = target.closest('.emoji-option') as HTMLButtonElement | null;
+      if (!btn || !elements.messageInput) return;
+      const emoji = btn.textContent || '';
+      const input = elements.messageInput;
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? input.value.length;
+      input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+      input.setSelectionRange(start + emoji.length, start + emoji.length);
+      emojiPicker.classList.add('hidden');
+    });
+
+    // Close picker when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!emojiBtn.contains(e.target as Node) && !emojiPicker.contains(e.target as Node)) {
+        emojiPicker.classList.add('hidden');
+      }
+    });
+  }
+
+  if (elements.sendBtn) {
     elements.sendBtn.addEventListener("click", sendMessage);
+  }
+
+  if (elements.messagesContainer) {
+    elements.messagesContainer.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+
+      // Handle interactive button
+      const formBtn = target.closest(".vx-form-button") as HTMLButtonElement | null;
+      if (formBtn) {
+        e.preventDefault();
+        const label = formBtn.textContent || "";
+        formBtn.disabled = true;
+        sendFormResponse(label);
+        return;
+      }
+
+      // Handle form submit button
+      const submitBtn = target.closest(".vx-form-submit") as HTMLButtonElement | null;
+      if (submitBtn) {
+        e.preventDefault();
+        const action = submitBtn.getAttribute("data-action");
+        const fieldName = submitBtn.getAttribute("data-target") || "";
+        const wrapper = submitBtn.closest(".vx-interactive-form");
+        if (!wrapper) return;
+
+        if (action === "submit-input") {
+          const inputEl = wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null;
+          if (inputEl) {
+            const val = inputEl.value.trim();
+            if (!val) return;
+            inputEl.disabled = true;
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${val}`);
+          }
+        } else if (action === "submit-checkbox") {
+          const checkboxEl = wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null;
+          if (checkboxEl) {
+            checkboxEl.disabled = true;
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${checkboxEl.checked ? "Yes" : "No"}`);
+          }
+        } else if (action === "submit-radio") {
+          const radioEl = wrapper.querySelector(`input[name="${fieldName}"]:checked`) as HTMLInputElement | null;
+          if (radioEl) {
+            const radios = wrapper.querySelectorAll(`input[name="${fieldName}"]`) as NodeListOf<HTMLInputElement>;
+            radios.forEach(r => r.disabled = true);
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${radioEl.value}`);
+          }
+        } else if (action === "submit-group-form") {
+          const formEl = submitBtn.closest("form[data-interaone-form]") as HTMLFormElement | null;
+          if (formEl) {
+            const inputs = formEl.querySelectorAll("input[data-interaone-input]") as NodeListOf<HTMLInputElement>;
+            const checkboxes = formEl.querySelectorAll("input[data-interaone-checkbox]") as NodeListOf<HTMLInputElement>;
+            const checkedRadios = formEl.querySelectorAll("input[data-interaone-radio]:checked") as NodeListOf<HTMLInputElement>;
+
+            const responses: string[] = [];
+            let hasEmptyInput = false;
+
+            inputs.forEach(input => {
+              const val = input.value.trim();
+              if (!val) {
+                hasEmptyInput = true;
+                input.style.borderColor = "red";
+              } else {
+                input.style.borderColor = "";
+                responses.push(`${input.name}: ${val}`);
+              }
+            });
+
+            if (hasEmptyInput) return;
+
+            checkboxes.forEach(cb => {
+              responses.push(`${cb.name}: ${cb.checked ? "Yes" : "No"}`);
+            });
+
+            checkedRadios.forEach(radio => {
+              responses.push(`${radio.name}: ${radio.value}`);
+            });
+
+            const combinedText = responses.join("\n");
+            if (!combinedText) return;
+
+            inputs.forEach(input => input.disabled = true);
+            checkboxes.forEach(cb => cb.disabled = true);
+            const allRadios = formEl.querySelectorAll("input[data-interaone-radio]") as NodeListOf<HTMLInputElement>;
+            allRadios.forEach(r => r.disabled = true);
+            submitBtn.disabled = true;
+
+            sendFormResponse(combinedText);
+          }
+        }
+      }
+    });
   }
 
 
@@ -215,6 +349,9 @@ async function sendMessage() {
   const text = elements.messageInput.value.trim();
   if (!text) return;
 
+  // Block sending while AI is responding
+  if (state._aiResponding) return;
+
   if (!state.widgetToken) {
     console.warn('[InteraOneWidget] sendMessage called before token ready — ignoring');
     return;
@@ -304,6 +441,85 @@ async function sendMessage() {
     if (elements.sendBtn) elements.sendBtn.disabled = false;
   }
 }
+
+async function sendFormResponse(text: string) {
+  if (state._aiResponding) return;
+  if (!state.widgetToken) return;
+
+  hideWelcomeScreen();
+  addMessage(text, "user", state.userName || "You", "text");
+  if (!state._escalationShown) showTypingDots(text);
+
+  if (!state.chatId) {
+    try {
+      const pageContext = await getPageContext();
+      const data = {
+        visitorName: state.userName || undefined,
+        visitorEmail: state.userEmail || undefined,
+        message: text + pageContext,
+        InteraOnePublicKey: state.InteraOnePublicKey,
+        sessionId: state.currentSessionId,
+        source: state.interactionSource || 'widget',
+      };
+
+      const response = await makeAuthenticatedRequest(`${API_BASE_URL}/api/v1/widget/conversations`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        state.chatId = result.data.conversationId;
+        state.userName = data.visitorName || "";
+        state.userEmail = data.visitorEmail || "";
+        state.isConnected = true;
+
+        if (!state.socket && state.widgetToken) {
+          initializeSocket();
+        }
+
+        if (state.socket) {
+          state.socket.emit('join_conversation', state.chatId);
+          state.socket.emit('send_message', {
+            conversationId: state.chatId,
+            content: text + pageContext,
+            type: 'text',
+            metadata: {
+              senderName: state.userName,
+              senderEmail: state.userEmail,
+              source: 'widget',
+              interactionSource: state.interactionSource || 'widget'
+            }
+          });
+          typingStop();
+        }
+      } else {
+        removeTypingDots();
+      }
+    } catch (error) {
+      removeTypingDots();
+      console.error("Error creating conversation:", error);
+    }
+    return;
+  }
+
+  if (state.socket && state.chatId) {
+    const pageContext = await getPageContext();
+    state.socket.emit('send_message', {
+      conversationId: state.chatId,
+      content: text + pageContext,
+      type: 'text',
+      metadata: {
+        senderName: state.userName,
+        senderEmail: state.userEmail,
+        source: 'widget',
+        interactionSource: state.interactionSource || 'widget'
+      }
+    });
+    typingStop();
+  }
+}
+
 
 function typingStart() {
   if (!state.socket || !state.chatId) return;
@@ -461,8 +677,6 @@ function startNewConversation() {
   state._streamBubbleEl = null;
   state._streamText = '';
   state._streamRenderedText = '';
-  state._thoughtText = '';
-  state._thoughtSteps = [];
 
   // Hide agent badge
   const agentBadge = document.getElementById('agentBadge');

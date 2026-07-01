@@ -9,7 +9,8 @@ import {
 } from "@shared/queues/email.queue";
 import { generateOTP, hashOTP, verifyOTP as checkOTP } from "@shared/security/auth/otp";
 import crypto from "crypto";
-import { OrganizationService } from "../organization/organization.service";
+import { OrganizationService } from "@modules/organization/organization.service";
+import { WidgetService } from "@modules/widget/widget.service";
 import { SignupContext } from "./auth.types";
 
 export class AuthService {
@@ -47,6 +48,7 @@ export class AuthService {
     email: string;
     organizationName: string;
     password: string;
+    domain?: string;
   }) {
 
 
@@ -111,6 +113,9 @@ export class AuthService {
       ctx.organizationId,
     );
 
+    const widgetService = new WidgetService();
+    const widget = await widgetService.getWidget(ctx.organizationId);
+
     return {
       success: true,
       data: {
@@ -124,6 +129,11 @@ export class AuthService {
         role: "owner",
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
+        widget: {
+          verifiedDomain: widget?.verifiedDomain || null,
+          domainVerificationToken: widget?.domainVerificationToken || null,
+          domainVerificationStatus: widget?.domainVerificationStatus || null,
+        },
       },
     };
   }

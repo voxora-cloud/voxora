@@ -3,6 +3,7 @@ dotenv.config();
 
 import { startWorker } from "./workers/reply.worker";
 import { startIngestionWorker } from "./workers/ingestion.worker";
+import { startObservabilityWorker } from "./workers/observability.worker";
 import { startHealthServer } from "./health/health.server";
 import logger from "./utils/logger";
 
@@ -12,13 +13,16 @@ logger.info("Starting AI service", {
 
 const chatWorker = startWorker();
 const ingestionWorker = startIngestionWorker();
+const { worker: obsWorker, flush: obsFlush } = startObservabilityWorker();
 const healthServer = startHealthServer();
 
 const shutdown = async (signal: string) => {
   logger.info("Received shutdown signal", { signal });
+  await obsFlush().catch(() => undefined);
   await Promise.all([
     chatWorker.close(),
     ingestionWorker.close(),
+    obsWorker.close(),
     new Promise<void>((resolve) => healthServer.close(() => resolve())),
   ]);
   logger.info("AI service shutdown completed", { signal });

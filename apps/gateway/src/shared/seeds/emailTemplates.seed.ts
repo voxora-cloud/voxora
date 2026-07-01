@@ -246,29 +246,34 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
     type: "welcome",
     subjectTemplate: "Welcome to InteraOne. Your workspace is ready.",
     htmlTemplate: renderLayout({
-      preheader: "Your InteraOne account is ready to use.",
+      preheader: "Your InteraOne workspace is ready.",
       eyebrow: "Welcome",
       title: "Your workspace is ready",
-      intro: "InteraOne is set up for focused, high quality customer conversations.",
+      intro: "Start building AI-powered customer experiences with InteraOne.",
       children: `
         <p class="text">Hi {{name}},</p>
-        <p class="text muted">Your account is active with <strong>{{role}}</strong> access. You can now enter the dashboard, configure your widget, invite teammates, and monitor conversations from one workspace.</p>
+        <p class="text muted">
+          Welcome to InteraOne. Your account is ready and you have <strong>{{role}}</strong> access.
+        </p>
         <div class="panel">
-          <p class="section-title">Recommended first steps</p>
+          <p class="section-title">Next steps</p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            <tr><td class="list-item">Set your workspace profile and business details.</td></tr>
-            <tr><td class="list-item">Customize the chat widget to match your brand.</td></tr>
-            <tr><td class="list-item">Review routing, member roles, and analytics.</td></tr>
+            <tr><td class="list-item">Configure your AI agent and customize your chat widget.</td></tr>
+            <tr><td class="list-item">Create a knowledge base by uploading documents, websites, and other content so your agent can answer questions about your business.</td></tr>
+            <tr><td class="list-item">Invite human agents and teammates to your workspace.</td></tr>
+            <tr><td class="list-item">Connect Email, WhatsApp, and Telegram channels.</td></tr>
+            <tr><td class="list-item">Monitor conversations, engagement, and performance from your analytics dashboard.</td></tr>
           </table>
         </div>
       `,
       cta: {
         href: "{{loginUrl}}",
-        label: "Open dashboard",
+        label: "Open Workspace",
       },
-      footerNote: "You are receiving this because your InteraOne account was created successfully.",
+      footerNote: "You are receiving this email because your InteraOne account was created successfully.",
     }),
-    textTemplate: "Hi {{name}}, welcome to InteraOne. Open your dashboard: {{loginUrl}}",
+    textTemplate:
+      "Hi {{name}}, welcome to InteraOne. Your account is ready with {{role}} access. Configure your AI agent, build your knowledge base, invite teammates, connect channels, and start tracking analytics. Open your workspace: {{loginUrl}}",
   },
   {
     templateKey: "global.notification",
@@ -441,6 +446,60 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       footerNote: "You can start a new conversation if you need further assistance.",
     }),
     textTemplate: "Hi {{name}},\n\nYour support ticket {{ticketNumber}} ({{title}}) has been closed.\n\n{{resolutionNote}}",
+  },
+  {
+    templateKey: "global.domain_verification_pending",
+    type: "domain_verification_pending",
+    subjectTemplate: "DNS Verification Pending for {{domain}}",
+    htmlTemplate: renderLayout({
+      preheader: "Verify your domain ownership for InteraOne widget security.",
+      eyebrow: "Domain Security",
+      title: "DNS Verification Pending",
+      intro: "We detected a change to your widget verified domain settings.",
+      children: `
+        <p class="text">Hi {{name}},</p>
+        <p class="text muted">To secure your chat widget and enable features like host-page DOM access, please verify ownership of <strong>{{domain}}</strong> by configuring the following DNS TXT record:</p>
+        <div class="panel">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr><td class="list-item"><strong>Record Type:</strong> TXT</td></tr>
+            <tr><td class="list-item"><strong>Host/Name:</strong> {{domain}}</td></tr>
+            <tr><td class="list-item"><strong>Value/Target:</strong> <code style="background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:4px;">{{token}}</code></td></tr>
+          </table>
+        </div>
+        <p class="text muted">After adding the record, click <strong>Verify</strong> in your InteraOne admin panel to complete setup. DNS changes can take up to 24 hours to propagate.</p>
+      `,
+      cta: {
+        href: "{{settingsUrl}}",
+        label: "Open Widget Settings",
+      },
+      footerNote: "You are receiving this because you configured a verified domain for your InteraOne widget.",
+    }),
+    textTemplate: "Hi {{name}},\n\nYour domain {{domain}} is pending verification. Please configure the following DNS TXT record:\n\nType: TXT\nHost: {{domain}}\nValue: {{token}}\n\nOnce configured, go to your dashboard settings page and click Verify.",
+  },
+  {
+    templateKey: "global.domain_verification_completed",
+    type: "domain_verification_completed",
+    subjectTemplate: "Domain {{domain}} Verified Successfully!",
+    htmlTemplate: renderLayout({
+      preheader: "Your domain verification is complete.",
+      eyebrow: "Domain Security",
+      title: "Domain Verified Successfully",
+      intro: "We have confirmed ownership of {{domain}}.",
+      children: `
+        <p class="text">Hi {{name}},</p>
+        <p class="text muted">Congratulations! Your domain <strong>{{domain}}</strong> has been successfully verified.</p>
+        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
+          <p class="section-title" style="color:${BRAND.success};">Security Enabled</p>
+          <p class="meta">Your chat widget is now securely locked to this domain origin. Third-party sites cannot embed your widget using your public key.</p>
+        </div>
+      `,
+      cta: {
+        href: "{{settingsUrl}}",
+        label: "Manage Settings",
+      },
+      footerNote: "You are receiving this because you are an admin or owner of this InteraOne workspace.",
+    }),
+    textTemplate: "Hi {{name}},\n\nYour domain {{domain}} has been verified successfully. Your widget is now securely locked to this domain origin.",
   },
 ];
 

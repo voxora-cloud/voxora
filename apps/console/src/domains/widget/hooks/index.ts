@@ -1,2 +1,2 @@
-export { useWidget } from "./useWidget";
+export { useWidget, useVerifyDomain } from "./useWidget";
 export { useSaveWidget } from "./useSaveWidget";

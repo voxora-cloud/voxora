@@ -26,6 +26,10 @@ export interface DashboardSummary {
     widget: number;
     qr: number;
     link: number;
+    email: number;
+    whatsapp: number;
+    telegram: number;
+    web: number;
   };
   aiCost: {
     promptTokens: number;
@@ -66,7 +70,11 @@ export const hasInteractionSourceData = (source?: DashboardSummary["source"]) =>
   Boolean(
     (source?.widget || 0) +
     (source?.qr || 0) +
-    (source?.link || 0),
+    (source?.link || 0) +
+    (source?.email || 0) +
+    (source?.whatsapp || 0) +
+    (source?.telegram || 0) +
+    (source?.web || 0),
   );
 
 export function useAnalyticsSummary() {

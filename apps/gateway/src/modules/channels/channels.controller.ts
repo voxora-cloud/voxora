@@ -23,6 +23,22 @@ const validateSnsMessage = (payload: any): Promise<any> => {
   });
 };
 
+const sanitizeChannel = (channel: any): any => {
+  if (!channel) return channel;
+  const obj = typeof channel.toObject === "function" ? channel.toObject() : JSON.parse(JSON.stringify(channel));
+  if (obj.config?.whatsapp?.authToken) {
+    obj.config.whatsapp.authToken = "********";
+  }
+  if (obj.config?.telegram?.botToken) {
+    obj.config.telegram.botToken = "********";
+  }
+  return obj;
+};
+
+const sanitizeChannels = (channels: any[]): any[] => {
+  return (channels || []).map(sanitizeChannel);
+};
+
 export class ChannelsController {
   /**
    * GET /channels
@@ -31,7 +47,7 @@ export class ChannelsController {
   static listChannels = asyncHandler(async (req: Request, res: Response) => {
     const { activeOrganizationId } = (req as AuthenticatedRequest).user;
     const channels = await ChannelService.getAllChannels(activeOrganizationId);
-    sendResponse(res, 200, true, "Channels fetched", { channels });
+    sendResponse(res, 200, true, "Channels fetched", { channels: sanitizeChannels(channels) });
   });
 
   /**
@@ -44,7 +60,7 @@ export class ChannelsController {
     if (!channel) {
       return sendError(res, 404, "No email channel configured for this organization");
     }
-    sendResponse(res, 200, true, "Email channel fetched", { channel });
+    sendResponse(res, 200, true, "Email channel fetched", { channel: sanitizeChannel(channel) });
   });
 
   /**
@@ -62,7 +78,7 @@ export class ChannelsController {
     });
 
     sendResponse(res, 201, true, "Email channel created. Configure your DNS records to complete setup.", {
-      channel,
+      channel: sanitizeChannel(channel),
     });
   });
 
@@ -76,7 +92,7 @@ export class ChannelsController {
     if (!channel) {
       return sendError(res, 404, "No WhatsApp channel configured for this organization");
     }
-    sendResponse(res, 200, true, "WhatsApp channel fetched", { channel });
+    sendResponse(res, 200, true, "WhatsApp channel fetched", { channel: sanitizeChannel(channel) });
   });
 
   /**
@@ -96,7 +112,7 @@ export class ChannelsController {
     });
 
     sendResponse(res, 201, true, "WhatsApp channel connected and verified successfully.", {
-      channel,
+      channel: sanitizeChannel(channel),
     });
   });
 
@@ -110,7 +126,7 @@ export class ChannelsController {
     if (!channel) {
       return sendError(res, 404, "No Telegram channel configured for this organization");
     }
-    sendResponse(res, 200, true, "Telegram channel fetched", { channel });
+    sendResponse(res, 200, true, "Telegram channel fetched", { channel: sanitizeChannel(channel) });
   });
 
   /**
@@ -127,7 +143,7 @@ export class ChannelsController {
     });
 
     sendResponse(res, 201, true, "Telegram channel connected and verified successfully.", {
-      channel,
+      channel: sanitizeChannel(channel),
     });
   });
 
@@ -180,6 +196,24 @@ export class ChannelsController {
     sendResponse(res, 200, true, "Channel deleted successfully", {});
   });
 
+  /**
+   * PATCH /channels/:channelId/email/addresses
+   * Update the email addresses of an email channel.
+   */
+  static updateEmailChannelAddresses = asyncHandler(async (req: Request, res: Response) => {
+    const { activeOrganizationId } = (req as AuthenticatedRequest).user;
+    const channelId = String(req.params.channelId);
+    const { emails } = req.body;
+
+    const channel = await ChannelService.updateEmailChannelAddresses(
+      activeOrganizationId,
+      channelId,
+      emails,
+    );
+
+    sendResponse(res, 200, true, "Email channel addresses updated successfully", { channel: sanitizeChannel(channel) });
+  });
+
    /**
    * POST /channels/inbound
    * Public endpoint — SES/SNS inbound email webhook.
@@ -205,18 +239,15 @@ export class ChannelsController {
       return sendError(res, 400, "Missing payload");
     }
 
-    // 2. Validate SNS Message Signature (optional skip for testing)
-    const skipValidation = process.env.SKIP_SNS_VALIDATION === "true";
-    if (!skipValidation) {
-      try {
-        await validateSnsMessage(payload);
-      } catch (err: any) {
-        logger.error("[ChannelsController] SNS signature verification failed", {
-          channelId,
-          error: err.message,
-        });
-        return sendError(res, 400, "SNS signature verification failed");
-      }
+    // 2. Validate SNS Message Signature
+    try {
+      await validateSnsMessage(payload);
+    } catch (err: any) {
+      logger.error("[ChannelsController] SNS signature verification failed", {
+        channelId,
+        error: err.message,
+      });
+      return sendError(res, 400, "SNS signature verification failed");
     }
 
     // 3. Handle SNS message types
@@ -356,36 +387,33 @@ export class ChannelsController {
       return res.status(200).send("<Response></Response>");
     }
 
-    // 2. Validate Twilio Signature (optional skip for testing)
-    const skipValidation = process.env.SKIP_TWILIO_VALIDATION === "true";
-    if (!skipValidation) {
-      const signature = req.headers["x-twilio-signature"] as string;
-      if (!signature) {
-        logger.error("[ChannelsController] Twilio inbound: missing x-twilio-signature header");
-        res.setHeader("Content-Type", "text/xml");
-        return res.status(400).send("<Response><Message>Missing signature</Message></Response>");
-      }
+    // 2. Validate Twilio Signature
+    const signature = req.headers["x-twilio-signature"] as string;
+    if (!signature) {
+      logger.error("[ChannelsController] Twilio inbound: missing x-twilio-signature header");
+      res.setHeader("Content-Type", "text/xml");
+      return res.status(400).send("<Response><Message>Missing signature</Message></Response>");
+    }
 
-      // Reconstruct the full request URL Twilio called
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const host = req.headers["x-forwarded-host"] || req.get("host");
-      const fullUrl = `${protocol}://${host}${req.originalUrl || req.path}`;
+    // Reconstruct the full request URL Twilio called
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.headers["x-forwarded-host"] || req.get("host");
+    const fullUrl = `${protocol}://${host}${req.originalUrl || req.path}`;
 
-      const verified = twilio.validateRequest(
-        waCfg.authToken,
-        signature,
+    const verified = twilio.validateRequest(
+      waCfg.authToken,
+      signature,
+      fullUrl,
+      req.body
+    );
+
+    if (!verified) {
+      logger.error("[ChannelsController] Twilio signature validation failed", {
+        channelId,
         fullUrl,
-        req.body
-      );
-
-      if (!verified) {
-        logger.error("[ChannelsController] Twilio signature validation failed", {
-          channelId,
-          fullUrl,
-        });
-        res.setHeader("Content-Type", "text/xml");
-        return res.status(400).send("<Response><Message>Invalid signature</Message></Response>");
-      }
+      });
+      res.setHeader("Content-Type", "text/xml");
+      return res.status(400).send("<Response><Message>Invalid signature</Message></Response>");
     }
 
     // 3. Process Inbound Message asynchronously
