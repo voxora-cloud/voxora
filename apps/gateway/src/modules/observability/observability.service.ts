@@ -1,4 +1,4 @@
-import { AICallEvent, IAICallEvent } from "@shared/models/AICallEvent";
+import { SystemEvent } from "@shared/models";
 import logger from "@shared/core/logger";
 
 // Shape expected from the agent's observability.worker
@@ -42,25 +42,30 @@ export class ObservabilityService {
     if (!events.length) return { inserted: 0, failed: 0 };
 
     const docs = events.map((e) => ({
-      timestamp: new Date(e.timestamp),
-      provider: e.provider,
-      modelId: e.modelId,
-      callType: e.callType,
+      occurredAt: new Date(e.timestamp),
+      category: "ai_observability",
+      eventType: "llm_call",
       latencyMs: e.latencyMs,
-      inputTokens: e.inputTokens,
-      outputTokens: e.outputTokens,
-      totalTokens: e.totalTokens,
+      tokens: {
+        prompt: e.inputTokens,
+        completion: e.outputTokens,
+        total: e.totalTokens,
+      },
       estimatedCostUsd: e.estimatedCostUsd,
       success: e.success,
       error: e.error,
       organizationId: e.organizationId,
       conversationId: e.conversationId,
+      metadata: {
+        provider: e.provider,
+        modelId: e.modelId,
+        callType: e.callType,
+      },
     }));
 
     try {
-      const result = await AICallEvent.insertMany(docs, {
+      const result = await SystemEvent.insertMany(docs, {
         ordered: false,
-        // Cast to any since insertMany returns InsertManyResult which doesn't match Document[] perfectly
       } as any);
       return { inserted: Array.isArray(result) ? result.length : 0, failed: 0 };
     } catch (err: any) {
@@ -88,7 +93,7 @@ export class ObservabilityService {
   ): Promise<ObservabilitySummary> {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const raw = await AICallEvent.aggregate<{
+    const raw = await SystemEvent.aggregate<{
       _id: { modelId: string; callType: string };
       calls: number;
       successCount: number;
@@ -99,16 +104,18 @@ export class ObservabilityService {
       {
         $match: {
           organizationId,
-          timestamp: { $gte: since },
+          category: "ai_observability",
+          eventType: "llm_call",
+          occurredAt: { $gte: since },
         },
       },
       {
         $group: {
-          _id: { modelId: "$modelId", callType: "$callType" },
+          _id: { modelId: "$metadata.modelId", callType: "$metadata.callType" },
           calls: { $sum: 1 },
           successCount: { $sum: { $cond: ["$success", 1, 0] } },
           totalLatency: { $sum: "$latencyMs" },
-          totalTokens: { $sum: { $ifNull: ["$totalTokens", 0] } },
+          totalTokens: { $sum: { $ifNull: ["$tokens.total", 0] } },
           totalCostUsd: { $sum: { $ifNull: ["$estimatedCostUsd", 0] } },
         },
       },

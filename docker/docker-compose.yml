@@ -256,6 +256,19 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+  log-viewer:
+    image: amir20/dozzle:latest
+    container_name: interaone-log-viewer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LOG_VIEWER_PORT:-8888}:8080"
+    environment:
+      - DOZZLE_AUTH_PROVIDER=simple
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./users.yml:/data/users.yml:ro
+    networks:
+      - InteraOne-network
 
 volumes:
   mongodb_data:

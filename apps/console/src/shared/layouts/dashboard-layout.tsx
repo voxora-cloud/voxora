@@ -16,7 +16,6 @@ import {
   Radio,
   Search,
   QrCode,
-  Paintbrush,
   Settings,
   Sun,
   TriangleAlert,
@@ -35,7 +34,6 @@ import { authApi } from "@/domains/auth/api/auth.api";
 import io, { Socket } from "socket.io-client";
 import { formatDistanceToNow } from "date-fns";
 import {
-  canAccessEeFeature,
   getInteraOneMode,
   isEeEnabledByEnv,
 } from "@/shared/ee";
@@ -91,7 +89,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const orgRole: OrgRole | null = isAuthenticated ? authApi.getOrgRole() : null;
   const canAccessContacts = true;
-  const canAccessWhiteLabel = canAccessEeFeature("white-label");
   const billingVisible =
     getInteraOneMode() === "cloud" && isEeEnabledByEnv();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -149,10 +146,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         base.push({ label: "Billing", to: "/dashboard/settings/billing" });
       }
 
-      if (canAccessWhiteLabel) {
-        base.push({ label: "White-label", to: "/dashboard/settings/white-label" });
-      }
-
       base.push(
         { label: "QR Codes", to: "/dashboard/widget/qr" },
         { label: "General Settings", to: "/dashboard/settings/general" },
@@ -161,7 +154,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     return base;
-  }, [billingVisible, canAccessContacts, canAccessWhiteLabel, orgRole]);
+  }, [billingVisible, canAccessContacts, orgRole]);
 
   const breadcrumbs = useMemo(() => {
     const parts = location.pathname.split("/").filter(Boolean);
@@ -519,7 +512,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </p>
               {[
                 { label: "General", to: "/dashboard/settings/general", icon: Settings, visible: true },
-                { label: "White-label", to: "/dashboard/settings/white-label", icon: Paintbrush, visible: canAccessWhiteLabel },
                 { label: "Danger Zone", to: "/dashboard/settings/danger-zone", icon: TriangleAlert, visible: true },
               ]
                 .filter((item) => item.visible)

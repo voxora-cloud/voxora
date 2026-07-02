@@ -68,14 +68,14 @@ const FALLBACK_PLANS: PlanDefinition[] = [
     priceMonthlyUsd: 0,
     summary: "Starter plan for small support workflows.",
     features: ["Everything in OSS core", "InteraOne branding", "Community support"],
-    limits: { messages: 50, humanAgents: 2, contacts: 10 },
+    limits: { messages: 50, humanAgents: 1, contacts: 10 },
   },
   {
     plan: "pro",
-    priceMonthlyUsd: 10,
+    priceMonthlyUsd: 9,
     summary: "Built for growing support teams.",
     features: ["InteraOne branding", "Standard email support", "Advanced analytics", "API access"],
-    limits: { messages: 500, humanAgents: 5, contacts: 500 },
+    limits: { messages: 500, humanAgents: 2, contacts: 500 },
   },
   {
     plan: "proplus",
@@ -88,7 +88,7 @@ const FALLBACK_PLANS: PlanDefinition[] = [
       "Custom integrations & webhooks",
       "SLA guarantee",
     ],
-    limits: { messages: 5000, humanAgents: 50, contacts: 5000 },
+    limits: { messages: 5000, humanAgents: 10, contacts: 10000 },
   },
 ];
 

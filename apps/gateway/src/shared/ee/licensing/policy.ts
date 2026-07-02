@@ -1,6 +1,6 @@
 export type InteraOneMode = "cloud" | "self-host";
 export type PlanTier = "free" | "pro" | "proplus";
-export type EeFeature = "billing" | "white-label";
+export type EeFeature = "billing";
 export type PlanLimitKey = "messages" | "humanAgents" | "contacts" | "knowledgeItems";
 
 export interface PlanDefinition {
@@ -28,10 +28,6 @@ export const EE_FEATURE_POLICY: Record<
     requiredPlan: "free",
     enabledModes: ["cloud"],
   },
-  "white-label": {
-    requiredPlan: "proplus",
-    enabledModes: ["cloud"],
-  },
 };
 
 export const OSS_CORE_CAPABILITIES: string[] = [
@@ -54,14 +50,14 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     ],
     limits: {
       messages: 50,
-      humanAgents: 2,
+      humanAgents: 1,
       contacts: 10,
       knowledgeItems: 10,
     },
   },
   pro: {
     plan: "pro",
-    priceMonthlyUsd: 10,
+    priceMonthlyUsd: 9,
     summary: "Built for growing support teams.",
     features: [
       "InteraOne branding",
@@ -69,7 +65,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     ],
     limits: {
       messages: 500,
-      humanAgents: 5,
+      humanAgents: 2,
       contacts: 500,
       knowledgeItems: 100,
     },
@@ -84,8 +80,8 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     ],
     limits: {
       messages: 5000,
-      humanAgents: 50,
-      contacts: 5000,
+      humanAgents: 10,
+      contacts: 10000,
       knowledgeItems: 1000,
     },
   },

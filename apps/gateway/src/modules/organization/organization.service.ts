@@ -184,7 +184,6 @@ export class OrganizationService {
         if (typeof data.name !== "undefined") updateFields.name = data.name;
         if (typeof data.slug !== "undefined") updateFields.slug = data.slug;
         if (typeof data.logoUrl !== "undefined") updateFields.logoUrl = data.logoUrl;
-        if (typeof data.whiteLabelEnabled !== "undefined") updateFields.whiteLabelEnabled = data.whiteLabelEnabled;
 
         const org = await Organization.findByIdAndUpdate(orgId, { $set: updateFields }, { new: true });
         if (!org) throw new Error("Organization not found");
@@ -226,28 +225,6 @@ export class OrganizationService {
     }
 
     // ─── Helpers ───
-
-    /**
-     * Apply white-label settings for an organization.
-     * Delegates to the EE module if available, falls back gracefully for OSS.
-     */
-    static async updateWhiteLabelSettings(organizationId: string, removeBranding: boolean) {
-        const ee = loadEeModule();
-
-        if (ee?.whiteLabel?.updateSettings) {
-            const data = await ee.whiteLabel.updateSettings({
-                organizationId,
-                removeBranding,
-                core: { OrganizationModel: Organization },
-            });
-            await this.updateOrganization(organizationId, { whiteLabelEnabled: data.removeBranding });
-            return data;
-        }
-
-        // OSS fallback
-        await this.updateOrganization(organizationId, { whiteLabelEnabled: removeBranding });
-        return { removeBranding };
-    }
 
     static generateSlug(name: string): string {
         const slug = name

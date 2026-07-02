@@ -1,4 +1,4 @@
-import { AnalyticsEvent, Conversation, Message } from "@shared/models";
+import { SystemEvent, Conversation, Message } from "@shared/models";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import mongoose from "mongoose";
@@ -170,7 +170,7 @@ export class AnalyticsService {
       ]),
 
       // ─────── SINGLE FACET FOR ANALYTICS EVENT QUERIES ───────
-      AnalyticsEvent.aggregate([
+      SystemEvent.aggregate([
         {
           $addFields: {
             eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
@@ -179,6 +179,7 @@ export class AnalyticsService {
         {
           $match: {
             organizationId: { $in: [organizationId, orgObjectId] },
+            category: "analytics",
             eventTime: { $gte: startDate },
           },
         },
@@ -187,7 +188,7 @@ export class AnalyticsService {
             // Widget loads
             widgetLoads: [
               {
-                $match: { type: "widget_load" },
+                $match: { eventType: "widget_load" },
               },
               { $count: "widgetLoads" },
             ],
@@ -195,7 +196,7 @@ export class AnalyticsService {
             aiCosts: [
               {
                 $match: {
-                  type: { $in: ["ai_response", "ai_token_usage"] },
+                  eventType: { $in: ["ai_response", "ai_token_usage"] },
                 },
               },
               {
@@ -375,7 +376,7 @@ export class AnalyticsService {
       })
         .select("createdAt updatedAt closedAt status metadata.statusUpdatedAt")
         .lean(),
-      AnalyticsEvent.aggregate([
+      SystemEvent.aggregate([
         {
           $addFields: {
             eventTime: { $ifNull: ["$occurredAt", "$createdAt"] },
@@ -384,8 +385,9 @@ export class AnalyticsService {
         {
           $match: {
             organizationId: { $in: [organizationId, orgObjectId] },
+            category: "analytics",
             eventTime: { $gte: startDate },
-            type: { $in: ["ai_response", "ai_token_usage"] },
+            eventType: { $in: ["ai_response", "ai_token_usage"] },
           },
         },
         {

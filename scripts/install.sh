@@ -283,6 +283,34 @@ check_ports() {
 
 # Prompt for configuration
 prompt_config() {
+    # Initialize all configuration variables to prevent leakage/overwriting
+    API_HOST=""
+    WEB_HOST=""
+    CDN_HOST=""
+    EMAIL_PROVIDER=""
+    AWS_REGION=""
+    AWS_ACCESS_KEY_ID=""
+    AWS_SECRET_ACCESS_KEY=""
+    GEMINI_API_KEY=""
+    GEMINI_MODEL=""
+    GEMINI_EMBEDDING_MODEL=""
+    BEDROCK_MODEL=""
+    BEDROCK_EMBEDDING_MODEL=""
+    BEDROCK_EMBEDDING_DIMENSIONS=""
+    HF_TOKEN=""
+    HF_MODEL=""
+    HF_EMBEDDING_MODEL=""
+    HF_EMBEDDING_DIMENSIONS=""
+    OPENAI_API_KEY=""
+    OPENAI_MODEL=""
+    OPENAI_EMBEDDING_MODEL=""
+    OPENAI_EMBEDDING_DIMENSIONS=""
+    OLLAMA_HOST=""
+    OLLAMA_PORT=""
+    OLLAMA_MODEL=""
+    OLLAMA_EMBEDDING_MODEL=""
+    OLLAMA_EMBEDDING_DIMENSIONS=""
+
     echo ""
     log_info "=== InteraOne Configuration ==="
     echo ""
@@ -343,30 +371,6 @@ prompt_config() {
             *) echo "Invalid option. Please choose 1, 2, or 3.";;
         esac
     done
-
-    # Initialize LLM variables to prevent leakage
-    GEMINI_API_KEY=""
-    GEMINI_MODEL=""
-    GEMINI_EMBEDDING_MODEL=""
-    AWS_REGION=""
-    BEDROCK_MODEL=""
-    AWS_ACCESS_KEY_ID=""
-    AWS_SECRET_ACCESS_KEY=""
-    BEDROCK_EMBEDDING_MODEL=""
-    BEDROCK_EMBEDDING_DIMENSIONS=""
-    HF_TOKEN=""
-    HF_MODEL=""
-    HF_EMBEDDING_MODEL=""
-    HF_EMBEDDING_DIMENSIONS=""
-    OPENAI_API_KEY=""
-    OPENAI_MODEL=""
-    OPENAI_EMBEDDING_MODEL=""
-    OPENAI_EMBEDDING_DIMENSIONS=""
-    OLLAMA_HOST=""
-    OLLAMA_PORT=""
-    OLLAMA_MODEL=""
-    OLLAMA_EMBEDDING_MODEL=""
-    OLLAMA_EMBEDDING_DIMENSIONS=""
 
     echo ""
     log_info "=== LLM & Embedding Provider Configuration ==="
@@ -512,6 +516,7 @@ prompt_config() {
         MINIO_PASSWORD=$(grep "^MINIO_ROOT_PASSWORD=" docker/.env | cut -d= -f2-)
         JWT_SECRET=$(grep "^JWT_SECRET=" docker/.env | cut -d= -f2-)
         AI_TOOL_SECRET=$(grep "^AI_TOOL_SECRET=" docker/.env | cut -d= -f2-)
+        LOG_VIEWER_PORT=$(grep "^LOG_VIEWER_PORT=" docker/.env | cut -d= -f2- || echo "")
         # Reuse Dodo Payments keys if they exist, else use what user just input
         [ -z "$DODO_PAYMENTS_API_KEY" ] && DODO_PAYMENTS_API_KEY=$(grep "^DODO_PAYMENTS_API_KEY=" docker/.env | cut -d= -f2- || echo "")
         [ -z "$DODO_PAYMENTS_WEBHOOK_SECRET" ] && DODO_PAYMENTS_WEBHOOK_SECRET=$(grep "^DODO_PAYMENTS_WEBHOOK_SECRET=" docker/.env | cut -d= -f2- || echo "")
@@ -523,6 +528,17 @@ prompt_config() {
         MINIO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         JWT_SECRET=$(openssl rand -base64 64 | tr -d "=+/" | cut -c1-64)
         AI_TOOL_SECRET=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
+    fi
+
+    [ -z "$LOG_VIEWER_PORT" ] && LOG_VIEWER_PORT="8888"
+
+    # Only generate users.yml if it does not exist
+    if [ ! -f "docker/users.yml" ]; then
+        LOG_VIEWER_USER="admin"
+        LOG_VIEWER_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-20)
+        SHOULD_GENERATE_USERS_YML="true"
+    else
+        SHOULD_GENERATE_USERS_YML="false"
     fi
     
     echo ""
@@ -574,7 +590,21 @@ DODO_PAYMENTS_API_KEY=$DODO_PAYMENTS_API_KEY
 DODO_PAYMENTS_WEBHOOK_SECRET=$DODO_PAYMENTS_WEBHOOK_SECRET
 DODO_PAYMENTS_PRODUCT_PRO=$DODO_PAYMENTS_PRODUCT_PRO
 DODO_PAYMENTS_PRODUCT_PROPLUS=$DODO_PAYMENTS_PRODUCT_PROPLUS
+
+# Dozzle Log Viewer (OSS Log Console)
+LOG_VIEWER_PORT=$LOG_VIEWER_PORT
 EOF
+    
+    # Generate users.yml with bcrypt hashed password for Dozzle if it doesn't exist
+    if [ "$SHOULD_GENERATE_USERS_YML" = "true" ]; then
+        PASSWORD_HASH=$(node -e "console.log(require('./apps/gateway/node_modules/bcryptjs').hashSync('$LOG_VIEWER_PASSWORD', 10))")
+        cat > docker/users.yml << EOF
+users:
+  $LOG_VIEWER_USER:
+    name: "$LOG_VIEWER_USER"
+    password: "$PASSWORD_HASH"
+EOF
+    fi
     
     # Resolve InteraOne Mode dynamically based on Dodo Payments config
     INTERAONE_MODE="self-host"
@@ -872,6 +902,18 @@ print_success() {
     echo "  • Restart:         cd docker && $DOCKER_COMPOSE_CMD restart"
     echo ""
     echo "Credentials saved in docker/.env (keep this file secure!)"
+    if [ "$SHOULD_GENERATE_USERS_YML" = "true" ]; then
+        echo ""
+        echo "🔒 Log Viewer Credentials (Dozzle):"
+        echo "  • URL:      http://localhost:$LOG_VIEWER_PORT"
+        echo "  • Username: $LOG_VIEWER_USER"
+        echo "  • Password: $LOG_VIEWER_PASSWORD"
+    else
+        echo ""
+        echo "🔒 Log Viewer (Dozzle) is active."
+        echo "  • URL:      http://localhost:$LOG_VIEWER_PORT"
+        echo "  • Credentials: (preserved in docker/users.yml)"
+    fi
     echo "============================================================"
 }
 

@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "./auth";
-import { resolveOrganizationPlan, getPlanLimits } from "@shared/ee";
+import { resolveOrganizationPlan, getPlanLimits, PlanTier, getInteraOneMode } from "@shared/ee";
 import {
   Membership,
   Contact,
   Knowledge,
   UsageRecord,
-  Organization,
+  BillingSubscription,
 } from "@shared/models";
 import logger from "@shared/core/logger";
 
@@ -26,21 +26,51 @@ export const nextPeriodStart = (): Date => {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 };
 
+/** Resolves period and reset date based on the plan type and subscription */
+export const resolveUsagePeriodAndReset = async (
+  organizationId: string,
+  plan: PlanTier,
+): Promise<{ period: string; resetAt: Date }> => {
+  if (plan === "free") {
+    return {
+      period: currentPeriod(),
+      resetAt: nextPeriodStart(),
+    };
+  }
+
+  const subscription = await BillingSubscription.findOne({ organizationId })
+    .select("currentPeriodStart currentPeriodEnd")
+    .lean<{ currentPeriodStart?: Date; currentPeriodEnd?: Date }>();
+
+  if (subscription?.currentPeriodStart && subscription?.currentPeriodEnd) {
+    return {
+      period: `paid-${subscription.currentPeriodStart.getTime()}`,
+      resetAt: subscription.currentPeriodEnd,
+    };
+  }
+
+  return {
+    period: currentPeriod(),
+    resetAt: nextPeriodStart(),
+  };
+};
+
 // ── Live count resolvers ──────────────────────────────────────────────────────
 
 async function resolveCurrentCount(
   limitKey: LimitKey,
   organizationId: string,
+  plan?: PlanTier,
 ): Promise<number> {
   switch (limitKey) {
     case "messages": {
-      const period = currentPeriod();
+      const activePlan = plan || (await resolveOrganizationPlan(organizationId));
+      const { period } = await resolveUsagePeriodAndReset(organizationId, activePlan);
       const record = await UsageRecord.findOne({ organizationId, period })
         .select("messagesUsed")
         .lean<{ messagesUsed?: number }>();
       return record?.messagesUsed ?? 0;
     }
-
 
     case "humanAgents":
       return Membership.countDocuments({
@@ -76,6 +106,11 @@ export const requireWithinLimit = (limitKey: LimitKey) => {
       const user = (req as AuthenticatedRequest).user;
       const organizationId = user?.activeOrganizationId;
 
+      if (getInteraOneMode() === "self-host") {
+        next();
+        return;
+      }
+
       if (!organizationId) {
         res.status(401).json({ success: false, message: "Authentication required" });
         return;
@@ -91,13 +126,16 @@ export const requireWithinLimit = (limitKey: LimitKey) => {
         return;
       }
 
-      const current = await resolveCurrentCount(limitKey, organizationId);
+      const current = await resolveCurrentCount(limitKey, organizationId, plan);
 
       if (current >= limit) {
         logger.info(`[Limit] org=${organizationId} plan=${plan} limitKey=${limitKey} current=${current} limit=${limit} — blocked`);
 
-        const nextReset =
-          limitKey === "messages" ? nextPeriodStart().toISOString() : undefined;
+        let nextReset: string | undefined;
+        if (limitKey === "messages") {
+          const { resetAt } = await resolveUsagePeriodAndReset(organizationId, plan);
+          nextReset = resetAt.toISOString();
+        }
 
         res.status(429).json({
           success: false,
@@ -133,12 +171,15 @@ export const requireWithinLimit = (limitKey: LimitKey) => {
 export const incrementMessageUsage = async (
   organizationId: string,
 ): Promise<{ used: number; limit: number | null; blocked: boolean }> => {
+  if (getInteraOneMode() === "self-host") {
+    return { used: 0, limit: null, blocked: false };
+  }
+
   const plan = await resolveOrganizationPlan(organizationId);
   const limits = getPlanLimits(plan);
   const limit = limits.messages;
 
-  const period  = currentPeriod();
-  const resetAt = nextPeriodStart();
+  const { period, resetAt } = await resolveUsagePeriodAndReset(organizationId, plan);
 
   // Atomically increment (upsert). Returns the updated doc.
   const record = await UsageRecord.findOneAndUpdate(
@@ -173,13 +214,13 @@ export interface OrgUsageSnapshot {
 export async function getOrganizationUsage(organizationId: string): Promise<OrgUsageSnapshot> {
   const plan = await resolveOrganizationPlan(organizationId);
   const limits = getPlanLimits(plan);
-  const period = currentPeriod();
+  const { period, resetAt } = await resolveUsagePeriodAndReset(organizationId, plan);
 
   const [messages, humanAgents, contacts, knowledgeItems] = await Promise.all([
-    resolveCurrentCount("messages", organizationId),
-    resolveCurrentCount("humanAgents", organizationId),
-    resolveCurrentCount("contacts", organizationId),
-    resolveCurrentCount("knowledgeItems", organizationId),
+    resolveCurrentCount("messages", organizationId, plan),
+    resolveCurrentCount("humanAgents", organizationId, plan),
+    resolveCurrentCount("contacts", organizationId, plan),
+    resolveCurrentCount("knowledgeItems", organizationId, plan),
   ]);
 
   const toStat = (used: number, limit: number | null) => ({
@@ -190,11 +231,11 @@ export async function getOrganizationUsage(organizationId: string): Promise<OrgU
 
   return {
     period,
-    resetsAt: nextPeriodStart().toISOString(),
+    resetsAt: resetAt.toISOString(),
     usage: {
-      messages:      toStat(messages,      limits.messages),
-      humanAgents:   toStat(humanAgents,   limits.humanAgents),
-      contacts:      toStat(contacts,      limits.contacts),
+      messages: toStat(messages, limits.messages),
+      humanAgents: toStat(humanAgents, limits.humanAgents),
+      contacts: toStat(contacts, limits.contacts),
       knowledgeItems: toStat(knowledgeItems, limits.knowledgeItems ?? null),
     },
   };

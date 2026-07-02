@@ -25,11 +25,9 @@ import { PlansPage } from "@/domains/billing/pages/plans-page";
 import { UsagePage } from "@/domains/billing/pages/usage-page";
 import { BillingSuccessPage } from "@/domains/billing/pages/billing-success-page";
 import { BillingFailedPage } from "@/domains/billing/pages/billing-failed-page";
-import { WhiteLabelPage } from "@/domains/settings/pages/white-label-page";
 import { CreateOrganizationPage } from "@/domains/auth/pages/create-organization/page";
 import { DashboardLayout } from "@/shared/layouts/dashboard-layout";
 import { ProtectedRoute } from "@/domains/auth/components/protected-route";
-import { EeFeatureGate } from "@/shared/components/ee-feature-gate";
 import QRCodeGeneratorPage from "@/domains/widget/pages/qr-generator-page";
 import QRScannerLandingPage from "@/domains/widget/pages/qr-scanner-landing-page";
 import { ChannelsPage } from "@/domains/channels/pages/channels-page";
@@ -305,18 +303,7 @@ const router = createBrowserRouter([
             </DashboardLayout>
         ),
     },
-    {
-        path: "/dashboard/settings/white-label",
-        element: (
-            <ProtectedRoute requiredRole="founder">
-                <DashboardLayout>
-                    <EeFeatureGate feature="white-label">
-                        <WhiteLabelPage />
-                    </EeFeatureGate>
-                </DashboardLayout>
-            </ProtectedRoute>
-        ),
-    },
+
     {
         path: "/dashboard/settings/danger-zone",
         element: (

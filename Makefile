@@ -204,7 +204,7 @@ check-types: ## Type check
 
 docker-start: check-docker ## Start Docker services
 	@echo "$(BLUE)🐳 Starting Docker services...$(NC)"
-	@cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio qdrant || { \
+	@cd docker && docker-compose -f docker-compose.dev.yml up -d redis mongodb mongo-express mailhog minio qdrant log-viewer || { \
 		echo "$(RED)❌ Failed to start Docker services!$(NC)"; \
 		echo ""; \
 		echo "$(YELLOW)Common issues:$(NC)"; \

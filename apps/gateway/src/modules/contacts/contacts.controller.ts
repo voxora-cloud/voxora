@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { AuthenticatedRequest } from "@shared/security/middleware";
 import { sendError, sendResponse } from "@shared/core/response";
 import { ContactsService } from "./contacts.service";
-import { loadEeModule } from "@shared/ee";
 
 const contactsService = new ContactsService();
 
@@ -13,12 +12,6 @@ function getOrgId(req: Request): string {
 export class ContactsController {
   static async listContacts(req: Request, res: Response): Promise<void> {
     try {
-      const organizationId = getOrgId(req);
-      const ee = loadEeModule();
-      if (ee?.contacts?.beforeListContacts) {
-        await ee.contacts.beforeListContacts({ organizationId });
-      }
-
       const items = await contactsService.listContacts(getOrgId(req), {
         search: (req.query.q as string) || undefined,
         limit: req.query.limit ? parseInt(String(req.query.limit), 10) : undefined,

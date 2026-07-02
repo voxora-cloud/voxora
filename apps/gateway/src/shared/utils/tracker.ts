@@ -1,7 +1,24 @@
 import { analyticsQueue } from "@shared/infra/queue";
-import { AnalyticsEventType, AnalyticsEventChannel } from "../models";
 import { logger } from "@shared/core";
 
+export type AnalyticsEventType =
+  | "message_sent"
+  | "fallback_triggered"
+  | "widget_load"
+  | "knowledge_view"
+  | "qr_scan"
+  | "conversation_started"
+  | "conversation_opened"
+  | "conversation_closed"
+  | "conversation_resolved"
+  | "agent_assigned"
+  | "escalation_requested"
+  | "escalation_assigned"
+  | "ai_response"
+  | "ai_token_usage"
+  | "agent_first_response";
+
+export type AnalyticsEventChannel = "widget" | "web" | "mobile" | "api" | "qr";
 
 interface AnalyticsEventContext {
   conversationId?: string;

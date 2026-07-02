@@ -70,6 +70,7 @@ const issueOnly = winston.format((info) => {
 	return ["warn", "error"].includes(info.level) ? info : false;
 });
 
+
 const logger = winston.createLogger({
 	level: logLevel,
 	format: productionFormat,
@@ -103,5 +104,7 @@ const logger = winston.createLogger({
 			}
 		: {}),
 });
+
+
 
 export default logger;

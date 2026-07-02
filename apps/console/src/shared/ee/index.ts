@@ -6,8 +6,20 @@ export type { EeFeature, PlanTier, InteraOneMode } from "./policy";
 const env = import.meta.env || {};
 
 export const getInteraOneMode = (): InteraOneMode => {
+  if (typeof window !== "undefined") {
+    const cached = localStorage.getItem("interaoneMode");
+    if (cached === "cloud" || cached === "self-host") {
+      return cached as InteraOneMode;
+    }
+  }
   const raw = (env.VITE_INTERAONE_MODE || env.INTERAONE_MODE || "self-host").toLowerCase();
   return raw === "cloud" ? "cloud" : "self-host";
+};
+
+export const setInteraOneMode = (mode: InteraOneMode): void => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("interaoneMode", mode);
+  }
 };
 
 export const isEeEnabledByEnv = (): boolean => {
