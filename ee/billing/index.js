@@ -12,7 +12,7 @@
 
 const { createDodoCheckoutSession } = require("./checkout");
 const { verifyWebhookSignature } = require("./webhook/verify");
-const { parseSubscriptionEvent, parseWebhookEvent } = require("./webhook/parse");
+const { parseSubscriptionEvent } = require("./webhook/parse");
 
 /**
  * @typedef {import("./checkout").CheckoutResult} CheckoutResult
@@ -186,11 +186,7 @@ module.exports = {
    */
   parseSubscriptionEvent,
 
-  /**
-   * Legacy one-time payment event parser — kept for backward compatibility.
-   * @param {{ body: unknown, headers?: HttpHeaders }} params
-   */
-  parseWebhookEvent,
+
 
   /**
    * Handles a subscription lifecycle action by updating Organisation + BillingSubscription.

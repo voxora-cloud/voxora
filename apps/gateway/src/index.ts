@@ -135,6 +135,17 @@ class Application {
     router.use("/channels", channelsRouter);
     router.use("/observability", observabilityRouter);
 
+    // Public config endpoint
+    router.get("/config", (req, res) => {
+      const { getInteraOneMode } = require("@shared/ee");
+      res.json({
+        success: true,
+        data: {
+          mode: getInteraOneMode(),
+        },
+      });
+    });
+
     // Health check
     router.get("/health", (req, res) => {
       res.json({

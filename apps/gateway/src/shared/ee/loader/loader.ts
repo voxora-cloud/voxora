@@ -13,11 +13,18 @@ let eeModuleCache: EeModule | null | undefined;
  */
 export const isEeModulePresent = (): boolean => {
   const root = process.cwd();
-  const candidates = [
-    path.join(root, "ee", "index.js"),
-    path.join(root, "..", "..", "ee", "index.js"),
-  ];
-  return candidates.some((candidate) => fs.existsSync(candidate));
+
+  try {
+    require.resolve(path.resolve(root, "ee"));
+    return true;
+  } catch {
+    try {
+      require.resolve(path.resolve(root, "../../ee"));
+      return true;
+    } catch {
+      return false;
+    }
+  }
 };
 
 /**
@@ -53,8 +60,6 @@ const validateEeModuleContract = (ee: EeModule): void => {
       reason: "contractVersion must be '1' when provided",
     },
     { ok: !ee.billing || typeof ee.billing === "object", reason: "billing export must be an object" },
-    { ok: !ee.contacts || typeof ee.contacts === "object", reason: "contacts export must be an object" },
-    { ok: !ee.whiteLabel || typeof ee.whiteLabel === "object", reason: "whiteLabel export must be an object" },
   ];
 
   for (const check of checks) {

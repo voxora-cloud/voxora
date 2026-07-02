@@ -23,9 +23,6 @@ interface IBillingSubscriptionLean {
   updatedAt: Date;
 }
 
-interface IOrganizationLean {
-  _id: string;
-}
 
 function getModels() {
   const BillingSubscription =

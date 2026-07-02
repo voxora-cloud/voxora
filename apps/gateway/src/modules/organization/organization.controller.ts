@@ -98,16 +98,4 @@ export class OrganizationController {
             sendError(res, 400, error.message);
         }
     }
-
-    static async updateWhiteLabel(req: Request, res: Response): Promise<void> {
-        try {
-            const { activeOrganizationId } = (req as AuthenticatedRequest).user;
-            const removeBranding = Boolean(req.body?.removeBranding);
-
-            const data = await OrganizationService.updateWhiteLabelSettings(activeOrganizationId, removeBranding);
-            sendResponse(res, 200, true, "White-label settings updated", data);
-        } catch (error: any) {
-            sendError(res, 400, error.message);
-        }
-    }
 }

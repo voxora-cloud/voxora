@@ -40,18 +40,6 @@ export type EeModule = {
       body: unknown;
       headers?: Record<string, string | string[] | undefined>;
     }) => ParsedSubscriptionEvent;
-    /** @deprecated Use parseSubscriptionEvent for new subscription events */
-    parseWebhookEvent?: (params: {
-      body: unknown;
-      headers?: Record<string, string | string[] | undefined>;
-    }) => {
-      provider: string;
-      eventId: string;
-      eventType: string;
-      organizationId?: string;
-      targetPlan?: "pro" | "proplus";
-      shouldUpgrade: boolean;
-    };
     handleSubscriptionEvent?: (params: {
       action: SubscriptionAction;
       organizationId?: string;
@@ -72,12 +60,5 @@ export type EeModule = {
   };
   contacts?: {
     beforeListContacts?: (params: { organizationId: string }) => Promise<void>;
-  };
-  whiteLabel?: {
-    updateSettings?: (params: {
-      organizationId: string;
-      removeBranding: boolean;
-      core: { OrganizationModel: typeof Organization };
-    }) => Promise<{ removeBranding: boolean }>;
   };
 };

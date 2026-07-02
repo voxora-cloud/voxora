@@ -26,8 +26,8 @@ const FLUSH_INTERVAL_MS = 15_000; // flush at least every 5s regardless of batch
 // ── In-memory event buffer ────────────────────────────────────────────────────
 interface BufferedEvent {
   organizationId: string;
-  type: string;
-  category: string;
+  eventType: string;
+  category: "analytics" | "ai_observability" | "agent_execution";
   metadata: Record<string, any>;
   conversationId?: string;
   userId?: string;
@@ -43,28 +43,28 @@ const eventBuffer: BufferedEvent[] = [];
 
 // ── Minimal inline schema ─────────────────────────────────────────────────────
 function getModels() {
-  const AnalyticsEvent =
-    mongoose.models["AnalyticsEvent"] ||
+  const SystemEvent =
+    mongoose.models["SystemEvent"] ||
     mongoose.model(
-      "AnalyticsEvent",
+      "SystemEvent",
       new Schema(
         {
           organizationId: { type: String, required: true, index: true },
+          category: { type: String, required: true, enum: ["analytics", "ai_observability", "agent_execution"], index: true },
+          eventType: { type: String, required: true, index: true },
           conversationId: { type: String, index: true },
           userId: { type: String, index: true },
           agentId: { type: String, index: true },
           widgetId: { type: String, index: true },
-          channel: { type: String, enum: ["widget", "web", "mobile", "api", "qr"] },
+          channel: { type: String },
           eventVersion: { type: String, default: "1" },
-          type: { type: String, required: true, index: true },
-          category: { type: String, required: true, enum: ["ai", "agent", "system"], index: true },
           metadata: { type: Schema.Types.Mixed, default: {} },
           occurredAt: { type: Date, default: Date.now, index: true },
         },
         { timestamps: { createdAt: true, updatedAt: false } }
       )
     );
-  return { AnalyticsEvent };
+  return { SystemEvent };
 }
 
 // ── DB connection ─────────────────────────────────────────────────────────────
@@ -82,8 +82,8 @@ async function flushBuffer(): Promise<void> {
 
   try {
     await connectDb();
-    const { AnalyticsEvent } = getModels();
-    await AnalyticsEvent.insertMany(batch, { ordered: false });
+    const { SystemEvent } = getModels();
+    await SystemEvent.insertMany(batch, { ordered: false });
     logger.info("Analytics events flushed", {
       count: batch.length,
       bufferSize: eventBuffer.length,
@@ -129,8 +129,8 @@ export function startAnalyticsWorker() {
 
       eventBuffer.push({
         organizationId,
-        type: event,
-        category,
+        eventType: event,
+        category: "analytics", // map to 'analytics' category
         metadata: metadata || {},
         conversationId,
         userId,

@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import { Conversation, Message, User, Membership, AgentRun } from "@shared/models";
+import { Conversation, Message, User, Membership, SystemEvent } from "@shared/models";
 import logger from "@shared/core/logger";
 import { ListConversationsOptions, UpdateVisitorInfoInput, RouteConversationInput } from "./conversation.types";
 
@@ -332,15 +332,23 @@ export class ConversationService {
     error?: string;
     usage?: any;
   }) {
-    return AgentRun.create({
-      organizationId: new Types.ObjectId(payload.organizationId),
-      conversationId: new Types.ObjectId(payload.conversationId),
+    return SystemEvent.create({
+      organizationId: payload.organizationId,
+      category: "agent_execution",
+      eventType: "agent_run",
+      conversationId: payload.conversationId,
       messageId: payload.messageId,
-      steps: payload.steps,
-      duration: payload.duration,
-      status: payload.status,
+      latencyMs: payload.duration,
+      success: payload.status === "success",
       error: payload.error,
-      usage: payload.usage,
+      tokens: payload.usage ? {
+        prompt: payload.usage.promptTokens,
+        completion: payload.usage.completionTokens,
+        total: payload.usage.totalTokens,
+      } : undefined,
+      metadata: {
+        steps: payload.steps,
+      },
     });
   }
 
@@ -348,11 +356,31 @@ export class ConversationService {
    * Retrieve all agent run logs for a specific conversation.
    */
   async getAgentRuns(organizationId: string, conversationId: string) {
-    return AgentRun.find({
-      organizationId: new Types.ObjectId(organizationId),
-      conversationId: new Types.ObjectId(conversationId),
+    const events = await SystemEvent.find({
+      organizationId,
+      conversationId,
+      category: "agent_execution",
+      eventType: "agent_run",
     })
       .sort({ createdAt: -1 })
       .lean();
+
+    return events.map((e) => ({
+      _id: e._id,
+      organizationId: e.organizationId,
+      conversationId: e.conversationId,
+      messageId: e.messageId,
+      steps: e.metadata?.steps || [],
+      duration: e.latencyMs || 0,
+      status: e.success ? "success" : "failed",
+      error: e.error,
+      usage: e.tokens ? {
+        promptTokens: e.tokens.prompt,
+        completionTokens: e.tokens.completion,
+        totalTokens: e.tokens.total,
+      } : undefined,
+      createdAt: e.createdAt,
+      updatedAt: e.createdAt,
+    }));
   }
 }

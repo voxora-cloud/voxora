@@ -1,9 +1,4 @@
 /**
- * Public API for the EE (Enterprise Edition) shared module.
- *
- * Import from "@shared/ee" — never import from sub-files directly in controllers
- * or middleware so that this barrel remains the single stable import boundary.
- *
  * Sub-module responsibilities:
  *   contracts/types.ts       — EeModule contract type (shape of the /ee JS plugin)
  *   licensing/policy.ts      — Plan tiers, feature policy, plan definitions

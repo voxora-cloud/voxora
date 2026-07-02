@@ -11,8 +11,6 @@
 "use strict";
 
 const billing = require("./billing");
-const contacts = require("./contacts");
-const whitelabel = require("./whitelabel");
 
 /**
  * @typedef {import("./billing/checkout").CheckoutResult} CheckoutResult
@@ -29,13 +27,9 @@ const whitelabel = require("./whitelabel");
  * @type {{
  *   contractVersion: "1",
  *   billing: typeof billing,
- *   contacts: typeof contacts,
- *   whiteLabel: typeof whitelabel,
  * }}
  */
 module.exports = {
   contractVersion: "1",
   billing,
-  contacts,
-  whiteLabel: whitelabel,
 };

@@ -26,8 +26,4 @@ export const organizationSchema = {
   billingPortalQuery: Joi.object({
     targetPlan: Joi.string().valid("pro", "proplus"),
   }),
-
-  updateWhiteLabel: Joi.object({
-    removeBranding: Joi.boolean().required(),
-  }),
 };

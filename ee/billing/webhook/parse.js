@@ -157,43 +157,4 @@ function parseSubscriptionEvent({ body, headers }) {
   };
 }
 
-/**
- * Legacy one-time payment event parser — kept for backward compatibility
- * with any existing `payment.succeeded` events still in flight.
- *
- * @param {{ body: unknown, headers?: HttpHeaders }} params
- * @returns {{ provider: string, eventId: string, eventType: string, organizationId?: string, targetPlan?: PlanTier, shouldUpgrade: boolean }}
- */
-function parseWebhookEvent({ body, headers }) {
-  const eventType = String(getObject(body, "type") || getObject(body, "event") || "unknown");
-  const rawEventId =
-    getObject(body, "id") ||
-    getObject(body, "event_id") ||
-    (headers && getHeader(headers, "webhook-id"));
-
-  const rawOrgId =
-    getObject(body, "data.metadata.organizationId") ||
-    getObject(body, "data.metadata.organization_id") ||
-    getObject(body, "metadata.organizationId");
-
-  const targetPlan = inferPlanFromPayload(body);
-  const successSignals = ["succeeded", "success", "completed", "paid"];
-  const paymentSignals = ["payment", "checkout", "invoice"];
-  const t = eventType.toLowerCase();
-  const shouldUpgrade =
-    successSignals.some((s) => t.includes(s)) &&
-    paymentSignals.some((s) => t.includes(s)) &&
-    !!rawOrgId &&
-    !!targetPlan;
-
-  return {
-    provider: DODO_PROVIDER,
-    eventId: String(rawEventId || ""),
-    eventType,
-    organizationId: rawOrgId ? String(rawOrgId) : undefined,
-    targetPlan,
-    shouldUpgrade,
-  };
-}
-
-module.exports = { parseSubscriptionEvent, parseWebhookEvent };
+module.exports = { parseSubscriptionEvent };
