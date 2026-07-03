@@ -408,13 +408,11 @@ export class ConversationService {
     }));
 
     const visitorName =
-      conversation?.visitor?.name &&
-      conversation.visitor.name !== "Anonymous User"
+      conversation?.visitor?.name && conversation.visitor.name !== "Anonymous User"
         ? conversation.visitor.name
         : null;
     const visitorEmail =
-      conversation?.visitor?.email &&
-      conversation.visitor.email !== "anonymous@temp.local"
+      conversation?.visitor?.email && conversation.visitor.email !== "anonymous@temp.local"
         ? conversation.visitor.email
         : null;
 
