@@ -28,6 +28,7 @@ export interface PipelineResult {
 }
 
 export interface ContextMessage {
+  messageId?: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;

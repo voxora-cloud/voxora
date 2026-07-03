@@ -15,8 +15,10 @@ import { vectorStore } from "../../../infrastructure/vector";
 // ── FAQ pre-filter ─────────────────────────────────────────────────────────
 // Skip the FAQ embedding+search for messages that are clearly not questions.
 // This saves 3-4s of Bedrock embedding latency on casual messages.
-const FAQ_SKIP_WORDS = /^(ok|okay|sure|yes|no|yeah|nope|yep|alright|thanks|thank you|thx|ty|cool|nice|great|awesome|bye|goodbye|got it|understood|sounds good|right|exactly|perfect|gotcha|hey|hi|hello|yo|sup|howdy|greetings)\b/i;
-const FAQ_QUESTION_STARTERS = /^(what|who|where|when|why|how|which|can|could|would|should|is|are|do|does|did|will|may|might|tell me|explain|show me|help me|i need|i want|how to)\b/i;
+const FAQ_SKIP_WORDS =
+  /^(ok|okay|sure|yes|no|yeah|nope|yep|alright|thanks|thank you|thx|ty|cool|nice|great|awesome|bye|goodbye|got it|understood|sounds good|right|exactly|perfect|gotcha|hey|hi|hello|yo|sup|howdy|greetings)\b/i;
+const FAQ_QUESTION_STARTERS =
+  /^(what|who|where|when|why|how|which|can|could|would|should|is|are|do|does|did|will|may|might|tell me|explain|show me|help me|i need|i want|how to)\b/i;
 const FAQ_MIN_LENGTH = 10;
 
 function isLikelyQuestion(text: string): boolean {
@@ -28,13 +30,19 @@ function isLikelyQuestion(text: string): boolean {
   return false;
 }
 
-function shouldSkipConversation(gate: {
-  status?: string;
-  assignedTo?: string | null;
-  metadata?: { escalatedAt?: string | null; humanJoinedAt?: string | null };
-} | null): boolean {
+function shouldSkipConversation(
+  gate: {
+    status?: string;
+    assignedTo?: string | null;
+    metadata?: { escalatedAt?: string | null; humanJoinedAt?: string | null };
+  } | null,
+): boolean {
   if (!gate) return false;
-  if (gate.metadata?.escalatedAt || gate.metadata?.humanJoinedAt || gate.assignedTo) {
+  if (
+    gate.metadata?.escalatedAt ||
+    gate.metadata?.humanJoinedAt ||
+    gate.assignedTo
+  ) {
     return true;
   }
   return ["active", "resolved", "closed"].includes(gate.status || "");
@@ -72,14 +80,20 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     return;
   }
 
-  console.log(`\n[Pipeline] --- NEW JOB ----------------------------------------`);
+  console.log(
+    `\n[Pipeline] --- NEW JOB ----------------------------------------`,
+  );
   console.log(`[Pipeline] conversationId : ${conversationId}`);
   console.log(`[Pipeline] messageId      : ${job.messageId}`);
   console.log(`[Pipeline] organizationId : ${job.organizationId}`);
   console.log(`[Pipeline] channel        : ${job.channel ?? "widget"}`);
   console.log(`[Pipeline] fallbackToAgent: ${job.fallbackToAgent ?? true}`);
-  console.log(`[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`);
-  console.log(`[Pipeline] content        : ${redactOtpForLog(content).slice(0, 120).replace(/\n/g, " ")}`);
+  console.log(
+    `[Pipeline] collectUserInfo: ${JSON.stringify(job.collectUserInfo ?? {})}`,
+  );
+  console.log(
+    `[Pipeline] content        : ${redactOtpForLog(content).slice(0, 120).replace(/\n/g, " ")}`,
+  );
 
   const startTime = Date.now();
   const steps: any[] = [];
@@ -95,15 +109,24 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     const verifyTool = getTool("verify_email_otp");
     const stepTimestamp = new Date();
     const verification = verifyTool
-      ? (await verifyTool.execute(
+      ? ((await verifyTool.execute(
           { code: otpCode },
           {
             organizationId: job.organizationId,
             conversationId: job.conversationId,
             messageId: job.messageId,
           },
-        )) as { status?: string; verified?: boolean; email?: string | null; message?: string }
-      : { status: "error", verified: false, message: "OTP verifier is unavailable" };
+        )) as {
+          status?: string;
+          verified?: boolean;
+          email?: string | null;
+          message?: string;
+        })
+      : {
+          status: "error",
+          verified: false,
+          message: "OTP verifier is unavailable",
+        };
     console.timeEnd(t("otp:verify"));
 
     steps.push({
@@ -117,30 +140,43 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     if (verification.verified === true) {
       verifiedIdentityEmail = verification.email || null;
     } else if (verification.message !== "No active verification code found") {
-      let reply = "That verification code did not match. Please check the latest code in your email and try again.";
+      let reply =
+        "That verification code did not match. Please check the latest code in your email and try again.";
       if (verification.message?.includes("expired")) {
-        reply = "That verification code has expired. Please request a new code and try again.";
+        reply =
+          "That verification code has expired. Please request a new code and try again.";
       } else if (verification.message?.includes("Too many attempts")) {
-        reply = "Too many verification attempts were made. Please request a new code and try again.";
-      } else if (verification.message && verification.message !== "Invalid OTP") {
-        reply = "I could not verify that code right now. Please try again in a moment.";
+        reply =
+          "Too many verification attempts were made. Please request a new code and try again.";
+      } else if (
+        verification.message &&
+        verification.message !== "Invalid OTP"
+      ) {
+        reply =
+          "I could not verify that code right now. Please try again in a moment.";
       }
       await publishResponse({ conversationId, content: reply });
 
       // Save run logs on early return
       try {
         const duration = Date.now() - startTime;
-        await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, {
-          organizationId: job.organizationId,
-          messageId: job.messageId,
-          steps,
-          duration,
-          status,
-          error,
-          usage,
-        });
+        await internalApi.post(
+          `/conversations/ai/${conversationId}/agent-runs`,
+          {
+            organizationId: job.organizationId,
+            messageId: job.messageId,
+            steps,
+            duration,
+            status,
+            error,
+            usage,
+          },
+        );
       } catch (apiErr: any) {
-        console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
+        console.error(
+          "[Pipeline] Failed to save agent run logs:",
+          apiErr.message,
+        );
       }
       console.timeEnd(t("total"));
       return;
@@ -173,9 +209,14 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       if (results.length > 0) {
         const match = results[0];
         if (match.score >= 0.85) {
-          const faqAnswer = (match.payload as any)?.answer || (match.payload as any)?.content || "";
+          const faqAnswer =
+            (match.payload as any)?.answer ||
+            (match.payload as any)?.content ||
+            "";
           if (faqAnswer) {
-            console.log(`[Pipeline] FAQ match (score: ${match.score.toFixed(4)}) - returning directly, no LLM`);
+            console.log(
+              `[Pipeline] FAQ match (score: ${match.score.toFixed(4)}) - returning directly, no LLM`,
+            );
 
             await publishResponse({ conversationId, content: faqAnswer });
 
@@ -192,16 +233,26 @@ export async function runPipeline(job: AIJobData): Promise<void> {
             });
 
             try {
-              await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, {
-                organizationId: job.organizationId,
-                messageId: job.messageId,
-                steps,
-                duration,
-                status: "success",
-                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-              });
+              await internalApi.post(
+                `/conversations/ai/${conversationId}/agent-runs`,
+                {
+                  organizationId: job.organizationId,
+                  messageId: job.messageId,
+                  steps,
+                  duration,
+                  status: "success",
+                  usage: {
+                    promptTokens: 0,
+                    completionTokens: 0,
+                    totalTokens: 0,
+                  },
+                },
+              );
             } catch (apiErr: any) {
-              console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
+              console.error(
+                "[Pipeline] Failed to save agent run logs:",
+                apiErr.message,
+              );
             }
 
             console.timeEnd(t("total"));
@@ -213,7 +264,9 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       console.error("[Pipeline] FAQ check failed:", faqErr.message);
     }
   } else if (!otpCode) {
-    console.log(`[Pipeline] Skipping FAQ check (not a question): "${content.slice(0, 50)}"`);
+    console.log(
+      `[Pipeline] Skipping FAQ check (not a question): "${content.slice(0, 50)}"`,
+    );
   }
 
   // ── AI DISABLED / SUBSCRIPTION EXPIRED CHECK ─────────────────────────────
@@ -221,7 +274,9 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   const isSubActive = job.subscriptionExpired !== true;
 
   if (!isAiEnabled || !isSubActive) {
-    console.log(`[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}). Escalating conversation ${conversationId}`);
+    console.log(
+      `[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}). Escalating conversation ${conversationId}`,
+    );
     try {
       await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
         organizationId: job.organizationId,
@@ -230,7 +285,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
           : "AI disabled — auto-escalated to human",
       });
     } catch (escErr: any) {
-      console.error("[Pipeline] Failed to escalate conversation on AI disabled/expired:", escErr.message);
+      console.error(
+        "[Pipeline] Failed to escalate conversation on AI disabled/expired:",
+        escErr.message,
+      );
     }
     console.timeEnd(t("total"));
     return;
@@ -244,6 +302,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       conversationId,
       job.organizationId,
       content,
+      job.messageId,
       job.companyName,
       job.fallbackToAgent,
       job.collectUserInfo,
@@ -255,7 +314,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       const verifiedCodePattern = new RegExp(`\\b${otpCode}\\b`, "g");
       context.messages = context.messages.map((message) => ({
         ...message,
-        content: message.content.replace(verifiedCodePattern, "[verified code omitted]"),
+        content: message.content.replace(
+          verifiedCodePattern,
+          "[verified code omitted]",
+        ),
       }));
       context.systemPrompt += `
 
@@ -291,7 +353,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       // FallbackRouter wraps generation with an ordered provider fallback chain
       const generated = await FallbackRouter.generate(messages, {
         tools: capabilities.supportsTools
-          ? getToolsForContext({ fallbackToAgent: job.fallbackToAgent, channel: job.channel })
+          ? getToolsForContext({
+              fallbackToAgent: job.fallbackToAgent,
+              channel: job.channel,
+            })
           : [],
         toolContext: {
           organizationId: job.organizationId,
@@ -350,19 +415,32 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
       if (canEscalate) {
         try {
-          await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
-            organizationId: job.organizationId,
-            reason: "LLM provider error — auto-escalated to human",
-          });
+          await internalApi.post(
+            `/conversations/ai/${conversationId}/escalate`,
+            {
+              organizationId: job.organizationId,
+              reason: "LLM provider error — auto-escalated to human",
+            },
+          );
         } catch (escErr: any) {
-          console.error("[Pipeline] Failed to escalate conversation on provider error:", escErr.message);
+          console.error(
+            "[Pipeline] Failed to escalate conversation on provider error:",
+            escErr.message,
+          );
         }
       }
 
-      try { console.timeEnd(t("llm")); } catch {}
-      try { console.timeEnd(t("agent")); } catch {}
+      try {
+        console.timeEnd(t("llm"));
+      } catch {}
+      try {
+        console.timeEnd(t("agent"));
+      } catch {}
       status = "failed";
-      error = providerErr instanceof Error ? providerErr.message : String(providerErr);
+      error =
+        providerErr instanceof Error
+          ? providerErr.message
+          : String(providerErr);
       console.timeEnd(t("total"));
       return;
     }
@@ -375,7 +453,6 @@ export async function runPipeline(job: AIJobData): Promise<void> {
     console.time(t("publish:response"));
     await publishResponse({ conversationId, content: generatedText, usage });
     console.timeEnd(t("publish:response"));
-
   } catch (err: any) {
     status = "failed";
     error = err.message || String(err);
@@ -394,7 +471,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         usage,
       });
     } catch (apiErr: any) {
-      console.error("[Pipeline] Failed to save agent run logs:", apiErr.message);
+      console.error(
+        "[Pipeline] Failed to save agent run logs:",
+        apiErr.message,
+      );
     }
   }
 }
