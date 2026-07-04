@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
@@ -29,12 +30,23 @@ import {
   Clock,
   MessagesSquare,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { AddContactForm } from "@/domains/contacts/components/add-contact-form";
-import { contactsApi, type ContactListItem } from "@/domains/contacts/api/contacts.api";
+import { contactsApi, type ContactListItem, type ContactConflictItem } from "@/domains/contacts/api/contacts.api";
+import { usePagination } from "@/shared/hooks/usePagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/shared/ui/pagination";
+import { DeleteConfirmDialog } from "@/shared/components/delete-confirm-dialog";
 
 const TAG_OPTIONS = ["VIP", "Enterprise", "Trial", "Billing", "At Risk"];
-const STATUS_OPTIONS = ["active", "inactive", "blocked"] as const;
 const SORT_OPTIONS = [
   { value: "name", label: "Name" },
   { value: "recent", label: "Most recent activity" },
@@ -70,17 +82,19 @@ interface ContactConversation {
   updatedAt: string;
 }
 
-interface ContactTimelineEvent {
-  id: string;
-  label: string;
-  timestamp: string;
-  detail?: string;
-}
-
 interface ContactInsight {
   summary: string;
   sentiment: "positive" | "neutral" | "negative";
   topics: string[];
+}
+
+interface ContactConflict {
+  id: string;
+  field: "name" | "phone" | "company";
+  currentValue: string;
+  proposedValue: string;
+  conversationId: string;
+  createdAt: string;
 }
 
 interface Contact {
@@ -90,187 +104,17 @@ interface Contact {
   phone?: string;
   company?: string;
   tags: string[];
-  status: (typeof STATUS_OPTIONS)[number];
   lastActivity: string;
   createdAt: string;
   isOnline: boolean;
   conversationCount: number;
   notes: ContactNote[];
   conversations: ContactConversation[];
-  timeline: ContactTimelineEvent[];
   insights: ContactInsight;
+  conflicts: ContactConflict[];
 }
 
-const CONTACTS_SEED: Contact[] = [
-  {
-    id: "c-001",
-    name: "Amelia Harper",
-    email: "amelia@northwind.io",
-    phone: "+1 (415) 555-9021",
-    company: "Northwind Logistics",
-    tags: ["VIP", "Enterprise"],
-    status: "active",
-    lastActivity: "2026-03-13T09:20:00Z",
-    createdAt: "2025-11-02T14:10:00Z",
-    isOnline: true,
-    conversationCount: 14,
-    notes: [
-      {
-        id: "n-1",
-        author: "Jules",
-        content: "Handles renewals quarterly. Prefers email follow-up.",
-        createdAt: "2026-03-02T16:30:00Z",
-      },
-    ],
-    conversations: [
-      {
-        id: "conv-101",
-        status: "open",
-        lastMessage: "Need help with invoice adjustments for March.",
-        updatedAt: "2026-03-13T09:18:00Z",
-      },
-      {
-        id: "conv-094",
-        status: "resolved",
-        lastMessage: "Thanks for the quick response yesterday!",
-        updatedAt: "2026-02-27T12:40:00Z",
-      },
-    ],
-    timeline: [
-      {
-        id: "t-1",
-        label: "Conversation escalated to billing",
-        timestamp: "2026-03-13T09:10:00Z",
-      },
-      {
-        id: "t-2",
-        label: "Tagged as VIP",
-        timestamp: "2026-02-08T10:00:00Z",
-      },
-    ],
-    insights: {
-      summary: "Billing-related conversations increased this month. Priority attention recommended.",
-      sentiment: "neutral",
-      topics: ["Billing", "Renewals", "Invoices"],
-    },
-  },
-  {
-    id: "c-002",
-    name: "Diego Martinez",
-    email: "diego@atlaslabs.co",
-    phone: "+1 (512) 555-3490",
-    company: "Atlas Labs",
-    tags: ["Trial"],
-    status: "active",
-    lastActivity: "2026-03-12T20:05:00Z",
-    createdAt: "2026-02-10T09:30:00Z",
-    isOnline: false,
-    conversationCount: 3,
-    notes: [
-      {
-        id: "n-2",
-        author: "Priya",
-        content: "Trial ends in 9 days. Interested in automation features.",
-        createdAt: "2026-03-07T08:15:00Z",
-      },
-    ],
-    conversations: [
-      {
-        id: "conv-111",
-        status: "pending",
-        lastMessage: "Can I export data from the dashboard?",
-        updatedAt: "2026-03-12T20:05:00Z",
-      },
-    ],
-    timeline: [
-      {
-        id: "t-3",
-        label: "Trial onboarding call completed",
-        timestamp: "2026-02-12T14:00:00Z",
-      },
-    ],
-    insights: {
-      summary: "High curiosity about automation and reporting features.",
-      sentiment: "positive",
-      topics: ["Reporting", "Automation"],
-    },
-  },
-  {
-    id: "c-003",
-    name: "Sora Lee",
-    email: "sora@brightpath.org",
-    phone: "+44 20 7946 1001",
-    company: "Brightpath",
-    tags: ["Billing"],
-    status: "inactive",
-    lastActivity: "2026-02-18T11:42:00Z",
-    createdAt: "2025-06-21T10:05:00Z",
-    isOnline: false,
-    conversationCount: 9,
-    notes: [],
-    conversations: [
-      {
-        id: "conv-077",
-        status: "resolved",
-        lastMessage: "Invoice has been updated, thanks.",
-        updatedAt: "2026-02-18T11:40:00Z",
-      },
-    ],
-    timeline: [
-      {
-        id: "t-4",
-        label: "Account marked inactive",
-        timestamp: "2026-02-20T09:00:00Z",
-      },
-    ],
-    insights: {
-      summary: "Historically engaged during billing cycles. Reactivate before next renewal.",
-      sentiment: "neutral",
-      topics: ["Billing", "Invoices"],
-    },
-  },
-  {
-    id: "c-004",
-    name: "Marcos Silva",
-    email: "marcos@zenbyte.ai",
-    phone: "+55 11 98888-2244",
-    company: "Zenbyte AI",
-    tags: ["Enterprise", "At Risk"],
-    status: "blocked",
-    lastActivity: "2026-01-22T19:20:00Z",
-    createdAt: "2025-01-19T12:00:00Z",
-    isOnline: false,
-    conversationCount: 21,
-    notes: [
-      {
-        id: "n-3",
-        author: "Alex",
-        content: "Escalate to compliance before reactivation.",
-        createdAt: "2026-01-25T09:10:00Z",
-      },
-    ],
-    conversations: [
-      {
-        id: "conv-052",
-        status: "closed",
-        lastMessage: "We will revisit next quarter.",
-        updatedAt: "2026-01-22T19:20:00Z",
-      },
-    ],
-    timeline: [
-      {
-        id: "t-5",
-        label: "Account blocked",
-        timestamp: "2026-01-23T08:00:00Z",
-      },
-    ],
-    insights: {
-      summary: "Negative sentiment spike around contract renewal. Needs executive outreach.",
-      sentiment: "negative",
-      topics: ["Renewal", "Compliance", "Contract"],
-    },
-  },
-];
+
 
 const toContactViewModel = (item: ContactListItem): Contact => ({
   id: item.id,
@@ -279,7 +123,6 @@ const toContactViewModel = (item: ContactListItem): Contact => ({
   phone: item.phone,
   company: item.company,
   tags: item.tags || [],
-  status: item.status,
   lastActivity: item.lastActivity,
   createdAt: item.createdAt,
   isOnline: false,
@@ -289,23 +132,13 @@ const toContactViewModel = (item: ContactListItem): Contact => ({
     item.conversations && item.conversations.length > 0
       ? item.conversations
       : [
-          {
-            id: `conv-${item.id}`,
-            status: "open",
-            lastMessage: "Conversation context is still syncing.",
-            updatedAt: item.updatedAt,
-          },
-        ],
-  timeline:
-    item.timeline && item.timeline.length > 0
-      ? item.timeline
-      : [
-          {
-            id: `timeline-${item.id}`,
-            label: `Contact captured via ${item.source.toUpperCase()}`,
-            timestamp: item.updatedAt,
-          },
-        ],
+        {
+          id: `conv-${item.id}`,
+          status: "open",
+          lastMessage: "Conversation context is still syncing.",
+          updatedAt: item.updatedAt,
+        },
+      ],
   insights: {
     summary:
       item.insights?.summary ||
@@ -313,6 +146,7 @@ const toContactViewModel = (item: ContactListItem): Contact => ({
     sentiment: item.insights?.sentiment || "neutral",
     topics: item.insights?.topics || [],
   },
+  conflicts: item.conflicts || [],
 });
 
 const formatDate = (iso: string) =>
@@ -338,10 +172,13 @@ const isRecentlyActive = (iso: string) => {
 };
 
 export function ContactsPage() {
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [conflicts, setConflicts] = useState<ContactConflictItem[]>([]);
+  const [isConflictSheetOpen, setIsConflictSheetOpen] = useState(false);
+  const [focusedConflictContactId, setFocusedConflictContactId] = useState<string | null>(null);
   const [selectedContactId, setSelectedContactId] = useState<string>("");
   const [searchValue, setSearchValue] = useState("");
-  const [statusFilters, setStatusFilters] = useState<string[]>([]);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [activityFilter, setActivityFilter] = useState<string>("all");
   const [conversationFilter, setConversationFilter] = useState<string>("all");
@@ -350,11 +187,24 @@ export function ContactsPage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [newTag, setNewTag] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [loadError, setLoadError] = useState<string>("");
 
   useEffect(() => {
     let mounted = true;
+
+    const loadConflicts = async () => {
+      try {
+        const items = await contactsApi.getPendingConflicts();
+        if (!mounted) return;
+        setConflicts(items);
+      } catch (err) {
+        console.error("Failed to load conflicts", err);
+      }
+    };
+
     const loadContacts = async (silent = false) => {
       try {
         if (!silent) {
@@ -371,16 +221,18 @@ export function ContactsPage() {
       } catch (error) {
         if (!mounted) return;
         setLoadError(error instanceof Error ? error.message : "Failed to load contacts");
-        setContacts((prev) => (prev.length > 0 ? prev : CONTACTS_SEED));
-        setSelectedContactId((prev) => prev || CONTACTS_SEED[0]?.id || "");
+        setContacts([]);
+        setSelectedContactId("");
       } finally {
         if (!silent && mounted) setIsLoadingContacts(false);
       }
     };
 
     loadContacts(false);
+    loadConflicts();
     const refreshInterval = window.setInterval(() => {
       loadContacts(true);
+      loadConflicts();
     }, 8000);
 
     return () => {
@@ -401,17 +253,16 @@ export function ContactsPage() {
         contact.phone?.toLowerCase().includes(query) ||
         contact.company?.toLowerCase().includes(query);
 
-      const statusMatch =
-        statusFilters.length === 0 || statusFilters.includes(contact.status);
-
       const tagMatch =
         tagFilters.length === 0 ||
         contact.tags.some((tag) => tagFilters.includes(tag));
 
       const activityMatch = (() => {
         if (activityFilter === "all") return true;
+        if (!contact.lastActivity) return false;
         const lastActivity = new Date(contact.lastActivity).getTime();
-        const hours = (Date.now() - lastActivity) / (1000 * 60 * 60);
+        if (isNaN(lastActivity)) return false;
+        const hours = Math.max(0, (Date.now() - lastActivity) / (1000 * 60 * 60));
         if (activityFilter === "24h") return hours <= 24;
         if (activityFilter === "7d") return hours <= 24 * 7;
         if (activityFilter === "30d") return hours <= 24 * 30;
@@ -428,7 +279,7 @@ export function ContactsPage() {
         return true;
       })();
 
-      return matchesSearch && statusMatch && tagMatch && activityMatch && conversationMatch;
+      return matchesSearch && tagMatch && activityMatch && conversationMatch;
     });
 
     result = [...result].sort((a, b) => {
@@ -443,12 +294,24 @@ export function ContactsPage() {
   }, [
     contacts,
     searchValue,
-    statusFilters,
     tagFilters,
     activityFilter,
     conversationFilter,
     sortValue,
   ]);
+
+  const {
+    currentItems: paginatedContacts,
+    currentPage,
+    totalPages,
+    pageNumbers,
+    goToPage,
+    goToNext,
+    goPrev,
+    startItem,
+    endItem,
+    totalItems,
+  } = usePagination(filteredContacts, 10, [searchValue, tagFilters, activityFilter, conversationFilter, sortValue]);
 
   const toggleBulkSelect = (id: string) => {
     setSelectedContacts((prev) =>
@@ -464,7 +327,7 @@ export function ContactsPage() {
     }
   };
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     if (!selectedContact || !newTag.trim()) return;
     const nextTag = newTag.trim();
     if (selectedContact.tags.includes(nextTag)) {
@@ -472,44 +335,60 @@ export function ContactsPage() {
       return;
     }
 
-    setContacts((prev) =>
-      prev.map((contact) =>
-        contact.id === selectedContact.id
-          ? { ...contact, tags: [...contact.tags, nextTag] }
-          : contact,
-      ),
-    );
-    setNewTag("");
+    try {
+      const addedTag = await contactsApi.addTag(selectedContact.id, nextTag);
+      setContacts((prev) =>
+        prev.map((contact) =>
+          contact.id === selectedContact.id
+            ? { ...contact, tags: [...contact.tags, addedTag] }
+            : contact,
+        ),
+      );
+      setNewTag("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add tag");
+    }
   };
 
-  const handleRemoveTag = (tag: string) => {
+  const handleRemoveTag = async (tag: string) => {
     if (!selectedContact) return;
-    setContacts((prev) =>
-      prev.map((contact) =>
-        contact.id === selectedContact.id
-          ? { ...contact, tags: contact.tags.filter((t) => t !== tag) }
-          : contact,
-      ),
-    );
+    try {
+      await contactsApi.removeTag(selectedContact.id, tag);
+      setContacts((prev) =>
+        prev.map((contact) =>
+          contact.id === selectedContact.id
+            ? { ...contact, tags: contact.tags.filter((t) => t !== tag) }
+            : contact,
+        ),
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to remove tag");
+    }
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!selectedContact || !noteDraft.trim()) return;
-    const newNote: ContactNote = {
-      id: `note-${Date.now()}`,
-      author: "You",
-      content: noteDraft.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const content = noteDraft.trim();
+      const savedNote = await contactsApi.addNote(selectedContact.id, content);
+      const newNote: ContactNote = {
+        id: savedNote.id,
+        author: savedNote.author,
+        content: savedNote.content,
+        createdAt: savedNote.createdAt,
+      };
 
-    setContacts((prev) =>
-      prev.map((contact) =>
-        contact.id === selectedContact.id
-          ? { ...contact, notes: [newNote, ...contact.notes] }
-          : contact,
-      ),
-    );
-    setNoteDraft("");
+      setContacts((prev) =>
+        prev.map((contact) =>
+          contact.id === selectedContact.id
+            ? { ...contact, notes: [newNote, ...contact.notes] }
+            : contact,
+        ),
+      );
+      setNoteDraft("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add note");
+    }
   };
 
   const handleAddContact = (payload: {
@@ -526,25 +405,18 @@ export function ContactsPage() {
       phone: payload.phone,
       company: payload.company,
       tags: payload.tags,
-      status: "active",
       lastActivity: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       isOnline: false,
       conversationCount: 0,
       notes: [],
       conversations: [],
-      timeline: [
-        {
-          id: `timeline-${Date.now()}`,
-          label: "Contact created",
-          timestamp: new Date().toISOString(),
-        },
-      ],
       insights: {
         summary: "No insights yet. Start a conversation to generate AI context.",
         sentiment: "neutral",
         topics: [],
       },
+      conflicts: [],
     };
 
     setContacts((prev) => [newContact, ...prev]);
@@ -552,10 +424,86 @@ export function ContactsPage() {
     setIsAddDialogOpen(false);
   };
 
-  const renderStatusBadge = (status: Contact["status"]) => {
-    if (status === "active") return <Badge variant="success">Active</Badge>;
-    if (status === "blocked") return <Badge variant="destructive">Blocked</Badge>;
-    return <Badge variant="secondary">Inactive</Badge>;
+  const handleBulkDelete = async () => {
+    if (selectedContacts.length === 0) return;
+    try {
+      setIsDeleting(true);
+      await contactsApi.deleteContacts(selectedContacts);
+      setContacts((prev) => prev.filter((c) => !selectedContacts.includes(c.id)));
+      setSelectedContacts([]);
+      setSelectedContactId("");
+      setIsDeleteDialogOpen(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete contacts");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkAddTags = async () => {
+    if (selectedContacts.length === 0) return;
+    const tagInput = window.prompt("Enter tags to add (comma-separated):");
+    if (!tagInput) return;
+    const tagsToAdd = tagInput.split(",").map((t) => t.trim()).filter(Boolean);
+    if (tagsToAdd.length === 0) return;
+    try {
+      await contactsApi.bulkAddTags(selectedContacts, tagsToAdd);
+      setContacts((prev) =>
+        prev.map((c) =>
+          selectedContacts.includes(c.id)
+            ? { ...c, tags: Array.from(new Set([...c.tags, ...tagsToAdd])) }
+            : c
+        )
+      );
+      setSelectedContacts([]);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add tags");
+    }
+  };
+
+  const handleBulkExport = () => {
+    if (selectedContacts.length === 0) return;
+    const selected = contacts.filter((c) => selectedContacts.includes(c.id));
+    const headers = ["Name", "Email", "Phone", "Company", "Tags", "Conversation Count", "Last Activity", "Created At"];
+    const csvRows = [headers.join(",")];
+
+    for (const c of selected) {
+      const row = [
+        `"${(c.name || "").replace(/"/g, '""')}"`,
+        `"${(c.email || "").replace(/"/g, '""')}"`,
+        `"${(c.phone || "").replace(/"/g, '""')}"`,
+        `"${(c.company || "").replace(/"/g, '""')}"`,
+        `"${(c.tags || []).join("; ").replace(/"/g, '""')}"`,
+        c.conversationCount || 0,
+        c.lastActivity,
+        c.createdAt,
+      ];
+      csvRows.push(row.join(","));
+    }
+
+    const csvContent = "\uFEFF" + csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `contacts_export_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleResolveConflict = async (conflictId: string, action: "apply" | "dismiss") => {
+    try {
+      await contactsApi.resolveConflict(conflictId, action);
+      setConflicts((prev) => prev.filter((c) => c.id !== conflictId));
+
+      // Reload contacts to reflect the updated details
+      const items = await contactsApi.getContacts();
+      const mapped = items.map(toContactViewModel);
+      setContacts(mapped);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to resolve conflict");
+    }
   };
 
   return (
@@ -570,8 +518,8 @@ export function ContactsPage() {
             {isLoadingContacts
               ? "Syncing contacts from database..."
               : loadError
-              ? `Showing fallback sample data: ${loadError}`
-              : "Live contact data is synced from your organization database."}
+                ? `Showing fallback sample data: ${loadError}`
+                : "Live contact data is synced from your organization database."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -589,10 +537,10 @@ export function ContactsPage() {
                   Capture customer details so agents can provide faster, more personal support.
                 </DialogDescription>
               </DialogHeader>
-              <AddContactForm 
-                onSubmit={handleAddContact} 
+              <AddContactForm
+                onSubmit={handleAddContact}
                 onCancel={() => setIsAddDialogOpen(false)}
-                tagOptions={TAG_OPTIONS} 
+                tagOptions={TAG_OPTIONS}
               />
             </DialogContent>
           </Dialog>
@@ -609,32 +557,6 @@ export function ContactsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-3">
-              <Label>Status</Label>
-              <div className="space-y-2">
-                {STATUS_OPTIONS.map((status) => (
-                  <label
-                    key={status}
-                    className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={statusFilters.includes(status)}
-                      onChange={() =>
-                        setStatusFilters((prev) =>
-                          prev.includes(status)
-                            ? prev.filter((item) => item !== status)
-                            : [...prev, status],
-                        )
-                      }
-                      className="accent-primary cursor-pointer"
-                    />
-                    <span className="capitalize">{status}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
               <Label>Tags</Label>
               <div className="flex flex-wrap gap-2">
                 {TAG_OPTIONS.map((tag) => (
@@ -647,11 +569,10 @@ export function ContactsPage() {
                           : [...prev, tag],
                       )
                     }
-                    className={`rounded-full border px-3 py-1 text-xs transition-colors cursor-pointer ${
-                      tagFilters.includes(tag)
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors cursor-pointer ${tagFilters.includes(tag)
                         ? "bg-primary text-primary-foreground border-transparent"
                         : "text-muted-foreground hover:bg-muted"
-                    }`}
+                      }`}
                   >
                     {tag}
                   </button>
@@ -704,7 +625,6 @@ export function ContactsPage() {
                 variant="outline"
                 className="w-full cursor-pointer"
                 onClick={() => {
-                  setStatusFilters([]);
                   setTagFilters([]);
                   setActivityFilter("all");
                   setConversationFilter("all");
@@ -721,7 +641,7 @@ export function ContactsPage() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-base font-semibold">
                 <Users className="h-4 w-4" />
-                {filteredContacts.length} contacts
+                {totalItems} contacts
               </div>
               <Select value={sortValue} onValueChange={setSortValue}>
                 <SelectTrigger className="w-52 cursor-pointer">
@@ -747,19 +667,35 @@ export function ContactsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {conflicts.length > 0 && (
+              <button
+                onClick={() => {
+                  setFocusedConflictContactId(null);
+                  setIsConflictSheetOpen(true);
+                }}
+                className="w-full bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-3 flex items-center justify-between text-sm text-amber-800 dark:text-amber-300 hover:bg-amber-100/50 dark:hover:bg-amber-950/30 transition-colors cursor-pointer font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                  <span>{conflicts.length} Pending Profile Conflicts</span>
+                </div>
+                <span className="text-xs underline">Review conflicts</span>
+              </button>
+            )}
+
             {selectedContacts.length > 0 && (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border p-3">
                 <div className="text-sm text-muted-foreground">
                   {selectedContacts.length} contacts selected
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" className="cursor-pointer">
+                  <Button variant="outline" size="sm" onClick={handleBulkAddTags} className="cursor-pointer">
                     Add tags
                   </Button>
-                  <Button variant="outline" size="sm" className="cursor-pointer">
+                  <Button variant="outline" size="sm" onClick={handleBulkExport} className="cursor-pointer">
                     Export
                   </Button>
-                  <Button variant="destructive" size="sm" className="cursor-pointer">
+                  <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)} className="cursor-pointer">
                     Delete
                   </Button>
                 </div>
@@ -779,19 +715,18 @@ export function ContactsPage() {
                 />
                 Select all
               </label>
-              <span>Showing {filteredContacts.length} results</span>
+              <span>Showing {startItem}-{endItem} of {totalItems} results</span>
             </div>
 
             <div className="divide-y divide-border">
-              {filteredContacts.map((contact) => (
+              {paginatedContacts.map((contact) => (
                 <button
                   key={contact.id}
                   onClick={() => setSelectedContactId(contact.id)}
-                  className={`w-full text-left py-4 transition-colors cursor-pointer ${
-                    contact.id === selectedContactId
+                  className={`w-full text-left py-4 transition-colors cursor-pointer ${contact.id === selectedContactId
                       ? "bg-muted/40"
                       : "hover:bg-muted/20"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-start gap-4">
                     <div className="flex items-center gap-3">
@@ -814,13 +749,12 @@ export function ContactsPage() {
                             .toUpperCase()}
                         </div>
                         <span
-                          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${
-                            contact.isOnline
+                          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${contact.isOnline
                               ? "bg-emerald-500"
                               : isRecentlyActive(contact.lastActivity)
-                              ? "bg-amber-400"
-                              : "bg-muted"
-                          }`}
+                                ? "bg-amber-400"
+                                : "bg-muted"
+                            }`}
                           title={contact.isOnline ? "Online" : "Recently active"}
                         />
                       </div>
@@ -831,7 +765,12 @@ export function ContactsPage() {
                           <h3 className="font-semibold text-foreground">
                             {contact.name}
                           </h3>
-                          {renderStatusBadge(contact.status)}
+                          {contact.conflicts && contact.conflicts.length > 0 && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-500 border-amber-500/20 text-[10px] py-0 px-1 font-medium flex items-center gap-0.5">
+                              <AlertTriangle className="h-3 w-3" />
+                              Conflict
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {contact.email || contact.phone || "No contact info"}
@@ -869,6 +808,41 @@ export function ContactsPage() {
                 </button>
               ))}
             </div>
+
+            {totalPages > 1 && (
+              <div className="pt-4 border-t border-border">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem className="cursor-pointer">
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); goPrev(); }}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {pageNumbers.map((page, idx) => (
+                      <PaginationItem key={idx} className="cursor-pointer">
+                        {page === "..." ? (
+                          <PaginationEllipsis />
+                        ) : (
+                          <PaginationLink
+                            isActive={page === currentPage}
+                            onClick={(e) => { e.preventDefault(); goToPage(page as number); }}
+                          >
+                            {page}
+                          </PaginationLink>
+                        )}
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem className="cursor-pointer">
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); goToNext(); }}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -893,7 +867,6 @@ export function ContactsPage() {
                         {selectedContact.email || selectedContact.phone}
                       </p>
                     </div>
-                    {renderStatusBadge(selectedContact.status)}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     {selectedContact.company || "Independent"}
@@ -920,6 +893,25 @@ export function ContactsPage() {
                       Add
                     </Button>
                   </div>
+                  {selectedContact.conflicts && selectedContact.conflicts.length > 0 && (
+                    <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg p-3 space-y-2 mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                        <span>{selectedContact.conflicts.length} pending conflicts</span>
+                      </div>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        onClick={() => {
+                          setFocusedConflictContactId(selectedContact.id);
+                          setIsConflictSheetOpen(true);
+                        }}
+                        className="text-[11px] h-7 px-2 cursor-pointer border-amber-300 hover:bg-amber-100/50"
+                      >
+                        Resolve
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Card className="bg-muted/40">
@@ -992,7 +984,8 @@ export function ContactsPage() {
                     {selectedContact.conversations.map((conversation) => (
                       <div
                         key={conversation.id}
-                        className="rounded-lg border border-border p-3 text-sm"
+                        onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conversation.id}`)}
+                        className="rounded-lg border border-border p-3 text-sm cursor-pointer hover:bg-muted/40 transition-colors"
                       >
                         <div className="flex items-center justify-between mb-1">
                           <Badge variant="secondary" className="capitalize">
@@ -1014,38 +1007,103 @@ export function ContactsPage() {
                     )}
                   </div>
                 </div>
-
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold">Activity timeline</h3>
-                  <div className="space-y-3">
-                    {selectedContact.timeline.map((event) => (
-                      <div key={event.id} className="flex gap-3 text-sm">
-                        <div className="mt-1 h-2 w-2 rounded-full bg-primary" />
-                        <div>
-                          <p className="text-foreground">{event.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDate(event.timestamp)}
-                          </p>
-                          {event.detail && (
-                            <p className="text-xs text-muted-foreground">
-                              {event.detail}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {selectedContact.timeline.length === 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        No activity recorded.
-                      </p>
-                    )}
-                  </div>
-                </div>
               </>
             )}
           </CardContent>
         </Card>
       </div>
+
+      <DeleteConfirmDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete Contacts"
+        itemName={`${selectedContacts.length} selected contact(s)`}
+        isDeleting={isDeleting}
+      />
+
+      <Dialog open={isConflictSheetOpen} onOpenChange={setIsConflictSheetOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Pending Profile Conflicts
+            </DialogTitle>
+            <DialogDescription>
+              {focusedConflictContactId
+                ? `Review and resolve conflicting profile details captured for ${selectedContact?.name || "this contact"}.`
+                : "Multiple conflicting profile details were captured during user conversations. Resolve them below to maintain profile integrity."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {(focusedConflictContactId
+              ? conflicts.filter((c) => c.contactId === focusedConflictContactId)
+              : conflicts
+            ).map((conflict) => (
+              <div key={conflict.id} className="border border-border rounded-lg p-4 space-y-3 bg-muted/20">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-semibold text-sm">{conflict.contactName}</h4>
+                    <p className="text-xs text-muted-foreground">{conflict.contactEmail || "No email"}</p>
+                  </div>
+                  <Badge variant="outline" className="capitalize text-xs font-mono">
+                    {conflict.field} Mismatch
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm bg-background border border-border rounded-md p-3">
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Current Value</span>
+                    <span className="font-medium text-foreground block truncate">
+                      {conflict.currentValue || <em className="text-muted-foreground text-xs">Not set</em>}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-amber-600 dark:text-amber-500 block mb-1">Proposed Value</span>
+                    <span className="font-medium text-amber-600 dark:text-amber-500 block truncate">
+                      {conflict.proposedValue}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center gap-3 pt-1">
+                  <button
+                    onClick={() => {
+                      setIsConflictSheetOpen(false);
+                      navigate(`/dashboard/conversations/inbox/chat/${conflict.conversationId}`);
+                    }}
+                    className="text-xs text-primary hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                  >
+                    View Chat Session
+                  </button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResolveConflict(conflict.id, "dismiss")}
+                      className="cursor-pointer text-xs"
+                    >
+                      Keep Current
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleResolveConflict(conflict.id, "apply")}
+                      className="cursor-pointer text-xs bg-amber-500 hover:bg-amber-600 text-white border-0"
+                    >
+                      Apply Proposed
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {conflicts.length === 0 && (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                All conflicts have been resolved!
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -31,7 +31,7 @@ export const getTicketById = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const createTicketAgent = asyncHandler(async (req: Request, res: Response) => {
-  const { conversationId, contactId, title, description, priority, tags } = req.body;
+  const { conversationId, contactId, title, description, priority, tags, source } = req.body;
   const ticket = await service.createTicket({
     organizationId: getOrgId(req),
     conversationId,
@@ -39,7 +39,7 @@ export const createTicketAgent = asyncHandler(async (req: Request, res: Response
     title,
     description,
     priority,
-    source: "agent",
+    source: source || "agent",
     tags,
   });
   sendResponse(res, 201, true, "Ticket created", { ticket });

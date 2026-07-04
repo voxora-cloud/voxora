@@ -12,10 +12,7 @@ export interface UpsertFromAIInput {
   company?: string;
   tags?: string[];
   note?: string;
-  status?: "active" | "inactive" | "blocked";
   sentiment?: "positive" | "neutral" | "negative";
   summary?: string;
   topics?: string[];
-  timelineLabel?: string;
-  timelineDetail?: string;
 }

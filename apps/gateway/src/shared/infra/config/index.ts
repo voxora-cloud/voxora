@@ -26,7 +26,7 @@ interface Config {
     refreshExpiresIn: string | number;
   };
   email: {
-    provider: "mailhog" | "ses" | "disabled";
+    provider: "mailhog" | "ses" | "resend" | "disabled";
     from: {
       name: string;
       email: string;
@@ -59,7 +59,7 @@ interface Config {
 
 function parseEmailProvider(value?: string): Config["email"]["provider"] {
   const normalized = (value || "").toLowerCase();
-  if (normalized === "mailhog" || normalized === "ses" || normalized === "disabled") {
+  if (normalized === "mailhog" || normalized === "ses" || normalized === "resend" || normalized === "disabled") {
     return normalized;
   }
   return process.env.NODE_ENV === "development" ? "mailhog" : "disabled";

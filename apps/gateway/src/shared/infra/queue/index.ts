@@ -86,3 +86,13 @@ export const analyticsQueue = new Queue<AnalyticsJobData, void, string>(
 	"platform-analytics",
 	{ connection: connection as any, defaultJobOptions },
 );
+
+export interface AnalyzerJobData {
+	conversationId: string;
+	organizationId: string;
+}
+
+export const analyzerQueue = new Queue<AnalyzerJobData, void, string>(
+	"conversation-analyzer",
+	{ connection: connection as any, defaultJobOptions },
+);

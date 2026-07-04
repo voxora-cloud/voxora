@@ -287,6 +287,7 @@ prompt_config() {
     API_HOST=""
     WEB_HOST=""
     CDN_HOST=""
+    LOG_HOST=""
     EMAIL_PROVIDER=""
     AWS_REGION=""
     AWS_ACCESS_KEY_ID=""
@@ -333,6 +334,13 @@ prompt_config() {
     read -p "Enter CDN domain (e.g., cdn.interaone.cloud): " CDN_HOST
     if [ -z "$CDN_HOST" ]; then
         log_error "CDN domain cannot be empty"
+        exit 1
+    fi
+
+    # Log Host
+    read -p "Enter Log Viewer domain (e.g., logs.interaone.cloud): " LOG_HOST
+    if [ -z "$LOG_HOST" ]; then
+        log_error "Log Viewer domain cannot be empty"
         exit 1
     fi
 
@@ -574,6 +582,7 @@ MINIO_PUBLIC_URL=https://$CDN_HOST
 API_HOST=$API_HOST
 WEB_HOST=$WEB_HOST
 CDN_HOST=$CDN_HOST
+LOG_HOST=$LOG_HOST
 
 # Widget runtime configuration (baked into the widget JS at deployment)
 API_URL_PRODUCTION=https://$API_HOST
@@ -905,13 +914,13 @@ print_success() {
     if [ "$SHOULD_GENERATE_USERS_YML" = "true" ]; then
         echo ""
         echo "🔒 Log Viewer Credentials (Dozzle):"
-        echo "  • URL:      http://localhost:$LOG_VIEWER_PORT"
+        echo "  • URL:      https://$LOG_HOST"
         echo "  • Username: $LOG_VIEWER_USER"
         echo "  • Password: $LOG_VIEWER_PASSWORD"
     else
         echo ""
         echo "🔒 Log Viewer (Dozzle) is active."
-        echo "  • URL:      http://localhost:$LOG_VIEWER_PORT"
+        echo "  • URL:      https://$LOG_HOST"
         echo "  • Credentials: (preserved in docker/users.yml)"
     fi
     echo "============================================================"

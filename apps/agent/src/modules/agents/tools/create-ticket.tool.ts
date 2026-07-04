@@ -4,7 +4,7 @@ import { internalApi } from "../../../infrastructure/api/internal.client";
 export class CreateTicketTool implements Tool {
   readonly name = "create_ticket";
   readonly description =
-    "Create a support ticket for an issue that cannot be resolved immediately. Use this when the user reports a bug, a complex problem, or requests a follow-up action that requires tracking.";
+    "Create a support ticket for an issue that cannot be resolved immediately. Use this when the user reports a bug, a complex problem, or requests a follow-up action that requires tracking. IMPORTANT: A verified contact must exist before a ticket can be created. If you do not have the user's name and email, ask for them first.";
 
   readonly parameters: Record<string, ToolParameterSchema> = {
     title: {
@@ -35,9 +35,16 @@ export class CreateTicketTool implements Tool {
     },
     tags: {
       type: "array",
-      description: "Relevant tags for categorization (e.g., ['bug', 'billing', 'feature-request']). You must analyze the title and description to extract 1-3 relevant tags to help categorize the issue.",
+      description:
+        "Relevant tags for categorization (e.g., ['bug', 'billing', 'feature-request']). You must analyze the title and description to extract 1-3 relevant tags to help categorize the issue.",
       required: true,
       items: { type: "string" },
+    },
+    source: {
+      type: "string",
+      description: "The channel from which this ticket originated.",
+      required: false,
+      enum: ["ai", "widget", "email", "whatsapp", "telegram"],
     },
     organizationId: {
       type: "string",
@@ -56,7 +63,8 @@ export class CreateTicketTool implements Tool {
       const title = typeof args.title === "string" ? args.title.trim() : "";
       const description = typeof args.description === "string" ? args.description.trim() : "";
       const requesterName = typeof args.requesterName === "string" ? args.requesterName.trim() : "";
-      const requesterEmail = typeof args.requesterEmail === "string" ? args.requesterEmail.trim().toLowerCase() : "";
+      const requesterEmail =
+        typeof args.requesterEmail === "string" ? args.requesterEmail.trim().toLowerCase() : "";
       const missingFields = [];
 
       if (!requesterName) missingFields.push("full name");
@@ -77,33 +85,83 @@ export class CreateTicketTool implements Tool {
           message: "A valid email address is required before creating a ticket",
         };
       }
-      const ticketTitle = title || description.slice(0, 120);
 
       const organizationId =
         context?.organizationId ||
-        (typeof args.organizationId === "string" && args.organizationId !== "ORGANIZATION_ID" ? args.organizationId : "") ||
+        (typeof args.organizationId === "string" && args.organizationId !== "ORGANIZATION_ID"
+          ? args.organizationId
+          : "") ||
         "";
       const conversationId =
         context?.conversationId ||
-        (typeof args.conversationId === "string" && args.conversationId !== "CONVERSATION_ID" ? args.conversationId : "") ||
+        (typeof args.conversationId === "string" && args.conversationId !== "CONVERSATION_ID"
+          ? args.conversationId
+          : "") ||
         "";
 
       if (!organizationId) return { status: "error", message: "organizationId is required" };
 
+      // ── Contact existence check ────────────────────────────────────────────
+      // A ticket must be linked to a verified contact. Seek by email first.
+      try {
+        const seekParams = new URLSearchParams({ organizationId, email: requesterEmail });
+        const seekRes = await internalApi.get(`/contacts/ai/seek?${seekParams.toString()}`);
+        const contactFound = seekRes.data?.data?.found === true;
+
+        if (!contactFound) {
+          return {
+            status: "contact_not_found",
+            message:
+              "No existing contact was found for this email address. " +
+              "Please confirm the user's details so a contact record can be created before opening a ticket.",
+          };
+        }
+      } catch {
+        // If the seek endpoint fails, proceed — the ticket service will create/upsert the contact anyway
+      }
+      // ── End contact check ──────────────────────────────────────────────────
+
+      const ticketTitle = title || description.slice(0, 120);
+
       let tags = Array.isArray(args.tags) ? args.tags.map(String).filter(Boolean) : [];
       if (tags.length === 0) {
         // Fallback intelligent auto-tagger based on title and description keywords
-        const content = `${title} ${typeof args.description === "string" ? args.description : ""}`.toLowerCase();
-        if (content.includes("bug") || content.includes("error") || content.includes("fail") || content.includes("broken") || content.includes("crash")) {
+        const content =
+          `${title} ${typeof args.description === "string" ? args.description : ""}`.toLowerCase();
+        if (
+          content.includes("bug") ||
+          content.includes("error") ||
+          content.includes("fail") ||
+          content.includes("broken") ||
+          content.includes("crash")
+        ) {
           tags.push("bug");
         }
-        if (content.includes("bill") || content.includes("invoice") || content.includes("payment") || content.includes("charge") || content.includes("refund")) {
+        if (
+          content.includes("bill") ||
+          content.includes("invoice") ||
+          content.includes("payment") ||
+          content.includes("charge") ||
+          content.includes("refund")
+        ) {
           tags.push("billing");
         }
-        if (content.includes("feature") || content.includes("request") || content.includes("improve") || content.includes("add") || content.includes("suggest")) {
+        if (
+          content.includes("feature") ||
+          content.includes("request") ||
+          content.includes("improve") ||
+          content.includes("add") ||
+          content.includes("suggest")
+        ) {
           tags.push("feature-request");
         }
-        if (content.includes("account") || content.includes("login") || content.includes("password") || content.includes("sign") || content.includes("auth")) {
+        if (
+          content.includes("account") ||
+          content.includes("login") ||
+          content.includes("password") ||
+          content.includes("sign") ||
+          content.includes("auth")
+        ) {
           tags.push("account-access");
         }
         if (tags.length === 0) {
@@ -119,6 +177,7 @@ export class CreateTicketTool implements Tool {
         priority: typeof args.priority === "string" ? args.priority : "medium",
         requesterName,
         requesterEmail,
+        source: typeof args.source === "string" ? args.source : "ai",
         tags,
         idempotencyKey: context?.messageId
           ? `ai:create_ticket:${organizationId}:${conversationId || "no-conversation"}:${context.messageId}`
@@ -135,7 +194,10 @@ export class CreateTicketTool implements Tool {
         ticketNumber: ticket?.ticketNumber,
       };
     } catch (e: any) {
-      return { status: "error", message: e?.response?.data?.message || e.message || "Failed to create ticket" };
+      return {
+        status: "error",
+        message: e?.response?.data?.message || e.message || "Failed to create ticket",
+      };
     }
   }
 

@@ -11,6 +11,7 @@ services:
       API_HOST: ${API_HOST:-localhost}
       WEB_HOST: ${WEB_HOST:-localhost}
       CDN_HOST: ${CDN_HOST:-localhost}
+      LOG_HOST: ${LOG_HOST:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

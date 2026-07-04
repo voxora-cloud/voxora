@@ -51,12 +51,9 @@ export class ContactsController {
         company,
         tags,
         note,
-        status,
         sentiment,
         summary,
         topics,
-        timelineLabel,
-        timelineDetail,
       } = req.body as {
         organizationId?: string;
         conversationId?: string;
@@ -66,12 +63,9 @@ export class ContactsController {
         company?: string;
         tags?: string[];
         note?: string;
-        status?: "active" | "inactive" | "blocked";
         sentiment?: "positive" | "neutral" | "negative";
         summary?: string;
         topics?: string[];
-        timelineLabel?: string;
-        timelineDetail?: string;
       };
 
       if (!organizationId || !conversationId) {
@@ -88,12 +82,9 @@ export class ContactsController {
         company,
         tags,
         note,
-        status,
         sentiment,
         summary,
         topics,
-        timelineLabel,
-        timelineDetail,
       });
 
       sendResponse(res, 200, true, "Contact upserted from AI", { contact: result });
@@ -128,6 +119,94 @@ export class ContactsController {
       });
     } catch (error: any) {
       sendError(res, 500, error.message || "Failed to seek contact");
+    }
+  }
+
+  static async deleteContacts(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const { ids } = req.body as { ids: string[] };
+
+      const result = await contactsService.deleteContacts(orgId, ids);
+      sendResponse(res, 200, true, `${result.deletedCount} contact(s) deleted`, result);
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to delete contacts");
+    }
+  }
+
+  static async bulkAddTags(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const { ids, tags } = req.body as { ids: string[]; tags: string[] };
+
+      const result = await contactsService.bulkAddTags(orgId, ids, tags);
+      sendResponse(res, 200, true, `Tags added to ${result.modifiedCount} contact(s)`, result);
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to add tags to contacts");
+    }
+  }
+
+  static async addNote(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const { content } = req.body as { content: string };
+      const author = (req as any).user?.name || (req as any).user?.email || "Agent";
+
+      const note = await contactsService.addNote(orgId, id, author, content);
+      sendResponse(res, 201, true, "Note added successfully", note);
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to add note to contact");
+    }
+  }
+
+  static async addTag(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const { tag } = req.body as { tag: string };
+
+      const addedTag = await contactsService.addTag(orgId, id, tag);
+      sendResponse(res, 201, true, "Tag added successfully", { tag: addedTag });
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to add tag to contact");
+    }
+  }
+
+  static async removeTag(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const tag = req.params.tag as string;
+
+      await contactsService.removeTag(orgId, id, tag);
+      sendResponse(res, 200, true, "Tag removed successfully");
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to remove tag from contact");
+    }
+  }
+
+  static async listConflicts(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const conflicts = await contactsService.listPendingConflicts(orgId);
+      sendResponse(res, 200, true, "Pending conflicts retrieved successfully", conflicts);
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to retrieve pending conflicts");
+    }
+  }
+
+  static async resolveConflict(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const { action } = req.body as { action: "apply" | "dismiss" };
+      const agentName = (req as any).user?.name || (req as any).user?.email || "Agent";
+
+      await contactsService.resolveConflict(orgId, id, action, agentName);
+      sendResponse(res, 200, true, `Conflict ${action === "apply" ? "applied" : "dismissed"} successfully`);
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to resolve conflict");
     }
   }
 }
