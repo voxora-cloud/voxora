@@ -91,10 +91,12 @@ class InteraOneLoader {
 
   private async init(): Promise<void> {
     const cfg = await this.api.fetchConfig().catch(() => null);
-    if (cfg) {
-      this.appearance = cfg;
-      this.ui.applyServerConfig(this.appearance);
+    if (!cfg) {
+      console.error('[InteraOneWidget] Configuration unavailable — widget not loaded.');
+      return;
     }
+    this.appearance = cfg;
+    this.ui.applyServerConfig(this.appearance);
 
     const behavior = this.appearance?.behavior;
     if (!this.shouldRenderForCurrentDevice(behavior)) {

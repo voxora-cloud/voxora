@@ -37,3 +37,20 @@ export function normalizeDomain(input: string): string {
     return fallback;
   }
 }
+
+export function isLocalDomain(input?: string): boolean {
+  if (!input) return false;
+
+  const raw = input.trim().toLowerCase();
+  if (raw === "::1" || raw === "[::1]") return true;
+
+  const hostname = normalizeDomain(input);
+  return hostname === "localhost"
+    || hostname === "::1"
+    || hostname === "[::1]"
+    || /^127(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
+export function requiresDomainVerification(environment: string, origin?: string): boolean {
+  return environment === "production" && !isLocalDomain(origin);
+}
