@@ -231,7 +231,7 @@ export function parseMarkdown(text: string) {
   });
 
   // Parse InteraOne Interactive Components (escaped XML)
-  s = s.replace(/&lt;interaone-input\s+name=&quot;([\s\S]*?)&quot;\s+placeholder=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g,
+  s = s.replace(/&lt;interaone-input\s+name=&quot;([\s\S]*?)&quot;\s+placeholder=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g, 
     '<div class="vx-interactive-form vx-input-wrapper"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /><button class="vx-form-submit" data-action="submit-input" data-target="$1">Submit</button></div>'
   );
 

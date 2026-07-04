@@ -18,60 +18,9 @@
  *                iframe sends CLOSE_WIDGET / OPEN_WIDGET
  */
 
+import type { WidgetServerConfig } from './types';
+
 export const PROTOCOL_VERSION = '1' as const;
-
-// ─── Shared payload types ─────────────────────────────────────────────────────
-
-/**
- * An explicit user identity set by the host page via `InteraOne.identify()`.
- * All fields are optional; the widget will work in anonymous mode without them.
- */
-export interface UserIdentity {
-  userId?: string;
-  email?: string;
-  name?: string;
-  // Allow arbitrary string/number/boolean traits (NOT objects — keep postMessage lean)
-  [key: string]: string | number | boolean | undefined;
-}
-
-/**
- * Visual appearance settings fetched from the InteraOne API and forwarded to the iframe.
- * The iframe uses these to style itself consistently with the customer's brand.
- */
-export interface WidgetAppearance {
-  displayName?: string;
-  appearance?: {
-    textColor?: string;
-    position?: 'bottom-right' | 'bottom-left';
-    launcherText?: string;
-    welcomeMessage?: string;
-  };
-  behavior?: {
-    showWidget?: boolean;
-    showOnlyOnSelectedPages?: boolean;
-    allowedPageRules?: string[];
-    autoOpen?: boolean;
-    showOnMobile?: boolean;
-    showOnDesktop?: boolean;
-  };
-  ai?: {
-    enabled?: boolean;
-    model?: string;
-    fallbackToAgent?: boolean;
-    autoAssign?: boolean;
-    assignmentStrategy?: 'round-robin' | 'least-loaded';
-  };
-  conversation?: {
-    collectUserInfo?: {
-      name?: boolean;
-      email?: boolean;
-      phone?: boolean;
-    };
-  };
-  features?: {
-    endUserDomAccess?: boolean;
-  };
-}
 
 // ─── Parent → Iframe messages ─────────────────────────────────────────────────
 
@@ -82,7 +31,6 @@ export interface WidgetAppearance {
  *   - publicKey: identifies the widget configuration on the backend
  *   - apiUrl: InteraOne API base URL
  *   - visitorId: stable anonymous ID, read from parent localStorage by the loader
- *   - identity: optional explicit user identity (set via InteraOne.identify())
  *   - pageUrl / pageTitle: initial page context
  *   - source: AI interaction source for analytics attribution
  *   - appearance: branding config fetched by the loader from the public API
@@ -94,22 +42,11 @@ export interface InitWidgetMessage {
     publicKey: string;
     apiUrl: string;
     visitorId: string;
-    identity?: UserIdentity;
     pageUrl: string;
     pageTitle: string;
     source?: 'widget' | 'qr' | 'link';
-    appearance?: WidgetAppearance;
+    appearance?: WidgetServerConfig;
   };
-}
-
-/**
- * USER_IDENTITY — sent when the host page calls `InteraOne.identify()` after init.
- * The iframe merges this into the current session and notifies the backend.
- */
-export interface UserIdentityMessage {
-  type: 'USER_IDENTITY';
-  version: typeof PROTOCOL_VERSION;
-  payload: UserIdentity;
 }
 
 /**
@@ -122,19 +59,6 @@ export interface PageChangeMessage {
   payload: {
     pageUrl: string;
     pageTitle: string;
-  };
-}
-
-/**
- * CUSTOM_EVENT — host page can emit named events that trigger automations.
- * e.g. InteraOne.track('checkout_completed', { value: 99 })
- */
-export interface CustomEventMessage {
-  type: 'CUSTOM_EVENT';
-  version: typeof PROTOCOL_VERSION;
-  payload: {
-    name: string;
-    properties?: Record<string, string | number | boolean>;
   };
 }
 
@@ -163,9 +87,7 @@ export interface PageHtmlResponseMessage {
 
 export type ParentToIframeMessage =
   | InitWidgetMessage
-  | UserIdentityMessage
   | PageChangeMessage
-  | CustomEventMessage
   | ShowSkeletonMessage
   | PageHtmlResponseMessage;
 

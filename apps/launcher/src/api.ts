@@ -72,7 +72,7 @@ export class WidgetAPI {
       origin: parentOrigin,
       publicKey: this.config.publicKey,
       apiUrl: this.config.apiUrl!,
-      source: this.config.source || 'widget',
+      source: 'widget',
       _vx: `${Date.now()}`,
     });
 

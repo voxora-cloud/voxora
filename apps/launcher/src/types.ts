@@ -11,14 +11,8 @@
 export interface WidgetConfig {
   /** Public widget key — identifies the widget config; NOT a secret */
   publicKey: string;
-  /** AI interaction source used for analytics attribution. */
-  source?: "widget" | "qr" | "link";
   /** Optional explicit CDN origin (inferred from script src when absent). */
   cdnUrl?: string;
-  /** Render the chat iframe in full-screen mode (edge-to-edge). */
-  fullscreen?: boolean;
-  /** Auto-open widget immediately after initialization. */
-  autoOpen?: boolean;
   /** Floating button position */
   position?: 'bottom-right' | 'bottom-left';
   /** Override button accent color */
@@ -54,10 +48,7 @@ export interface WidgetServerBehaviorConfig {
 
 export interface WidgetServerAiConfig {
   enabled?: boolean;
-  model?: string;
   fallbackToAgent?: boolean;
-  autoAssign?: boolean;
-  assignmentStrategy?: "round-robin" | "least-loaded";
 }
 
 export interface WidgetServerConversationConfig {

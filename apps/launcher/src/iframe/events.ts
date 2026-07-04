@@ -121,37 +121,6 @@ export function setupEventListeners() {
     });
   }
 
-  // ── Emoji picker ────────────────────────────────────────────────────────
-  const emojiBtn = document.getElementById('emojiBtn');
-  const emojiPicker = document.getElementById('emojiPicker');
-  if (emojiBtn && emojiPicker) {
-    emojiBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      emojiPicker.classList.toggle('hidden');
-    });
-
-    emojiPicker.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const btn = target.closest('.emoji-option') as HTMLButtonElement | null;
-      if (!btn || !elements.messageInput) return;
-      const emoji = btn.textContent || '';
-      const input = elements.messageInput;
-      const start = input.selectionStart ?? input.value.length;
-      const end = input.selectionEnd ?? input.value.length;
-      input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
-      input.setSelectionRange(start + emoji.length, start + emoji.length);
-      emojiPicker.classList.add('hidden');
-    });
-
-    // Close picker when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!emojiBtn.contains(e.target as Node) && !emojiPicker.contains(e.target as Node)) {
-        emojiPicker.classList.add('hidden');
-      }
-    });
-  }
 
   if (elements.sendBtn) {
     elements.sendBtn.addEventListener("click", sendMessage);

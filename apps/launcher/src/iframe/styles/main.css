@@ -1302,6 +1302,19 @@ body {
   background: rgba(0, 0, 0, 0.02);
 }
 
+.light-theme .tool-call-card:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.16);
+}
+
+.light-theme .tool-call-title {
+  color: rgba(15, 23, 42, 0.85);
+}
+
+.light-theme .tool-call-chevron {
+  color: rgba(0, 0, 0, 0.4);
+}
+
 .light-theme .tool-call-body {
   border-top-color: rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.03);
@@ -2808,83 +2821,14 @@ body {
   opacity: 1;
 }
 
-/* ── Input utility button (emoji etc.) ──────────────────────────────────── */
-.input-utility-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: color-mix(in srgb, var(--vx-text, #fafafa) 45%, transparent);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.18s ease;
-  flex-shrink: 0;
-}
 
-.input-utility-btn svg {
-  width: 15px;
-  height: 15px;
-  display: block;
-}
-
-.input-utility-btn:hover {
-  background: color-mix(in srgb, var(--vx-text, #fafafa) 8%, transparent);
-  color: var(--vx-text, #ffffff);
-}
-
-/* ── Emoji picker popup ─────────────────────────────────────────────────── */
-.emoji-picker {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  right: 0;
-  background: color-mix(in srgb, var(--vx-bg, #18181b) 96%, #ffffff);
-  border: 1px solid var(--vx-border, rgba(255,255,255,0.08));
-  border-radius: 14px;
-  padding: 8px;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 2px;
-  box-shadow:
-    0 16px 42px rgba(0,0,0,0.36),
-    0 0 0 1px rgba(255,255,255,0.04),
-    inset 0 1px 0 rgba(255,255,255,0.06);
-  z-index: 200;
-  animation: emojiPickerPop 0.18s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.emoji-picker.hidden {
-  display: none;
-}
-
-@keyframes emojiPickerPop {
-  from { opacity: 0; transform: scale(0.88) translateY(6px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.emoji-option {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
-  padding: 5px;
-  border-radius: 8px;
-  transition: background 0.14s ease, transform 0.14s ease;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.emoji-option:hover {
-  background: color-mix(in srgb, var(--vx-text, #fafafa) 8%, transparent);
-  transform: scale(1.18);
-}
 
 /* ── Mobile responsive sidebar ─────────────────────────────────────────── */
 @media (max-width: 480px) {
+  #vx-minimize {
+    display: none !important;
+  }
+
   .history-overlay {
     position: fixed;
     inset: 0;
@@ -2941,11 +2885,6 @@ body {
 
   .assistant-subtext {
     font-size: 14px;
-  }
-
-  .emoji-picker {
-    grid-template-columns: repeat(4, 1fr);
-    right: -8px;
   }
 }
 

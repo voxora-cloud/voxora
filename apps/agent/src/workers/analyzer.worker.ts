@@ -8,7 +8,7 @@ import logger from "../utils/logger";
 const QUEUE_NAME = "conversation-analyzer";
 const BATCH_SIZE = 5; // Optimal batch size for LLM context window and extraction accuracy
 
-export interface AnalyzerJobData {}
+export interface AnalyzerJobData { }
 
 export function startAnalyzerWorker() {
   const connection = getBullMQConnection();

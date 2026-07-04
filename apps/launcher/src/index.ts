@@ -14,29 +14,22 @@
 import { parseWidgetConfig, getWidgetOrigin } from './config';
 import { WidgetAPI } from './api';
 import { WidgetUI } from './ui';
-import { WidgetState } from './types';
+import { WidgetState, WidgetServerConfig } from './types';
 import { shouldShowWidgetOnPage } from './page-visibility';
 import {
   getOrCreateVisitorId,
-  setIdentity,
-  getIdentity,
-  clearIdentity,
-  StoredIdentity,
 } from './session';
 import {
   PROTOCOL_VERSION,
   InitWidgetMessage,
-  UserIdentityMessage,
   PageChangeMessage,
-  CustomEventMessage,
   ShowSkeletonMessage,
   IframeToParentMessage,
   isIframeMessage,
-  WidgetAppearance,
   PageHtmlResponseMessage,
 } from './protocol';
 
-type QueuedMessage = InitWidgetMessage | UserIdentityMessage | PageChangeMessage | CustomEventMessage | ShowSkeletonMessage;
+type QueuedMessage = InitWidgetMessage | PageChangeMessage | ShowSkeletonMessage;
 
 class InteraOneLoader {
   private api: WidgetAPI;
@@ -47,11 +40,9 @@ class InteraOneLoader {
   private iframeReady = false;
   private pendingMessages: QueuedMessage[] = [];
   private visitorId: string;
-  private identity: StoredIdentity | null;
   private lastPageUrl: string;
-  private appearance: WidgetAppearance | null = null;
+  private appearance: WidgetServerConfig | null = null;
   private allowHostDomAccess = true;
-  private fullscreenMode = false;
   private isVisibleForCurrentPage = true;
   private cleanupCallbacks: Array<() => void> = [];
 
@@ -64,7 +55,6 @@ class InteraOneLoader {
       this.ui = null as unknown as WidgetUI;
       this.iframeOrigin = '';
       this.visitorId = '';
-      this.identity = null;
       this.lastPageUrl = '';
       return;
     }
@@ -81,10 +71,8 @@ class InteraOneLoader {
       } as ShowSkeletonMessage);
     });
     this.iframeOrigin = getWidgetOrigin(config.apiUrl!, config.cdnUrl);
-    this.fullscreenMode = config.fullscreen === true;
     this.lastPageUrl = "";
     this.visitorId = "";
-    this.identity = null;
 
     this.init().catch(err => console.error('[InteraOneWidget] Init error:', err));
   }
@@ -107,10 +95,8 @@ class InteraOneLoader {
     this.allowHostDomAccess = this.appearance?.features?.endUserDomAccess !== false;
     if (this.allowHostDomAccess) {
       this.visitorId = getOrCreateVisitorId();
-      this.identity = getIdentity();
     } else {
       this.visitorId = this.generateEphemeralVisitorId();
-      this.identity = null;
     }
     this.lastPageUrl = window.location.href;
 
@@ -122,15 +108,13 @@ class InteraOneLoader {
     this.setupMessageHandlers();
     this.setupPageChangeDetection();
 
-    if (!this.fullscreenMode) {
-      this.ui.createButton();
-    }
+    this.ui.createButton();
     this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
     this.syncPageVisibility(window.location.href);
 
     const shouldAutoOpen =
-      !this.isMobileView() && (this.api.getConfig().autoOpen ?? behavior?.autoOpen);
-    if (this.isVisibleForCurrentPage && (this.fullscreenMode || shouldAutoOpen)) {
+      !this.isMobileView() && behavior?.autoOpen;
+    if (this.isVisibleForCurrentPage && shouldAutoOpen) {
       this.open();
     }
   }
@@ -147,9 +131,6 @@ class InteraOneLoader {
           this.onIframeReady();
           break;
         case 'CLOSE_WIDGET':
-          if (this.fullscreenMode) {
-            break;
-          }
           this.ui.close();
           this.state.isOpen = false;
           break;
@@ -210,10 +191,9 @@ class InteraOneLoader {
         publicKey: this.api.getConfig().publicKey,
         apiUrl: this.api.getConfig().apiUrl!,
         visitorId: this.visitorId,
-        identity: this.identity ?? undefined,
         pageUrl: this.getCurrentPageUrl(),
         pageTitle: this.getCurrentPageTitle(),
-        source: this.api.getConfig().source || 'widget',
+        source: 'widget',
         appearance: this.appearance ?? undefined,
       },
     } as InitWidgetMessage);
@@ -284,32 +264,10 @@ class InteraOneLoader {
     else this.pendingMessages.push(msg);
   }
 
-  open() {
+  private open() {
     if (!this.isVisibleForCurrentPage) return;
     this.ui.open();
     this.state.isOpen = true;
-  }
-  close() { this.ui.close(); this.state.isOpen = false; }
-  toggle() {
-    if (!this.isVisibleForCurrentPage) return;
-    this.state.isOpen ? this.close() : this.open();
-  }
-
-  identify(userId: string, traits: Omit<StoredIdentity, 'userId'> = {}): void {
-    const identity: StoredIdentity = { userId, ...traits };
-    this.identity = identity;
-    if (this.allowHostDomAccess) setIdentity(identity);
-    this.queueOrSend({ type: 'USER_IDENTITY', version: PROTOCOL_VERSION, payload: identity } as UserIdentityMessage);
-  }
-
-  reset(): void {
-    this.identity = null;
-    if (this.allowHostDomAccess) clearIdentity();
-    this.queueOrSend({ type: 'USER_IDENTITY', version: PROTOCOL_VERSION, payload: {} } as UserIdentityMessage);
-  }
-
-  track(name: string, properties: Record<string, string | number | boolean> = {}): void {
-    this.queueOrSend({ type: 'CUSTOM_EVENT', version: PROTOCOL_VERSION, payload: { name, properties } } as CustomEventMessage);
   }
 
   private getCurrentPageUrl(): string {
@@ -333,9 +291,9 @@ class InteraOneLoader {
   }
 
   private shouldRenderForCurrentDevice(
-    behavior: WidgetAppearance["behavior"] | undefined,
+    behavior: NonNullable<WidgetServerConfig>["behavior"] | undefined,
   ): boolean {
-    if (!this.fullscreenMode && behavior?.showWidget === false) return false;
+    if (behavior?.showWidget === false) return false;
     if (!behavior) return true;
     if (this.isMobileView()) return behavior.showOnMobile !== false;
     return behavior.showOnDesktop !== false;
@@ -347,33 +305,10 @@ class InteraOneLoader {
     }
     return `v_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
   }
-
-  getState(): Readonly<WidgetState> { return { ...this.state }; }
-  destroy(): void {
-    for (const cleanup of this.cleanupCallbacks.splice(0).reverse()) {
-      cleanup();
-    }
-    this.ui.destroy();
-    widgetInstance = null;
-  }
 }
 
-let widgetInstance: InteraOneLoader | null = null;
-
 function boot(): void {
-  if (widgetInstance) return;
-  widgetInstance = new InteraOneLoader();
-
-  (window as any).InteraOne = {
-    open: () => widgetInstance?.open(),
-    close: () => widgetInstance?.close(),
-    toggle: () => widgetInstance?.toggle(),
-    identify: (id: string, t?: object) => widgetInstance?.identify(id, t as any),
-    reset: () => widgetInstance?.reset(),
-    track: (n: string, p?: object) => widgetInstance?.track(n, p as any),
-    getState: () => widgetInstance?.getState(),
-    destroy: () => { widgetInstance?.destroy(); widgetInstance = null; delete (window as any).InteraOne; },
-  };
+  new InteraOneLoader();
 }
 
 if (document.readyState === 'loading') {
