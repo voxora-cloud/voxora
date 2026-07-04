@@ -1,7 +1,7 @@
 import { state, API_BASE_URL, PROTO_VERSION } from './config';
 import { elements, addMessage, adjustTextareaHeight, hideWelcomeScreen, showTypingDots, removeTypingDots, formatHistoryDateTime, scrollToBottom } from './ui';
 import { makeAuthenticatedRequest, fetchMessagesFromBackend } from './api';
-import { initializeSocket } from './socket';
+import { initializeSocket, setAiResponding } from './socket';
 import { stripMarkdown } from './utils/markdown';
 
 function clearWidgetStateChrome() {
@@ -357,6 +357,7 @@ async function sendMessage() {
     return;
   }
 
+  setAiResponding(true);
   hideWelcomeScreen();
   addMessage(text, "user", state.userName || "You", "text");
   elements.messageInput.value = "";
@@ -416,6 +417,7 @@ async function sendMessage() {
       }
     } catch (error) {
       removeTypingDots();
+      setAiResponding(false);
       console.error("Error creating conversation:", error);
       if (elements.sendBtn) elements.sendBtn.disabled = false;
     }
@@ -438,6 +440,7 @@ async function sendMessage() {
     typingStop();
     setTimeout(() => { if (elements.sendBtn) elements.sendBtn.disabled = false; }, 1000);
   } else {
+    setAiResponding(false);
     if (elements.sendBtn) elements.sendBtn.disabled = false;
   }
 }
@@ -446,6 +449,7 @@ async function sendFormResponse(text: string) {
   if (state._aiResponding) return;
   if (!state.widgetToken) return;
 
+  setAiResponding(true);
   hideWelcomeScreen();
   addMessage(text, "user", state.userName || "You", "text");
   if (!state._escalationShown) showTypingDots(text);
@@ -498,6 +502,7 @@ async function sendFormResponse(text: string) {
       }
     } catch (error) {
       removeTypingDots();
+      setAiResponding(false);
       console.error("Error creating conversation:", error);
     }
     return;
@@ -517,6 +522,8 @@ async function sendFormResponse(text: string) {
       }
     });
     typingStop();
+  } else {
+    setAiResponding(false);
   }
 }
 

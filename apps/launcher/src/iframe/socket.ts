@@ -12,7 +12,7 @@ const STREAM_IDLE_WORD_FLUSH_CHARS = 20;
 
 type ConversationVisualState = 'human' | 'closed' | 'pending' | 'open';
 
-function setAiResponding(responding: boolean) {
+export function setAiResponding(responding: boolean) {
   state._aiResponding = responding;
   const inputArea = document.querySelector('.input-area') as HTMLElement | null;
   if (inputArea) inputArea.classList.toggle('is-disabled', responding);
@@ -45,7 +45,7 @@ function resetStreamState() {
   state._streamBubbleEl = null;
   state._streamText = "";
   state._streamRenderedText = "";
-  state._aiResponding = false;
+  setAiResponding(false);
 }
 
 // Track the current tool step element so we can complete it
@@ -302,41 +302,43 @@ function bindSocketEvents() {
     if (data.conversationId !== state.chatId) return;
     if (data.message?.metadata?.source === 'widget') return;
 
-    // ── AI response complete — re-enable input, clean up all loaders ──────
-    setAiResponding(false);
+    try {
+      if (data.message?.metadata?.source === 'system') {
+        removeTypingDots();
+        hideTyping();
+        addSystemNotice(data.message.content);
+        return;
+      }
 
-    if (data.message?.metadata?.source === 'system') {
-      removeTypingDots();
-      hideTyping();
-      addSystemNotice(data.message.content);
-      return;
-    }
+      if (data.message?.type === 'file' || data.message?.type === 'image') {
+        removeTypingDots();
+        hideTyping();
+        addMessage(data.message.content, 'agent', 'Support Agent', 'file');
+        return;
+      }
 
-    if (data.message?.type === 'file' || data.message?.type === 'image') {
-      removeTypingDots();
-      hideTyping();
-      addMessage(data.message.content, 'agent', 'Support Agent', 'file');
-      return;
-    }
+      if (state._streamBubbleEl) {
+        const responseContent = state._streamBubbleEl.querySelector('.response-content');
+        if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
 
-    if (state._streamBubbleEl) {
-      const responseContent = state._streamBubbleEl.querySelector('.response-content');
-      if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
-
-      removeTypingDots();
-      hideTyping();
-      removeToolStepsPanel();
-      resetStreamState();
-    } else if (state._toolStepsEl) {
-      // Tool steps panel exists but no stream bubble — replace with final answer
-      removeToolStepsPanel();
-      removeTypingDots();
-      hideTyping();
-      typeMessage(data.message.content);
-    } else {
-      removeTypingDots();
-      hideTyping();
-      typeMessage(data.message.content);
+        removeTypingDots();
+        hideTyping();
+        removeToolStepsPanel();
+        resetStreamState();
+      } else if (state._toolStepsEl) {
+        // Tool steps panel exists but no stream bubble — replace with final answer
+        removeToolStepsPanel();
+        removeTypingDots();
+        hideTyping();
+        typeMessage(data.message.content);
+      } else {
+        removeTypingDots();
+        hideTyping();
+        typeMessage(data.message.content);
+      }
+    } finally {
+      // new_message is the completion signal for both streamed and regular replies.
+      setAiResponding(false);
     }
   });
 

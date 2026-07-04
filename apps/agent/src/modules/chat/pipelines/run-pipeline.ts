@@ -341,6 +341,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
     // -- 3. Generate response ----------------------------------------------------
     let generatedText: string;
+    const pendingStreamPublishes: Promise<void>[] = [];
     try {
       // Capabilities are resolved from the registry — no string matching
       const provider = ProviderFactory.getLLMProvider();
@@ -373,7 +374,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
                   `[${cid}] ttft: ${ttftPipeline.toFixed(2)}ms (from request) | llm_ttft: ${ttftLlm.toFixed(2)}ms (from LLM start) (isThought=${isThought})`,
                 );
               }
-              publishStreamWithSeq({
+              const publish = publishStreamWithSeq({
                 conversationId,
                 messageId: job.messageId,
                 chunk,
@@ -381,10 +382,11 @@ export async function runPipeline(job: AIJobData): Promise<void> {
               }).catch((err) =>
                 console.error("[Pipeline] Stream publish failed:", err.message),
               );
+              pendingStreamPublishes.push(publish);
             }
           : undefined,
         onToolEvent: (event) => {
-          publishStreamWithSeq({
+          const publish = publishStreamWithSeq({
             conversationId,
             messageId: job.messageId,
             chunk: "",
@@ -393,8 +395,10 @@ export async function runPipeline(job: AIJobData): Promise<void> {
           }).catch((err) =>
             console.error("[Pipeline] Tool event publish failed:", err.message),
           );
+          pendingStreamPublishes.push(publish);
         },
       });
+      await Promise.all(pendingStreamPublishes);
       console.timeEnd(t("llm"));
       console.timeEnd(t("agent"));
 
@@ -405,6 +409,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
       }
     } catch (providerErr) {
       console.error("[Pipeline] LLM provider threw an error:", providerErr);
+      await Promise.all(pendingStreamPublishes);
       const canEscalate = job.fallbackToAgent !== false;
       const fallback =
         "I'm sorry - I'm having trouble connecting right now. Please try again in a moment." +
