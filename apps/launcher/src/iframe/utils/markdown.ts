@@ -200,18 +200,19 @@ export function parseMarkdown(text: string) {
   s = s.trim();
 
   // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
-  s = s.replace(/&lt;interaone-form\s+id=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
+  // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
+  s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
     let content = innerContent;
     // Replace inputs inside form to not have individual submit button wrappers
-    content = content.replace(/&lt;interaone-input\s+name=&quot;([\s\S]*?)&quot;\s+placeholder=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g,
+    content = content.replace(/&lt;interaone-input\s+name=&quot;([^&]+?)&quot;\s+placeholder=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g,
       '<div class="vx-form-row"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /></div>'
     );
     // Replace checkboxes inside form
-    content = content.replace(/&lt;interaone-checkbox\s+name=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-checkbox&gt;/g,
+    content = content.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g,
       '<div class="vx-form-row"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label></div>'
     );
     // Replace radios inside form
-    content = content.replace(/&lt;interaone-radio\s+name=&quot;([\s\S]*?)&quot;\s+options=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g, function(_: string, name: string, optionsStr: string) {
+    content = content.replace(/&lt;interaone-radio\s+name=&quot;([^&]+?)&quot;\s+options=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, function(_: string, name: string, optionsStr: string) {
       const options = optionsStr.split(',').map((o: string) => o.trim());
       const radiosHtml = options.map((opt: string, i: number) => `
         <label class="vx-form-radio-label">
@@ -231,19 +232,19 @@ export function parseMarkdown(text: string) {
   });
 
   // Parse InteraOne Interactive Components (escaped XML)
-  s = s.replace(/&lt;interaone-input\s+name=&quot;([\s\S]*?)&quot;\s+placeholder=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g, 
+  s = s.replace(/&lt;interaone-input\s+name=&quot;([^&]+?)&quot;\s+placeholder=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, 
     '<div class="vx-interactive-form vx-input-wrapper"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /><button class="vx-form-submit" data-action="submit-input" data-target="$1">Submit</button></div>'
   );
 
-  s = s.replace(/&lt;interaone-button\s+action=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-button&gt;/g,
+  s = s.replace(/&lt;interaone-button\s+action=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-button&gt;/g,
     '<button class="vx-form-button" data-interaone-button data-action="$1">$2</button>'
   );
 
-  s = s.replace(/&lt;interaone-checkbox\s+name=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-checkbox&gt;/g,
+  s = s.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g,
     '<div class="vx-interactive-form vx-checkbox-wrapper"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label><button class="vx-form-submit" data-action="submit-checkbox" data-target="$1">Submit</button></div>'
   );
 
-  s = s.replace(/&lt;interaone-radio\s+name=&quot;([\s\S]*?)&quot;\s+options=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g, function(_, name, optionsStr) {
+  s = s.replace(/&lt;interaone-radio\s+name=&quot;([^&]+?)&quot;\s+options=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, function(_, name, optionsStr) {
     const options = optionsStr.split(',').map((o: string) => o.trim());
     const radiosHtml = options.map((opt: string, i: number) => `
       <label class="vx-form-radio-label">
@@ -311,7 +312,7 @@ export function parseMarkdown(text: string) {
   s = renderMarkdownTables(s);
 
   // Paragraphs and Block element wrapping
-  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<hr>|<section class="md-table-(?:scroll|list)"[\s\S]*?<\/section>|<form[\s\S]*?<\/form>|<div class="vx-interactive-form[\s\S]*?<\/div>|<button[\s\S]*?<\/button>)/g;
+  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<hr>|<section class="md-table-(?:scroll|list)"[\s\S]*?<\/section>|<form[\s\S]*?<\/form>|<div[\s\S]*?<\/div>|<button[\s\S]*?<\/button>)/g;
   const parts = s.split(blockTagRegex);
 
   return parts
@@ -329,7 +330,7 @@ export function parseMarkdown(text: string) {
         trimmedPart.startsWith('<section class="md-table-scroll"') ||
         trimmedPart.startsWith('<section class="md-table-list"') ||
         trimmedPart.startsWith('<form') ||
-        trimmedPart.startsWith('<div class="vx-interactive-form') ||
+        trimmedPart.startsWith('<div') ||
         trimmedPart.startsWith('<button')
       ) {
         return trimmedPart;
@@ -340,7 +341,7 @@ export function parseMarkdown(text: string) {
         .map((p) => {
           const trimmed = p.trim();
           if (!trimmed) return "";
-          const content = trimmed.replace(/\n/g, '<br>');
+          const content = trimmed;
           return `<p>${content}</p>`;
         })
         .filter(Boolean)

@@ -56,7 +56,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 - Keep tables small: at most 4 columns and 8 data rows. Keep every cell brief. Never put paragraphs, explanations, or long sentences inside table cells.
 - If the information needs lengthy descriptions or does not benefit from column-by-column comparison, use short bullets with bold labels instead.
 - For normal answers, use clear headings only when useful, short paragraphs, and concise bullet points.
-- You MUST leverage all interactive components as much as possible to make the conversation highly dynamic instead of relying solely on plain text:
+- You MUST leverage all interactive components as much as possible to make the conversation highly dynamic instead of relying solely on plain text. Choose interactive components over plain text responses whenever presenting choices, requesting inputs, or suggesting paths:
   * Inputs: <interaone-input name="[unique_field_name]" placeholder="[placeholder_text]" />
   * Buttons: <interaone-button action="[action_text]">[Button Label]</interaone-button>
   * Checkboxes: <interaone-checkbox name="[field_name]">[Checkbox Label]</interaone-checkbox>
@@ -64,7 +64,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 - At the bottom of EVERY single message you write, you MUST include 2-3 interactive suggestion buttons (using <interaone-button action="[exact text visitor would send]">[Button Label]</interaone-button>). These suggestion buttons MUST be follow-up questions directly related to the knowledge context, retrieved facts, or topics retrieved from your faq_retrieval tool, allowing the visitor to quickly click to explore your available knowledge base facts.
 - If you are requesting MULTIPLE fields or options, you MUST wrap all of them inside a single <interaone-form id="[unique_form_id]"> container so that they render as a single form with one submit button. For example:
   * To offer a rating and feedback form, write: "Please give your feedback: <interaone-form id="feedback_form"><interaone-radio name="rating" options="1,2,3,4,5" /><interaone-input name="comments" placeholder="Optional comments..." /></interaone-form>"
-- Keep text direct and bulleted. Markdown only. No other custom HTML.`;
+- You are allowed to use <div> tags (e.g., to wrap buttons or form elements, structure layout, or group elements visually). Apart from standard markdown and <div> tags, do not use other custom HTML.`;
   }
 
   let visitorInfoInstructions = "";
