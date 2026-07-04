@@ -41,6 +41,18 @@ router.get(
   ConversationController.aiGetMemory,
 );
 
+router.post(
+  "/ai/close-inactive",
+  validateAiSecret,
+  ConversationController.aiCloseInactiveConversations,
+);
+
+router.get(
+  "/ai/pending-analysis",
+  validateAiSecret,
+  ConversationController.aiGetPendingAnalysisConversations,
+);
+
 /**
  * @openapi
  * /conversations/ai/{conversationId}/gate:

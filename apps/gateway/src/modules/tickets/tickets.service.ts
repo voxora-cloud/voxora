@@ -190,8 +190,62 @@ export class TicketsService {
 
     if (!ticket) return null;
 
+    // Fetch full contact profile + conversations
+    let contactProfile: {
+      id: string;
+      name: string | null;
+      email: string | null;
+      phone: string | null;
+      company: string | null;
+      tags: string[];
+      conversations: Array<{
+        id: string;
+        status: string;
+        lastMessage: string;
+        updatedAt: string;
+      }>;
+    } | null = null;
+
+    if (ticket.contactId) {
+      const contact = await Contact.findOne({
+        _id: ticket.contactId,
+        organizationId: ticket.organizationId,
+      })
+        .select("name email phone company tags sessionId")
+        .lean();
+
+      if (contact) {
+        // Fetch all conversations for this contact by sessionId
+        const convDocs = contact.sessionId
+          ? await Conversation.find({
+              organizationId: ticket.organizationId,
+              "visitor.sessionId": contact.sessionId,
+            })
+              .select("status subject updatedAt")
+              .sort({ updatedAt: -1 })
+              .limit(20)
+              .lean()
+          : [];
+
+        contactProfile = {
+          id: contact._id.toString(),
+          name: contact.name || null,
+          email: contact.email || null,
+          phone: contact.phone || null,
+          company: contact.company || null,
+          tags: contact.tags || [],
+          conversations: convDocs.map((c: any) => ({
+            id: c._id.toString(),
+            status: c.status,
+            lastMessage: c.subject || "No preview available",
+            updatedAt: c.updatedAt?.toISOString?.() ?? "",
+          })),
+        };
+      }
+    }
+
     const requesterContact = await this.getRequesterContact(ticket);
-    return this.formatTicket(ticket, { requesterContact });
+    return this.formatTicket(ticket, { requesterContact, contactProfile });
   }
 
   // ─── Update ────────────────────────────────────────────────────────────────
@@ -335,6 +389,20 @@ export class TicketsService {
         email: string | null;
         phone: string | null;
       };
+      contactProfile?: {
+        id: string;
+        name: string | null;
+        email: string | null;
+        phone: string | null;
+        company: string | null;
+        tags: string[];
+        conversations: Array<{
+          id: string;
+          status: string;
+          lastMessage: string;
+          updatedAt: string;
+        }>;
+      } | null;
     } = {},
   ) {
     return {
@@ -367,6 +435,7 @@ export class TicketsService {
       resolvedAt: ticket.resolvedAt || null,
       closedAt: ticket.closedAt || null,
       requesterContact: options.requesterContact,
+      contactProfile: options.contactProfile ?? null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
     };

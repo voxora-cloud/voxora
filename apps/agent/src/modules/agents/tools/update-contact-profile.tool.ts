@@ -37,12 +37,6 @@ export class UpdateContactProfileTool implements Tool {
       description: "Internal AI note summarizing actionable context.",
       required: false,
     },
-    status: {
-      type: "string",
-      description: "Contact status classification.",
-      required: false,
-      enum: ["active", "inactive", "blocked"],
-    },
     sentiment: {
       type: "string",
       description: "Overall customer sentiment inferred by AI.",
@@ -59,16 +53,6 @@ export class UpdateContactProfileTool implements Tool {
       description: "Key topics extracted by AI from conversation.",
       required: false,
       items: { type: "string" },
-    },
-    timelineLabel: {
-      type: "string",
-      description: "Timeline event label to append.",
-      required: false,
-    },
-    timelineDetail: {
-      type: "string",
-      description: "Timeline event optional detail.",
-      required: false,
     },
     organizationId: {
       type: "string",
@@ -90,12 +74,6 @@ export class UpdateContactProfileTool implements Tool {
       const company = typeof args.company === "string" ? args.company.trim() : "";
       const note = typeof args.note === "string" ? args.note.trim() : "";
       const summary = typeof args.summary === "string" ? args.summary.trim() : "";
-      const timelineLabel = typeof args.timelineLabel === "string" ? args.timelineLabel.trim() : "";
-      const timelineDetail = typeof args.timelineDetail === "string" ? args.timelineDetail.trim() : "";
-      const status =
-        typeof args.status === "string" && ["active", "inactive", "blocked"].includes(args.status)
-          ? (args.status as "active" | "inactive" | "blocked")
-          : undefined;
       const sentiment =
         typeof args.sentiment === "string" && ["positive", "neutral", "negative"].includes(args.sentiment)
           ? (args.sentiment as "positive" | "neutral" | "negative")
@@ -107,7 +85,7 @@ export class UpdateContactProfileTool implements Tool {
         ? args.topics.map((topic) => String(topic || "").trim()).filter(Boolean)
         : [];
 
-      if (!name && !email && !phone && !company && tags.length === 0 && !note && !sentiment && !summary && topics.length === 0 && !timelineLabel) {
+      if (!name && !email && !phone && !company && tags.length === 0 && !note && !sentiment && !summary && topics.length === 0) {
         throw new Error("At least one contact field is required");
       }
 
@@ -133,12 +111,9 @@ export class UpdateContactProfileTool implements Tool {
         ...(company ? { company } : {}),
         ...(tags.length > 0 ? { tags } : {}),
         ...(note ? { note } : {}),
-        ...(status ? { status } : {}),
         ...(sentiment ? { sentiment } : {}),
         ...(summary ? { summary } : {}),
         ...(topics.length > 0 ? { topics } : {}),
-        ...(timelineLabel ? { timelineLabel } : {}),
-        ...(timelineDetail ? { timelineDetail } : {}),
       });
 
       return {

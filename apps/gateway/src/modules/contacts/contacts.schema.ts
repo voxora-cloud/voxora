@@ -15,11 +15,29 @@ export const contactsSchema = {
     company: Joi.string().trim().max(120),
     tags: Joi.array().items(Joi.string().trim().max(50)).max(20),
     note: Joi.string().trim().max(2000),
-    status: Joi.string().valid("active", "inactive", "blocked"),
     sentiment: Joi.string().valid("positive", "neutral", "negative"),
     summary: Joi.string().trim().max(4000),
     topics: Joi.array().items(Joi.string().trim().max(80)).max(20),
-    timelineLabel: Joi.string().trim().max(200),
-    timelineDetail: Joi.string().trim().max(2000),
+  }),
+
+  deleteContacts: Joi.object({
+    ids: Joi.array().items(Joi.string().required()).min(1).required(),
+  }),
+
+  bulkAddTags: Joi.object({
+    ids: Joi.array().items(Joi.string().required()).min(1).required(),
+    tags: Joi.array().items(Joi.string().trim().max(50).required()).min(1).required(),
+  }),
+
+  addNote: Joi.object({
+    content: Joi.string().trim().max(2000).required(),
+  }),
+
+  addTag: Joi.object({
+    tag: Joi.string().trim().max(50).required(),
+  }),
+
+  resolveConflict: Joi.object({
+    action: Joi.string().valid("apply", "dismiss").required(),
   }),
 };

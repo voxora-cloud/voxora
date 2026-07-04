@@ -3,7 +3,7 @@ import { IChannelStrategy } from "./IChannelStrategy";
 import { EmailChannelStrategy } from "../strategies/EmailChannelStrategy";
 import { WhatsAppChannelStrategy } from "../strategies/WhatsAppChannelStrategy";
 import { TelegramChannelStrategy } from "../strategies/TelegramChannelStrategy";
-import { SesAdapter } from "../adapters/SesAdapter";
+import { EmailProviderAdapterFactory } from "../adapters/EmailProviderAdapterFactory";
 
 /**
  * Factory Pattern: creates the correct IChannelStrategy for a given channel type.
@@ -17,7 +17,7 @@ export class ChannelStrategyFactory {
   static create(type: ChannelType): IChannelStrategy {
     switch (type) {
       case "email":
-        return new EmailChannelStrategy(new SesAdapter());
+        return new EmailChannelStrategy(EmailProviderAdapterFactory.create());
 
       case "whatsapp":
         return new WhatsAppChannelStrategy();

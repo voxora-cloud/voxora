@@ -2872,9 +2872,29 @@ body {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin: 6px 0;
+  margin: 6px 8px 6px 0;
   width: fit-content;
 }
+
+.vx-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.vx-form-row {
+  width: 100%;
+}
+
+/* Ensure vertical space between adjacent interactive forms or buttons */
+.vx-interactive-form + .vx-interactive-form,
+.vx-interactive-form + .vx-form-button,
+.vx-form-button + .vx-interactive-form {
+  margin-top: 12px;
+}
+
 
 .vx-form-button:hover {
   background: var(--vx-accent);

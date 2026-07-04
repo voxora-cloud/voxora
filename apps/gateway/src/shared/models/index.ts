@@ -6,7 +6,7 @@ export { Message, IMessage } from "./Message";
 export { Widget, IWidget } from "./Widget";
 export { Knowledge, IKnowledge } from "./Knowledge";
 export { EmailTemplate, IEmailTemplate, EmailTemplateType } from "./EmailTemplate";
-export { Contact, IContact, ContactStatus, ContactSource } from "./Contact";
+export { Contact, IContact, ContactSource } from "./Contact";
 export { BillingWebhookEvent, IBillingWebhookEvent } from "./BillingWebhookEvent";
 export { BillingCheckoutIntent, IBillingCheckoutIntent } from "./BillingCheckoutIntent";
 export { UsageRecord, IUsageRecord } from "./UsageRecord";
@@ -15,4 +15,5 @@ export { Notification, INotification } from "./Notification";
 export { SystemEvent, ISystemEvent, EventCategory } from "./SystemEvent";
 export { Ticket, ITicket, TicketStatus, TicketPriority, TicketSource } from "./Ticket";
 export { Channel, IChannel, ChannelType, ChannelVerificationStatus, IDnsRecord, IEmailChannelConfig, IChannelConfig } from "./Channel";
+export { ContactConflict, IContactConflict } from "./ContactConflict";
 

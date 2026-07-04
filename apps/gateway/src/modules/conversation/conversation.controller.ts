@@ -341,3 +341,14 @@ export const getAgentRuns = asyncHandler(async (req: Request, res: Response) => 
   const runs = await conversationService.getAgentRuns(orgId, conversationId);
   sendResponse(res, 200, true, "Agent runs fetched successfully", runs);
 });
+
+export const aiCloseInactiveConversations = asyncHandler(async (req: Request, res: Response) => {
+  const { inactivityLimitMs } = req.body;
+  const result = await conversationService.closeInactiveConversations(inactivityLimitMs);
+  sendResponse(res, 200, true, "Inactive conversations scanned and closed", result);
+});
+
+export const aiGetPendingAnalysisConversations = asyncHandler(async (req: Request, res: Response) => {
+  const result = await conversationService.getPendingAnalysisConversations();
+  sendResponse(res, 200, true, "Pending analysis conversations fetched successfully", result);
+});
