@@ -1,14 +1,27 @@
 import { Types } from "mongoose";
+import {
+  Conversation,
+  Message,
+  User,
+  Membership,
+  SystemEvent,
+} from "@shared/models";
 import { Conversation, Message, User, Membership, SystemEvent, Ticket } from "@shared/models";
 import logger from "@shared/core/logger";
-import { ListConversationsOptions, UpdateVisitorInfoInput, RouteConversationInput } from "./conversation.types";
+import {
+  ListConversationsOptions,
+  UpdateVisitorInfoInput,
+  RouteConversationInput,
+} from "./conversation.types";
 
 export class ConversationService {
-
   /**
    * Get all conversations for an organization (filtered by status/agent)
    */
-  async getConversations(organizationId: string, options: ListConversationsOptions) {
+  async getConversations(
+    organizationId: string,
+    options: ListConversationsOptions,
+  ) {
     const { status, limit = 50, offset = 0, assignedTo } = options;
 
     const filter: any = { organizationId };
@@ -107,21 +120,27 @@ export class ConversationService {
       };
     });
 
-    return { conversations: conversationsWithMeta, total: conversations.length };
+    return {
+      conversations: conversationsWithMeta,
+      total: conversations.length,
+    };
   }
 
   /**
    * Get a specific conversation with all messages (validates org ownership)
    */
   async getConversationById(organizationId: string, conversationId: string) {
-    const conversation = await Conversation.findOne({ _id: conversationId, organizationId }).lean();
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      organizationId,
+    }).lean();
     if (!conversation) return null;
 
-    const messages = await Message.find({ conversationId, organizationId }).sort({ createdAt: 1 }).lean();
+    const messages = await Message.find({ conversationId, organizationId })
+      .sort({ createdAt: 1 })
+      .lean();
     return { conversation, messages };
   }
-
-
 
   async updateVisitorInfo(
     organizationId: string,
@@ -130,9 +149,13 @@ export class ConversationService {
     existingSessionId?: string,
   ) {
     const { name, email, sessionId } = data;
-    const conversation = await Conversation.findOne({ _id: conversationId, organizationId });
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      organizationId,
+    });
     if (!conversation) return { found: false };
-    if (sessionId && conversation.visitor?.sessionId !== sessionId) return { found: true, validSession: false };
+    if (sessionId && conversation.visitor?.sessionId !== sessionId)
+      return { found: true, validSession: false };
 
     const updateData: any = {};
     if (name) updateData["visitor.name"] = name;
@@ -142,10 +165,19 @@ export class ConversationService {
       updateData["visitor.providedInfoAt"] = new Date();
     }
 
-    await Conversation.findByIdAndUpdate(conversationId, { $set: updateData }, { new: true });
+    await Conversation.findByIdAndUpdate(
+      conversationId,
+      { $set: updateData },
+      { new: true },
+    );
     await Message.updateMany(
       { conversationId, organizationId, "metadata.source": "widget" },
-      { $set: { "metadata.senderName": name || conversation.visitor?.name, "metadata.senderEmail": email || conversation.visitor?.email } },
+      {
+        $set: {
+          "metadata.senderName": name || conversation.visitor?.name,
+          "metadata.senderEmail": email || conversation.visitor?.email,
+        },
+      },
     );
 
     return { found: true, validSession: true };
@@ -155,20 +187,30 @@ export class ConversationService {
    * Auto-assign conversation to a team/agent within the org.
    * Priority: online agents -> online admins -> null (no one online).
    */
-  async autoAssignConversation(organizationId: string): Promise<{ agentId: string | null }> {
+  async autoAssignConversation(
+    organizationId: string,
+  ): Promise<{ agentId: string | null }> {
     try {
       const onlineStatuses = ["online", "away"];
       const baseFilter = { organizationId, inviteStatus: "active" as const };
 
-      const pickLeastBusy = async (memberships: any[]): Promise<string | null> => {
+      const pickLeastBusy = async (
+        memberships: any[],
+      ): Promise<string | null> => {
         const online = memberships.filter(
-          (m) => (m.userId as any)?.isActive && onlineStatuses.includes((m.userId as any)?.status),
+          (m) =>
+            (m.userId as any)?.isActive &&
+            onlineStatuses.includes((m.userId as any)?.status),
         );
         if (online.length === 0) return null;
         const withLoad = await Promise.all(
           online.map(async (m) => {
             const userId = (m.userId as any)._id;
-            const load = await Conversation.countDocuments({ organizationId, assignedTo: userId, status: { $in: ["open", "pending"] } });
+            const load = await Conversation.countDocuments({
+              organizationId,
+              assignedTo: userId,
+              status: { $in: ["open", "pending"] },
+            });
             return { agentId: userId.toString(), load };
           }),
         );
@@ -177,21 +219,32 @@ export class ConversationService {
       };
 
       // 1. Try agents first
-      const agentMembers = await Membership.find({ ...baseFilter, role: "agent" }).populate("userId", "name email status isActive");
+      const agentMembers = await Membership.find({
+        ...baseFilter,
+        role: "agent",
+      }).populate("userId", "name email status isActive");
       const agentId = await pickLeastBusy(agentMembers);
       if (agentId) return { agentId };
 
       // 2. No agents online — try admins
-      const adminMembers = await Membership.find({ ...baseFilter, role: "admin" }).populate("userId", "name email status isActive");
+      const adminMembers = await Membership.find({
+        ...baseFilter,
+        role: "admin",
+      }).populate("userId", "name email status isActive");
       const adminId = await pickLeastBusy(adminMembers);
       if (adminId) return { agentId: adminId };
 
       // 3. No admins online — try owners
-      const ownerMembers = await Membership.find({ ...baseFilter, role: "owner" }).populate("userId", "name email status isActive");
+      const ownerMembers = await Membership.find({
+        ...baseFilter,
+        role: "owner",
+      }).populate("userId", "name email status isActive");
       const ownerId = await pickLeastBusy(ownerMembers);
       if (ownerId) return { agentId: ownerId };
 
-      logger.warn(`[AutoAssign] No online members for org ${organizationId} — skipping assignment`);
+      logger.warn(
+        `[AutoAssign] No online members for org ${organizationId} — skipping assignment`,
+      );
       return { agentId: null };
     } catch (error: any) {
       logger.error(`Error in auto-assignment: ${error.message}`);
@@ -206,7 +259,10 @@ export class ConversationService {
     routedBy: string,
   ) {
     const { agentId, reason } = data;
-    const conversation = await Conversation.findOne({ _id: conversationId, organizationId });
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      organizationId,
+    });
     if (!conversation) return { found: false };
 
     const agent = await User.findById(agentId).select("name email");
@@ -228,16 +284,36 @@ export class ConversationService {
       { new: true },
     ).populate("assignedTo", "name email");
 
-    return { found: true, noAgent: false, agentNotFound: false, updatedConversation, selectedAgentId: agentId, agentName: agent?.name, agentEmail: (agent as any)?.email, originalConversation: conversation };
+    return {
+      found: true,
+      noAgent: false,
+      agentNotFound: false,
+      updatedConversation,
+      selectedAgentId: agentId,
+      agentName: agent?.name,
+      agentEmail: (agent as any)?.email,
+      originalConversation: conversation,
+    };
   }
 
-  async updateConversationStatus(organizationId: string, conversationId: string, status: string, updatedBy: string) {
+  async updateConversationStatus(
+    organizationId: string,
+    conversationId: string,
+    status: string,
+    updatedBy: string,
+  ) {
     const validStatuses = ["open", "pending", "closed", "resolved"];
     if (!validStatuses.includes(status)) return { valid: false };
 
     const conversation = await Conversation.findOneAndUpdate(
       { _id: conversationId, organizationId },
-      { $set: { status, "metadata.statusUpdatedBy": updatedBy, "metadata.statusUpdatedAt": new Date() } },
+      {
+        $set: {
+          status,
+          "metadata.statusUpdatedBy": updatedBy,
+          "metadata.statusUpdatedAt": new Date(),
+        },
+      },
       { new: true },
     );
 
@@ -254,7 +330,12 @@ export class ConversationService {
   async getConversationGate(organizationId: string, conversationId: string) {
     const conv = await Conversation.findOne(
       { _id: conversationId, organizationId },
-      { status: 1, assignedTo: 1, "metadata.escalatedAt": 1, "metadata.humanJoinedAt": 1 },
+      {
+        status: 1,
+        assignedTo: 1,
+        "metadata.escalatedAt": 1,
+        "metadata.humanJoinedAt": 1,
+      },
     ).lean();
 
     if (!conv) return null;
@@ -282,7 +363,9 @@ export class ConversationService {
     conversationId: string,
     resolutionEntry: Record<string, unknown>,
   ) {
-    const resolvedAt = resolutionEntry.resolvedAt ? new Date(resolutionEntry.resolvedAt as string) : new Date();
+    const resolvedAt = resolutionEntry.resolvedAt
+      ? new Date(resolutionEntry.resolvedAt as string)
+      : new Date();
 
     const result = await Conversation.updateOne(
       { _id: conversationId, organizationId },
@@ -301,7 +384,11 @@ export class ConversationService {
   /**
    * Fetch recent conversation messages and visitor info for AI memory context.
    */
-  async getConversationMemory(organizationId: string, conversationId: string, limit = 10) {
+  async getConversationMemory(
+    organizationId: string,
+    conversationId: string,
+    limit = 10,
+  ) {
     const [messages, conversation] = await Promise.all([
       Message.find({ conversationId, organizationId })
         .sort({ createdAt: -1 })
@@ -313,18 +400,23 @@ export class ConversationService {
     ]);
 
     const memory = messages.reverse().map((m) => ({
+      messageId: m._id.toString(),
       role: m.metadata?.source === "widget" ? "user" : "assistant",
       content: m.content,
       senderName: m.metadata?.senderName || null,
       timestamp: m.createdAt,
     }));
 
-    const visitorName = conversation?.visitor?.name && conversation.visitor.name !== "Anonymous User"
-      ? conversation.visitor.name
-      : null;
-    const visitorEmail = conversation?.visitor?.email && conversation.visitor.email !== "anonymous@temp.local"
-      ? conversation.visitor.email
-      : null;
+    const visitorName =
+      conversation?.visitor?.name &&
+      conversation.visitor.name !== "Anonymous User"
+        ? conversation.visitor.name
+        : null;
+    const visitorEmail =
+      conversation?.visitor?.email &&
+      conversation.visitor.email !== "anonymous@temp.local"
+        ? conversation.visitor.email
+        : null;
 
     return { memory, visitor: { name: visitorName, email: visitorEmail } };
   }
@@ -351,11 +443,13 @@ export class ConversationService {
       latencyMs: payload.duration,
       success: payload.status === "success",
       error: payload.error,
-      tokens: payload.usage ? {
-        prompt: payload.usage.promptTokens,
-        completion: payload.usage.completionTokens,
-        total: payload.usage.totalTokens,
-      } : undefined,
+      tokens: payload.usage
+        ? {
+            prompt: payload.usage.promptTokens,
+            completion: payload.usage.completionTokens,
+            total: payload.usage.totalTokens,
+          }
+        : undefined,
       metadata: {
         steps: payload.steps,
       },
@@ -384,11 +478,13 @@ export class ConversationService {
       duration: e.latencyMs || 0,
       status: e.success ? "success" : "failed",
       error: e.error,
-      usage: e.tokens ? {
-        promptTokens: e.tokens.prompt,
-        completionTokens: e.tokens.completion,
-        totalTokens: e.tokens.total,
-      } : undefined,
+      usage: e.tokens
+        ? {
+            promptTokens: e.tokens.prompt,
+            completionTokens: e.tokens.completion,
+            totalTokens: e.tokens.total,
+          }
+        : undefined,
       createdAt: e.createdAt,
       updatedAt: e.createdAt,
     }));
