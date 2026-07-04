@@ -220,7 +220,9 @@ export class OpenAILLMProvider implements LLMProvider {
                 .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
                 .replace(/<\/?(?:thinking|thought)>/gi, "");
 
-              if (cleanText.trim()) {
+              // Whitespace-only deltas are meaningful boundaries between
+              // tokens/paragraphs and must remain in the visible stream.
+              if (cleanText.length > 0) {
                 onStream(cleanText, false);
               }
             }

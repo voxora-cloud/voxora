@@ -5,10 +5,6 @@ import { parseMarkdown } from './utils/markdown';
 
 let authRetryCount = 0;
 const MAX_AUTH_RETRIES = 3;
-const STREAM_BOUNDARY_FLUSH_MS = 400;
-const STREAM_SENTENCE_MIN_CHARS = 40;
-const STREAM_LONG_PARAGRAPH_CHARS = 160;
-const STREAM_IDLE_WORD_FLUSH_CHARS = 20;
 
 type ConversationVisualState = 'human' | 'closed' | 'pending' | 'open';
 
@@ -34,104 +30,38 @@ function getStateBanner(): HTMLElement | null {
   return document.getElementById('conversationStateBanner');
 }
 
-function clearStreamFlushTimer() {
-  if (!state._streamFlushTimer) return;
-  clearTimeout(state._streamFlushTimer as number);
-  state._streamFlushTimer = null;
-}
-
 function resetStreamState() {
-  clearStreamFlushTimer();
   state._streamBubbleEl = null;
-  state._streamText = "";
-  state._streamRenderedText = "";
+  state._streamMessageId = null;
   setAiResponding(false);
 }
 
 // Track the current tool step element so we can complete it
 let _currentToolStepEl: HTMLElement | null = null;
 
-function getNextStreamFlushText(force = false) {
-  if (force) return state._streamText;
+function createStreamingMessage(messageId: string) {
+  const element = document.createElement('div');
+  element.className = 'message agent';
+  element.dataset.messageId = messageId;
+  element.dataset.status = 'streaming';
+  element.innerHTML = `
+    ${renderAgentResponseIcon()}
+    <div class="message-bubble" style="min-width: 250px;">
+      <div class="response-content md"></div>
+      <div class="message-time"></div>
+    </div>`;
 
-  const renderedLength = state._streamRenderedText.length;
-  const pending = state._streamText.slice(renderedLength);
-  if (!pending) return state._streamRenderedText;
-
-  const paragraphMatch = pending.match(/\n\s*\n/);
-  if (paragraphMatch?.index !== undefined) {
-    const end = renderedLength + paragraphMatch.index + paragraphMatch[0].length;
-    return state._streamText.slice(0, end);
-  }
-
-  if (pending.length >= STREAM_SENTENCE_MIN_CHARS) {
-    const sentenceMatches = Array.from(pending.matchAll(/[.!?]["')\]]?\s+/g));
-    const lastSentence = sentenceMatches[sentenceMatches.length - 1];
-    if (lastSentence?.index !== undefined) {
-      const end = renderedLength + lastSentence.index + lastSentence[0].length;
-      return state._streamText.slice(0, end);
-    }
-  }
-
-  if (pending.length >= STREAM_LONG_PARAGRAPH_CHARS) {
-    const lastSpace = pending.lastIndexOf(' ');
-    const end = renderedLength + (lastSpace > 0 ? lastSpace + 1 : pending.length);
-    return state._streamText.slice(0, end);
-  }
-
-  return state._streamRenderedText;
-}
-
-function getIdleStreamFlushText() {
-  const boundaryText = getNextStreamFlushText(false);
-  if (boundaryText !== state._streamRenderedText) return boundaryText;
-
-  const renderedLength = state._streamRenderedText.length;
-  const pending = state._streamText.slice(renderedLength);
-  if (pending.length < STREAM_IDLE_WORD_FLUSH_CHARS) return state._streamRenderedText;
-
-  const lastSpace = pending.lastIndexOf(' ');
-  if (lastSpace <= 0) return state._streamRenderedText;
-  return state._streamText.slice(0, renderedLength + lastSpace + 1);
-}
-
-function renderStreamingText(text: string): string {
-  // During streaming, render plain text only — no markdown parsing.
-  // Running the full markdown parser on partial chunks causes regex
-  // patterns (bold, italic, lists) to partially match mid-word and
-  // reorder/scramble text until the next chunk arrives and "fixes" it.
-  // The full parseMarkdown() is called on stream_end with the complete text.
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/\n/g, '<br>');
-}
-
-function flushStreamContent(force = false, idle = false) {
-  if (!state._streamBubbleEl) return;
-
-  const nextText = idle && !force ? getIdleStreamFlushText() : getNextStreamFlushText(force);
-  if (nextText === state._streamRenderedText && !force) return;
-
-  state._streamRenderedText = nextText;
-  const responseContent = state._streamBubbleEl.querySelector('.response-content');
-
-  // Use plain-text rendering during streaming to prevent mid-stream word scrambling.
-  // stream_end will replace this with the fully parsed markdown output.
-  if (responseContent) responseContent.innerHTML = renderStreamingText(state._streamRenderedText);
-
-  scrollToBottom();
-}
-
-function scheduleStreamFlush() {
-  clearStreamFlushTimer();
-  state._streamFlushTimer = setTimeout(() => {
-    state._streamFlushTimer = null;
-    flushStreamContent(false, true);
-    if (state._streamRenderedText !== state._streamText) scheduleStreamFlush();
-  }, STREAM_BOUNDARY_FLUSH_MS) as unknown as number;
+  const stream = {
+    content: '',
+    element,
+    lastSequence: 0,
+    status: 'streaming' as const,
+  };
+  state._streamMessages.set(messageId, stream);
+  state._streamMessageId = messageId;
+  state._streamBubbleEl = element;
+  elements.messagesContainer?.appendChild(element);
+  return stream;
 }
 
 function removeStateBanner() {
@@ -193,6 +123,8 @@ function resetConversationToNew() {
   state.isConnected = false;
   state._escalationShown = false;
   resetStreamState();
+  state._streamMessages.clear();
+  state._completedStreamMessageIds.clear();
 
   if (elements.messagesContainer) {
     elements.messagesContainer.innerHTML = '';
@@ -301,6 +233,10 @@ function bindSocketEvents() {
   socket.on('new_message', (data: any) => {
     if (data.conversationId !== state.chatId) return;
     if (data.message?.metadata?.source === 'widget') return;
+    const finalStreamMessageId = data.streamMessageId ? String(data.streamMessageId) : null;
+    if (finalStreamMessageId) {
+      state._completedStreamMessageIds.add(finalStreamMessageId);
+    }
 
     try {
       if (data.message?.metadata?.source === 'system') {
@@ -318,8 +254,17 @@ function bindSocketEvents() {
       }
 
       if (state._streamBubbleEl) {
+        const streamId = finalStreamMessageId || state._streamMessageId;
+        const stream = streamId ? state._streamMessages.get(streamId) : undefined;
         const responseContent = state._streamBubbleEl.querySelector('.response-content');
         if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
+        state._streamBubbleEl.dataset.status = 'completed';
+        if (stream && streamId) {
+          stream.content = data.message.content;
+          stream.status = 'completed';
+          state._completedStreamMessageIds.add(streamId);
+          state._streamMessages.delete(streamId);
+        }
 
         removeTypingDots();
         hideTyping();
@@ -345,6 +290,8 @@ function bindSocketEvents() {
   socket.off('ai_stream_chunk');
   socket.on('ai_stream_chunk', (data: any) => {
     if (data.conversationId !== state.chatId) return;
+    const streamMessageId = String(data.messageId || `conversation:${data.conversationId}`);
+    if (state._completedStreamMessageIds.has(streamMessageId)) return;
 
     // ── Handle tool events ────────────────────────────────────────────────
     if (data.toolEvent) {
@@ -377,39 +324,35 @@ function bindSocketEvents() {
       return;
     }
 
+    // Empty text and thought/status events never enter the visible answer.
+    if (data.isThought || typeof data.chunk !== 'string' || data.chunk.length === 0) return;
+
     // ── Handle text streaming ─────────────────────────────────────────────
-    if (!state._streamBubbleEl) {
-      // First text chunk — remove skeleton/steps panel and create stream bubble
+    let stream = state._streamMessages.get(streamMessageId);
+    if (!stream) {
       removeTypingDots();
       hideTyping();
 
-      // If tool steps panel exists, remove it — the final answer replaces it
       if (state._toolStepsEl) {
         removeToolStepsPanel();
       }
 
       setAiResponding(true);
-
-      state._streamBubbleEl = document.createElement('div');
-      state._streamBubbleEl.className = 'message agent';
-      state._streamBubbleEl.innerHTML = `
-        ${renderAgentResponseIcon()}
-        <div class="message-bubble" style="min-width: 250px;">
-          <div class="response-content md"></div>
-          <div class="message-time"></div>
-        </div>`;
-
-      elements.messagesContainer?.appendChild(state._streamBubbleEl);
+      stream = createStreamingMessage(streamMessageId);
     }
 
-    // Thought chunks are discarded — never shown to the user
-    if (!data.isThought && data.chunk) {
-      state._streamText += data.chunk;
-      flushStreamContent(false);
-      if (state._streamRenderedText !== state._streamText) scheduleStreamFlush();
+    // Sequence numbers make replayed/retried socket events idempotent.
+    const sequence = Number(data.seq);
+    if (Number.isFinite(sequence)) {
+      if (sequence <= stream.lastSequence) return;
+      stream.lastSequence = sequence;
     }
 
-    const timeContainer = state._streamBubbleEl.querySelector('.message-time');
+    stream.content += data.chunk;
+    const responseContent = stream.element.querySelector('.response-content');
+    if (responseContent) responseContent.innerHTML = parseMarkdown(stream.content);
+
+    const timeContainer = stream.element.querySelector('.message-time');
     if (timeContainer && !timeContainer.textContent) {
       timeContainer.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
@@ -455,9 +398,8 @@ function bindSocketEvents() {
   });
 
   socket.off('message_sent');
-  socket.on('message_sent', () => {
-    if (elements.sendBtn) elements.sendBtn.disabled = false;
-  });
+  // Delivery acknowledgement is not response completion; keep the composer
+  // locked until the assistant's final new_message event arrives.
 
   socket.off('status_updated');
   socket.on('status_updated', (data: any) => {

@@ -210,7 +210,8 @@ export class OllamaLLMProvider implements LLMProvider {
                   .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
                   .replace(/<\/?(?:thinking|thought)>/gi, "");
 
-                if (cleanText.trim()) {
+                // Preserve standalone spaces/newlines emitted as their own delta.
+                if (cleanText.length > 0) {
                   onStream(cleanText, false);
                 }
               }

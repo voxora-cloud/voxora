@@ -8,7 +8,7 @@ import { publishResponse } from "../../../infrastructure/queue/reply.queue";
 import { AIJobData } from "../chat.types";
 import { getTool, getToolsForContext } from "../../agents/tools";
 import { getConversationGate } from "../../../infrastructure/cache";
-import { publishStreamWithSeq } from "../services/stream.service";
+import { publishStreamWithSeq, waitForPendingStream } from "../services/stream.service";
 import { internalApi } from "../../../infrastructure/api/internal.client";
 import { vectorStore } from "../../../infrastructure/vector";
 
@@ -155,7 +155,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         reply =
           "I could not verify that code right now. Please try again in a moment.";
       }
-      await publishResponse({ conversationId, content: reply });
+      await publishResponse({ conversationId, messageId: job.messageId, content: reply });
 
       // Save run logs on early return
       try {
@@ -218,7 +218,7 @@ export async function runPipeline(job: AIJobData): Promise<void> {
               `[Pipeline] FAQ match (score: ${match.score.toFixed(4)}) - returning directly, no LLM`,
             );
 
-            await publishResponse({ conversationId, content: faqAnswer });
+            await publishResponse({ conversationId, messageId: job.messageId, content: faqAnswer });
 
             const duration = Date.now() - startTime;
             steps.push({
@@ -416,7 +416,8 @@ export async function runPipeline(job: AIJobData): Promise<void> {
         (canEscalate
           ? " If you need immediate help, I can connect you to a human agent."
           : "");
-      await publishResponse({ conversationId, content: fallback });
+      await waitForPendingStream(conversationId, job.messageId);
+      await publishResponse({ conversationId, messageId: job.messageId, content: fallback });
 
       if (canEscalate) {
         try {
@@ -456,7 +457,8 @@ export async function runPipeline(job: AIJobData): Promise<void> {
 
     // -- 4. Publish regular response ---------------------------------------------
     console.time(t("publish:response"));
-    await publishResponse({ conversationId, content: generatedText, usage });
+    await waitForPendingStream(conversationId, job.messageId);
+    await publishResponse({ conversationId, messageId: job.messageId, content: generatedText, usage });
     console.timeEnd(t("publish:response"));
   } catch (err: any) {
     status = "failed";

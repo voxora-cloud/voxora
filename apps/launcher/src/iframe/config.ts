@@ -7,6 +7,13 @@ const params = new URLSearchParams(window.location.search);
 
 export type InteractionSource = 'widget' | 'qr' | 'link';
 
+export interface StreamingMessage {
+  content: string;
+  element: HTMLElement;
+  lastSequence: number;
+  status: 'streaming' | 'completed';
+}
+
 export function normalizeInteractionSource(value: unknown): InteractionSource {
   if (typeof value !== 'string') return 'widget';
   const normalized = value.trim().toLowerCase();
@@ -37,9 +44,9 @@ export const state = {
   isTyping: false,
   _escalationShown: false,
   _streamBubbleEl: null as HTMLElement | null,
-  _streamText: "",
-  _streamRenderedText: "",
-  _streamFlushTimer: null as NodeJS.Timeout | number | null,
+  _streamMessageId: null as string | null,
+  _streamMessages: new Map<string, StreamingMessage>(),
+  _completedStreamMessageIds: new Set<string>(),
   parentOrigin: params.get('origin') || null,
   _connectTimeout: null as NodeJS.Timeout | number | null,
   _isMaximized: false,
