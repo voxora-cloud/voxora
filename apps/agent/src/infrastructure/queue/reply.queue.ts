@@ -7,6 +7,7 @@ const STREAM_CHANNEL = "ai:stream";
 
 export interface PublishPayload {
   conversationId: string;
+  messageId?: string;
   content: string;
   usage?: {
     promptTokens?: number;

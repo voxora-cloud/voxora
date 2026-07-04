@@ -357,6 +357,7 @@ async function sendMessage() {
     return;
   }
 
+  // Lock the composer before any context/API/stream work begins.
   setAiResponding(true);
   hideWelcomeScreen();
   addMessage(text, "user", state.userName || "You", "text");
@@ -410,7 +411,6 @@ async function sendMessage() {
           typingStop();
         }
 
-        setTimeout(() => { if (elements.sendBtn) elements.sendBtn.disabled = false; }, 1000);
       } else {
         removeTypingDots();
         throw new Error("Failed to create conversation");
@@ -419,7 +419,6 @@ async function sendMessage() {
       removeTypingDots();
       setAiResponding(false);
       console.error("Error creating conversation:", error);
-      if (elements.sendBtn) elements.sendBtn.disabled = false;
     }
     return;
   }
@@ -438,10 +437,8 @@ async function sendMessage() {
       }
     });
     typingStop();
-    setTimeout(() => { if (elements.sendBtn) elements.sendBtn.disabled = false; }, 1000);
   } else {
     setAiResponding(false);
-    if (elements.sendBtn) elements.sendBtn.disabled = false;
   }
 }
 
@@ -499,6 +496,7 @@ async function sendFormResponse(text: string) {
         }
       } else {
         removeTypingDots();
+        setAiResponding(false);
       }
     } catch (error) {
       removeTypingDots();
@@ -632,6 +630,10 @@ function renderHistoryList(convs: any[]) {
 
     el.addEventListener('click', () => {
       state.chatId = c._id || c.id;
+      state._streamBubbleEl = null;
+      state._streamMessageId = null;
+      state._streamMessages.clear();
+      state._completedStreamMessageIds.clear();
       clearWidgetStateChrome();
       elements.historyOverlay!.style.display = 'none';
       if (elements.historySearch) (elements.historySearch as any).value = '';
@@ -677,13 +679,10 @@ function startNewConversation() {
   state.isConnected = false;
   state._historyCached = [];
   state._escalationShown = false;
-  if (state._streamFlushTimer) {
-    clearTimeout(state._streamFlushTimer as number);
-    state._streamFlushTimer = null;
-  }
   state._streamBubbleEl = null;
-  state._streamText = '';
-  state._streamRenderedText = '';
+  state._streamMessageId = null;
+  state._streamMessages.clear();
+  state._completedStreamMessageIds.clear();
 
   // Hide agent badge
   const agentBadge = document.getElementById('agentBadge');

@@ -84,8 +84,9 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
   // ── AI response channel ──────────────────────────────────────────────────────
   await subscriber.subscribe(PUBSUB_CHANNEL, async (message) => {
     try {
-      const { conversationId, content, usage, nonce } = JSON.parse(message) as {
+      const { conversationId, messageId, content, usage, nonce } = JSON.parse(message) as {
         conversationId: string;
+        messageId?: string;
         content: string;
         usage?: {
           promptTokens?: number;
@@ -215,6 +216,7 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
 
       socketManager.emitToConversation(conversationId, "new_message", {
         conversationId,
+        streamMessageId: messageId,
         message: { _id: msg._id, senderId: msg.senderId, content: msg.content, type: msg.type, metadata: msg.metadata, createdAt: msg.createdAt },
       });
 
@@ -227,10 +229,12 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
   // ── AI stream channel ──────────────────────────────────────────────────────
   await subscriber.subscribe("ai:stream", async (raw) => {
     try {
-      const { conversationId, chunk, isThought, toolEvent } = JSON.parse(raw) as {
+      const { conversationId, chunk, isThought, seq, messageId, toolEvent } = JSON.parse(raw) as {
         conversationId: string;
         chunk: string;
         isThought: boolean;
+        seq?: number;
+        messageId?: string;
         toolEvent?: { type: "start" | "complete"; toolName: string; label: string; detail?: string };
       };
 
@@ -252,6 +256,8 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         conversationId,
         chunk,
         isThought,
+        seq,
+        messageId,
         toolEvent,
       });
     } catch (err) {

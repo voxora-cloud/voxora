@@ -15,6 +15,10 @@ import { trackAICall } from "../observability/observability.queue";
 import { estimateCost } from "../observability/cost-tracker";
 import { LatencyTracker } from "../observability/latency-tracker";
 import { TokenTracker } from "../observability/token-tracker";
+import {
+  cleanFinalResponse,
+  TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION,
+} from "../utils/tool-limit";
 
 export class OllamaLLMProvider implements LLMProvider {
   readonly name = "ollama";
@@ -210,7 +214,8 @@ export class OllamaLLMProvider implements LLMProvider {
                   .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
                   .replace(/<\/?(?:thinking|thought)>/gi, "");
 
-                if (cleanText.trim()) {
+                // Preserve standalone spaces/newlines emitted as their own delta.
+                if (cleanText.length > 0) {
                   onStream(cleanText, false);
                 }
               }
@@ -390,15 +395,69 @@ export class OllamaLLMProvider implements LLMProvider {
       }
     }
 
-    const finalCleanText = responseText
-      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
-      .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
-      .replace(/<(thinking|thought)>[\s\S]*$/gi, "")
-      .replace(/<\/?(?:thinking|thought)>/gi, "")
-      .trim();
+    responseText = "";
+    const finalPayload = {
+      model,
+      messages: ollamaMessages,
+      system: [system, TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION]
+        .filter(Boolean)
+        .join("\n\n"),
+      stream: !!onStream,
+    };
+
+    if (onStream) {
+      const finalResponse = await axios.post(
+        `${this.baseUrl}/api/chat`,
+        finalPayload,
+        {
+          responseType: "stream",
+          timeout: parseInt(process.env.OLLAMA_MAX_TIMEOUT_MS || "60000", 10),
+        },
+      );
+
+      for await (const chunk of finalResponse.data) {
+        const lines = chunk.toString().split("\n").filter(Boolean);
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            if (data.message?.content) {
+              responseText += data.message.content;
+              onStream(data.message.content, false);
+            }
+            if (data.done && data.prompt_eval_count) {
+              tokenTracker.accumulate({
+                promptTokens: data.prompt_eval_count,
+                completionTokens: data.eval_count || 0,
+                totalTokens: (data.prompt_eval_count || 0) + (data.eval_count || 0),
+              });
+            }
+          } catch {
+            // Partial JSON — skip.
+          }
+        }
+      }
+    } else {
+      const finalResponse = await axios.post(
+        `${this.baseUrl}/api/chat`,
+        finalPayload,
+        { timeout: parseInt(process.env.OLLAMA_MAX_TIMEOUT_MS || "60000", 10) },
+      );
+      responseText = finalResponse.data.message?.content || "";
+      if (finalResponse.data.prompt_eval_count) {
+        tokenTracker.accumulate({
+          promptTokens: finalResponse.data.prompt_eval_count,
+          completionTokens: finalResponse.data.eval_count || 0,
+          totalTokens:
+            (finalResponse.data.prompt_eval_count || 0) +
+            (finalResponse.data.eval_count || 0),
+        });
+      }
+    }
+
+    const finalCleanText = cleanFinalResponse(responseText);
 
     return {
-      text: finalCleanText || "Tool execution limit reached.",
+      text: finalCleanText || "I’m sorry, but I could not produce a final response from the available information.",
       usage: tokenTracker.toUsage(),
       steps,
     };

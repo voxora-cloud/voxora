@@ -5,8 +5,8 @@ import {
   User,
   Membership,
   SystemEvent,
+  Ticket,
 } from "@shared/models";
-import { Conversation, Message, User, Membership, SystemEvent, Ticket } from "@shared/models";
 import logger from "@shared/core/logger";
 import {
   ListConversationsOptions,

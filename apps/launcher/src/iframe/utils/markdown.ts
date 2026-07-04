@@ -17,6 +17,174 @@ export function stripMarkdown(text: string) {
     .trim();
 }
 
+/**
+ * Interactive components are only useful once their complete markup is
+ * available. While streaming, withhold the component section so partial tags
+ * such as "<interaone-but" are not rendered as escaped text.
+ *
+ * The system prompt requires interactive components at the bottom of a reply,
+ * so everything from the first component marker onward is deferred until the
+ * final message arrives.
+ */
+export function stripStreamingInteractiveMarkup(text: string) {
+  if (!text) return "";
+
+  const marker = '<interaone-';
+  const lowerText = text.toLowerCase();
+  const componentStart = lowerText.indexOf(marker);
+
+  if (componentStart !== -1) {
+    return text.slice(0, componentStart).trimEnd();
+  }
+
+  // A stream chunk can end partway through the opening marker. Hide that
+  // suffix as soon as it starts instead of briefly exposing raw HTML.
+  const lastOpeningBracket = lowerText.lastIndexOf('<');
+  if (lastOpeningBracket !== -1) {
+    const trailingText = lowerText.slice(lastOpeningBracket);
+    if (marker.startsWith(trailingText)) {
+      return text.slice(0, lastOpeningBracket).trimEnd();
+    }
+  }
+
+  return text;
+}
+
+export function parseStreamingMarkdown(text: string) {
+  return parseMarkdown(stripIncompleteStreamingTable(
+    stripStreamingInteractiveMarkup(text),
+  ));
+}
+
+function parseTableRow(line: string) {
+  const trimmed = line.trim();
+  const withoutEdges = trimmed
+    .replace(/^\|/, '')
+    .replace(/\|$/, '');
+  return withoutEdges.split('|').map((cell) => cell.trim());
+}
+
+function isTableSeparator(line: string) {
+  const cells = parseTableRow(line);
+  return cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+}
+
+function stripIncompleteStreamingTable(text: string) {
+  const lines = text.split('\n');
+  const endsWithNewline = text.endsWith('\n');
+  let separatorIndex = -1;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (isTableSeparator(lines[index])) {
+      separatorIndex = index;
+      break;
+    }
+  }
+
+  if (separatorIndex > 0 && lines[separatorIndex - 1].includes('|')) {
+    const firstBodyIndex = separatorIndex + 1;
+    const completedBodyRows = lines.slice(firstBodyIndex).filter(
+      (line, index, bodyLines) =>
+        line.includes('|')
+        && (index < bodyLines.length - 1 || endsWithNewline),
+    );
+
+    if (completedBodyRows.length === 0) {
+      return lines.slice(0, separatorIndex - 1).join('\n').trimEnd();
+    }
+
+    if (!endsWithNewline && lines[lines.length - 1]?.includes('|')) {
+      lines.pop();
+    }
+    return lines.join('\n').trimEnd();
+  }
+
+  // Hide a trailing table header/separator fragment until enough structure is
+  // available to render it. This prevents raw pipes flashing during streaming.
+  let blockStart = 0;
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index].trim() === '') {
+      blockStart = index + 1;
+      break;
+    }
+  }
+  const trailingBlock = lines.slice(blockStart);
+  if (
+    trailingBlock.length <= 2
+    && trailingBlock.some((line) => line.includes('|'))
+  ) {
+    return lines.slice(0, blockStart).join('\n').trimEnd();
+  }
+
+  return text;
+}
+
+function renderTableFallback(headers: string[], rows: string[][]) {
+  const cards = rows.map((row) => {
+    const fields = headers.map((header, index) => {
+      const value = row[index] || '—';
+      return `<span class="md-table-field"><span class="md-table-label">${header}</span><span class="md-table-value">${value}</span></span>`;
+    }).join('');
+    return `<li class="md-table-row">${fields}</li>`;
+  }).join('');
+  return `<section class="md-table-list" aria-label="Response details"><ul class="md-table-fallback">${cards}</ul></section>`;
+}
+
+function renderMarkdownTables(html: string) {
+  const lines = html.split('\n');
+  const output: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const headerLine = lines[index];
+    const separatorLine = lines[index + 1];
+    if (
+      !headerLine?.includes('|')
+      || !separatorLine
+      || !isTableSeparator(separatorLine)
+    ) {
+      output.push(headerLine);
+      continue;
+    }
+
+    const headers = parseTableRow(headerLine);
+    const rows: string[][] = [];
+    let rowIndex = index + 2;
+    while (rowIndex < lines.length && lines[rowIndex].includes('|')) {
+      const row = parseTableRow(lines[rowIndex]);
+      if (row.some(Boolean)) rows.push(row);
+      rowIndex += 1;
+    }
+
+    // A GFM table may contain only a header and delimiter row.
+    if (headers.length < 2) {
+      output.push(headers.filter(Boolean).join(' · '));
+      index += 1;
+      continue;
+    }
+
+    const plainLength = (value: string) => value.replace(/<[^>]+>/g, '').length;
+    const isCompact = (
+      headers.length <= 4
+      && rows.length <= 8
+      && [...headers, ...rows.flat()].every((cell) => plainLength(cell) <= 80)
+    );
+
+    if (isCompact) {
+      const heading = headers.map((header) => `<th scope="col">${header}</th>`).join('');
+      const body = rows.map((row) => {
+        const cells = headers.map((_, cellIndex) => `<td>${row[cellIndex] || '—'}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+      output.push(`<section class="md-table-scroll" aria-label="Response table"><table><thead><tr>${heading}</tr></thead><tbody>${body}</tbody></table></section>`);
+    } else {
+      output.push(renderTableFallback(headers, rows));
+    }
+
+    index = rowIndex - 1;
+  }
+
+  return output.join('\n');
+}
+
 export function parseMarkdown(text: string) {
   let s = escapeHtml(text || "");
 
@@ -32,18 +200,18 @@ export function parseMarkdown(text: string) {
   s = s.trim();
 
   // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
-  s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
+  s = s.replace(/&lt;interaone-form\s+id=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
     let content = innerContent;
     // Replace inputs inside form to not have individual submit button wrappers
-    content = content.replace(/&lt;interaone-input\s+name=&quot;([^&]+)&quot;\s+placeholder=&quot;([^&]+)&quot;\s*(?:\/)?&gt;/g,
+    content = content.replace(/&lt;interaone-input\s+name=&quot;([\s\S]*?)&quot;\s+placeholder=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g,
       '<div class="vx-form-row"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /></div>'
     );
     // Replace checkboxes inside form
-    content = content.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+)&quot;&gt;([^&]+)&lt;\/interaone-checkbox&gt;/g,
+    content = content.replace(/&lt;interaone-checkbox\s+name=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-checkbox&gt;/g,
       '<div class="vx-form-row"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label></div>'
     );
     // Replace radios inside form
-    content = content.replace(/&lt;interaone-radio\s+name=&quot;([^&]+)&quot;\s+options=&quot;([^&]+)&quot;\s*(?:\/)?&gt;/g, function(_: string, name: string, optionsStr: string) {
+    content = content.replace(/&lt;interaone-radio\s+name=&quot;([\s\S]*?)&quot;\s+options=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g, function(_: string, name: string, optionsStr: string) {
       const options = optionsStr.split(',').map((o: string) => o.trim());
       const radiosHtml = options.map((opt: string, i: number) => `
         <label class="vx-form-radio-label">
@@ -63,19 +231,19 @@ export function parseMarkdown(text: string) {
   });
 
   // Parse InteraOne Interactive Components (escaped XML)
-  s = s.replace(/&lt;interaone-input\s+name=&quot;([^&]+)&quot;\s+placeholder=&quot;([^&]+)&quot;\s*(?:\/)?&gt;/g, 
+  s = s.replace(/&lt;interaone-input\s+name=&quot;([\s\S]*?)&quot;\s+placeholder=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g,
     '<div class="vx-interactive-form vx-input-wrapper"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /><button class="vx-form-submit" data-action="submit-input" data-target="$1">Submit</button></div>'
   );
 
-  s = s.replace(/&lt;interaone-button\s+action=&quot;([^&]+)&quot;&gt;([^&]+)&lt;\/interaone-button&gt;/g,
+  s = s.replace(/&lt;interaone-button\s+action=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-button&gt;/g,
     '<button class="vx-form-button" data-interaone-button data-action="$1">$2</button>'
   );
 
-  s = s.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+)&quot;&gt;([^&]+)&lt;\/interaone-checkbox&gt;/g,
+  s = s.replace(/&lt;interaone-checkbox\s+name=&quot;([\s\S]*?)&quot;&gt;([\s\S]*?)&lt;\/interaone-checkbox&gt;/g,
     '<div class="vx-interactive-form vx-checkbox-wrapper"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label><button class="vx-form-submit" data-action="submit-checkbox" data-target="$1">Submit</button></div>'
   );
 
-  s = s.replace(/&lt;interaone-radio\s+name=&quot;([^&]+)&quot;\s+options=&quot;([^&]+)&quot;\s*(?:\/)?&gt;/g, function(_, name, optionsStr) {
+  s = s.replace(/&lt;interaone-radio\s+name=&quot;([\s\S]*?)&quot;\s+options=&quot;([\s\S]*?)&quot;\s*(?:\/)?&gt;/g, function(_, name, optionsStr) {
     const options = optionsStr.split(',').map((o: string) => o.trim());
     const radiosHtml = options.map((opt: string, i: number) => `
       <label class="vx-form-radio-label">
@@ -138,8 +306,12 @@ export function parseMarkdown(text: string) {
     return '<ol>' + items + '</ol>';
   });
 
+  // Markdown tables become compact labeled cards, which remain readable in the
+  // narrow widget instead of forcing horizontal scrolling or exposing pipes.
+  s = renderMarkdownTables(s);
+
   // Paragraphs and Block element wrapping
-  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<hr>|<form[\s\S]*?<\/form>|<div class="vx-interactive-form[\s\S]*?<\/div>|<button[\s\S]*?<\/button>)/g;
+  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<hr>|<section class="md-table-(?:scroll|list)"[\s\S]*?<\/section>|<form[\s\S]*?<\/form>|<div class="vx-interactive-form[\s\S]*?<\/div>|<button[\s\S]*?<\/button>)/g;
   const parts = s.split(blockTagRegex);
 
   return parts
@@ -154,6 +326,8 @@ export function parseMarkdown(text: string) {
         trimmedPart.startsWith('<h2') ||
         trimmedPart.startsWith('<h3') ||
         trimmedPart.startsWith('<hr') ||
+        trimmedPart.startsWith('<section class="md-table-scroll"') ||
+        trimmedPart.startsWith('<section class="md-table-list"') ||
         trimmedPart.startsWith('<form') ||
         trimmedPart.startsWith('<div class="vx-interactive-form') ||
         trimmedPart.startsWith('<button')

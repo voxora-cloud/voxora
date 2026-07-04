@@ -1221,6 +1221,9 @@ body {
   margin-bottom: 12px;
   width: calc(100% - 38px);
   max-width: calc(100% - 38px);
+  display: block;
+  visibility: visible;
+  opacity: 1;
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -1781,6 +1784,149 @@ body {
 
 .message-bubble .md li {
   margin-bottom: 4px;
+}
+
+.message-bubble .md-table-scroll,
+.response-content .md-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  margin: 10px 0;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  scrollbar-width: thin;
+}
+
+.message-bubble .md-table-scroll table,
+.response-content .md-table-scroll table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.message-bubble .md-table-scroll th,
+.message-bubble .md-table-scroll td,
+.response-content .md-table-scroll th,
+.response-content .md-table-scroll td {
+  max-width: 180px;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  text-align: left;
+  vertical-align: top;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.message-bubble .md-table-scroll th:last-child,
+.message-bubble .md-table-scroll td:last-child {
+  border-right: 0;
+}
+
+.message-bubble .md-table-scroll tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.message-bubble .md-table-scroll th {
+  color: var(--vx-text, #f4f4f5);
+  background: rgba(255, 255, 255, 0.055);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.message-bubble .md-table-scroll td {
+  color: color-mix(in srgb, var(--vx-text, #f4f4f5) 82%, transparent);
+}
+
+.message-bubble .md-table-list {
+  margin: 10px 0;
+}
+
+.message-bubble .md ul.md-table-fallback {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.message-bubble .md-table-fallback .md-table-row {
+  display: list-item;
+}
+
+.message-bubble .md-table-fallback .md-table-row::marker {
+  color: color-mix(in srgb, var(--vx-text, #f4f4f5) 48%, transparent);
+}
+
+.message-bubble .md-table-row {
+  display: grid;
+  gap: 7px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.message-bubble .md-table-row--key-value {
+  grid-template-columns: minmax(100px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.message-bubble .md-table-key {
+  color: var(--vx-text, #f4f4f5);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.message-bubble .md-table-field {
+  display: grid;
+  grid-template-columns: minmax(84px, 0.4fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.message-bubble .md-table-label {
+  color: color-mix(in srgb, var(--vx-text, #f4f4f5) 58%, transparent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.message-bubble .md-table-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--vx-text, #f4f4f5);
+  line-height: 1.45;
+}
+
+.light-theme .message-bubble .md-table-row {
+  border-color: rgba(15, 23, 42, 0.08);
+  background: rgba(15, 23, 42, 0.025);
+}
+
+.light-theme .message-bubble .md-table-scroll {
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+.light-theme .message-bubble .md-table-scroll th,
+.light-theme .message-bubble .md-table-scroll td {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.light-theme .message-bubble .md-table-scroll th {
+  background: rgba(15, 23, 42, 0.04);
+  color: #111827;
+}
+
+.light-theme .message-bubble .md-table-scroll td {
+  color: #334155;
+}
+
+@media (max-width: 360px) {
+  .message-bubble .md-table-row--key-value {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
 }
 
 .message-bubble .md a {
@@ -2945,5 +3091,3 @@ body {
   flex-direction: column;
   gap: 4px;
 }
-
-
