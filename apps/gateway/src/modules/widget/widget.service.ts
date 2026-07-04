@@ -6,7 +6,11 @@ import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
 import dns from "dns";
-import { normalizeDomain } from "@shared/utils/domain";
+import {
+  isLocalDomain,
+  normalizeDomain,
+  requiresDomainVerification,
+} from "@shared/utils/domain";
 import {
   ServiceError,
   AIInteractionSource,
@@ -134,6 +138,8 @@ export class WidgetService {
       throw createServiceError("Widget not found", 404);
     }
 
+    this.enforceVerifiedDomain(widget, origin || requestOrigin);
+
     const widgetPayload = {
       InteraOnePublicKey,
       displayName: widget.displayName || "Unknown Widget",
@@ -165,23 +171,14 @@ export class WidgetService {
       throw createServiceError("Widget not found", 404);
     }
 
-    // Origin Enforcement Security check
-    if (widget.domainVerificationStatus === "verified" && widget.verifiedDomain) {
-      if (!requestOrigin) {
-        throw createServiceError("Origin header is required for verified widgets", 403);
-      }
-      const clientDomain = normalizeDomain(requestOrigin);
-      const allowedDomain = normalizeDomain(widget.verifiedDomain);
-      if (clientDomain !== allowedDomain && clientDomain !== "localhost" && clientDomain !== "127.0.0.1") {
-        throw createServiceError(`Unauthorized origin: widget is locked to domain "${allowedDomain}"`, 403);
-      }
-    }
+    this.enforceVerifiedDomain(widget, requestOrigin);
 
     const defaults = buildDefaultWidgetConfig();
     const { logoUrl: _ignoredLogoUrl, ...appearance } = (widget as any).appearance || {};
 
-    // Override DOM access to false if domain is not verified
-    const isDomainVerified = widget.domainVerificationStatus === "verified";
+    // Local development and self-hosted installs do not require DNS verification.
+    const isDomainVerified = !requiresDomainVerification(config.app.env, requestOrigin)
+      || widget.domainVerificationStatus === "verified";
     const endUserDomAccess = isDomainVerified ? ((widget as any).features?.endUserDomAccess ?? false) : false;
 
     return {
@@ -218,6 +215,27 @@ export class WidgetService {
     };
   }
 
+  private enforceVerifiedDomain(
+    widget: { verifiedDomain?: string | null; domainVerificationStatus?: string | null },
+    requestOrigin?: string,
+  ): void {
+    if (!requiresDomainVerification(config.app.env, requestOrigin)) return;
+
+    if (!widget.verifiedDomain || widget.domainVerificationStatus !== "verified") {
+      throw createServiceError("A verified domain is required for this widget", 403);
+    }
+
+    if (!requestOrigin) {
+      throw createServiceError("Origin header is required for verified widgets", 403);
+    }
+
+    const clientDomain = normalizeDomain(requestOrigin);
+    const allowedDomain = normalizeDomain(widget.verifiedDomain);
+    if (clientDomain !== allowedDomain) {
+      throw createServiceError(`Unauthorized origin: widget is locked to domain "${allowedDomain}"`, 403);
+    }
+  }
+
   async getOrganizationIdByPublicKey(publicKey: string) {
     if (!publicKey) {
       throw createServiceError("Public key is required", 400);
@@ -246,7 +264,7 @@ export class WidgetService {
         if (normalizedNew !== normalizedOld) {
           if (normalizedNew) {
             cleanUpdates.verifiedDomain = normalizedNew;
-            if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+            if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
               cleanUpdates.domainVerificationToken = null;
               cleanUpdates.domainVerificationStatus = "verified";
             } else {
@@ -272,7 +290,7 @@ export class WidgetService {
     if (widgetData?.verifiedDomain) {
       const normalizedNew = normalizeDomain(widgetData.verifiedDomain);
       newWidgetData.verifiedDomain = normalizedNew;
-      if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+      if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
         newWidgetData.domainVerificationToken = null;
         newWidgetData.domainVerificationStatus = "verified";
       } else {
@@ -357,7 +375,7 @@ export class WidgetService {
       if (normalizedNew !== normalizedOld) {
         if (normalizedNew) {
           cleanUpdates.verifiedDomain = normalizedNew;
-          if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+          if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
             cleanUpdates.domainVerificationToken = null;
             cleanUpdates.domainVerificationStatus = "verified";
           } else {
@@ -391,7 +409,7 @@ export class WidgetService {
       if (updateData?.verifiedDomain) {
         const normalizedNew = normalizeDomain(updateData.verifiedDomain);
         initData.verifiedDomain = normalizedNew;
-        if (normalizedNew === "localhost" || normalizedNew === "127.0.0.1") {
+        if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
           initData.domainVerificationToken = null;
           initData.domainVerificationStatus = "verified";
         } else {
@@ -418,6 +436,17 @@ export class WidgetService {
     const widget = await Widget.findOne({ organizationId });
     if (!widget) {
       throw createServiceError("Widget not found", 404);
+    }
+
+    if (!requiresDomainVerification(config.app.env) || isLocalDomain(widget.verifiedDomain || "")) {
+      widget.domainVerificationStatus = "verified";
+      widget.domainVerificationToken = undefined;
+      await widget.save();
+      return {
+        success: true,
+        domainVerificationStatus: "verified",
+        verifiedDomain: widget.verifiedDomain,
+      };
     }
 
     if (!widget.verifiedDomain || !widget.domainVerificationToken) {

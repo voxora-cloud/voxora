@@ -255,7 +255,7 @@ export function initializeSocket() {
         fetch(`${API_BASE_URL}/api/v1/widget/auth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ InteraOnePublicKey: state.InteraOnePublicKey, origin: window.location.origin })
+          body: JSON.stringify({ InteraOnePublicKey: state.InteraOnePublicKey, origin: state.parentOrigin })
         })
           .then(response => response.json())
           .then(data => {

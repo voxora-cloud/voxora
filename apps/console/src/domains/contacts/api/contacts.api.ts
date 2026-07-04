@@ -8,7 +8,6 @@ export interface ContactListItem {
   phone?: string;
   company?: string;
   tags: string[];
-  status: "active" | "inactive" | "blocked";
   source: "ai" | "widget" | "manual";
   notes: Array<{
     id: string;
@@ -22,17 +21,19 @@ export interface ContactListItem {
     lastMessage: string;
     updatedAt: string;
   }>;
-  timeline: Array<{
-    id: string;
-    label: string;
-    timestamp: string;
-    detail?: string;
-  }>;
   insights: {
     summary: string;
     sentiment: "positive" | "neutral" | "negative";
     topics: string[];
   };
+  conflicts?: Array<{
+    id: string;
+    field: "name" | "phone" | "company";
+    currentValue: string;
+    proposedValue: string;
+    conversationId: string;
+    createdAt: string;
+  }>;
   conversationCount: number;
   lastActivity: string;
   createdAt: string;
@@ -48,10 +49,59 @@ interface ContactsResponse {
   };
 }
 
+export interface ContactConflictItem {
+  id: string;
+  contactId: string;
+  contactName: string;
+  contactEmail: string;
+  field: "name" | "phone" | "company";
+  currentValue: string;
+  proposedValue: string;
+  conversationId: string;
+  createdAt: string;
+}
+
+interface ConflictsResponse {
+  success: boolean;
+  message: string;
+  data: ContactConflictItem[];
+}
+
 class ContactsApi {
   async getContacts(): Promise<ContactListItem[]> {
     const response = await apiClient.get<ContactsResponse>("/contacts");
     return response.data?.contacts || [];
+  }
+
+  async deleteContacts(ids: string[]): Promise<void> {
+    await apiClient.delete("/contacts", { ids });
+  }
+
+  async bulkAddTags(ids: string[], tags: string[]): Promise<void> {
+    await apiClient.post("/contacts/tags", { ids, tags });
+  }
+
+  async addNote(id: string, content: string): Promise<any> {
+    const res = await apiClient.post<any>(`/contacts/${id}/notes`, { content });
+    return res.data;
+  }
+
+  async addTag(id: string, tag: string): Promise<string> {
+    const res = await apiClient.post<any>(`/contacts/${id}/tags`, { tag });
+    return res.data?.tag || tag;
+  }
+
+  async removeTag(id: string, tag: string): Promise<void> {
+    await apiClient.delete(`/contacts/${id}/tags/${encodeURIComponent(tag)}`);
+  }
+
+  async getPendingConflicts(): Promise<ContactConflictItem[]> {
+    const res = await apiClient.get<ConflictsResponse>("/contacts/conflicts");
+    return res.data || [];
+  }
+
+  async resolveConflict(id: string, action: "apply" | "dismiss"): Promise<void> {
+    await apiClient.post(`/contacts/conflicts/${id}/resolve`, { action });
   }
 }
 

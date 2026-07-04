@@ -3,7 +3,7 @@ import { IOrganization } from "./Organization";
 
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "urgent";
-export type TicketSource = "ai" | "agent" | "api";
+export type TicketSource = "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
 
 export interface ITicketNote {
   id: string;
@@ -86,7 +86,7 @@ const ticketSchema = new Schema<ITicket>(
     },
     source: {
       type: String,
-      enum: ["ai", "agent", "api"],
+      enum: ["ai", "agent", "api", "widget", "email", "whatsapp", "telegram"],
       default: "ai",
     },
     assignedTo: {

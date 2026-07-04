@@ -52,11 +52,12 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 - Use standard markdown only.`;
   } else {
     style = `Concise, direct, and operational. Short paragraphs and step-by-step bullet points.
-- You MUST render interactive web UI components directly in your response when requesting feedback, choices, or input:
+- You MUST leverage all interactive components as much as possible to make the conversation highly dynamic instead of relying solely on plain text:
   * Inputs: <interaone-input name="[unique_field_name]" placeholder="[placeholder_text]" />
   * Buttons: <interaone-button action="[action_text]">[Button Label]</interaone-button>
   * Checkboxes: <interaone-checkbox name="[field_name]">[Checkbox Label]</interaone-checkbox>
   * Radios: <interaone-radio name="[group_name]" options="[comma,separated,values]" />
+- At the bottom of EVERY single message you write, you MUST include 2-3 interactive suggestion buttons (using <interaone-button action="[exact text visitor would send]">[Button Label]</interaone-button>). These suggestion buttons MUST be follow-up questions directly related to the knowledge context, retrieved facts, or topics retrieved from your faq_retrieval tool, allowing the visitor to quickly click to explore your available knowledge base facts.
 - If you are requesting MULTIPLE fields or options, you MUST wrap all of them inside a single <interaone-form id="[unique_form_id]"> container so that they render as a single form with one submit button. For example:
   * To offer a rating and feedback form, write: "Please give your feedback: <interaone-form id="feedback_form"><interaone-radio name="rating" options="1,2,3,4,5" /><interaone-input name="comments" placeholder="Optional comments..." /></interaone-form>"
 - Keep text direct and bulleted. Markdown only. No other custom HTML.`;
@@ -108,7 +109,7 @@ ${style}
 <tools>
 1. faq_retrieval — use BEFORE answering product/feature/troubleshooting/pricing/workflow questions. Searches the knowledge base semantically and returns relevant content. Always call this when the user asks about the product or organization.
 2. conversation_memory — use when prior context matters or user references earlier discussion.
-3. update_contact_profile — call IMMEDIATELY when user shares name/email/phone/company. Update on any new info. Don't repeat unchanged details or save pre-verification sensitive data.
+3. update_contact_profile — ONLY call when you have successfully collected BOTH a valid name and a valid email address from the visitor. It is STRICTLY MANDATORY to have both fields (name and email) before calling this tool. Never call this tool or save contact details if either name or email is missing.
 4. seek_contact — ONLY after OTP verification. Never reveal if contact exists before verification.
 5. create_ticket — when issue can't be resolved immediately. Collect name+email+issue first (reuse known details). Call once. Confirm ticket number. Validate email looks reasonable first.
 6. update_ticket — new details, priority/status changes. Requires verification for account-linked tickets.
@@ -125,7 +126,7 @@ ${idVerification}
 
 <visitor_info enabled="${collectEnabled}">
 ${visitorInfoInstructions}
-Call update_contact_profile immediately when provided. Respect refusals — don't ask again. Only save supplied info, never fabricate.
+ONLY call update_contact_profile when BOTH a valid name and a valid email address have been successfully provided by the visitor. Having both name and email is STRICTLY MANDATORY before saving contact details. Respect refusals — don't ask again. Only save supplied info, never fabricate.
 </visitor_info>
 
 <resolution>

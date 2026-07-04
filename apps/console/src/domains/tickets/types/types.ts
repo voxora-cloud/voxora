@@ -12,6 +12,21 @@ export interface TicketRequesterContact {
   phone: string | null;
 }
 
+export interface TicketContactProfile {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  tags: string[];
+  conversations: Array<{
+    id: string;
+    status: string;
+    lastMessage: string;
+    updatedAt: string;
+  }>;
+}
+
 export interface Ticket {
   id: string;
   ticketNumber: string;
@@ -22,7 +37,7 @@ export interface Ticket {
   description: string | null;
   status: "open" | "in_progress" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
-  source: "ai" | "agent" | "api";
+  source: "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
   assignedTo: {
     id: string;
     name: string;
@@ -34,6 +49,7 @@ export interface Ticket {
   resolvedAt: string | null;
   closedAt: string | null;
   requesterContact?: TicketRequesterContact;
+  contactProfile?: TicketContactProfile | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -59,6 +75,7 @@ export interface CreateTicketData {
   title: string;
   description?: string;
   priority?: "low" | "medium" | "high" | "urgent";
+  source?: "agent" | "widget" | "email" | "whatsapp" | "telegram";
   tags?: string[];
   conversationId?: string;
   contactId?: string;

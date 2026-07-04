@@ -72,6 +72,7 @@ export const widgetSchema = {
     ai: aiSchema,
     conversation: conversationSchema,
     features: featuresSchema,
+    verifiedDomain: Joi.string().trim().max(256).optional().allow("", null),
   }).options({ stripUnknown: true }),
 
   updateWidget: Joi.object({

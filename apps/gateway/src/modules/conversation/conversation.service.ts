@@ -6,6 +6,7 @@ import {
   Membership,
   SystemEvent,
 } from "@shared/models";
+import { Conversation, Message, User, Membership, SystemEvent, Ticket } from "@shared/models";
 import logger from "@shared/core/logger";
 import {
   ListConversationsOptions,
@@ -25,22 +26,31 @@ export class ConversationService {
 
     const filter: any = { organizationId };
 
+    // Fetch all ticket conversation IDs for this organization
+    const tickets = await Ticket.find({
+      organizationId,
+      conversationId: { $ne: null }
+    }, "conversationId").lean();
+    const ticketConversationIds = tickets.map((t) => t.conversationId).filter(Boolean);
+
     if (assignedTo === null) {
       // Specifically requesting unassigned conversations (In Queue)
       filter.assignedTo = null;
       filter.$or = [
         { "metadata.escalatedAt": { $ne: null } },
         { "metadata.pendingEscalation": true },
+        { _id: { $in: ticketConversationIds } },
       ];
     } else if (assignedTo) {
       // Specifically requesting conversations for a certain agent
       filter.assignedTo = assignedTo;
     } else {
-      // General view (All Open) - show assigned OR escalated
+      // General view (All Open) - show assigned OR escalated OR ticket-picked
       filter.$or = [
         { assignedTo: { $ne: null } },
         { "metadata.escalatedAt": { $ne: null } },
         { "metadata.pendingEscalation": true },
+        { _id: { $in: ticketConversationIds } },
       ];
     }
 
@@ -308,6 +318,7 @@ export class ConversationService {
     );
 
     if (!conversation) return { valid: true, found: false };
+
     return { valid: true, found: true, conversation };
   }
 
@@ -477,5 +488,53 @@ export class ConversationService {
       createdAt: e.createdAt,
       updatedAt: e.createdAt,
     }));
+  }
+
+  async closeInactiveConversations(inactivityLimitMs = 30 * 60 * 1000): Promise<{ closedCount: number }> {
+    const cutoffTime = new Date(Date.now() - inactivityLimitMs);
+    const inactiveConversations = await Conversation.find({
+      status: { $in: ["open", "pending"] },
+      updatedAt: { $lt: cutoffTime }
+    });
+
+    let closedCount = 0;
+    for (const conv of inactiveConversations) {
+      await this.updateConversationStatus(
+        conv.organizationId.toString(),
+        conv._id.toString(),
+        "closed",
+        "system_inactivity_worker"
+      );
+      closedCount++;
+    }
+
+    return { closedCount };
+  }
+
+  async getPendingAnalysisConversations(): Promise<any[]> {
+    const conversations = await Conversation.find({
+      status: { $in: ["closed", "resolved"] },
+      "metadata.analyzed": { $ne: true }
+    }).limit(100).lean();
+
+    const results = [];
+    for (const conv of conversations) {
+      const messages = await Message.find({
+        organizationId: conv.organizationId,
+        conversationId: conv._id,
+      }).sort({ createdAt: 1 }).lean();
+
+      results.push({
+        conversationId: conv._id.toString(),
+        organizationId: conv.organizationId.toString(),
+        visitor: conv.visitor,
+        messages: messages.map(m => ({
+          role: m.metadata?.source === "widget" ? "user" : "assistant",
+          content: m.content || "",
+        }))
+      });
+    }
+
+    return results;
   }
 }

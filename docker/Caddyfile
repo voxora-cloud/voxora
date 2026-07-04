@@ -54,3 +54,8 @@
         max_size 100MB
     }
 }
+
+# ── Log Viewer (logs.example.com → log-viewer:8080) ──────────────────────────
+{$LOG_HOST} {
+    reverse_proxy log-viewer:8080
+}

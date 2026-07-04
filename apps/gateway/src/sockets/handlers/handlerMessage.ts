@@ -1,5 +1,6 @@
-import { Message, Conversation, Widget, Organization } from "@shared/models";
+import { Message, Conversation, Widget, Organization, Ticket, Channel, Contact } from "@shared/models";
 import logger from "@shared/core/logger";
+import config from "@shared/infra/config";
 import { aiQueue } from "@shared/infra/queue";
 import { getSocketManager } from "@sockets/index";
 import { ConversationService } from "@modules/conversation/conversation.service";
@@ -95,8 +96,71 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           );
 
           // Forward agent reply to channels if applicable
-          const channelType = (conversation as any).channel || (conversation as any).metadata?.channel;
-          const channelId = (conversation as any).channelId || (conversation as any).metadata?.channelId;
+          let channelType = (conversation as any).channel || (conversation as any).metadata?.channel;
+          let channelId = (conversation as any).channelId || (conversation as any).metadata?.channelId;
+
+          // Check if there is an associated ticket for this conversation
+          const ticket = await Ticket.findOne({
+            organizationId: conversation.organizationId,
+            conversationId: conversation._id,
+          }).lean();
+
+          if (ticket) {
+            let ticketChannelType: string;
+            if (ticket.source === "whatsapp") {
+              ticketChannelType = "whatsapp";
+            } else if (ticket.source === "telegram") {
+              ticketChannelType = "telegram";
+            } else {
+              ticketChannelType = "email"; // All other sources (email, widget, ai, agent, api) reply via Email
+            }
+
+            logger.info("[handleMessage] Resolved ticket channel type", {
+              ticketId: ticket._id,
+              ticketSource: ticket.source,
+              resolvedChannelType: ticketChannelType,
+            });
+
+            let activeChannel = await Channel.findOne({
+              organizationId: conversation.organizationId,
+              type: ticketChannelType,
+              isActive: true,
+            }).lean();
+
+            if (!activeChannel && ticketChannelType === "email" && config.email.provider === "mailhog") {
+              // Auto-create a mock email channel for this organization in dev/mailhog mode
+              logger.info("[handleMessage] No active email channel found for organization in Mailhog mode. Auto-creating a mock email channel.", {
+                organizationId: conversation.organizationId,
+              });
+              activeChannel = await Channel.create({
+                organizationId: conversation.organizationId,
+                type: "email",
+                name: "Local Dev Email Channel",
+                isActive: true,
+                config: {
+                  email: {
+                    address: "support@localhost.local",
+                    addresses: ["support@localhost.local"],
+                    domain: "localhost.local",
+                    verificationStatus: "verified",
+                    dnsRecords: [],
+                  },
+                },
+              }) as any;
+            }
+
+            if (activeChannel) {
+              channelType = ticketChannelType === "email" ? "email_channel" : `${ticketChannelType}_channel`;
+              channelId = activeChannel._id;
+            }
+          }
+
+          logger.info("[handleMessage] Outbound message dispatch decision", {
+            conversationId,
+            channelType,
+            channelId: channelId?.toString(),
+            hasTicket: !!ticket,
+          });
 
           if (channelType && channelId) {
             const channelIdStr = channelId.toString();
@@ -104,11 +168,29 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             const convMeta = conversation.metadata as any || {};
 
             if (channelType === "email_channel") {
-              to = conversation.visitor?.email;
+              to = conversation.visitor?.email || convMeta.senderEmail;
+              if (!to && ticket?.contactId) {
+                const contact = await Contact.findById(ticket.contactId).lean();
+                if (contact?.email) {
+                  to = contact.email;
+                }
+              }
             } else if (channelType === "whatsapp_channel") {
               to = convMeta.phone || conversation.visitor?.name;
+              if (!to && ticket?.contactId) {
+                const contact = await Contact.findById(ticket.contactId).lean();
+                if (contact?.phone) {
+                  to = contact.phone;
+                }
+              }
             } else if (channelType === "telegram_channel") {
               to = convMeta.chatId || conversation.visitor?.sessionId?.replace("telegram-", "");
+              if (!to && ticket?.contactId) {
+                const contact = await Contact.findById(ticket.contactId).lean();
+                if (contact?.sessionId?.startsWith("telegram-")) {
+                  to = contact.sessionId.replace("telegram-", "");
+                }
+              }
             }
 
             if (to) {
@@ -126,6 +208,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               });
             }
           }
+
 
           if (startedAt) {
             const responseTimeMs = Date.now() - new Date(startedAt).getTime();

@@ -123,4 +123,51 @@ router.get(
 	ContactsController.listContacts,
 );
 
+router.delete(
+	"/",
+	validateRequest(contactsSchema.deleteContacts),
+	requireRole("agent"),
+	ContactsController.deleteContacts,
+);
+
+router.post(
+	"/tags",
+	validateRequest(contactsSchema.bulkAddTags),
+	requireRole("agent"),
+	ContactsController.bulkAddTags,
+);
+
+router.post(
+	"/:id/notes",
+	validateRequest(contactsSchema.addNote),
+	requireRole("agent"),
+	ContactsController.addNote,
+);
+
+router.post(
+	"/:id/tags",
+	validateRequest(contactsSchema.addTag),
+	requireRole("agent"),
+	ContactsController.addTag,
+);
+
+router.delete(
+	"/:id/tags/:tag",
+	requireRole("agent"),
+	ContactsController.removeTag,
+);
+
+router.get(
+	"/conflicts",
+	requireRole("agent"),
+	ContactsController.listConflicts,
+);
+
+router.post(
+	"/conflicts/:id/resolve",
+	validateRequest(contactsSchema.resolveConflict),
+	requireRole("agent"),
+	ContactsController.resolveConflict,
+);
+
 export default router;
