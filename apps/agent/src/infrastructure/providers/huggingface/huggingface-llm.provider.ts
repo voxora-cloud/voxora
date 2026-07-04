@@ -13,6 +13,10 @@ import { trackAICall } from "../observability/observability.queue";
 import { estimateCost } from "../observability/cost-tracker";
 import { LatencyTracker } from "../observability/latency-tracker";
 import { TokenTracker } from "../observability/token-tracker";
+import {
+  cleanFinalResponse,
+  TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION,
+} from "../utils/tool-limit";
 
 export class HuggingFaceLLMProvider implements LLMProvider {
   readonly name = "huggingface";
@@ -443,15 +447,59 @@ export class HuggingFaceLLMProvider implements LLMProvider {
       }
     }
 
-    const finalCleanText = responseText
-      .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
-      .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
-      .replace(/<(thinking|thought)>[\s\S]*$/gi, "")
-      .replace(/<\/?(?:thinking|thought)>/gi, "")
-      .trim();
+    const systemMessage = hfMessages.find(
+      (message) => message.role === "system",
+    );
+    if (systemMessage) {
+      systemMessage.content = `${systemMessage.content}\n\n${TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION}`;
+    } else {
+      hfMessages.unshift({
+        role: "system",
+        content: TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION,
+      });
+    }
+
+    responseText = "";
+    const finalPayload = {
+      model,
+      messages: hfMessages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.maxTokens,
+    };
+
+    if (onStream) {
+      const finalStream = this.client.chatCompletionStream(finalPayload);
+      for await (const chunk of finalStream) {
+        const content = chunk.choices?.[0]?.delta?.content;
+        if (content) {
+          responseText += content;
+          onStream(content, false);
+        }
+        const usage = (chunk as any).usage;
+        if (usage) {
+          tokenTracker.accumulate({
+            promptTokens: usage.prompt_tokens,
+            completionTokens: usage.completion_tokens,
+            totalTokens: usage.total_tokens,
+          });
+        }
+      }
+    } else {
+      const finalResult = await this.client.chatCompletion(finalPayload);
+      responseText = finalResult.choices[0]?.message?.content || "";
+      if (finalResult.usage) {
+        tokenTracker.accumulate({
+          promptTokens: finalResult.usage.prompt_tokens,
+          completionTokens: finalResult.usage.completion_tokens,
+          totalTokens: finalResult.usage.total_tokens,
+        });
+      }
+    }
+
+    const finalCleanText = cleanFinalResponse(responseText);
 
     return {
-      text: finalCleanText || "Tool execution limit reached.",
+      text: finalCleanText || "I’m sorry, but I could not produce a final response from the available information.",
       usage: tokenTracker.toUsage(),
       steps,
     };

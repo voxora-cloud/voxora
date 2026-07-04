@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { state, API_BASE_URL } from './config';
-import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel } from './ui';
-import { parseMarkdown } from './utils/markdown';
+import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep } from './ui';
+import { parseMarkdown, parseStreamingMarkdown } from './utils/markdown';
 
 let authRetryCount = 0;
 const MAX_AUTH_RETRIES = 3;
@@ -38,6 +38,45 @@ function resetStreamState() {
 
 // Track the current tool step element so we can complete it
 let _currentToolStepEl: HTMLElement | null = null;
+
+function releaseToolSteps() {
+  // Keep the completed panel in the conversation, but release the reference so
+  // the next response gets its own execution panel.
+  state._toolStepsEl = null;
+  _currentToolStepEl = null;
+}
+
+function findToolStepsPanel(messageId: string): HTMLElement | null {
+  const panels = elements.messagesContainer?.querySelectorAll<HTMLElement>('.tool-call-block');
+  return Array.from(panels || []).find(
+    (panel) => panel.dataset.streamMessageId === messageId,
+  ) || null;
+}
+
+function placeToolStepsBeforeResponse(panel: HTMLElement, messageId: string) {
+  const container = elements.messagesContainer;
+  if (!container) return;
+
+  const agentMessages = Array.from(
+    container.querySelectorAll<HTMLElement>('.message.agent'),
+  );
+  const response = state._streamBubbleEl
+    || agentMessages.find(
+      (message) => message.dataset.messageId === messageId,
+    )
+    || container.querySelector('.message.agent[data-status="streaming"]')
+    || (
+      state._completedStreamMessageIds.has(messageId)
+        ? agentMessages.at(-1) || null
+        : null
+    );
+
+  if (response?.parentElement === container) {
+    container.insertBefore(panel, response);
+  } else if (panel.parentElement !== container) {
+    container.appendChild(panel);
+  }
+}
 
 function createStreamingMessage(messageId: string) {
   const element = document.createElement('div');
@@ -239,6 +278,9 @@ function bindSocketEvents() {
     }
 
     try {
+      // Preserve the execution history, then release it for the next response.
+      releaseToolSteps();
+
       if (data.message?.metadata?.source === 'system') {
         removeTypingDots();
         hideTyping();
@@ -268,14 +310,7 @@ function bindSocketEvents() {
 
         removeTypingDots();
         hideTyping();
-        removeToolStepsPanel();
         resetStreamState();
-      } else if (state._toolStepsEl) {
-        // Tool steps panel exists but no stream bubble — replace with final answer
-        removeToolStepsPanel();
-        removeTypingDots();
-        hideTyping();
-        typeMessage(data.message.content);
       } else {
         removeTypingDots();
         hideTyping();
@@ -291,31 +326,46 @@ function bindSocketEvents() {
   socket.on('ai_stream_chunk', (data: any) => {
     if (data.conversationId !== state.chatId) return;
     const streamMessageId = String(data.messageId || `conversation:${data.conversationId}`);
-    if (state._completedStreamMessageIds.has(streamMessageId)) return;
 
     // ── Handle tool events ────────────────────────────────────────────────
     if (data.toolEvent) {
       const ev = data.toolEvent;
+      let panel = findToolStepsPanel(streamMessageId);
 
-      if (ev.type === "start") {
-        if (!state._toolStepsEl) {
-          removeTypingDots();
-          hideTyping();
+      if (!panel) {
+        removeTypingDots();
+        hideTyping();
+        if (!state._completedStreamMessageIds.has(streamMessageId)) {
           setAiResponding(true);
-
-          // Create the collapsible tool-call-block
-          const block = createToolStepsPanel();
-          elements.messagesContainer?.appendChild(block);
-          state._toolStepsEl = block;
         }
 
-        _currentToolStepEl = addToolStep(state._toolStepsEl, ev.label);
+        panel = createToolStepsPanel();
+        panel.dataset.streamMessageId = streamMessageId;
+      }
+
+      state._toolStepsEl = panel;
+      placeToolStepsBeforeResponse(panel, streamMessageId);
+
+      const sequence = Number(data.seq);
+      const lastToolSequence = Number(panel.dataset.lastSequence || 0);
+      if (Number.isFinite(sequence)) {
+        if (sequence <= lastToolSequence) return;
+        panel.dataset.lastSequence = String(sequence);
+      }
+
+      if (ev.type === "start") {
+        _currentToolStepEl = addToolStep(panel, ev.label);
         scrollToBottom();
         return;
       }
 
-      if (ev.type === "complete" && _currentToolStepEl) {
-        completeToolStep(_currentToolStepEl, ev.detail);
+      if (ev.type === "complete") {
+        const step = _currentToolStepEl
+          || panel.querySelector<HTMLElement>('.tool-step.is-loading')
+          || addToolStep(panel, ev.label);
+        if (step) {
+          completeToolStep(step, ev.detail);
+        }
         _currentToolStepEl = null;
         scrollToBottom();
         return;
@@ -323,6 +373,8 @@ function bindSocketEvents() {
 
       return;
     }
+
+    if (state._completedStreamMessageIds.has(streamMessageId)) return;
 
     // Empty text and thought/status events never enter the visible answer.
     if (data.isThought || typeof data.chunk !== 'string' || data.chunk.length === 0) return;
@@ -332,10 +384,6 @@ function bindSocketEvents() {
     if (!stream) {
       removeTypingDots();
       hideTyping();
-
-      if (state._toolStepsEl) {
-        removeToolStepsPanel();
-      }
 
       setAiResponding(true);
       stream = createStreamingMessage(streamMessageId);
@@ -350,7 +398,7 @@ function bindSocketEvents() {
 
     stream.content += data.chunk;
     const responseContent = stream.element.querySelector('.response-content');
-    if (responseContent) responseContent.innerHTML = parseMarkdown(stream.content);
+    if (responseContent) responseContent.innerHTML = parseStreamingMarkdown(stream.content);
 
     const timeContainer = stream.element.querySelector('.message-time');
     if (timeContainer && !timeContainer.textContent) {

@@ -19,6 +19,10 @@ import { trackAICall } from "../observability/observability.queue";
 import { estimateCost } from "../observability/cost-tracker";
 import { LatencyTracker } from "../observability/latency-tracker";
 import { TokenTracker } from "../observability/token-tracker";
+import {
+  cleanFinalResponse,
+  TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION,
+} from "../utils/tool-limit";
 
 export class BedrockLLMProvider implements LLMProvider {
   readonly name = "bedrock";
@@ -566,14 +570,67 @@ export class BedrockLLMProvider implements LLMProvider {
       });
     }
 
-    const finalCleanText = responseText
-      .replace(/<(thinking|thought)>[\s\S]*?<\/\1>/gi, "")
-      .replace(/<(thinking|thought)>[\s\S]*$/gi, "")
-      .replace(/<\/?(?:thinking|thought)>/gi, "")
-      .trim();
+    responseText = "";
+    const finalSystem = [
+      ...system,
+      { text: TOOL_LIMIT_FINAL_RESPONSE_INSTRUCTION },
+    ];
+
+    if (onStream) {
+      const finalResponse = await client.send(
+        new ConverseStreamCommand({
+          modelId: model,
+          messages: converseMessages,
+          system: finalSystem,
+        }),
+      );
+
+      if (finalResponse.stream) {
+        for await (const chunk of finalResponse.stream) {
+          const text = chunk.contentBlockDelta?.delta?.text;
+          if (text) {
+            responseText += text;
+            onStream(text, false);
+          }
+
+          const usage = chunk.metadata?.usage;
+          if (usage) {
+            tokenTracker.accumulate({
+              promptTokens: usage.inputTokens,
+              completionTokens: usage.outputTokens,
+              totalTokens:
+                (usage.inputTokens || 0) + (usage.outputTokens || 0),
+            });
+          }
+        }
+      }
+    } else {
+      const finalResponse = await client.send(
+        new ConverseCommand({
+          modelId: model,
+          messages: converseMessages,
+          system: finalSystem,
+        }),
+      );
+
+      for (const block of finalResponse.output?.message?.content || []) {
+        if (block.text) responseText += block.text;
+      }
+      if (finalResponse.usage) {
+        tokenTracker.accumulate({
+          promptTokens: finalResponse.usage.inputTokens,
+          completionTokens: finalResponse.usage.outputTokens,
+          totalTokens:
+            (finalResponse.usage.inputTokens || 0) +
+            (finalResponse.usage.outputTokens || 0),
+        });
+      }
+    }
+
+    const finalCleanText = cleanFinalResponse(responseText);
 
     return {
-      text: finalCleanText || "Tool execution limit reached.",
+      text: finalCleanText || "I’m sorry, but I could not produce a final response from the available information.",
       usage: tokenTracker.toUsage(),
       steps,
     };

@@ -52,6 +52,10 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 - Use standard markdown only.`;
   } else {
     style = `Concise, direct, and operational. Short paragraphs and step-by-step bullet points.
+- Use Markdown tables only when the visitor asks for tabular data or when presenting a compact comparison, pricing, schedule, or similarly structured dataset.
+- Keep tables small: at most 4 columns and 8 data rows. Keep every cell brief. Never put paragraphs, explanations, or long sentences inside table cells.
+- If the information needs lengthy descriptions or does not benefit from column-by-column comparison, use short bullets with bold labels instead.
+- For normal answers, use clear headings only when useful, short paragraphs, and concise bullet points.
 - You MUST leverage all interactive components as much as possible to make the conversation highly dynamic instead of relying solely on plain text:
   * Inputs: <interaone-input name="[unique_field_name]" placeholder="[placeholder_text]" />
   * Buttons: <interaone-button action="[action_text]">[Button Label]</interaone-button>
