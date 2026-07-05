@@ -501,7 +501,7 @@ export class WidgetService {
     const admins = await Membership.find({
       organizationId,
       role: { $in: ["owner", "admin"] },
-      inviteStatus: "active",
+      inviteStatus: "accepted",
     }).populate("userId", "name email");
 
     for (const admin of admins) {
@@ -531,13 +531,7 @@ export class WidgetService {
       tags: [],
       assignedTo: assignedAgentId,
       createdBy: undefined,
-      visitor: {
-        sessionId,
-        name: "Anonymous User",
-        email: "anonymous@temp.local",
-        isAnonymous: true,
-        providedInfoAt: undefined,
-      },
+      sessionId,
       metadata: {
         customer: {
           initialMessage: message,

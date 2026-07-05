@@ -27,6 +27,8 @@ export interface TicketContactProfile {
   }>;
 }
 
+export type TicketRelatedConversation = TicketContactProfile["conversations"][number];
+
 export interface Ticket {
   id: string;
   ticketNumber: string;
@@ -50,6 +52,7 @@ export interface Ticket {
   closedAt: string | null;
   requesterContact?: TicketRequesterContact;
   contactProfile?: TicketContactProfile | null;
+  relatedConversations?: TicketRelatedConversation[];
   createdAt: string;
   updatedAt: string;
 }

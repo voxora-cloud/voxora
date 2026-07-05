@@ -209,5 +209,25 @@ export class ContactsController {
       sendError(res, 500, error.message || "Failed to resolve conflict");
     }
   }
+
+  static async updateContact(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const { name, email, phone, company, tags } = req.body;
+
+      const result = await contactsService.updateContact(orgId, id, {
+        name,
+        email,
+        phone,
+        company,
+        tags,
+      });
+
+      sendResponse(res, 200, true, "Contact updated successfully", { contact: result });
+    } catch (error: any) {
+      sendError(res, 500, error.message || "Failed to update contact");
+    }
+  }
 }
 

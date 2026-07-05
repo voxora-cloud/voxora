@@ -8,7 +8,7 @@ import type {
   KnowledgeListResponse,
   KnowledgeViewUrlResponse,
   DeleteResponse,
-} from "../types";
+} from "../types/types";
 
 export const knowledgeApi = {
   getKnowledgeItems: () => apiClient.get<KnowledgeListResponse>("/knowledge"),

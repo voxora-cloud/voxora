@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
 import { storageApi } from "@/shared/lib/storage.api";
-import type { AddKnowledgeFormData, KnowledgeBase, KnowledgeListResponse } from "../types";
+import type { AddKnowledgeFormData, KnowledgeBase, KnowledgeListResponse } from "../types/types";
 
 export const useAddKnowledge = () => {
   const queryClient = useQueryClient();

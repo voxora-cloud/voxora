@@ -19,7 +19,7 @@ import {
   PaginationPrevious,
 } from "@/shared/ui/pagination";
 import { usePagination } from "@/shared/hooks/usePagination";
-import { Edit, Mail, Search, Trash2, User, X, PowerOff, Power, Loader2 } from "lucide-react";
+import { Edit, Mail, Search, Trash2, User, X, PowerOff, Loader2 } from "lucide-react";
 import type { Member } from "../types/types";
 import { authApi } from "@/domains/auth/api/auth.api";
 
@@ -181,9 +181,8 @@ export function FilterableMemberTable({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all" className="cursor-pointer">All</SelectItem>
-                      <SelectItem value="active" className="cursor-pointer">Active</SelectItem>
+                      <SelectItem value="accepted" className="cursor-pointer">Active</SelectItem>
                       <SelectItem value="pending" className="cursor-pointer">Pending</SelectItem>
-                      <SelectItem value="inactive" className="cursor-pointer">Inactive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -273,14 +272,14 @@ export function FilterableMemberTable({
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider ${member.inviteStatus === "active"
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider ${member.inviteStatus === "accepted"
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400 border border-emerald-500/20"
                           : member.inviteStatus === "pending"
                             ? "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400 border border-amber-500/20"
                             : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300 border border-zinc-500/20"
                         }`}
                     >
-                      {member.inviteStatus}
+                      {member.inviteStatus === "accepted" ? "Active" : member.inviteStatus}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -315,17 +314,9 @@ export function FilterableMemberTable({
                               size="sm"
                               className="cursor-pointer text-orange-600 hover:text-orange-700 hover:bg-orange-500/10"
                               onClick={() => onToggleStatus(member)}
-                              title={
-                                member.inviteStatus === "inactive"
-                                  ? "Reactivate Member"
-                                  : "Suspend Member"
-                              }
+                              title="Suspend Member"
                             >
-                              {member.inviteStatus === "inactive" ? (
-                                <Power className="h-3 w-3" />
-                              ) : (
-                                <PowerOff className="h-3 w-3" />
-                              )}
+                              <PowerOff className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"

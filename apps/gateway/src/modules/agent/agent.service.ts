@@ -40,7 +40,7 @@ export class AgentService {
     return agent ? { status: agent.status, lastSeen: agent.lastSeen } : null;
   }
 
-// ═══════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════
   //  AGENT STATS (org-scoped)
   // ═══════════════════════════════════════════════════
 

@@ -165,7 +165,7 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
       // We key on visitor sessionId e.g. "whatsapp-<fromPhone>" so threads are grouped.
       let conversation = await Conversation.findOne({
         organizationId,
-        "visitor.sessionId": `whatsapp-${fromPhone}`,
+        sessionId: `whatsapp-${fromPhone}`,
         status: { $in: ["open", "pending"] },
         $or: [
           { channel: "whatsapp_channel", channelId: payload.channelId },
@@ -189,12 +189,7 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
           metadata: {
             phone: fromPhone,
           },
-          visitor: {
-            sessionId: `whatsapp-${fromPhone}`,
-            name: fromPhone,
-            email: `${fromPhone}@whatsapp.local`,
-            isAnonymous: false,
-          },
+          sessionId: `whatsapp-${fromPhone}`,
         });
 
         logger.info("[WhatsAppChannelStrategy] Created new conversation for inbound WhatsApp", {

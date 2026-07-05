@@ -26,9 +26,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       const { conversationId, content, type, metadata } = data;
 
       try {
-        // Fetch conversation to get visitor info and widget config
+        // Fetch conversation to get sessionId and widget config
         const conversation = await Conversation.findById(conversationId)
-          .select("organizationId visitor channel channelId metadata assignedTo status subject")
+          .select("organizationId sessionId channel channelId metadata assignedTo status subject")
           .lean();
 
         if (!conversation) {
@@ -36,13 +36,22 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           return;
         }
 
+        // Fetch contact matching the conversation's sessionId
+        let contact = null;
+        if (conversation.sessionId) {
+          contact = await Contact.findOne({
+            organizationId: conversation.organizationId,
+            sessionId: conversation.sessionId,
+          }).lean();
+        }
+
         // Determine sender metadata
         let messageMetadata = metadata || { source: "widget" };
 
         if (metadata?.source === "widget") {
           messageMetadata = {
-            senderName: metadata?.senderName || conversation.visitor?.name || "Anonymous User",
-            senderEmail: metadata?.senderEmail || conversation.visitor?.email || "anonymous@temp.local",
+            senderName: metadata?.senderName || contact?.name || "Anonymous User",
+            senderEmail: metadata?.senderEmail || contact?.email || "anonymous@temp.local",
             source: "widget",
             interactionSource:
               metadata?.interactionSource ||
@@ -94,6 +103,31 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             { messageLength: content.length },
             { conversationId, agentId, channel: "web" },
           );
+
+          if (agentId) {
+            await Conversation.updateOne(
+              { _id: conversationId },
+              {
+                $set: {
+                  assignedTo: agentId,
+                  "metadata.humanJoinedAt": (conversation as any).metadata?.humanJoinedAt || new Date(),
+                  "metadata.escalatedAt": (conversation as any).metadata?.escalatedAt || new Date(),
+                  "metadata.pendingEscalation": false,
+                  "metadata.pendingOfflineEscalation": false,
+                },
+                $addToSet: { participants: agentId }
+              }
+            );
+
+            const sm = getSocketManager();
+            if (sm) {
+              sm.emitToConversation(conversationId, "conversation_assigned", {
+                conversationId,
+                agentId,
+                agentName: socket.data?.user?.name,
+              });
+            }
+          }
 
           // Forward agent reply to channels if applicable
           let channelType = (conversation as any).channel || (conversation as any).metadata?.channel;
@@ -167,8 +201,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             let to: string | undefined;
             const convMeta = conversation.metadata as any || {};
 
-            if (channelType === "email_channel") {
-              to = conversation.visitor?.email || convMeta.senderEmail;
+             if (channelType === "email_channel") {
+              to = contact?.email || convMeta.senderEmail;
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.email) {
@@ -176,7 +210,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 }
               }
             } else if (channelType === "whatsapp_channel") {
-              to = convMeta.phone || conversation.visitor?.name;
+              to = convMeta.phone || contact?.phone || contact?.name;
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.phone) {
@@ -184,7 +218,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 }
               }
             } else if (channelType === "telegram_channel") {
-              to = convMeta.chatId || conversation.visitor?.sessionId?.replace("telegram-", "");
+              to = convMeta.chatId || conversation.sessionId?.replace("telegram-", "");
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.sessionId?.startsWith("telegram-")) {
@@ -241,7 +275,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           (conversation as any).metadata?.escalatedAt ||
           (conversation as any).metadata?.humanJoinedAt ||
           conversation.assignedTo ||
-          ["active", "resolved", "closed"].includes((conversation as any).status)
+          ["resolved", "closed"].includes((conversation as any).status)
         ) {
           return; // message was saved & broadcast above; just don't run AI
         }
@@ -273,7 +307,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         }
 
         const org = await Organization.findById(conversation.organizationId).select("subscriptionStatus").lean();
-        const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active" && org.subscriptionStatus !== "trialing") : false;
+        const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
 
         // ── Route: enqueue AI job with full config ─────────────────
         aiQueue
@@ -332,30 +366,12 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         socket.data?.user?.orgRole === "admin" ||
         socket.data?.user?.orgRole === "owner"
       ) {
-        await Conversation.findByIdAndUpdate(conversationId, {
-          $set: {
-            assignedTo: socket.data.user.userId,
-            status: "active",
-            "metadata.humanJoinedAt": new Date(),
-            "metadata.escalatedAt": new Date(),
-            "metadata.pendingEscalation": false,
-            "metadata.routeReason": "Human agent joined conversation",
-          },
-          $addToSet: { participants: socket.data.user.userId },
-        });
-
-        io.to(roomName).emit("conversation_assigned", {
-          conversationId,
-          agentId: socket.data.user.userId,
-          agentName: socket.data.user.name,
-        });
-
         logger.info(
-          `Agent ${socket.data.user.name} (${socket.data.user.userId}) joined conversation ${conversationId}`,
+          `Agent ${socket.data.user.name} (${socket.data.user.userId}) joined conversation room ${conversationId}`
         );
       } else {
         logger.info(
-          `Widget user ${socket.id} joined conversation ${conversationId}`,
+          `Widget user ${socket.id} joined conversation room ${conversationId}`
         );
       }
     } catch (error) {

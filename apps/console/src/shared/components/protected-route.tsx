@@ -7,7 +7,7 @@ import { authApi } from "@/domains/auth/api/auth.api";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: "admin" | "agent" | "founder";
+  requiredRole?: "admin" | "agent" | "owner";
   redirectTo?: string;
 }
 
@@ -29,19 +29,18 @@ export function ProtectedRoute({
       if (requiredRole) {
         // Check if user has required role or compatible role
         const orgRole = authApi.getOrgRole();
-        const userRole = orgRole === "owner" ? "founder" : orgRole;
 
         const hasRequiredRole =
-          userRole === requiredRole ||
-          (requiredRole === "admin" && userRole === "founder") ||
-          (requiredRole === "agent" && userRole === "admin") ||
-          (requiredRole === "agent" && userRole === "founder");
+          orgRole === requiredRole ||
+          (requiredRole === "admin" && orgRole === "owner") ||
+          (requiredRole === "agent" && orgRole === "admin") ||
+          (requiredRole === "agent" && orgRole === "owner");
 
         if (!hasRequiredRole) {
           // Redirect based on user role
-          if (userRole === "admin" || userRole === "founder") {
+          if (orgRole === "admin" || orgRole === "owner") {
             navigate("/admin");
-          } else if (userRole === "agent") {
+          } else if (orgRole === "agent") {
             navigate("/conversation/inbox");
           } else {
             navigate("/auth/login");

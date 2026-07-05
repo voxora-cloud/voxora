@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
-import type { KnowledgeListResponse } from "../types";
+import type { KnowledgeListResponse } from "../types/types";
 
 export const useDeleteKnowledgeItem = () => {
   const queryClient = useQueryClient();

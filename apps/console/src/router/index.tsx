@@ -3,15 +3,11 @@ import App from "../App";
 import LoginPage from "../domains/auth/pages/login/page";
 import SetupPage from "../domains/auth/pages/setup/page";
 import PasswordRecoveryPage from "../domains/auth/pages/password-recovery/page";
-
-import AcceptInvitePage from "../domains/auth/pages/accept-invite/page";
 import { SelectOrgPage } from "../domains/auth/pages/select-org/page";
 import { DashboardHomePage } from "@/domains/dashboard/pages/page";
 import { TicketsPage } from "@/domains/tickets/pages/tickets-page";
 import { TicketDetailPage } from "@/domains/tickets/pages/ticket-detail-page";
-
 import { MembersPage } from "@/domains/member/pages/members-page";
-import { RolesPage } from "@/domains/member/pages/roles-page";
 import { ContactsPage } from "@/domains/contacts/pages/contacts-page";
 import { AgentsPage } from "@/domains/agent/pages/page";
 import { WidgetPage } from "@/domains/widget/pages/page";
@@ -28,13 +24,14 @@ import { BillingSuccessPage } from "@/domains/billing/pages/billing-success-page
 import { BillingFailedPage } from "@/domains/billing/pages/billing-failed-page";
 import { CreateOrganizationPage } from "@/domains/auth/pages/create-organization/page";
 import { DashboardLayout } from "@/shared/layouts/dashboard-layout";
-import { ProtectedRoute } from "@/domains/auth/components/protected-route";
+import { ProtectedRoute } from "@/shared/components/protected-route";
 import QRCodeGeneratorPage from "@/domains/widget/pages/qr-generator-page";
 import QRScannerLandingPage from "@/domains/widget/pages/qr-scanner-landing-page";
 import { ChannelsPage } from "@/domains/channels/pages/channels-page";
 import { EmailChannelSetupPage } from "@/domains/channels/pages/email-channel-setup";
 import { WhatsAppChannelSetupPage } from "@/domains/channels/pages/whatsapp-channel-setup";
 import { TelegramChannelSetupPage } from "@/domains/channels/pages/telegram-channel-setup";
+import { AcceptInvitePage } from "@/domains/auth/pages/accept-invite/page";
 
 const router = createBrowserRouter([
     {
@@ -78,15 +75,31 @@ const router = createBrowserRouter([
 
     {
         path: "/dashboard/conversations",
-        element: <Navigate to="/dashboard/conversations/inbox" replace />,
+        element: <Navigate to="/dashboard/conversations/inbox/open" replace />,
     },
     {
         path: "/dashboard/conversations/inbox",
+        element: <Navigate to="/dashboard/conversations/inbox/open" replace />,
+    },
+    {
+        path: "/dashboard/conversations/inbox/open",
         element: (
             <ProtectedRoute requiredRole="agent">
                 <DashboardLayout>
                     <ConversationLayout>
-                        <ConversationsInboxPage />
+                        <ConversationsInboxPage mode="all" />
+                    </ConversationLayout>
+                </DashboardLayout>
+            </ProtectedRoute>
+        ),
+    },
+    {
+        path: "/dashboard/conversations/inbox/assigned",
+        element: (
+            <ProtectedRoute requiredRole="agent">
+                <DashboardLayout>
+                    <ConversationLayout>
+                        <ConversationsInboxPage mode="mine" />
                     </ConversationLayout>
                 </DashboardLayout>
             </ProtectedRoute>
@@ -120,16 +133,6 @@ const router = createBrowserRouter([
             <ProtectedRoute requiredRole="admin">
                 <DashboardLayout>
                     <MembersPage />
-                </DashboardLayout>
-            </ProtectedRoute>
-        ),
-    },
-    {
-        path: "/dashboard/members/roles",
-        element: (
-            <ProtectedRoute requiredRole="admin">
-                <DashboardLayout>
-                    <RolesPage />
                 </DashboardLayout>
             </ProtectedRoute>
         ),
@@ -177,7 +180,7 @@ const router = createBrowserRouter([
     {
         path: "/dashboard/widget/qr",
         element: (
-            <ProtectedRoute requiredRole="founder">
+            <ProtectedRoute requiredRole="owner">
                 <DashboardLayout>
                     <QRCodeGeneratorPage />
                 </DashboardLayout>
@@ -257,17 +260,9 @@ const router = createBrowserRouter([
         ),
     },
     {
-        path: "/dashboard/settings",
-        element: (
-            <DashboardLayout>
-                <Navigate to="/dashboard/settings/general" replace />
-            </DashboardLayout>
-        ),
-    },
-    {
         path: "/dashboard/settings/general",
         element: (
-            <ProtectedRoute requiredRole="founder">
+            <ProtectedRoute requiredRole="owner">
                 <DashboardLayout>
                     <GeneralSettingsPage />
                 </DashboardLayout>
@@ -275,13 +270,9 @@ const router = createBrowserRouter([
         ),
     },
     {
-        path: "/dashboard/settings/billing",
-        element: <Navigate to="/dashboard/settings/billing/plans" replace />,
-    },
-    {
         path: "/dashboard/settings/billing/plans",
         element: (
-            <ProtectedRoute requiredRole="founder">
+            <ProtectedRoute requiredRole="owner">
                 <DashboardLayout>
                     <PlansPage />
                 </DashboardLayout>
@@ -291,7 +282,7 @@ const router = createBrowserRouter([
     {
         path: "/dashboard/settings/billing/usage",
         element: (
-            <ProtectedRoute requiredRole="founder">
+            <ProtectedRoute requiredRole="owner">
                 <DashboardLayout>
                     <UsagePage />
                 </DashboardLayout>
@@ -318,7 +309,7 @@ const router = createBrowserRouter([
     {
         path: "/dashboard/settings/danger-zone",
         element: (
-            <ProtectedRoute requiredRole="founder">
+            <ProtectedRoute requiredRole="owner">
                 <DashboardLayout>
                     <DangerZonePage />
                 </DashboardLayout>

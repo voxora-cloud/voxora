@@ -84,7 +84,8 @@ export function MembersPage() {
   };
 
   const handleToggleStatus = async (member: Member) => {
-    const newStatus = member.inviteStatus === "inactive" ? "active" : "inactive";
+    // "accepted" members can be suspended (which deletes the membership on the backend)
+    const newStatus: "active" | "suspend" = "suspend";
     try {
       await updateMemberStatusMutation.mutateAsync({
         memberId: member.membershipId,

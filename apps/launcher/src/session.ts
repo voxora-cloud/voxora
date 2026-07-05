@@ -1,5 +1,5 @@
 /**
- * Visitor & Identity Management (Loader-side)
+ * Visitor Management (Loader-side)
  *
  * PURPOSE
  * -------
@@ -7,7 +7,7 @@
  * It is the ONLY place that reads/writes to customer-domain localStorage.
  *
  * The iframe (on the InteraOne domain) NEVER reads customer localStorage.
- * Instead, the loader passes the visitor ID and identity to the iframe
+ * Instead, the loader passes the visitor ID to the iframe
  * exclusively via the INIT_WIDGET postMessage.
  *
  * WHY THIS MATTERS
@@ -22,16 +22,9 @@
  * A stable anonymous identifier that persists across sessions on the same
  * customer domain. Lives in customer localStorage under 'InteraOne_visitor_id'.
  * Similar to how Segment generates an anonymous ID.
- *
- * EXPLICIT IDENTITY
- * -----------------
- * Set when the host page calls `InteraOne.identify(userId, { email, name })`.
- * Stored in customer localStorage so it survives page reloads without needing
- * the host page to call identify() again on every load.
  */
 
 const VISITOR_ID_KEY = 'InteraOne_visitor_id';
-const IDENTITY_KEY = 'InteraOne_identity';
 
 // ─── Visitor ID ───────────────────────────────────────────────────────────────
 
@@ -54,59 +47,6 @@ export function getOrCreateVisitorId(): string {
   } catch {
     // localStorage blocked — return ephemeral ID, don't persist
     return generateId('v_');
-  }
-}
-
-// ─── Explicit Identity ────────────────────────────────────────────────────────
-
-/**
- * Traits allowed on an explicit user identity.
- * Keep values scalar (string | number | boolean) — no nested objects.
- * This ensures safe JSON serialisation over postMessage.
- */
-export interface StoredIdentity {
-  userId?: string;
-  email?: string;
-  name?: string;
-  [key: string]: string | number | boolean | undefined;
-}
-
-/**
- * Persist an explicit identity such that future page loads don't require
- * the host page to call identify() again.
- */
-export function setIdentity(identity: StoredIdentity): void {
-  try {
-    localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
-  } catch {
-    // Silently ignore — identity is optional; widget degrades gracefully
-  }
-}
-
-/**
- * Read the persisted identity, if any.
- */
-export function getIdentity(): StoredIdentity | null {
-  try {
-    const raw = localStorage.getItem(IDENTITY_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    // Validate it's a plain object with at least one key
-    if (typeof parsed === 'object' && parsed !== null) return parsed as StoredIdentity;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Remove the persisted identity (call on logout).
- */
-export function clearIdentity(): void {
-  try {
-    localStorage.removeItem(IDENTITY_KEY);
-  } catch {
-    // Ignore
   }
 }
 

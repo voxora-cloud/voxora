@@ -21,7 +21,6 @@ interface UpgradeModalProps {
 
 const LIMIT_LABELS: Record<string, string> = {
   messages: "AI messages",
-  teams: "teams",
   humanAgents: "human agents",
   contacts: "contacts",
   knowledgeItems: "knowledge items",

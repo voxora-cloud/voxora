@@ -6,11 +6,12 @@ import {
   Membership,
   SystemEvent,
   Ticket,
+  Contact,
+  RecentConversation,
 } from "@shared/models";
 import logger from "@shared/core/logger";
 import {
   ListConversationsOptions,
-  UpdateVisitorInfoInput,
   RouteConversationInput,
 } from "./conversation.types";
 
@@ -142,46 +143,7 @@ export class ConversationService {
     return { conversation, messages };
   }
 
-  async updateVisitorInfo(
-    organizationId: string,
-    conversationId: string,
-    data: UpdateVisitorInfoInput,
-    existingSessionId?: string,
-  ) {
-    const { name, email, sessionId } = data;
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      organizationId,
-    });
-    if (!conversation) return { found: false };
-    if (sessionId && conversation.visitor?.sessionId !== sessionId)
-      return { found: true, validSession: false };
 
-    const updateData: any = {};
-    if (name) updateData["visitor.name"] = name;
-    if (email) updateData["visitor.email"] = email;
-    if (name && email) {
-      updateData["visitor.isAnonymous"] = false;
-      updateData["visitor.providedInfoAt"] = new Date();
-    }
-
-    await Conversation.findByIdAndUpdate(
-      conversationId,
-      { $set: updateData },
-      { new: true },
-    );
-    await Message.updateMany(
-      { conversationId, organizationId, "metadata.source": "widget" },
-      {
-        $set: {
-          "metadata.senderName": name || conversation.visitor?.name,
-          "metadata.senderEmail": email || conversation.visitor?.email,
-        },
-      },
-    );
-
-    return { found: true, validSession: true };
-  }
 
   /**
    * Auto-assign conversation to a team/agent within the org.
@@ -191,8 +153,8 @@ export class ConversationService {
     organizationId: string,
   ): Promise<{ agentId: string | null }> {
     try {
-      const onlineStatuses = ["online", "away"];
-      const baseFilter = { organizationId, inviteStatus: "active" as const };
+      const onlineStatuses = ["online"];
+      const baseFilter = { organizationId, inviteStatus: "accepted" as const };
 
       const pickLeastBusy = async (
         memberships: any[],
@@ -395,7 +357,7 @@ export class ConversationService {
         .limit(limit)
         .lean(),
       Conversation.findOne({ _id: conversationId, organizationId })
-        .select("visitor.name visitor.email")
+        .select("sessionId")
         .lean(),
     ]);
 
@@ -407,15 +369,21 @@ export class ConversationService {
       timestamp: m.createdAt,
     }));
 
+    let contact = null;
+    if (conversation && (conversation as any).sessionId) {
+      contact = await Contact.findOne({
+        organizationId,
+        sessionId: (conversation as any).sessionId,
+      }).lean();
+    }
+
     const visitorName =
-      conversation?.visitor?.name &&
-      conversation.visitor.name !== "Anonymous User"
-        ? conversation.visitor.name
+      contact?.name && contact.name !== "Anonymous User"
+        ? contact.name
         : null;
     const visitorEmail =
-      conversation?.visitor?.email &&
-      conversation.visitor.email !== "anonymous@temp.local"
-        ? conversation.visitor.email
+      contact?.email && contact.email !== "anonymous@temp.local"
+        ? contact.email
         : null;
 
     return { memory, visitor: { name: visitorName, email: visitorEmail } };
@@ -524,10 +492,21 @@ export class ConversationService {
         conversationId: conv._id,
       }).sort({ createdAt: 1 }).lean();
 
+      const contact = conv.sessionId ? await Contact.findOne({
+        organizationId: conv.organizationId,
+        sessionId: conv.sessionId,
+      }).lean() : null;
+
       results.push({
         conversationId: conv._id.toString(),
         organizationId: conv.organizationId.toString(),
-        visitor: conv.visitor,
+        visitor: contact ? {
+          sessionId: contact.sessionId,
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
+          company: contact.company,
+        } : { sessionId: conv.sessionId },
         messages: messages.map(m => ({
           role: m.metadata?.source === "widget" ? "user" : "assistant",
           content: m.content || "",
@@ -536,5 +515,80 @@ export class ConversationService {
     }
 
     return results;
+  }
+
+  /**
+   * Add or update a recent conversation for a user
+   */
+  async upsertRecentConversation(userId: string, organizationId: string, conversationId: string): Promise<void> {
+    try {
+      await RecentConversation.findOneAndUpdate(
+        { userId, conversationId },
+        { openedAt: new Date(), organizationId },
+        { upsert: true, new: true }
+      );
+
+      // Keep only top 10 recent conversations for this user and organization
+      const recents = await RecentConversation.find({ userId, organizationId }).sort({ openedAt: -1 });
+      if (recents.length > 10) {
+        const toDelete = recents.slice(10).map(r => r._id);
+        await RecentConversation.deleteMany({ _id: { $in: toDelete } });
+      }
+    } catch (error: any) {
+      logger.error(`Error in upsertRecentConversation: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get recent conversations for a user
+   */
+  async getRecentConversations(userId: string, organizationId: string): Promise<any[]> {
+    try {
+      const recents = await RecentConversation.find({ userId, organizationId })
+        .sort({ openedAt: -1 })
+        .limit(10)
+        .lean();
+
+      const results = [];
+      for (const recent of recents) {
+        const conv = await Conversation.findOne({ _id: recent.conversationId, organizationId }).lean();
+        if (!conv) continue;
+
+        // Get last message
+        const lastMsg = await Message.findOne({ conversationId: conv._id, organizationId })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        // Get contact
+        const contact = conv.sessionId ? await Contact.findOne({
+          organizationId,
+          sessionId: conv.sessionId,
+        }).lean() : null;
+
+        results.push({
+          _id: conv._id.toString(),
+          subject: conv.subject || "No Subject",
+          visitorName: contact?.name || "Anonymous User",
+          channel: conv.channel || conv.metadata?.source || "widget",
+          lastMessage: lastMsg?.content || "",
+          openedAt: recent.openedAt.getTime(),
+        });
+      }
+      return results;
+    } catch (error: any) {
+      logger.error(`Error in getRecentConversations: ${error.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Clear all recent conversations for a user
+   */
+  async clearRecentConversations(userId: string, organizationId: string): Promise<void> {
+    try {
+      await RecentConversation.deleteMany({ userId, organizationId });
+    } catch (error: any) {
+      logger.error(`Error in clearRecentConversations: ${error.message}`);
+    }
   }
 }

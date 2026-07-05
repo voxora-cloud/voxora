@@ -5,12 +5,29 @@ import { initializeSocket } from './socket';
 import { setupEventListeners } from './events';
 import { clearStoredSession } from './utils/session';
 
+let selectedTitle = '';
+
 function updateGreeting(name?: string, overrideSubtext?: string) {
   const greeting = elements.greetingTitle;
   const subtext = elements.greetingSubtext;
 
   if (greeting) {
-    greeting.textContent = 'What can I help you with?';
+    if (!selectedTitle) {
+      const titles = [
+        "👋 Welcome!",
+        "How can we help?",
+        "Need support?",
+        "Got a question?",
+        "Let's chat.",
+        "We're listening.",
+        "What's your challenge today?",
+        "We're here if you need us.",
+        "Talk to us.",
+        "Let's figure it out.",
+      ];
+      selectedTitle = titles[Math.floor(Math.random() * titles.length)];
+    }
+    greeting.textContent = selectedTitle;
   }
   if (subtext) {
     subtext.textContent = overrideSubtext || 'Ask anything or pick a suggestion below to get started.';
@@ -54,7 +71,7 @@ function applyWidgetAppearance(cfg: any) {
   }
 
   if (input && !input.value) {
-    input.placeholder = 'Ask InteraOne anything';
+    input.placeholder = 'Ask anything';
   }
 
   if (avatar) {
@@ -168,8 +185,15 @@ async function handleInitWidget(payload: any) {
   (window as any).__InteraOnePageUrl = payload.pageUrl;
   (window as any).__InteraOnePageTitle = payload.pageTitle || '';
 
+  if (payload.isMobile) {
+    document.documentElement.classList.add('is-mobile');
+    document.body.classList.add('is-mobile');
+  } else {
+    document.documentElement.classList.remove('is-mobile');
+    document.body.classList.remove('is-mobile');
+  }
+
   if (payload.appearance) applyWidgetAppearance(payload.appearance);
-  updateGreeting(state.userName, payload.appearance?.welcomeMessage);
 
   await bootstrapSession(payload, function (token: string, sessionId: string) {
     state.widgetToken = token;
@@ -179,7 +203,7 @@ async function handleInitWidget(payload: any) {
 
     if (elements.messageInput) {
       elements.messageInput.disabled = false;
-      elements.messageInput.placeholder = 'Ask InteraOne anything';
+      elements.messageInput.placeholder = 'Ask anything';
     }
   });
 }

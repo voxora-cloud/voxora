@@ -18,7 +18,7 @@ import { Label } from "@/shared/ui/label";
 import type {
   AddKnowledgeFormData,
   AddKnowledgeSource,
-} from "../types";
+} from "../types/types";
 
 interface AddKnowledgeModalProps {
   isOpen: boolean;
@@ -218,9 +218,8 @@ export function AddKnowledgeModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className={`flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden ${
-          isFaqFlow ? "sm:max-w-[960px] xl:max-w-[1120px]" : step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"
-        }`}
+        className={`flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col overflow-hidden ${isFaqFlow ? "sm:max-w-[960px] xl:max-w-[1120px]" : step === 3 ? "sm:max-w-[860px]" : "sm:max-w-[600px]"
+          }`}
       >
         <div className="flex shrink-0 items-center justify-between mb-6">
           <div>
@@ -565,13 +564,12 @@ export function AddKnowledgeModal({
                               setFormData((prev) => ({ ...prev, catalog: category }));
                             }
                           }}
-                          className={`p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer ${
-                            formData.catalog === category && !showCustomCatalog
+                          className={`p-2.5 rounded-lg border text-left text-xs transition-all cursor-pointer ${formData.catalog === category && !showCustomCatalog
                               ? "border-primary bg-primary/10 text-primary"
                               : category === "Custom" && showCustomCatalog
                                 ? "border-primary bg-primary/10 text-primary"
                                 : "border-border hover:bg-muted/50 text-foreground"
-                          }`}
+                            }`}
                         >
                           {category}
                         </button>

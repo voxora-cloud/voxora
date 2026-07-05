@@ -16,7 +16,7 @@ import { KnowledgeTable } from "../components/knowledge-table";
 import { AddKnowledgeModal } from "../components/add-knowledge-modal";
 import { DeleteConfirmDialog } from "@/shared/components/delete-confirm-dialog";
 import { Dialog, DialogContent } from "@/shared/ui/dialog";
-import type { KnowledgeBase, AddKnowledgeFormData } from "../types";
+import type { KnowledgeBase, AddKnowledgeFormData } from "../types/types";
 import {
   useAddKnowledge,
   useDeleteKnowledgeItem,

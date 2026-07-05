@@ -4,34 +4,31 @@
  */
 
 import { WidgetConfig, WidgetServerConfig, WidgetState } from './types';
-import { INTERAONE_LOGO_SVG } from './shared/assets';
+import { INTERAONE_FLOATING_LOGO_SVG } from './shared/assets';
 
 export class WidgetUI {
   private config: WidgetConfig;
   private state: WidgetState;
   private button: HTMLElement | null = null;
   private iframe: HTMLIFrameElement | null = null;
-  private badge: HTMLElement | null = null;
+
   private dockContainer: HTMLElement | null = null;
   private outsideChipsContainer: HTMLElement | null = null;
   private onToggle?: (isOpen: boolean) => void;
   private customSize: { width: number; height: number } | null = null;
-  private centered = false;
+  private activePanelWidth: number | null = null;
   private hostWidth: string | null = null;
   private hostHeight: string | null = null;
   private hostOverflowY: string | null = null;
   private hostOverflowX: string | null = null;
   private hostTransition: string | null = null;
   private documentOverflow: string | null = null;
+  private hostMinHeight: string | null = null;
   private pageVisible = true;
   private resizeHandler: (() => void) | null = null;
 
-  private get isFullscreen(): boolean {
-    return this.config.fullscreen === true;
-  }
-
   private isMobileSheet(): boolean {
-    return !this.isFullscreen && window.innerWidth <= 768;
+    return window.innerWidth <= 768;
   }
 
   constructor(config: WidgetConfig, state: WidgetState) {
@@ -67,9 +64,6 @@ export class WidgetUI {
     this.config.suggestions = serverConfig.suggestions;
   }
 
-  private shouldUseCustomIcon(): boolean {
-    return false;
-  }
 
   /**
    * Render the button content without interpolating user-controlled logo URLs
@@ -80,7 +74,7 @@ export class WidgetUI {
     if (!this.button) return;
 
     this.button.textContent = '';
-    this.button.innerHTML = INTERAONE_LOGO_SVG;
+    this.button.innerHTML = INTERAONE_FLOATING_LOGO_SVG;
   }
 
   private setButtonClosedChrome(): void {
@@ -105,40 +99,29 @@ export class WidgetUI {
     });
   }
   private applyHostDockSpacing(width: number): void {
-    if (this.isFullscreen) return;
-    const body = document.body;
-    if (!body) return;
+    const html = document.documentElement;
+    if (!html) return;
 
     if (!this.state.isOpen) return;
 
     const effectiveWidth = this.isMobileSheet() ? 0 : width;
 
     if (this.hostWidth === null) {
-      this.hostWidth = body.style.width || '';
-      this.hostHeight = body.style.height || '';
-      this.hostTransition = body.style.transition || '';
-      this.hostOverflowY = body.style.overflowY || '';
-      this.hostOverflowX = body.style.overflowX || '';
-      this.documentOverflow = document.documentElement.style.overflow || '';
+      this.hostWidth = html.style.width || '';
+      this.hostTransition = html.style.transition || '';
+      this.hostOverflowX = html.style.overflowX || '';
     }
 
     if (effectiveWidth > 0) {
-      document.documentElement.style.overflow = 'hidden';
-      body.style.width = `calc(100vw - ${effectiveWidth}px)`;
-      body.style.height = '100dvh';
-      body.style.overflowY = 'auto';
-      body.style.overflowX = 'hidden';
+      html.style.width = `calc(100vw - ${effectiveWidth}px)`;
+      html.style.overflowX = 'hidden';
 
       const baseTransition = this.hostTransition || '';
       const widthTransition = 'width 0.24s ease-in-out';
-      body.style.transition = baseTransition
+      html.style.transition = baseTransition
         ? `${baseTransition}, ${widthTransition}`
         : widthTransition;
-      body.style.boxSizing = 'border-box';
-    } else {
-      // Mobile sheet mode
-      document.documentElement.style.overflow = 'hidden';
-      body.style.overflowY = 'hidden';
+      html.style.boxSizing = 'border-box';
     }
 
     if (this.dockContainer) {
@@ -147,45 +130,27 @@ export class WidgetUI {
   }
 
   private restoreHostDockSpacing(): void {
-    const body = document.body;
-    if (!body || this.hostWidth === null) return;
-    
-    body.style.width = this.hostWidth;
-    body.style.height = this.hostHeight || '';
-    
+    const html = document.documentElement;
+    if (!html || this.hostWidth === null) return;
+
+    html.style.width = this.hostWidth;
+
     if (this.hostTransition !== null) {
-      body.style.transition = this.hostTransition;
-    }
-    if (this.hostOverflowY !== null) {
-      body.style.overflowY = this.hostOverflowY;
+      html.style.transition = this.hostTransition;
     }
     if (this.hostOverflowX !== null) {
-      body.style.overflowX = this.hostOverflowX;
+      html.style.overflowX = this.hostOverflowX;
     }
-    if (this.documentOverflow !== null) {
-      document.documentElement.style.overflow = this.documentOverflow;
-    }
+
+    // Reset so the next open captures fresh values
+    this.hostWidth = null;
   }
 
-  private getScrollbarWidth(): number {
-    const doc = document.documentElement;
-    if (!doc) return 0;
-    return Math.max(0, window.innerWidth - doc.clientWidth);
-  }
-
-  private syncDockToScrollbar(): void {
-    if (!this.dockContainer || this.isFullscreen || this.isMobileSheet()) return;
-    this.dockContainer.style.right = '0px';
-  }
 
   /**
    * Create and mount chat button
    */
   createButton(): HTMLElement {
-    if (this.isFullscreen) {
-      throw new Error('[InteraOneWidget] createButton() should not be called in fullscreen mode');
-    }
-
     this.button = document.createElement('div');
     this.button.id = 'InteraOne-chat-button';
     this.button.setAttribute('role', 'button');
@@ -207,7 +172,7 @@ export class WidgetUI {
       height: '60px',
       borderRadius: '50%',
       background: bgColor,
-      boxShadow: `0 8px 24px ${shadowColor}`,
+      boxShadow: '0 8px 24px rgba(15, 23, 42, 0.16)', // Neutral premium shadow
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
@@ -230,14 +195,14 @@ export class WidgetUI {
     this.button.addEventListener('mouseenter', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1.1)';
-        this.button.style.boxShadow = `0 12px 32px ${shadowColor}`;
+        this.button.style.boxShadow = '0 12px 32px rgba(15, 23, 42, 0.22)';
       }
     });
 
     this.button.addEventListener('mouseleave', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1)';
-        this.button.style.boxShadow = `0 8px 24px ${shadowColor}`;
+        this.button.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.16)';
       }
     });
 
@@ -249,28 +214,6 @@ export class WidgetUI {
     this.button.addEventListener('mousedown', (e) => e.preventDefault());
     this.button.addEventListener('selectstart', (e) => e.preventDefault());
 
-    // Create unread badge
-    this.badge = document.createElement('div');
-    Object.assign(this.badge.style, {
-      position: 'absolute',
-      top: '-4px',
-      right: '-4px',
-      minWidth: '20px',
-      height: '20px',
-      borderRadius: '10px',
-      background: '#ff4757',
-      display: 'none',
-      border: '2px solid white',
-      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-      color: 'white',
-      fontSize: '11px',
-      fontWeight: 'bold',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 6px',
-    });
-
-    this.button.appendChild(this.badge);
     document.body.appendChild(this.button);
 
     // Animate in
@@ -345,7 +288,7 @@ export class WidgetUI {
         chip.style.background = `linear-gradient(180deg, ${accentColor}, ${accentColor})`;
         chip.style.color = '#ffffff';
         chip.style.transform = 'translateY(-2px) scale(1.01)';
-        chip.style.boxShadow = '0 14px 28px rgba(2, 6, 23, 0.28), 0 0 0 1px rgba(255,255,255,0.15)';
+        chip.style.boxShadow = '0 14px 28px rgba(15, 23, 42, 0.24)';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
           iconBubble.style.background = 'rgba(255,255,255,0.18)';
@@ -356,7 +299,7 @@ export class WidgetUI {
         chip.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))';
         chip.style.color = '#0f172a';
         chip.style.transform = 'translateY(0) scale(1)';
-        chip.style.boxShadow = '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)';
+        chip.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
           iconBubble.style.background = 'rgba(132,92,108,0.14)';
@@ -401,66 +344,40 @@ export class WidgetUI {
     // Use sandbox for security - allow scripts, forms, popups, and same-origin (for localStorage)
     this.iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups allow-same-origin');
 
-    if (this.isFullscreen) {
-      Object.assign(this.iframe.style, {
-        position: 'fixed',
-        top: '0',
-        right: '0',
-        bottom: '0',
-        left: '0',
-        width: '100vw',
-        height: '100dvh',
-        maxWidth: '100vw',
-        maxHeight: '100dvh',
-        border: 'none',
-        borderRadius: '0',
-        boxShadow: 'none',
-        overflow: 'hidden',
-        zIndex: '2147483647',
-        background: 'white',
-        transition: 'opacity 0.2s ease',
-        transform: 'none',
-        opacity: '0',
-        transformOrigin: 'center center',
-        display: 'none',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-      });
-    } else {
-      this.dockContainer = document.createElement('div');
-      this.dockContainer.id = 'InteraOne-widget-dock';
-      Object.assign(this.dockContainer.style, {
-        position: 'fixed',
-        top: '0',
-        right: '0px',
-        bottom: '0',
-        width: `${this.getPanelWidth()}px`,
-        height: '100dvh',
-        zIndex: '2147483645',
-        transform: 'translateX(100%)',
-        opacity: '0',
-        transition: 'transform 0.24s ease-in-out, opacity 0.24s ease',
-        pointerEvents: 'none',
-        borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
-        background: 'transparent',
-      });
+    this.dockContainer = document.createElement('div');
+    this.dockContainer.id = 'InteraOne-widget-dock';
+    Object.assign(this.dockContainer.style, {
+      position: 'fixed',
+      top: '0',
+      right: '0px',
+      bottom: '0',
+      width: `${this.getPanelWidth()}px`,
+      height: '100dvh',
+      zIndex: '2147483645',
+      transform: 'translateX(100%)',
+      opacity: '0',
+      transition: 'transform 0.24s ease-in-out, opacity 0.24s ease',
+      pointerEvents: 'none',
+      borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
+      background: '#131314',
+      boxShadow: '-10px 0 40px rgba(15, 23, 42, 0.08)',
+    });
 
-      Object.assign(this.iframe.style, {
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        border: 'none',
-        borderRadius: '0',
-        boxShadow: 'none',
-        overflow: 'hidden',
-        background: 'transparent',
-        display: 'block',
-        // Prevent the host page from getting a selection highlight when the
-        // user double-clicks inside the iframe area.
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-      });
-    }
+    Object.assign(this.iframe.style, {
+      position: 'relative',
+      width: '100%',
+      height: '100%',
+      border: 'none',
+      borderRadius: '0',
+      boxShadow: 'none',
+      overflow: 'hidden',
+      background: 'transparent',
+      display: 'block',
+      // Prevent the host page from getting a selection highlight when the
+      // user double-clicks inside the iframe area.
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+    });
 
     if (this.dockContainer) {
       this.dockContainer.appendChild(this.iframe);
@@ -484,7 +401,6 @@ export class WidgetUI {
       width: Math.max(360, Math.round(width)),
       height: Math.max(420, Math.round(height)),
     };
-    this.centered = centered;
     this.applyResponsiveLayout();
     if (this.state.isOpen) this.applyHostDockSpacing(this.getPanelWidth());
   }
@@ -510,24 +426,26 @@ export class WidgetUI {
     if (!this.iframe) return;
 
     this.state.isOpen = true;
+    // Lock the panel width at open-time so scrollbar-induced innerWidth shifts
+    // don't desync the dock and the host squeeze.
+    this.activePanelWidth = Math.round(window.innerWidth * 0.25);
     if (this.dockContainer) this.dockContainer.style.pointerEvents = 'auto';
 
     if (this.button) {
       this.setButtonOpenChrome();
-      this.button.style.transform = 'scale(1)';
+      Object.assign(this.button.style, {
+        transform: 'scale(0)',
+        opacity: '0',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+        display: 'none',
+      });
       this.button.setAttribute('aria-label', 'Close chat');
       this.button.setAttribute('title', 'Close chat');
-      this.button.style.display = 'none';
     }
 
     // Animate widget in
     requestAnimationFrame(() => {
-      if (this.isFullscreen && this.iframe) {
-        this.iframe.style.display = 'block';
-        this.iframe.style.opacity = '1';
-        return;
-      }
-
       if (this.dockContainer) {
         this.dockContainer.style.transform = 'translateX(0)';
         this.dockContainer.style.opacity = '1';
@@ -537,7 +455,14 @@ export class WidgetUI {
     this.applyHostDockSpacing(this.getPanelWidth());
 
     // Hide outside chips while widget is open
-    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
+    if (this.outsideChipsContainer) {
+      Object.assign(this.outsideChipsContainer.style, {
+        display: 'none',
+        visibility: 'hidden',
+        opacity: '0',
+        pointerEvents: 'none',
+      });
+    }
 
     if (this.onToggle) this.onToggle(true);
   }
@@ -549,22 +474,23 @@ export class WidgetUI {
     if (!this.iframe) return;
 
     this.state.isOpen = false;
+    this.activePanelWidth = null;
 
     if (this.button) {
       this.setButtonClosedChrome();
-      this.button.style.transform = 'scale(1)';
+      Object.assign(this.button.style, {
+        transform: 'scale(1)',
+        opacity: '1',
+        visibility: 'visible',
+        pointerEvents: 'auto',
+        display: this.pageVisible ? 'flex' : 'none',
+      });
       this.button.setAttribute('aria-label', this.getLauncherLabel());
       this.button.setAttribute('title', this.getLauncherTitle());
-      this.button.style.display = this.pageVisible ? 'flex' : 'none';
     }
 
     // Animate widget out
-    if (this.isFullscreen) {
-      this.iframe.style.opacity = '0';
-      setTimeout(() => {
-        if (this.iframe) this.iframe.style.display = 'none';
-      }, 200);
-    } else if (this.dockContainer) {
+    if (this.dockContainer) {
       this.dockContainer.style.transform = this.isMobileSheet()
         ? 'translateX(calc(100% + 16px))'
         : 'translateX(100%)';
@@ -576,7 +502,12 @@ export class WidgetUI {
 
     // Restore outside chips
     if (this.outsideChipsContainer) {
-      this.outsideChipsContainer.style.display = this.pageVisible ? 'flex' : 'none';
+      Object.assign(this.outsideChipsContainer.style, {
+        display: this.pageVisible ? 'flex' : 'none',
+        visibility: this.pageVisible ? 'visible' : 'hidden',
+        opacity: this.pageVisible ? '1' : '0',
+        pointerEvents: this.pageVisible ? 'auto' : 'none',
+      });
     }
 
     if (this.onToggle) this.onToggle(false);
@@ -590,19 +521,39 @@ export class WidgetUI {
       if (this.button) this.button.style.display = 'none';
       if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
       if (this.dockContainer) this.dockContainer.style.display = 'none';
-      if (this.isFullscreen && this.iframe) this.iframe.style.display = 'none';
       return;
     }
 
     if (this.dockContainer) this.dockContainer.style.display = 'block';
-    if (this.isFullscreen) {
-      if (this.state.isOpen && this.iframe) this.iframe.style.display = 'block';
-      return;
+
+    // Re-apply dock spacing and visibility if the widget is already open —
+    // SPA navigations can change scroll/layout state which desyncs the squeeze,
+    // and the dock container's opacity/transform may need to be reasserted.
+    if (this.state.isOpen) {
+      if (this.dockContainer) {
+        this.dockContainer.style.transform = 'translateX(0)';
+        this.dockContainer.style.opacity = '1';
+        this.dockContainer.style.pointerEvents = 'auto';
+      }
+      this.applyHostDockSpacing(this.getPanelWidth());
     }
 
-    if (!this.state.isOpen && this.button) this.button.style.display = 'flex';
+    if (!this.state.isOpen && this.button) {
+      Object.assign(this.button.style, {
+        display: 'flex',
+        opacity: '1',
+        visibility: 'visible',
+        transform: 'scale(1)',
+        pointerEvents: 'auto',
+      });
+    }
     if (!this.state.isOpen && this.outsideChipsContainer) {
-      this.outsideChipsContainer.style.display = 'flex';
+      Object.assign(this.outsideChipsContainer.style, {
+        display: 'flex',
+        visibility: 'visible',
+        opacity: '1',
+        pointerEvents: 'auto',
+      });
     }
   }
 
@@ -618,42 +569,25 @@ export class WidgetUI {
   private applyResponsiveLayout(): void {
     if (!this.iframe) return;
 
-    if (this.isFullscreen) {
-      Object.assign(this.iframe.style, {
-        top: '0',
-        right: '0',
-        bottom: '0',
-        left: '0',
-        width: '100vw',
-        height: '100dvh',
-        maxWidth: '100vw',
-        maxHeight: '100dvh',
-        borderRadius: '0',
-        boxShadow: 'none',
-      });
-      this.iframe.style.transformOrigin = 'center center';
-      return;
-    }
-
     if (this.isMobileSheet()) {
       if (this.dockContainer) {
         Object.assign(this.dockContainer.style, {
-          width: 'calc(100vw - 32px)',
-          maxWidth: `${this.getPanelWidth()}px`,
-          height: 'calc(100dvh - 32px)',
-          right: '16px',
-          left: 'auto',
-          top: '16px',
-          bottom: '16px',
-          marginLeft: 'auto',
-          borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
-          borderRadius: '16px',
+          width: '100vw',
+          maxWidth: 'none',
+          height: '100dvh',
+          right: '0px',
+          left: '0px',
+          top: '0px',
+          bottom: '0px',
+          marginLeft: '0px',
+          borderLeft: 'none',
+          borderRadius: '0px',
           overflow: 'hidden',
         });
         this.dockContainer.style.transformOrigin = 'right center';
         this.dockContainer.style.transform = this.state.isOpen
           ? 'translateX(0)'
-          : 'translateX(calc(100% + 16px))';
+          : 'translateX(100%)';
       }
       if (this.state.isOpen) this.applyHostDockSpacing(this.getPanelWidth());
       return;
@@ -681,8 +615,10 @@ export class WidgetUI {
   }
 
   private getPanelWidth(): number {
-    const fallback = this.customSize?.width ?? 420;
-    return Math.min(480, Math.max(360, Math.round(fallback)));
+    // Use the locked width while the panel is open to avoid jitter from
+    // scrollbar-induced innerWidth changes.
+    if (this.activePanelWidth !== null) return this.activePanelWidth;
+    return Math.round(window.innerWidth * 0.25);
   }
 
   /**
@@ -692,12 +628,7 @@ export class WidgetUI {
     this.onToggle = callback;
   }
 
-  /**
-   * Get iframe element
-   */
-  getIframe(): HTMLIFrameElement | null {
-    return this.iframe;
-  }
+
 
   /**
    * Cleanup
@@ -716,6 +647,5 @@ export class WidgetUI {
     this.outsideChipsContainer = null;
     this.iframe = null;
     this.dockContainer = null;
-    this.badge = null;
   }
 }

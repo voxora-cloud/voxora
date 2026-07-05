@@ -3,7 +3,7 @@ import type {
   ChannelListResponse,
   ChannelResponse,
   VerifyChannelResponse,
-} from "../types/channel.types";
+} from "../types/types";
 
 export interface CreateEmailChannelPayload {
   name: string;

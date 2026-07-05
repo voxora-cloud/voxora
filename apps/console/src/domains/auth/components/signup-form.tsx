@@ -19,6 +19,7 @@ import {
 import { Link } from "react-router";
 import { Label } from "@/shared/ui/label";
 import {
+  validateCompanyName,
   validateEmail,
   validateName,
   validatePassword,
@@ -53,15 +54,6 @@ const stepTransition = {
   ease: [0.23, 1, 0.32, 1] as const,
 };
 
-function validateCompanyName(companyName: string) {
-  if (!companyName) {
-    return "Organization is required";
-  }
-  if (companyName.length < 2) {
-    return "Organization name must be at least 2 characters";
-  }
-  return null;
-}
 
 function getFieldError(field: FieldName, formData: any) {
   switch (field) {
@@ -90,8 +82,6 @@ export function SignupForm() {
   const [otp, setOtp] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-
 
   const [formData, setFormData] = useState({
     name: "",

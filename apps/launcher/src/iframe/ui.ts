@@ -132,11 +132,9 @@ export function completeToolStep(step: HTMLElement, detail?: string) {
 }
 
 export function removeToolStepsPanel() {
-  if (state._toolStepsEl) {
-    const block = state._toolStepsEl.closest('.tool-call-block') || state._toolStepsEl;
-    block.remove();
-    state._toolStepsEl = null;
-  }
+  const blocks = elements.messagesContainer?.querySelectorAll('.tool-call-block');
+  blocks?.forEach(block => block.remove());
+  state._toolStepsEl = null;
 }
 
 // ── DOM element references ────────────────────────────────────────────────────
@@ -174,7 +172,17 @@ export function showTypingDots(_context?: string) {
   if (_typingDotsEl) return;
   const wrapper = document.createElement('div');
   wrapper.className = 'loader-wrapper';
-  wrapper.innerHTML = PegtopLoader();
+  if (state._escalationShown) {
+    wrapper.innerHTML = `
+      <div class="three-dots-loader" aria-label="Agent is typing">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    `;
+  } else {
+    wrapper.innerHTML = PegtopLoader();
+  }
   _typingDotsEl = wrapper;
   elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();
@@ -191,7 +199,17 @@ export function showTyping() {
   if (_agentTypingEl) return;
   const wrapper = document.createElement('div');
   wrapper.className = 'loader-wrapper';
-  wrapper.innerHTML = PegtopLoader();
+  if (state._escalationShown) {
+    wrapper.innerHTML = `
+      <div class="three-dots-loader" aria-label="Agent is typing">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    `;
+  } else {
+    wrapper.innerHTML = PegtopLoader();
+  }
   _agentTypingEl = wrapper;
   elements.messagesContainer?.appendChild(wrapper);
   scrollToBottom();
@@ -217,9 +235,19 @@ export function showOpenSkeleton(durationMs = 1000) {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
+export function getInitials(name: string): string {
+  if (!name) return 'A';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
 export function showAgentConnectedCard(name: string) {
-  if (!elements.messagesContainer) return;
-  const initial = name ? name[0].toUpperCase() : 'A';
+  if (!elements.messagesContainer || state._joinCardShown) return;
+  state._joinCardShown = true;
+  const initial = getInitials(name);
   const card = document.createElement('div');
   card.className = 'agent-join-card';
   card.innerHTML = `
@@ -289,7 +317,25 @@ export function escapeHtml(str: string) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-export function renderAgentResponseIcon() {
+export function renderAgentResponseIcon(senderName?: string) {
+  const isHuman = state._escalationShown || (senderName && senderName !== "AI Assistant");
+  if (isHuman && senderName) {
+    if (senderName === "Support Team") {
+      return `
+        <div class="human-agent-avatar" aria-hidden="true" style="background: var(--vx-accent, #845C6C); color: #ffffff;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: block;">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+        </div>
+      `;
+    }
+    const initial = getInitials(senderName);
+    return `
+      <div class="human-agent-avatar" aria-hidden="true">
+        ${initial}
+      </div>
+    `;
+  }
   return `
     <div class="agent-response-icon" aria-hidden="true">
       ${INTERAONE_LOGO_SVG}
@@ -299,6 +345,7 @@ export function renderAgentResponseIcon() {
 
 export function addMessage(text: string, type: 'user' | 'agent', senderName: string, msgType: string = 'text') {
   if (!elements.messagesContainer) return;
+  hideWelcomeScreen();
   const messageDiv = document.createElement("div");
   messageDiv.className = `message ${type}`;
   if (msgType === 'file-uploading') messageDiv.classList.add('upload-placeholder');
@@ -314,14 +361,15 @@ export function addMessage(text: string, type: 'user' | 'agent', senderName: str
     bodyHtml = escapeHtml(text) + '<div class="message-time">' + time + '</div>';
   }
 
-  messageDiv.innerHTML = (type === 'agent' ? renderAgentResponseIcon() : '') + '<div class="message-bubble">' + bodyHtml + '</div>';
+  messageDiv.innerHTML = (type === 'agent' ? renderAgentResponseIcon(senderName) : '') + '<div class="message-bubble">' + bodyHtml + '</div>';
   elements.messagesContainer.appendChild(messageDiv);
   scrollToBottom();
 }
 
-export function typeMessage(text: string) {
+export function typeMessage(text: string, senderName?: string) {
   removeTypingDots();
   if (!elements.messagesContainer) return;
+  hideWelcomeScreen();
 
   const messageDiv = document.createElement('div');
   messageDiv.className = 'message agent';
@@ -329,7 +377,7 @@ export function typeMessage(text: string) {
   bubble.className = 'message-bubble';
   const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   bubble.innerHTML = '<div class="md">' + parseMarkdown(text) + '</div><div class="message-time">' + time + '</div>';
-  messageDiv.innerHTML = renderAgentResponseIcon();
+  messageDiv.innerHTML = renderAgentResponseIcon(senderName);
   messageDiv.appendChild(bubble);
   elements.messagesContainer.appendChild(messageDiv);
   scrollToBottom();

@@ -2,7 +2,6 @@ import mongoose, { Document, Schema } from "mongoose";
 
 export type SubscriptionStatus =
   | "active"
-  | "trialing"
   | "past_due"
   | "cancelled"
   | "unpaid";
@@ -37,7 +36,7 @@ const billingSubscriptionSchema = new Schema<IBillingSubscription>(
     },
     status: {
       type: String,
-      enum: ["active", "trialing", "past_due", "cancelled", "unpaid"],
+      enum: ["active", "past_due", "cancelled", "unpaid"],
       default: "active",
     },
     currentPeriodStart: { type: Date, required: true },

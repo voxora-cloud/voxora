@@ -170,4 +170,11 @@ router.post(
 	ContactsController.resolveConflict,
 );
 
+router.patch(
+	"/:id",
+	validateRequest(contactsSchema.updateContact),
+	requireRole("agent"),
+	ContactsController.updateContact,
+);
+
 export default router;

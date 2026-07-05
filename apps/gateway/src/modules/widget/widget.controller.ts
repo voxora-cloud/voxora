@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { sendResponse, sendError, asyncHandler } from "@shared/core/response";
-import { Conversation, Message } from "@shared/models";
+import { Conversation, Message, Contact } from "@shared/models";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
 import { AuthenticatedRequest } from "@shared/security/middleware";
@@ -239,17 +239,22 @@ export const getWidgetConversations = asyncHandler(
 
       const conversations = await Conversation.find({
         organizationId: widgetSession.organizationId,
-        "visitor.sessionId": sessionId,
+        sessionId,
         "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
         status: { $ne: "closed" },   // hide conversations the visitor deleted
       })
         .select(
-          "_id subject status createdAt updatedAt visitor assignedTo metadata",
+          "_id subject status createdAt updatedAt sessionId assignedTo metadata",
         )
         .populate("assignedTo", "name email")
         .sort({ updatedAt: -1 })
         .limit(50)
         .lean();
+
+      const contact = await Contact.findOne({
+        organizationId: widgetSession.organizationId,
+        sessionId,
+      }).lean();
 
       const conversationsWithMessages = await Promise.all(
         conversations.map(async (conv) => {
@@ -272,7 +277,19 @@ export const getWidgetConversations = asyncHandler(
             status: conv.status,
             createdAt: conv.createdAt,
             updatedAt: conv.updatedAt,
-            visitor: conv.visitor,
+            visitor: contact ? {
+              sessionId: contact.sessionId,
+              name: contact.name,
+              email: contact.email,
+              phone: contact.phone,
+              company: contact.company,
+              isAnonymous: !contact.email || contact.email === "anonymous@temp.local",
+            } : {
+              sessionId,
+              name: "Anonymous User",
+              email: "anonymous@temp.local",
+              isAnonymous: true,
+            },
             assignedTo:
               conv.assignedTo && typeof conv.assignedTo === "object"
                 ? (conv.assignedTo as any)._id
@@ -322,7 +339,7 @@ export const getConversationMessages = asyncHandler(
       const conversation = await Conversation.findOne({
         _id: conversationId,
         organizationId: widgetSession.organizationId,
-        "visitor.sessionId": sessionId,
+        sessionId,
         "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
       });
 
@@ -347,6 +364,7 @@ export const getConversationMessages = asyncHandler(
           senderEmail: msg.metadata?.senderEmail,
           timestamp: msg.createdAt,
           createdAt: msg.createdAt,
+          metadata: msg.metadata || {},
         })),
         total: messages.length,
       });

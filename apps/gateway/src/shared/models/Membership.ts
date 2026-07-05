@@ -7,7 +7,7 @@ export interface IMembership extends Document {
     userId: Types.ObjectId;
     organizationId: Types.ObjectId;
     role: MembershipRole;
-    inviteStatus: "pending" | "active" | "inactive";
+    inviteStatus: "pending" | "accepted";
     invitedBy?: Types.ObjectId;
     invitedAt?: Date;
     inviteExpiresAt?: Date;
@@ -29,7 +29,7 @@ const membershipSchema = new Schema<IMembership>(
         },
         inviteStatus: {
             type: String,
-            enum: ["pending", "active", "inactive"],
+            enum: ["pending", "accepted"],
             default: "pending",
         },
         invitedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },

@@ -1,44 +1,5 @@
 import { apiClient } from "@/shared/lib/api-client";
-
-export interface ContactListItem {
-  id: string;
-  sessionId: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  tags: string[];
-  source: "ai" | "widget" | "manual";
-  notes: Array<{
-    id: string;
-    author: string;
-    content: string;
-    createdAt: string;
-  }>;
-  conversations: Array<{
-    id: string;
-    status: "open" | "pending" | "resolved" | "closed";
-    lastMessage: string;
-    updatedAt: string;
-  }>;
-  insights: {
-    summary: string;
-    sentiment: "positive" | "neutral" | "negative";
-    topics: string[];
-  };
-  conflicts?: Array<{
-    id: string;
-    field: "name" | "phone" | "company";
-    currentValue: string;
-    proposedValue: string;
-    conversationId: string;
-    createdAt: string;
-  }>;
-  conversationCount: number;
-  lastActivity: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { ContactListItem, ContactConflictItem } from "../types/types";
 
 interface ContactsResponse {
   success: boolean;
@@ -47,18 +8,6 @@ interface ContactsResponse {
     contacts: ContactListItem[];
     total: number;
   };
-}
-
-export interface ContactConflictItem {
-  id: string;
-  contactId: string;
-  contactName: string;
-  contactEmail: string;
-  field: "name" | "phone" | "company";
-  currentValue: string;
-  proposedValue: string;
-  conversationId: string;
-  createdAt: string;
 }
 
 interface ConflictsResponse {
@@ -102,6 +51,14 @@ class ContactsApi {
 
   async resolveConflict(id: string, action: "apply" | "dismiss"): Promise<void> {
     await apiClient.post(`/contacts/conflicts/${id}/resolve`, { action });
+  }
+
+  async updateContact(
+    id: string,
+    payload: { name?: string; email?: string; phone?: string; company?: string; tags?: string[] },
+  ): Promise<any> {
+    const res = await apiClient.patch<any>(`/contacts/${id}`, payload);
+    return res.data;
   }
 }
 

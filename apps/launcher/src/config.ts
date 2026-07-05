@@ -15,43 +15,16 @@ function isInjectedValue(value: string): boolean {
   return !!value && !value.startsWith("__");
 }
 
-function toBoolean(value: unknown): boolean | undefined {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-  }
-  return undefined;
-}
-
 interface WindowInteraOneConfig {
   publicKey?: string;
   InteraOnePublicKey?: string;
-  apiUrl?: string;
-  cdnUrl?: string;
-  source?: string;
-  fullscreen?: boolean;
-  autoOpen?: boolean;
 }
 
-function normalizeSource(value: unknown, fallback: WidgetConfig["source"]): WidgetConfig["source"] {
-  if (typeof value !== "string") return fallback;
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "widget" || normalized === "qr" || normalized === "link") {
-    return normalized;
-  }
-  return fallback;
-}
-
-export function getApiUrl(customUrl?: string): string {
-  // 1. Explicit override from script tag
-  if (customUrl) return customUrl;
-
-  // 2. Runtime-injected production value
+export function getApiUrl(): string {
+  // 1. Runtime-injected production value
   if (isInjectedValue(RUNTIME_API_URL)) return RUNTIME_API_URL;
 
-  // 3. Local development fallback
+  // 2. Local development fallback
   return LOCAL_API_URL;
 }
 
@@ -85,10 +58,6 @@ export function getWidgetBaseUrl(apiUrl: string, cdnUrl?: string): string {
  *
  * Required:
  *   - data-InteraOne-public-key
- *
- * Optional:
- *   - data-InteraOne-api-url
- *   - data-InteraOne-cdn-url
  */
 export function parseWidgetConfig(): WidgetConfig | null {
   try {
@@ -112,13 +81,9 @@ export function parseWidgetConfig(): WidgetConfig | null {
       return null;
     }
 
-    // Optional CDN override from attribute; fallback to script src origin.
-    let cdnUrl =
-      globalConfig.cdnUrl ||
-      script?.getAttribute("data-InteraOne-cdn-url") ||
-      undefined;
-
-    if (!cdnUrl && script?.src) {
+    // Optional CDN override from script src origin.
+    let cdnUrl: string | undefined;
+    if (script?.src) {
       try {
         cdnUrl = new URL(script.src).origin;
       } catch {
@@ -126,33 +91,12 @@ export function parseWidgetConfig(): WidgetConfig | null {
       }
     }
 
-    const apiUrl = getApiUrl(
-      globalConfig.apiUrl ||
-      script?.getAttribute("data-InteraOne-api-url") ||
-      undefined,
-    );
-
-    const fullscreen =
-      toBoolean(globalConfig.fullscreen) ??
-      toBoolean(script?.getAttribute("data-InteraOne-fullscreen")) ??
-      false;
-
-    const autoOpen =
-      toBoolean(globalConfig.autoOpen) ??
-      toBoolean(script?.getAttribute("data-InteraOne-auto-open"));
-
-    const source = normalizeSource(
-      globalConfig.source || script?.getAttribute("data-InteraOne-source"),
-      "widget",
-    );
+    const apiUrl = getApiUrl();
 
     const config: WidgetConfig = {
       publicKey,
       apiUrl,
       cdnUrl,
-      fullscreen,
-      autoOpen,
-      source,
     };
 
     return config;

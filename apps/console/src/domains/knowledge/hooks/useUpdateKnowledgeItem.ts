@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
-import type { KnowledgeListResponse, KnowledgeUpdatePayload } from "../types";
+import type { KnowledgeListResponse, KnowledgeUpdatePayload } from "../types/types";
 
 interface UpdatePayload {
   documentId: string;

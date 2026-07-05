@@ -278,99 +278,19 @@ export default function QRCodeGeneratorPage() {
       </div>
 
       <Card className="border-border bg-card/90 overflow-hidden">
-        <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="p-6 md:p-8 border-b border-border lg:border-b-0 lg:border-r">
-            <CardHeader className="p-0">
-              <CardTitle className="flex items-center gap-2">
-                <Smartphone className="h-4 w-4" />
-                Standalone Chat QR
-              </CardTitle>
-              <CardDescription>
-                High-quality QR code for your chat widget.
-              </CardDescription>
-            </CardHeader>
+        <div className="mx-auto w-full max-w-3xl p-6 md:p-8">
+          <CardHeader className="p-0 text-center">
+            <CardTitle className="flex items-center justify-center gap-2">
+              <Smartphone className="h-4 w-4" />
+              Standalone Chat QR
+            </CardTitle>
+            <CardDescription>
+              High-quality QR code for your chat widget.
+            </CardDescription>
+          </CardHeader>
 
-            <CardContent className="p-0 mt-6 space-y-4">
-              <div className="rounded-xl border border-border bg-background/70 p-4 space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
-                    <ImagePlus className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-foreground">Organization Logo</div>
-                    <p className="text-sm text-muted-foreground">
-                      Upload a PNG or JPG logo for the QR center. The InteraOne logo is used by default.
-                    </p>
-                  </div>
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1">
-                    <img
-                      src={qrLogoUrl}
-                      alt={organizationLogoUrl ? "Organization logo" : "InteraOne logo"}
-                      className="h-full w-full object-contain"
-                      onError={(event) => {
-                        event.currentTarget.src = DEFAULT_LOGO_URL;
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={handleLogoUpload}
-                  className="hidden"
-                />
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => logoInputRef.current?.click()}
-                    disabled={isLogoUploading}
-                    className="cursor-pointer"
-                  >
-                    {isLogoUploading ? (
-                      <>
-                        <Loader size="sm" className="mr-2" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        {organizationLogoUrl ? "Replace Logo" : "Upload Logo"}
-                      </>
-                    )}
-                  </Button>
-                  {organizationLogoUrl && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleRemoveLogo}
-                      disabled={isLogoUploading}
-                      className="cursor-pointer text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove Logo
-                    </Button>
-                  )}
-                  <span className="text-xs text-muted-foreground">
-                    Max 2MB. PNG or JPG.
-                  </span>
-                </div>
-
-                {logoSuccess && (
-                  <p className="text-sm text-emerald-600 dark:text-emerald-400">{logoSuccess}</p>
-                )}
-                {logoError && (
-                  <p className="text-sm text-red-600 dark:text-red-400">{logoError}</p>
-                )}
-              </div>
-            </CardContent>
-          </div>
-
-          <div className="p-6 md:p-8 bg-muted/20">
-            <div className="flex flex-col items-center gap-5 rounded-xl border border-border bg-background p-6">
+          <CardContent className="mt-6 space-y-6 p-0">
+            <div className="flex w-full flex-col items-center gap-5">
               <div className="relative inline-block">
                 <div className="rounded-3xl overflow-hidden border border-border/70 shadow-sm">
                   <QRCodeCanvas
@@ -451,7 +371,83 @@ export default function QRCodeGeneratorPage() {
                 </div>
               </div>
             </div>
-          </div>
+
+            <div className="rounded-xl border border-border bg-background/70 p-4 space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
+                  <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground">Organization Logo</div>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a PNG or JPG logo for the QR center. The InteraOne logo is used by default.
+                  </p>
+                </div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1">
+                  <img
+                    src={qrLogoUrl}
+                    alt={organizationLogoUrl ? "Organization logo" : "InteraOne logo"}
+                    className="h-full w-full object-contain"
+                    onError={(event) => {
+                      event.currentTarget.src = DEFAULT_LOGO_URL;
+                    }}
+                  />
+                </div>
+              </div>
+
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={handleLogoUpload}
+                className="hidden"
+              />
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={isLogoUploading}
+                  className="cursor-pointer"
+                >
+                  {isLogoUploading ? (
+                    <>
+                      <Loader size="sm" className="mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {organizationLogoUrl ? "Replace Logo" : "Upload Logo"}
+                    </>
+                  )}
+                </Button>
+                {organizationLogoUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRemoveLogo}
+                    disabled={isLogoUploading}
+                    className="cursor-pointer text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove Logo
+                  </Button>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  Max 2MB. PNG or JPG.
+                </span>
+              </div>
+
+              {logoSuccess && (
+                <p className="text-sm text-emerald-600 dark:text-emerald-400">{logoSuccess}</p>
+              )}
+              {logoError && (
+                <p className="text-sm text-red-600 dark:text-red-400">{logoError}</p>
+              )}
+            </div>
+          </CardContent>
         </div>
       </Card>
     </div>

@@ -46,12 +46,13 @@ class MembersApi {
 
   async updateMemberStatus(
     memberId: string,
-    status: "active" | "inactive"
+    status: "active" | "suspend"
   ): Promise<{ success: boolean }> {
     const orgId = this.getOrgId();
+    const backendStatus = status === "suspend" ? "inactive" : "active";
     return apiClient.patch<{ success: boolean }>(
       `/memberships/organizations/${orgId}/members/${memberId}/status`,
-      { status }
+      { status: backendStatus }
     );
   }
 

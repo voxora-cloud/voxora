@@ -26,7 +26,7 @@ import {
   useTelegramChannel,
   useUpdateEmailChannelAddresses,
 } from "../hooks/use-channels";
-import type { DnsRecord } from "../types/channel.types";
+import type { DnsRecord } from "../types/types";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -385,11 +385,11 @@ export function ChannelsPage() {
   const { data: telegramChannel, isLoading: telegramLoading } = useTelegramChannel();
   const verifyMutation = useVerifyChannel();
   const deleteMutation = useDeleteChannel();
-  
+
   const [showDns, setShowDns] = useState(false);
   const [showEmailsSection, setShowEmailsSection] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  
+
   const [showWhatsAppInfo, setShowWhatsAppInfo] = useState(false);
   const [deleteWaConfirm, setDeleteWaConfirm] = useState(false);
 
@@ -482,11 +482,10 @@ export function ChannelsPage() {
                     ).map((addr) => (
                       <span
                         key={addr}
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
-                          addr === emailChannel.config.email?.address
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${addr === emailChannel.config.email?.address
                             ? "bg-primary/5 text-primary border-primary/20"
                             : "bg-muted text-muted-foreground border-border"
-                        }`}
+                          }`}
                       >
                         {addr}
                         {addr === emailChannel.config.email?.address && (

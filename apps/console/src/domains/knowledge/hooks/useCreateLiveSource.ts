@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { knowledgeApi } from "../api/knowledge.api";
-import type { AddLiveSourceFormData, KnowledgeBase, KnowledgeListResponse } from "../types";
+import type { AddLiveSourceFormData, KnowledgeBase, KnowledgeListResponse } from "../types/types";
 
 export const useCreateLiveSource = () => {
   const queryClient = useQueryClient();

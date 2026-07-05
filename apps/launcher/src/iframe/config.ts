@@ -43,6 +43,7 @@ export const state = {
   typingTimeout: null as NodeJS.Timeout | number | null,
   isTyping: false,
   _escalationShown: false,
+  _joinCardShown: false,
   _streamBubbleEl: null as HTMLElement | null,
   _streamMessageId: null as string | null,
   _streamMessages: new Map<string, StreamingMessage>(),

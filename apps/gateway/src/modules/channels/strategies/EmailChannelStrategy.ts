@@ -9,7 +9,7 @@ import {
 } from "../core/IChannelStrategy";
 import { IEmailProviderAdapter } from "../core/IEmailProviderAdapter";
 import { IChannelConfig, Channel } from "@shared/models/Channel";
-import { Conversation, Message } from "@shared/models";
+import { Conversation, Message, Contact } from "@shared/models";
 import logger from "@shared/core/logger";
 import { Types } from "mongoose";
 import { simpleParser } from "mailparser";
@@ -225,10 +225,13 @@ export class EmailChannelStrategy implements IChannelStrategy {
         : (emailConfig?.address || "");
 
       // Find or create a Conversation for this inbound email thread.
-      // We key on the sender email + organizationId so replies are threaded.
+      // Resolve contact by email, or fall back to email-sessionId
+      const contactDoc = await Contact.findOne({ organizationId, email: fromEmail }).lean();
+      const sessionId = contactDoc?.sessionId || `email-${fromEmail}`;
+
       let conversation = await Conversation.findOne({
         organizationId,
-        "visitor.email": fromEmail,
+        sessionId,
         status: { $in: ["open", "pending"] },
         $or: [
           { channel: "email_channel", channelId: payload.channelId },
@@ -253,12 +256,7 @@ export class EmailChannelStrategy implements IChannelStrategy {
           metadata: {
             supportEmail,
           },
-          visitor: {
-            sessionId: `email-${fromEmail}-${Date.now()}`,
-            name: fromEmail,
-            email: fromEmail,
-            isAnonymous: false,
-          },
+          sessionId,
         });
 
         logger.info("[EmailChannelStrategy] Created new conversation for inbound email", {

@@ -20,7 +20,7 @@ import {
   XCircle,
   X,
 } from "lucide-react";
-import type { KnowledgeBase } from "../types";
+import type { KnowledgeBase } from "../types/types";
 import {
   Pagination,
   PaginationContent,

@@ -92,12 +92,12 @@ export class AnalyticsService {
             usersServed: [
               {
                 $match: {
-                  "visitor.sessionId": { $exists: true, $ne: "" },
+                  sessionId: { $exists: true, $ne: "" },
                 },
               },
               {
                 $group: {
-                  _id: "$visitor.sessionId",
+                  _id: "$sessionId",
                 },
               },
               { $count: "totalUsersServed" },

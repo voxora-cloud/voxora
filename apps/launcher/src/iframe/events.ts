@@ -1,5 +1,5 @@
 import { state, API_BASE_URL, PROTO_VERSION } from './config';
-import { elements, addMessage, adjustTextareaHeight, hideWelcomeScreen, showTypingDots, removeTypingDots, formatHistoryDateTime, scrollToBottom } from './ui';
+import { elements, addMessage, adjustTextareaHeight, hideWelcomeScreen, showTypingDots, removeTypingDots, formatHistoryDateTime, scrollToBottom, showAgentConnectedCard } from './ui';
 import { makeAuthenticatedRequest, fetchMessagesFromBackend } from './api';
 import { initializeSocket, setAiResponding } from './socket';
 import { stripMarkdown } from './utils/markdown';
@@ -27,7 +27,20 @@ function setComposerEnabled(enabled: boolean, placeholder?: string) {
   }
 }
 
-function showStateBanner(stateType: 'human' | 'closed', title: string, subtitle?: string) {
+function getBannerIcon(stateType: 'human' | 'closed' | 'resolved'): string {
+  switch (stateType) {
+    case 'human':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+    case 'resolved':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+    case 'closed':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
+    default:
+      return '';
+  }
+}
+
+function showStateBanner(stateType: 'human' | 'closed' | 'resolved', title: string, subtitle?: string) {
   const topbar = document.querySelector('.widget-topbar');
   if (!topbar) return;
 
@@ -40,12 +53,18 @@ function showStateBanner(stateType: 'human' | 'closed', title: string, subtitle?
   }
 
   banner.className = `conversation-state-banner state-${stateType}`;
+  const iconHtml = getBannerIcon(stateType);
+
   banner.innerHTML = `
-    <div class="state-main">
-      <span class="state-dot"></span>
-      <span class="state-title">${title}</span>
+    <div class="state-banner-inner" style="display: flex; gap: 12px; align-items: flex-start;">
+      ${iconHtml ? `<div class="state-icon-wrapper" style="flex-shrink: 0; margin-top: 1px;">${iconHtml}</div>` : ''}
+      <div class="state-content" style="flex-grow: 1; text-align: left;">
+        <div class="state-main" style="display: flex; align-items: center; gap: 8px;">
+          <span class="state-title">${title}</span>
+        </div>
+        ${subtitle ? `<div class="state-subtitle">${subtitle}</div>` : ''}
+      </div>
     </div>
-    ${subtitle ? `<div class="state-subtitle">${subtitle}</div>` : ''}
   `;
 }
 
@@ -82,11 +101,22 @@ function applyConversationVisualStateFromHistory(conversation: any) {
     return;
   }
 
+  if (status === 'resolved') {
+    showStateBanner('resolved', 'Conversation resolved', 'Marked as resolved. Type a message to reopen.');
+    setComposerEnabled(true, 'Type a message to reopen...');
+    return;
+  }
+
   if (state._escalationShown) {
     const agent = conversation?.assignedAgent || conversation?.assignedTo;
-    const name = typeof agent === 'object' && agent?.name ? agent.name : 'a support agent';
-    showStateBanner('human', 'Live human support connected', `You are now chatting with ${name}`);
-    setComposerEnabled(true, `Reply to ${name}...`);
+    const name = typeof agent === 'object' && agent?.name ? agent.name : (typeof agent === 'string' && agent ? agent : null);
+    if (name) {
+      showStateBanner('human', 'Live human support connected', `You are now chatting with ${name}`);
+      setComposerEnabled(true, `Reply to ${name}...`);
+    } else {
+      showStateBanner('human', 'Connecting with support', 'Our team will be with you shortly...');
+      setComposerEnabled(true, 'Reply to support...');
+    }
     return;
   }
 
@@ -121,37 +151,6 @@ export function setupEventListeners() {
     });
   }
 
-  // ── Emoji picker ────────────────────────────────────────────────────────
-  const emojiBtn = document.getElementById('emojiBtn');
-  const emojiPicker = document.getElementById('emojiPicker');
-  if (emojiBtn && emojiPicker) {
-    emojiBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      emojiPicker.classList.toggle('hidden');
-    });
-
-    emojiPicker.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const btn = target.closest('.emoji-option') as HTMLButtonElement | null;
-      if (!btn || !elements.messageInput) return;
-      const emoji = btn.textContent || '';
-      const input = elements.messageInput;
-      const start = input.selectionStart ?? input.value.length;
-      const end = input.selectionEnd ?? input.value.length;
-      input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
-      input.setSelectionRange(start + emoji.length, start + emoji.length);
-      emojiPicker.classList.add('hidden');
-    });
-
-    // Close picker when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!emojiBtn.contains(e.target as Node) && !emojiPicker.contains(e.target as Node)) {
-        emojiPicker.classList.add('hidden');
-      }
-    });
-  }
 
   if (elements.sendBtn) {
     elements.sendBtn.addEventListener("click", sendMessage);
@@ -357,15 +356,18 @@ async function sendMessage() {
     return;
   }
 
-  // Lock the composer before any context/API/stream work begins.
-  setAiResponding(true);
+  // Lock the composer before any context/API/stream work begins, unless human support is active.
+  if (!state._escalationShown) {
+    setAiResponding(true);
+  }
   hideWelcomeScreen();
   addMessage(text, "user", state.userName || "You", "text");
+  if (!state._escalationShown) {
+    showTypingDots(text);
+  }
   elements.messageInput.value = "";
   adjustTextareaHeight();
   if (elements.sendBtn) elements.sendBtn.disabled = true;
-
-  if (!state._escalationShown) showTypingDots(text);
 
   if (!state.chatId) {
     try {
@@ -446,10 +448,14 @@ async function sendFormResponse(text: string) {
   if (state._aiResponding) return;
   if (!state.widgetToken) return;
 
-  setAiResponding(true);
+  if (!state._escalationShown) {
+    setAiResponding(true);
+  }
   hideWelcomeScreen();
   addMessage(text, "user", state.userName || "You", "text");
-  if (!state._escalationShown) showTypingDots(text);
+  if (!state._escalationShown) {
+    showTypingDots(text);
+  }
 
   if (!state.chatId) {
     try {
@@ -604,9 +610,8 @@ function renderHistoryList(convs: any[]) {
     const titleRaw = c.subject || msgRaw;
     const title = titleRaw.length > 48 ? titleRaw.substring(0, 48) + '…' : titleRaw;
     const status = (c.status || 'open').toLowerCase();
-    const displayStatus = status === 'resolved' ? 'open' : status;
-    const statusClass = displayStatus === 'closed' ? 'status-closed' : 'status-open';
-    const statusLabel = displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1);
+    const statusClass = status === 'closed' ? 'status-closed' : status === 'resolved' ? 'status-resolved' : 'status-open';
+    const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
     const lastUpdated = formatHistoryDateTime(c.updatedAt || c.createdAt);
 
     const el = document.createElement('div');
@@ -653,11 +658,27 @@ function renderHistoryList(convs: any[]) {
 
       fetchMessagesFromBackend(state.chatId as string).then((msgs: any[]) => {
         elements.messagesContainer!.innerHTML = '';
+        state._joinCardShown = false; // Reset to false before loop to permit rendering history join card
         msgs.forEach((m: any) => {
           const isUser = m.sender === 'visitor' || m.sender === 'user' || m.role === 'user';
-          addMessage(m.content, isUser ? 'user' : 'agent', 'Support', 'text');
+          if (!isUser && (m.metadata?.source === 'web' || m.metadata?.source === 'agent')) {
+            showAgentConnectedCard(m.metadata?.senderName || 'Support Agent');
+          }
+          addMessage(m.content, isUser ? 'user' : 'agent', m.metadata?.senderName || 'Support Agent', 'text');
         });
         applyConversationVisualStateFromHistory(c);
+
+        // Refine join card states post history load
+        const agent = c.assignedAgent || c.assignedTo;
+        const isEscalated = !!(c.metadata?.escalatedAt || agent);
+        if (isEscalated) {
+          state._escalationShown = true;
+          if (agent) state._joinCardShown = true;
+        } else {
+          state._escalationShown = false;
+          state._joinCardShown = false;
+        }
+
         scrollToBottom();
       });
     });
@@ -679,6 +700,7 @@ function startNewConversation() {
   state.isConnected = false;
   state._historyCached = [];
   state._escalationShown = false;
+  state._joinCardShown = false;
   state._streamBubbleEl = null;
   state._streamMessageId = null;
   state._streamMessages.clear();
@@ -710,13 +732,13 @@ function startNewConversation() {
  * record returned by the API.
  */
 function restoreEscalationBadge(conversation: any) {
-  // Support both populated objects and plain string IDs
   const agent = conversation.assignedAgent || conversation.assignedTo;
-
-  if (agent && typeof agent === 'object' && agent.name) {
+  if (agent) {
     state._escalationShown = true;
+    state._joinCardShown = true;
   } else {
     state._escalationShown = false;
+    state._joinCardShown = false;
   }
 }
 

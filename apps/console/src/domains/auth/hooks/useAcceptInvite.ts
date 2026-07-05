@@ -10,7 +10,7 @@ export const useAcceptInvite = () => {
   const acceptInvite = useAuthStore((state) => state.acceptInvite);
 
   return useMutation({
-    mutationFn: ({ token, password }: AcceptInvitePayload) => 
+    mutationFn: ({ token, password }: AcceptInvitePayload) =>
       acceptInvite(token, password),
     onSuccess: () => {
       console.log("Invite accepted successfully");

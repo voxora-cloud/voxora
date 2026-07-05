@@ -11,7 +11,7 @@ export interface IOrganization extends Document {
   /** Separate billing contact email (can differ from owner account email) */
   billingEmail?: string;
   /** Current Dodo subscription status */
-  subscriptionStatus: "active" | "trialing" | "past_due" | "cancelled" | "unpaid" | null;
+  subscriptionStatus: "active" | "past_due" | "cancelled" | "unpaid" | null;
   /** When the current trial ends (null = not on trial) */
   trialEndsAt?: Date;
   /** Prevent starting a second trial */
@@ -42,7 +42,7 @@ const organizationSchema = new Schema<IOrganization>(
     billingEmail: { type: String, trim: true, lowercase: true },
     subscriptionStatus: {
       type: String,
-      enum: ["active", "trialing", "past_due", "cancelled", "unpaid", null],
+      enum: ["active", "past_due", "cancelled", "unpaid", null],
       default: null,
     },
     trialEndsAt: { type: Date, default: null },

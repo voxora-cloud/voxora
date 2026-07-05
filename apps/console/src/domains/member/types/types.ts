@@ -10,7 +10,7 @@ export interface Member {
     lastSeen?: string;
   };
   role: OrgRole;
-  inviteStatus: "active" | "pending" | "inactive";
+  inviteStatus: "accepted" | "pending";
 
   activatedAt?: string;
   organizationId: string;

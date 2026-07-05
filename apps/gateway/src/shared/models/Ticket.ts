@@ -3,12 +3,12 @@ import { IOrganization } from "./Organization";
 
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 export type TicketPriority = "low" | "medium" | "high" | "urgent";
-export type TicketSource = "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
+export type TicketSource = "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner" | "ai" | "api";
 
 export interface ITicketNote {
   id: string;
   author: string;
-  authorType: "ai" | "agent" | "system";
+  authorType: "ai" | "agent" | "admin" | "owner";
   content: string;
   createdAt: Date;
 }
@@ -39,7 +39,7 @@ const ticketNoteSchema = new Schema<ITicketNote>(
   {
     id: { type: String, required: true },
     author: { type: String, required: true },
-    authorType: { type: String, enum: ["ai", "agent", "system"], default: "agent" },
+    authorType: { type: String, enum: ["ai", "agent", "admin", "owner"], default: "agent" },
     content: { type: String, required: true, maxlength: 5000 },
     createdAt: { type: Date, default: Date.now },
   },
@@ -86,8 +86,8 @@ const ticketSchema = new Schema<ITicket>(
     },
     source: {
       type: String,
-      enum: ["ai", "agent", "api", "widget", "email", "whatsapp", "telegram"],
-      default: "ai",
+      enum: ["widget", "email", "whatsapp", "telegram", "agent", "admin", "owner", "ai", "api"],
+      default: "widget",
     },
     assignedTo: {
       type: Schema.Types.ObjectId,

@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { IOrganization } from "./Organization";
 
-export type ContactSource = "ai" | "widget" | "manual";
+export type ContactSource = "ai" | "widget" | "agent" | "owner" | "admin";
 export type ContactSentiment = "positive" | "neutral" | "negative";
 
 export interface IContactNote {
@@ -13,7 +13,7 @@ export interface IContactNote {
 
 export interface IContactConversation {
   id: string;
-  status: "open" | "pending" | "resolved" | "closed";
+  status: "open" | "resolved" | "closed";
   lastMessage: string;
   updatedAt: Date;
 }
@@ -61,7 +61,7 @@ const contactSchema = new Schema<IContact>(
     tags: [{ type: String, trim: true, maxlength: 40 }],
     source: {
       type: String,
-      enum: ["ai", "widget", "manual"],
+      enum: ["ai", "widget", "agent", "owner", "admin"],
       default: "ai",
     },
     lastActivityAt: { type: Date, default: Date.now },
@@ -78,7 +78,7 @@ const contactSchema = new Schema<IContact>(
         id: { type: String, required: true },
         status: {
           type: String,
-          enum: ["open", "pending", "resolved", "closed"],
+          enum: ["open", "resolved", "closed"],
           default: "open",
         },
         lastMessage: { type: String, default: "" },

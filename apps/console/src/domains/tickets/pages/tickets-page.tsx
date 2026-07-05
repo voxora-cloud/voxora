@@ -11,12 +11,12 @@ import {
   Clock,
   User,
   ChevronRight,
-  Bot,
   Mail,
   Phone,
   Globe,
-  Wifi,
   Send,
+  Shield,
+  Zap,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import io from "socket.io-client";
@@ -42,16 +42,16 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3002";
 
 // ─── Source badge ─────────────────────────────────────────────────────────────
 
-type TicketSource = "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
+type TicketSource = "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner";
 
 const SOURCE_META: Record<TicketSource, { label: string; icon: React.ReactNode }> = {
-  ai: { label: "AI", icon: <Bot className="h-2.5 w-2.5" /> },
-  agent: { label: "Agent", icon: <User className="h-2.5 w-2.5" /> },
-  api: { label: "API", icon: <Wifi className="h-2.5 w-2.5" /> },
-  widget: { label: "Widget", icon: <Globe className="h-2.5 w-2.5" /> },
-  email: { label: "Email", icon: <Mail className="h-2.5 w-2.5" /> },
+  widget:   { label: "Widget",   icon: <Globe className="h-2.5 w-2.5" /> },
+  email:    { label: "Email",    icon: <Mail className="h-2.5 w-2.5" /> },
   whatsapp: { label: "WhatsApp", icon: <Phone className="h-2.5 w-2.5" /> },
   telegram: { label: "Telegram", icon: <Send className="h-2.5 w-2.5" /> },
+  agent:    { label: "Agent",    icon: <User className="h-2.5 w-2.5" /> },
+  admin:    { label: "Admin",    icon: <Shield className="h-2.5 w-2.5" /> },
+  owner:    { label: "Owner",    icon: <Zap className="h-2.5 w-2.5" /> },
 };
 
 function SourcePill({ source }: { source: string }) {
@@ -176,7 +176,7 @@ export function TicketsPage() {
   useEffect(() => {
     membersApi.listMembers().then((res) => {
       if (res.success && res.data?.members) {
-        setMembers(res.data.members.filter((m) => m.inviteStatus === "active" && m.user));
+        setMembers(res.data.members.filter((m) => m.inviteStatus === "accepted" && m.user));
       }
     });
   }, []);

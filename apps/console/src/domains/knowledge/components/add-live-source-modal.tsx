@@ -21,7 +21,7 @@ import type {
   AddLiveSourceFormData,
   FetchMode,
   SyncFrequency,
-} from "../types";
+} from "../types/types";
 
 interface AddLiveSourceModalProps {
   isOpen: boolean;
@@ -185,11 +185,10 @@ export function AddLiveSourceModal({
 
             <div className="space-y-3">
               <label
-                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.fetchMode === "single"
+                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${formData.fetchMode === "single"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -213,11 +212,10 @@ export function AddLiveSourceModal({
               </label>
 
               <label
-                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.fetchMode === "crawl"
+                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${formData.fetchMode === "crawl"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -287,11 +285,10 @@ export function AddLiveSourceModal({
 
             <div className="space-y-3">
               <label
-                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.syncFrequency === "manual"
+                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${formData.syncFrequency === "manual"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -315,11 +312,10 @@ export function AddLiveSourceModal({
               </label>
 
               <label
-                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.syncFrequency === "1hour"
+                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${formData.syncFrequency === "1hour"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -343,11 +339,10 @@ export function AddLiveSourceModal({
               </label>
 
               <label
-                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.syncFrequency === "6hours"
+                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${formData.syncFrequency === "6hours"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"
@@ -371,11 +366,10 @@ export function AddLiveSourceModal({
               </label>
 
               <label
-                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${
-                  formData.syncFrequency === "daily"
+                className={`flex items-start gap-4 p-4 border rounded-lg cursor-pointer transition-all ${formData.syncFrequency === "daily"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <input
                   type="radio"

@@ -354,12 +354,12 @@ export class ChannelService {
           !conversation.assignedTo &&
           !(conversation.metadata as any)?.escalatedAt &&
           !(conversation.metadata as any)?.humanJoinedAt &&
-          !["active", "resolved", "closed"].includes(conversation.status)
+          !["resolved", "closed"].includes(conversation.status)
         ) {
           const message = await Message.findById(result.messageId);
           if (message && message.content) {
             const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
-            const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active" && org.subscriptionStatus !== "trialing") : false;
+            const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
 
             await aiQueue.add("process", {
               organizationId: channel.organizationId.toString(),
