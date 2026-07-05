@@ -58,13 +58,13 @@ a{text-decoration:none;}
 .email-shell{width:100%;background:${BRAND.soft};}
 .email-container{width:100%;max-width:640px;margin:0 auto;}
 .email-pad{padding:28px 20px;}
-.brand-row{padding:8px 4px 22px;}
+.brand-row{padding:8px 4px 20px;}
 .card{background:${BRAND.card};border:1px solid ${BRAND.border};border-radius:16px;overflow:hidden;box-shadow:0 16px 42px rgba(52,41,54,0.08);}
-.hero{background:${BRAND.primary};padding:34px 40px 30px;}
+.hero{background:${BRAND.primary};padding:32px 40px 30px;}
 .eyebrow{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:12px;line-height:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#d8cbd1;margin:0 0 14px;}
 .hero-title{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:32px;line-height:38px;font-weight:700;letter-spacing:-0.03em;color:#ffffff;margin:0;}
 .hero-copy{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:16px;line-height:25px;color:#efe8eb;margin:14px 0 0;}
-.content{padding:34px 40px 38px;}
+.content{padding:32px 40px 36px;}
 .text{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:15px;line-height:24px;color:${BRAND.ink};margin:0 0 16px;}
 .muted{color:${BRAND.muted};}
 .section-title{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:15px;line-height:20px;font-weight:700;color:${BRAND.ink};margin:0 0 12px;}
@@ -73,6 +73,8 @@ a{text-decoration:none;}
 .button-row{padding:8px 0 10px;}
 .code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:34px;line-height:42px;font-weight:700;letter-spacing:0.18em;color:${BRAND.ink};background:#ffffff;border:1px solid ${BRAND.border};border-radius:12px;padding:18px 20px;text-align:center;}
 .meta{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:13px;line-height:20px;color:${BRAND.muted};margin:0;}
+.detail-label{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:12px;line-height:18px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.muted};padding:0 16px 4px 0;}
+.detail-value{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:14px;line-height:21px;font-weight:700;color:${BRAND.ink};padding:0 0 4px;}
 .divider{height:1px;background:${BRAND.border};line-height:1px;font-size:1px;margin:24px 0;}
 .footer{padding:22px 4px 0;text-align:center;font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:12px;line-height:19px;color:${BRAND.muted};}
 .list-item{font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;font-size:14px;line-height:22px;color:${BRAND.ink};padding:0 0 10px;}
@@ -142,7 +144,7 @@ function renderLayout(input: EmailLayoutInput): string {
                     ${ctaMarkup}
                     ${noteMarkup}
                     <div class="divider">&nbsp;</div>
-                    <p class="meta">${input.footerNote || "This message was sent by InteraOne. If this was not expected, you can safely ignore it."}</p>
+                    <p class="meta">${input.footerNote || "This is an automated message from InteraOne. If you were not expecting it, no action is required."}</p>
                   </td>
                 </tr>
               </table>
@@ -150,7 +152,7 @@ function renderLayout(input: EmailLayoutInput): string {
           </tr>
           <tr>
             <td class="footer">
-              &copy; ${currentYear} InteraOne. Intelligent customer conversations for modern teams.
+              &copy; ${currentYear} InteraOne. Thank you for using InteraOne.
             </td>
           </tr>
         </table>
@@ -174,47 +176,47 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
   {
     templateKey: "global.email_verification_otp",
     type: "email_verification_otp",
-    subjectTemplate: "{{otp}} is your InteraOne verification code",
+    subjectTemplate: "Your InteraOne email verification code: {{otp}}",
     htmlTemplate: renderLayout({
-      preheader: "Use this code to finish setting up your InteraOne account.",
-      eyebrow: "Account verification",
-      title: "Verify your InteraOne account",
-      intro: "Confirm your email address to continue into your workspace.",
+      preheader: "Confirm your email address to finish setting up your InteraOne account.",
+      eyebrow: "Email verification",
+      title: "Verify your email address",
+      intro: "This action requires verification before you can access your workspace.",
       children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">Enter this verification code in the signup window. It is intentionally short lived to protect your workspace access.</p>
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">Enter the verification code below in the signup window to confirm your email address.</p>
         ${otpBlock()}
-        <p class="meta">This code expires in <strong>2 minutes</strong>. Do not share it with anyone.</p>
+        <p class="meta">This code expires in <strong>2 minutes</strong>. For your security, do not share it with anyone.</p>
       `,
-      note: "You are receiving this because someone started an InteraOne account registration with this email address.",
+      note: "This verification was requested during registration for an InteraOne account.",
       footerNote: "If you did not create an InteraOne account, no action is required.",
     }),
-    textTemplate: "Hi {{name}}, use {{otp}} to verify your InteraOne account. This code expires in 2 minutes.",
+    textTemplate: "Hello {{name}},\n\nUse {{otp}} to verify your email address for InteraOne. This code expires in 2 minutes. For your security, do not share it with anyone.\n\nIf you did not create an InteraOne account, no action is required.",
   },
   {
     templateKey: "global.password_reset_otp",
     type: "password_reset_otp",
-    subjectTemplate: "{{otp}} is your InteraOne password reset code",
+    subjectTemplate: "Your InteraOne password reset code: {{otp}}",
     htmlTemplate: renderLayout({
       preheader: "Use this secure code to reset your InteraOne password.",
-      eyebrow: "Password recovery",
-      title: "Secure password reset",
-      intro: "Use the code below to continue resetting your password.",
+      eyebrow: "Password reset",
+      title: "Reset your password",
+      intro: "This action requires verification before your password can be changed.",
       children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">We received a request to reset your InteraOne password. Enter this code in the recovery screen to continue.</p>
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">We received a request to reset your InteraOne password. Enter the code below on the password recovery screen to continue.</p>
         ${otpBlock(BRAND.danger)}
-        <p class="meta">This code expires in <strong>2 minutes</strong>. If you did not request it, your password has not been changed.</p>
+        <p class="meta">This code expires in <strong>2 minutes</strong>. Your password will remain unchanged until verification is completed.</p>
       `,
       note: "For security, InteraOne support will never ask you to share this code.",
-      footerNote: "If you did not request a password reset, you can ignore this email.",
+      footerNote: "If you did not request a password reset, no action is required.",
     }),
-    textTemplate: "Hi {{name}}, use {{otp}} to reset your InteraOne password. This code expires in 2 minutes.",
+    textTemplate: "Hello {{name}},\n\nUse {{otp}} to continue resetting your InteraOne password. This code expires in 2 minutes. InteraOne support will never ask you to share it.\n\nIf you did not request a password reset, no action is required.",
   },
   {
     templateKey: "global.invite",
     type: "invite",
-    subjectTemplate: "You're invited to join InteraOne as a {{role}}",
+    subjectTemplate: "Invitation to join InteraOne as {{role}}",
     htmlTemplate: renderLayout({
       preheader: "{{inviterName}} invited you to join an InteraOne workspace.",
       eyebrow: "Workspace invitation",
@@ -227,8 +229,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           <p class="section-title">What happens next</p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr><td class="list-item">1. Accept the invitation using the secure link below.</td></tr>
-            <tr><td class="list-item">2. Set up your account access.</td></tr>
-            <tr><td class="list-item">3. Start collaborating with your workspace team.</td></tr>
+            <tr><td class="list-item">2. Confirm your account details.</td></tr>
+            <tr><td class="list-item">3. Access your team's InteraOne workspace.</td></tr>
           </table>
         </div>
       `,
@@ -236,44 +238,44 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
         href: "{{inviteUrl}}",
         label: "Accept invitation",
       },
-      note: "This invitation expires in 7 days. Ask your workspace owner to resend it if the link expires.",
-      footerNote: "If you were not expecting this invitation, you can safely ignore this email.",
+      note: "This invitation expires in 7 days. If the link expires, ask your workspace owner to send a new invitation.",
+      footerNote: "If you were not expecting this invitation, no action is required.",
     }),
     textTemplate: "{{inviterName}} invited you to join InteraOne as a {{role}}. Accept the invitation: {{inviteUrl}}",
   },
   {
     templateKey: "global.welcome",
     type: "welcome",
-    subjectTemplate: "Welcome to InteraOne. Your workspace is ready.",
+    subjectTemplate: "Welcome to InteraOne — your workspace is ready",
     htmlTemplate: renderLayout({
       preheader: "Your InteraOne workspace is ready.",
       eyebrow: "Welcome",
       title: "Your workspace is ready",
-      intro: "Start building AI-powered customer experiences with InteraOne.",
+      intro: "Everything is ready for you to start managing customer conversations.",
       children: `
-        <p class="text">Hi {{name}},</p>
+        <p class="text">Hello {{name}},</p>
         <p class="text muted">
-          Welcome to InteraOne. Your account is ready and you have <strong>{{role}}</strong> access.
+          Your account has been set up with <strong>{{role}}</strong> access. Use the steps below to prepare your workspace.
         </p>
         <div class="panel">
           <p class="section-title">Next steps</p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr><td class="list-item">Configure your AI agent and customize your chat widget.</td></tr>
-            <tr><td class="list-item">Create a knowledge base by uploading documents, websites, and other content so your agent can answer questions about your business.</td></tr>
+            <tr><td class="list-item">Build your knowledge base with documents, websites, and other trusted content.</td></tr>
             <tr><td class="list-item">Invite human agents and teammates to your workspace.</td></tr>
-            <tr><td class="list-item">Connect Email, WhatsApp, and Telegram channels.</td></tr>
+            <tr><td class="list-item">Connect email, WhatsApp, and Telegram channels.</td></tr>
             <tr><td class="list-item">Monitor conversations, engagement, and performance from your analytics dashboard.</td></tr>
           </table>
         </div>
       `,
       cta: {
         href: "{{loginUrl}}",
-        label: "Open Workspace",
+        label: "Open workspace",
       },
       footerNote: "You are receiving this email because your InteraOne account was created successfully.",
     }),
     textTemplate:
-      "Hi {{name}}, welcome to InteraOne. Your account is ready with {{role}} access. Configure your AI agent, build your knowledge base, invite teammates, connect channels, and start tracking analytics. Open your workspace: {{loginUrl}}",
+      "Hello {{name}},\n\nWelcome to InteraOne. Your account is ready with {{role}} access. Configure your AI agent, build your knowledge base, invite teammates, connect your channels, and review performance from the analytics dashboard.\n\nOpen your workspace: {{loginUrl}}",
   },
   {
     templateKey: "global.notification",
@@ -283,13 +285,13 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       preheader: "{{message}}",
       eyebrow: "Workspace notification",
       title: "{{title}}",
-      intro: "A workspace update is available in InteraOne.",
+      intro: "There is a new update in your InteraOne workspace.",
       children: `
-        <p class="text">Hi {{name}},</p>
+        <p class="text">Hello {{name}},</p>
         <p class="text muted">{{message}}</p>
         <div class="panel">
           <span class="status-pill">{{status}}</span>
-          <p class="meta" style="margin-top:12px;">Open InteraOne to review the latest details and take action if needed.</p>
+          <p class="meta" style="margin-top:12px;">Review the latest details in InteraOne and take action if needed.</p>
         </div>
       `,
       cta: {
@@ -303,14 +305,14 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
   {
     templateKey: "global.alert",
     type: "alert",
-    subjectTemplate: "InteraOne alert: {{title}}",
+    subjectTemplate: "Action recommended: {{title}} | InteraOne",
     htmlTemplate: renderLayout({
       preheader: "{{message}}",
       eyebrow: "Workspace alert",
       title: "{{title}}",
-      intro: "InteraOne detected an item that may need your attention.",
+      intro: "An item in your workspace may require your attention.",
       children: `
-        <p class="text">Hi {{name}},</p>
+        <p class="text">Hello {{name}},</p>
         <p class="text muted">{{message}}</p>
         <div class="panel" style="border-color:#ead3d2;background:#fff8f7;">
           <p class="section-title" style="color:${BRAND.danger};">Recommended action</p>
@@ -323,183 +325,198 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       },
       footerNote: "You are receiving this alert because you are listed as a workspace admin or owner.",
     }),
-    textTemplate: "InteraOne alert: {{title}}\n\n{{message}}\n\nRecommended action: {{recommendation}}\n\n{{actionLabel}}: {{actionUrl}}",
+    textTemplate: "Action recommended: {{title}}\n\n{{message}}\n\nRecommended action: {{recommendation}}\n\n{{actionLabel}}: {{actionUrl}}",
   },
   {
     templateKey: "global.agent_verification_otp",
     type: "agent_verification_otp",
-    subjectTemplate: "{{otp}} is your identity verification code",
+    subjectTemplate: "Your InteraOne support verification code: {{otp}}",
     htmlTemplate: renderLayout({
-      preheader: "Use this code to verify your identity with the agent.",
-      eyebrow: "Identity Verification",
+      preheader: "Use this secure code to verify your identity with InteraOne support.",
+      eyebrow: "Identity verification",
       title: "Verify your identity",
-      intro: "An agent has requested an identity verification to continue assisting you.",
+      intro: "This action requires verification before support can continue with your request.",
       children: `
         <p class="text">Hello,</p>
-        <p class="text muted">Please provide this verification code to the agent or enter it on the verification screen to securely confirm your identity.</p>
+        <p class="text muted">Enter the verification code below during the active support conversation to securely confirm your identity.</p>
         ${otpBlock()}
-        <p class="meta">This code expires in <strong>10 minutes</strong>. If you did not request this, please ignore this email.</p>
+        <p class="meta">This code expires in <strong>10 minutes</strong>. For your security, use it only during the active verification step.</p>
       `,
-      footerNote: "InteraOne will never ask you to share this code outside the active support verification step.",
+      footerNote: "If you did not request support verification, no action is required.",
     }),
-    textTemplate: "Hello, use {{otp}} to verify your identity with InteraOne support. This code expires in 10 minutes.",
+    textTemplate: "Hello,\n\nUse {{otp}} to verify your identity during your active InteraOne support conversation. This code expires in 10 minutes.\n\nIf you did not request support verification, no action is required.",
   },
   {
     templateKey: "global.conversation_summary",
     type: "conversation_summary",
-    subjectTemplate: "Summary of your conversation with {{companyName}}",
+    subjectTemplate: "Your conversation summary from {{companyName}}",
     htmlTemplate: renderLayout({
-      preheader: "Here is a copy of your recent chat conversation summary.",
-      eyebrow: "Chat Summary",
-      title: "Conversation Summary",
-      intro: "Thank you for chatting with us. Here is the summary of your session.",
+      preheader: "A concise summary of your recent support conversation.",
+      eyebrow: "Conversation summary",
+      title: "Your conversation summary",
+      intro: "Here is a summary of your recent conversation with {{companyName}}.",
       children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">Here is the summary/transcript details of your recent conversation:</p>
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">For your reference, the key details from your conversation are included below.</p>
         <div class="panel" style="background:#fcfafb;">
-          <p class="text" style="white-space:pre-wrap;font-style:italic;">{{summary}}</p>
+          <p class="text" style="white-space:pre-wrap;margin-bottom:0;">{{summary}}</p>
         </div>
-        <p class="meta">Have any further questions? Simply reply to this email or start a new chat on our website.</p>
+        <p class="meta">If you need further assistance, reply to this email or start a new conversation on our website.</p>
       `,
+      footerNote: "Thank you for contacting {{companyName}} through InteraOne.",
     }),
-    textTemplate: "Hi {{name}},\n\nHere is the summary of your recent conversation:\n\n{{summary}}",
+    textTemplate: "Hello {{name}},\n\nHere is a summary of your recent conversation with {{companyName}}:\n\n{{summary}}\n\nIf you need further assistance, reply to this email or start a new conversation.",
   },
   {
     templateKey: "global.ticket_created",
     type: "ticket_created",
-    subjectTemplate: "Support ticket {{ticketNumber}} received by InteraOne",
+    subjectTemplate: "Support request {{ticketNumber}} received",
     htmlTemplate: renderLayout({
-      preheader: "Your support ticket has been created.",
-      eyebrow: "Support ticket",
-      title: "We received your request",
-      intro: "Your support ticket is now being tracked by InteraOne.",
+      preheader: "Your support request has been received.",
+      eyebrow: "Support request received",
+      title: "Your request has been received",
+      intro: "Your support request is now recorded and ready for review.",
       children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">Your request has been created successfully. Keep this ticket number for future reference.</p>
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">Thank you for contacting support. Keep the reference number below for future correspondence.</p>
         <div class="panel">
-          <p class="section-title">{{ticketNumber}} - {{title}}</p>
-          <p class="meta">Status: <strong>{{status}}</strong> &nbsp; Priority: <strong>{{priority}}</strong></p>
+          <p class="section-title">{{ticketNumber}} — {{title}}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Status</td><td class="detail-value">{{status}}</td></tr>
+            <tr><td class="detail-label">Priority</td><td class="detail-value">{{priority}}</td></tr>
+          </table>
         </div>
       `,
-      footerNote: "We will email you again when there is an update to this ticket.",
+      footerNote: "We will notify you when there is an update to this support request.",
     }),
-    textTemplate: "Hi {{name}},\n\nYour support ticket has been created.\n\nTicket: {{ticketNumber}}\nSubject: {{title}}\nStatus: {{status}}\nPriority: {{priority}}",
+    textTemplate: "Hello {{name}},\n\nYour support request has been received.\n\nReference: {{ticketNumber}}\nSubject: {{title}}\nStatus: {{status}}\nPriority: {{priority}}\n\nWe will notify you when there is an update.",
   },
   {
     templateKey: "global.ticket_updated",
     type: "ticket_updated",
-    subjectTemplate: "Update on support ticket {{ticketNumber}}",
+    subjectTemplate: "Support request {{ticketNumber}} has been updated",
     htmlTemplate: renderLayout({
-      preheader: "There is an update to your support ticket.",
-      eyebrow: "Ticket update",
-      title: "Your ticket was updated",
-      intro: "There is new activity on your InteraOne support request.",
+      preheader: "New information is available for your support request.",
+      eyebrow: "Support request update",
+      title: "Your support request has been updated",
+      intro: "New information is available for your support request.",
       children: `
-        <p class="text">Hi {{name}},</p>
+        <p class="text">Hello {{name}},</p>
         <div class="panel">
-          <p class="section-title">{{ticketNumber}} - {{title}}</p>
-          <p class="meta">Status: <strong>{{status}}</strong> &nbsp; Priority: <strong>{{priority}}</strong></p>
+          <p class="section-title">{{ticketNumber}} — {{title}}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Status</td><td class="detail-value">{{status}}</td></tr>
+            <tr><td class="detail-label">Priority</td><td class="detail-value">{{priority}}</td></tr>
+          </table>
         </div>
+        <p class="section-title">Latest update</p>
         <p class="text muted">{{updateSummary}}</p>
       `,
+      footerNote: "Thank you for your patience while this support request is being handled.",
     }),
-    textTemplate: "Hi {{name}},\n\nYour support ticket {{ticketNumber}} ({{title}}) was updated.\nStatus: {{status}}\nPriority: {{priority}}\n\n{{updateSummary}}",
+    textTemplate: "Hello {{name}},\n\nYour support request {{ticketNumber}} ({{title}}) has been updated.\n\nStatus: {{status}}\nPriority: {{priority}}\n\nLatest update:\n{{updateSummary}}",
   },
   {
     templateKey: "global.ticket_resolved",
     type: "ticket_resolved",
-    subjectTemplate: "Support ticket {{ticketNumber}} has been resolved",
+    subjectTemplate: "Support request {{ticketNumber}} has been resolved",
     htmlTemplate: renderLayout({
-      preheader: "Your support ticket has been resolved.",
-      eyebrow: "Ticket resolved",
-      title: "Your issue is resolved",
-      intro: "We have marked your InteraOne support request as resolved.",
+      preheader: "Your support request has been resolved.",
+      eyebrow: "Support request resolved",
+      title: "Your support request is resolved",
+      intro: "The support team has marked this request as resolved.",
       children: `
-        <p class="text">Hi {{name}},</p>
+        <p class="text">Hello {{name}},</p>
         <div class="panel">
-          <p class="section-title">{{ticketNumber}} - {{title}}</p>
-          <p class="meta">Status: <strong>{{status}}</strong></p>
+          <p class="section-title">{{ticketNumber}} — {{title}}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Status</td><td class="detail-value">{{status}}</td></tr>
+          </table>
         </div>
+        <p class="section-title">Resolution details</p>
         <p class="text muted">{{resolutionNote}}</p>
       `,
-      footerNote: "If the issue is not resolved for you, reply to your support team or start a new conversation.",
+      footerNote: "If you still need assistance, reply to the support team or start a new conversation.",
     }),
-    textTemplate: "Hi {{name}},\n\nYour support ticket {{ticketNumber}} ({{title}}) has been resolved.\n\n{{resolutionNote}}",
+    textTemplate: "Hello {{name}},\n\nYour support request {{ticketNumber}} ({{title}}) has been resolved.\n\nResolution details:\n{{resolutionNote}}\n\nIf you still need assistance, reply to the support team or start a new conversation.",
   },
   {
     templateKey: "global.ticket_closed",
     type: "ticket_closed",
-    subjectTemplate: "Support ticket {{ticketNumber}} has been closed",
+    subjectTemplate: "Support request {{ticketNumber}} is now closed",
     htmlTemplate: renderLayout({
-      preheader: "Your support ticket is now closed.",
-      eyebrow: "Ticket closed",
-      title: "Your ticket is closed",
-      intro: "This InteraOne support request has been closed.",
+      preheader: "Your support request is now closed.",
+      eyebrow: "Support request closed",
+      title: "Your support request is closed",
+      intro: "The support team has closed this request.",
       children: `
-        <p class="text">Hi {{name}},</p>
+        <p class="text">Hello {{name}},</p>
         <div class="panel">
-          <p class="section-title">{{ticketNumber}} - {{title}}</p>
-          <p class="meta">Status: <strong>{{status}}</strong></p>
+          <p class="section-title">{{ticketNumber}} — {{title}}</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Status</td><td class="detail-value">{{status}}</td></tr>
+          </table>
         </div>
+        <p class="section-title">Closure details</p>
         <p class="text muted">{{resolutionNote}}</p>
       `,
-      footerNote: "You can start a new conversation if you need further assistance.",
+      footerNote: "If you need further assistance, start a new support conversation.",
     }),
-    textTemplate: "Hi {{name}},\n\nYour support ticket {{ticketNumber}} ({{title}}) has been closed.\n\n{{resolutionNote}}",
+    textTemplate: "Hello {{name}},\n\nYour support request {{ticketNumber}} ({{title}}) is now closed.\n\nClosure details:\n{{resolutionNote}}\n\nIf you need further assistance, start a new support conversation.",
   },
   {
     templateKey: "global.domain_verification_pending",
     type: "domain_verification_pending",
-    subjectTemplate: "DNS Verification Pending for {{domain}}",
+    subjectTemplate: "Action required: verify {{domain}} for InteraOne",
     htmlTemplate: renderLayout({
       preheader: "Verify your domain ownership for InteraOne widget security.",
-      eyebrow: "Domain Security",
-      title: "DNS Verification Pending",
-      intro: "We detected a change to your widget verified domain settings.",
+      eyebrow: "Domain security",
+      title: "Verify your domain",
+      intro: "Complete DNS verification to secure your InteraOne widget on {{domain}}.",
       children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">To secure your chat widget and enable features like host-page DOM access, please verify ownership of <strong>{{domain}}</strong> by configuring the following DNS TXT record:</p>
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">To confirm ownership of <strong>{{domain}}</strong> and protect your chat widget, add the following DNS TXT record:</p>
         <div class="panel">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-            <tr><td class="list-item"><strong>Record Type:</strong> TXT</td></tr>
-            <tr><td class="list-item"><strong>Host/Name:</strong> {{domain}}</td></tr>
-            <tr><td class="list-item"><strong>Value/Target:</strong> <code style="background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:4px;">{{token}}</code></td></tr>
+            <tr><td class="detail-label">Record type</td><td class="detail-value">TXT</td></tr>
+            <tr><td class="detail-label">Host / name</td><td class="detail-value">{{domain}}</td></tr>
+            <tr><td class="detail-label">Value / target</td><td class="detail-value"><code style="background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:4px;">{{token}}</code></td></tr>
           </table>
         </div>
-        <p class="text muted">After adding the record, click <strong>Verify</strong> in your InteraOne admin panel to complete setup. DNS changes can take up to 24 hours to propagate.</p>
+        <p class="text muted">After adding the record, select <strong>Verify domain</strong> in your InteraOne widget settings. DNS changes can take up to 24 hours to become available.</p>
       `,
       cta: {
         href: "{{settingsUrl}}",
-        label: "Open Widget Settings",
+        label: "Open widget settings",
       },
       footerNote: "You are receiving this because you configured a verified domain for your InteraOne widget.",
     }),
-    textTemplate: "Hi {{name}},\n\nYour domain {{domain}} is pending verification. Please configure the following DNS TXT record:\n\nType: TXT\nHost: {{domain}}\nValue: {{token}}\n\nOnce configured, go to your dashboard settings page and click Verify.",
+    textTemplate: "Hello {{name}},\n\nTo confirm ownership of {{domain}} and protect your chat widget, add the following DNS TXT record:\n\nRecord type: TXT\nHost / name: {{domain}}\nValue / target: {{token}}\n\nAfter adding the record, open your widget settings and select Verify domain: {{settingsUrl}}",
   },
   {
     templateKey: "global.domain_verification_completed",
     type: "domain_verification_completed",
-    subjectTemplate: "Domain {{domain}} Verified Successfully!",
+    subjectTemplate: "{{domain}} has been verified for InteraOne",
     htmlTemplate: renderLayout({
       preheader: "Your domain verification is complete.",
-      eyebrow: "Domain Security",
-      title: "Domain Verified Successfully",
-      intro: "We have confirmed ownership of {{domain}}.",
+      eyebrow: "Domain security",
+      title: "Your domain is verified",
+      intro: "Ownership of {{domain}} has been confirmed.",
       children: `
-        <p class="text">Hi {{name}},</p>
-        <p class="text muted">Congratulations! Your domain <strong>{{domain}}</strong> has been successfully verified.</p>
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">Your domain <strong>{{domain}}</strong> is verified and its widget security settings are now active.</p>
         <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
-          <p class="section-title" style="color:${BRAND.success};">Security Enabled</p>
-          <p class="meta">Your chat widget is now securely locked to this domain origin. Third-party sites cannot embed your widget using your public key.</p>
+          <p class="section-title" style="color:${BRAND.success};">Protection enabled</p>
+          <p class="meta">Your chat widget is restricted to this verified domain. Other websites cannot embed it using your public key.</p>
         </div>
       `,
       cta: {
         href: "{{settingsUrl}}",
-        label: "Manage Settings",
+        label: "Manage domain settings",
       },
       footerNote: "You are receiving this because you are an admin or owner of this InteraOne workspace.",
     }),
-    textTemplate: "Hi {{name}},\n\nYour domain {{domain}} has been verified successfully. Your widget is now securely locked to this domain origin.",
+    textTemplate: "Hello {{name}},\n\nYour domain {{domain}} has been verified. Your chat widget is now restricted to this domain, and other websites cannot embed it using your public key.\n\nManage domain settings: {{settingsUrl}}",
   },
 ];
 

@@ -115,8 +115,8 @@ export async function buildInviteEmail(
   const safeInviterName = escapeHtml(inviterName);
   const safeRole = escapeHtml(role);
 
-  const titleText = "Join the InteraOne Organization";
-  const bodyText = `<strong>${safeInviterName}</strong> has invited you to join their organization as an <strong>${safeRole}</strong>.`;
+  const titleText = "You have been invited to collaborate in an InteraOne workspace.";
+  const bodyText = `<strong>${safeInviterName}</strong> invited you to join their workspace with the <strong>${safeRole}</strong> role.`;
 
   return buildFromTemplate("invite", {
     inviterName: safeInviterName,
@@ -199,8 +199,8 @@ export async function buildTicketLifecycleEmail(
     title: escapeHtml(details.title),
     status: escapeHtml(details.status),
     priority: escapeHtml(details.priority),
-    updateSummary: escapeHtml(details.updateSummary || "Your support request has been updated."),
-    resolutionNote: escapeHtml(details.resolutionNote || "No additional resolution note was provided."),
+    updateSummary: escapeHtml(details.updateSummary || "The details of your support request have been updated."),
+    resolutionNote: escapeHtml(details.resolutionNote || "No additional resolution details were provided."),
   });
 }
 
