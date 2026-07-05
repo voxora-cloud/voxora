@@ -53,7 +53,7 @@ export class TicketsService {
         _id: convIdObj,
         organizationId: orgIdObj,
       })
-        .select("assignedTo visitor.sessionId")
+        .select("assignedTo sessionId")
         .lean();
       if (conversation?.assignedTo) {
         assignedTo = conversation.assignedTo;
@@ -62,16 +62,12 @@ export class TicketsService {
 
     if (requesterName && requesterEmail) {
       if (convIdObj) {
-        const sessionId = conversation?.visitor?.sessionId || `conv:${input.conversationId}`;
+        const sessionId = conversation?.sessionId || `conv:${input.conversationId}`;
 
         await Conversation.updateOne(
           { _id: convIdObj, organizationId: orgIdObj },
           {
             $set: {
-              "visitor.name": requesterName,
-              "visitor.email": requesterEmail,
-              "visitor.isAnonymous": false,
-              "visitor.providedInfoAt": new Date(),
               "metadata.senderName": requesterName,
               "metadata.senderEmail": requesterEmail,
               "metadata.contactCapturedByAIAt": new Date(),
@@ -219,7 +215,7 @@ export class TicketsService {
         const convDocs = contact.sessionId
           ? await Conversation.find({
               organizationId: ticket.organizationId,
-              "visitor.sessionId": contact.sessionId,
+              sessionId: contact.sessionId,
             })
               .select("status subject updatedAt")
               .sort({ updatedAt: -1 })
@@ -467,14 +463,14 @@ export class TicketsService {
         _id: ticket.conversationId,
         organizationId: ticket.organizationId,
       })
-        .select("visitor.sessionId visitor.name visitor.email metadata.senderName metadata.senderEmail metadata.visitorPhone")
+        .select("sessionId metadata.senderName metadata.senderEmail metadata.visitorPhone")
         .lean();
     }
 
-    if (!contact && conversation?.visitor?.sessionId) {
+    if (!contact && conversation?.sessionId) {
       contact = await Contact.findOne({
         organizationId: ticket.organizationId,
-        sessionId: conversation.visitor.sessionId,
+        sessionId: conversation.sessionId,
       })
         .select("name email phone")
         .lean();
@@ -483,14 +479,12 @@ export class TicketsService {
     fullName =
       fullName ||
       this.normalizeContactValue(contact?.name) ||
-      this.normalizeContactValue(conversation?.metadata?.senderName) ||
-      this.normalizeContactValue(conversation?.visitor?.name);
+      this.normalizeContactValue(conversation?.metadata?.senderName);
 
     email =
       email ||
       this.normalizeEmailValue(contact?.email) ||
-      this.normalizeEmailValue(conversation?.metadata?.senderEmail) ||
-      this.normalizeEmailValue(conversation?.visitor?.email);
+      this.normalizeEmailValue(conversation?.metadata?.senderEmail);
 
     phone =
       phone ||
@@ -584,15 +578,20 @@ export class TicketsService {
         _id: ticket.conversationId,
         organizationId: ticket.organizationId,
       })
-        .select("visitor.name visitor.email")
+        .select("sessionId")
         .lean();
-      const email = conversation?.visitor?.email?.trim().toLowerCase();
-      if (email && email !== "anonymous@temp.local") {
-        const name = conversation?.visitor?.name;
-        return {
-          name: name && name !== "Anonymous User" ? name : "there",
-          email,
-        };
+      if (conversation?.sessionId) {
+        const contact = await Contact.findOne({
+          organizationId: ticket.organizationId,
+          sessionId: conversation.sessionId,
+        }).lean();
+        const email = contact?.email?.trim().toLowerCase();
+        if (contact && email && email !== "anonymous@temp.local") {
+          return {
+            name: contact.name && contact.name !== "Anonymous User" ? contact.name : "there",
+            email,
+          };
+        }
       }
     }
 

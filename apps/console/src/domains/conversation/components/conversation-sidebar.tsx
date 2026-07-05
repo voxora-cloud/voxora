@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/shared/ui/input";
 import { useAuth } from "@/domains/auth/hooks";
 import { useNavigate } from "react-router";
-import { Bell, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, Search, Bot, User } from "lucide-react";
 import io from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversations } from "../hooks";
@@ -103,31 +103,6 @@ export function ConversationSidebar() {
       },
     );
 
-    socketInstance.on(
-      "visitor_info_updated",
-      (data: { conversationId: string; visitorName: string; visitorEmail: string }) => {
-        queryClient.setQueryData<ConversationListItem[]>(
-          ["conversations", filterStatus],
-          (prev = []) =>
-            prev.map((conv) =>
-              conv._id === data.conversationId
-                ? conv.visitor
-                ? {
-                    ...conv,
-                    visitor: {
-                      ...conv.visitor,
-                      name: data.visitorName,
-                      email: data.visitorEmail,
-                      isAnonymous: false,
-                    },
-                  }
-                : conv
-                : conv,
-            ),
-        );
-      },
-    );
-
     return () => {
       socketInstance.disconnect();
     };
@@ -135,8 +110,8 @@ export function ConversationSidebar() {
 
   const getCustomerName = (conversation: ConversationListItem) => {
     return (
-      conversation.visitor?.name ||
       conversation.metadata?.customer?.name ||
+      conversation.metadata?.senderName ||
       conversation.metadata?.customerName ||
       conversation.participants[0]?.name ||
       "Anonymous User"
@@ -164,10 +139,10 @@ export function ConversationSidebar() {
       filterStatus === "all" || conversation.status === filterStatus;
     const searchMatch =
       !searchQuery ||
-      conversation.visitor?.name
+      conversation.metadata?.senderName
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      conversation.visitor?.email
+      conversation.metadata?.senderEmail
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       conversation.metadata?.customer?.name
@@ -183,6 +158,54 @@ export function ConversationSidebar() {
 
     return statusMatch && searchMatch;
   }), [conversations, filterStatus, searchQuery]);
+
+  const renderLastMessageSenderBadge = (conv: ConversationListItem) => {
+    const lastMsg = conv.lastMessage;
+    if (!lastMsg) return null;
+
+    const source = lastMsg.metadata?.source;
+    if (source === "ai") {
+      return (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-violet-100 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 border border-violet-200/50 dark:border-violet-900/30 mr-1 select-none shrink-0">
+          <Bot className="h-2.5 w-2.5" /> AI
+        </span>
+      );
+    }
+    if (source === "web" || source === "agent") {
+      return (
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900/30 mr-1 select-none shrink-0">
+          <User className="h-2.5 w-2.5" /> Agent
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/50 dark:border-zinc-700/50 mr-1 select-none shrink-0">
+        <User className="h-2.5 w-2.5" /> User
+      </span>
+    );
+  };
+
+  const getChannelBadge = (conv: ConversationListItem) => {
+    const channel = conv.channel || conv.metadata?.source || "widget";
+    const displayChannel = channel.replace(/_channel$/, "").toUpperCase();
+
+    let colorClasses = "bg-muted text-muted-foreground";
+    if (channel.includes("email")) {
+      colorClasses = "bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/30";
+    } else if (channel.includes("whatsapp")) {
+      colorClasses = "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/30";
+    } else if (channel.includes("telegram")) {
+      colorClasses = "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30";
+    } else if (channel.includes("widget") || channel === "web") {
+      colorClasses = "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30";
+    }
+
+    return (
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold select-none shrink-0 ${colorClasses}`}>
+        {displayChannel}
+      </span>
+    );
+  };
 
   return (
     <div
@@ -252,8 +275,8 @@ export function ConversationSidebar() {
             className="w-full px-3 py-2 text-sm border border-input bg-background rounded-md"
           >
             <option value="open">Open</option>
-            <option value="pending">Pending</option>
             <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
           </select>
         )}
       </div>
@@ -305,7 +328,7 @@ export function ConversationSidebar() {
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium bg-primary shrink-0">
                     {getCustomerName(conversation)
                       .split(" ")
-                      .map((n) => n[0])
+                      .map((n: string) => n[0])
                       .join("")
                       .toUpperCase()}
                   </div>
@@ -313,19 +336,19 @@ export function ConversationSidebar() {
 
                 {!isMinimized && (
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-foreground truncate mb-1">
-                      {getCustomerName(conversation)}
-                    </h4>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <h4 className="text-sm font-medium text-foreground truncate flex-1">
+                        {getCustomerName(conversation)}
+                      </h4>
+                      {getChannelBadge(conversation)}
+                    </div>
 
-                    {conversation.metadata?.source && (
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Source: {conversation.metadata.source}
+                    <div className="flex items-center gap-1 mb-2">
+                      {renderLastMessageSenderBadge(conversation)}
+                      <p className="text-xs text-muted-foreground truncate flex-1">
+                        {conversation.lastMessage?.content || "No messages yet"}
                       </p>
-                    )}
-
-                    <p className="text-xs text-muted-foreground truncate mb-2">
-                      {conversation.lastMessage?.content || "No messages yet"}
-                    </p>
+                    </div>
 
                     <p className="text-xs text-muted-foreground">
                       {formatTime(

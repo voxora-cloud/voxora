@@ -24,12 +24,12 @@ export class ContactsService {
       {
         $match: {
           organizationId: new Types.ObjectId(organizationId),
-          "visitor.sessionId": { $in: sessionIds },
+          sessionId: { $in: sessionIds },
         },
       },
       {
         $group: {
-          _id: "$visitor.sessionId",
+          _id: "$sessionId",
           count: { $sum: 1 },
           lastActivityAt: { $max: "$updatedAt" },
         },
@@ -41,7 +41,7 @@ export class ContactsService {
     // Query actual recent conversations
     const conversations = await Conversation.find({
       organizationId: new Types.ObjectId(organizationId),
-      "visitor.sessionId": { $in: sessionIds },
+      sessionId: { $in: sessionIds },
     }).sort({ updatedAt: -1 }).lean();
 
     const convIds = conversations.map((c) => c._id);
@@ -61,7 +61,7 @@ export class ContactsService {
 
     const conversationsBySession = new Map<string, any[]>();
     for (const conv of conversations) {
-      const sId = conv.visitor?.sessionId;
+      const sId = conv.sessionId;
       if (!sId) continue;
       
       const firstMsg = firstMessageMap.get(conv._id.toString()) || conv.subject || "Conversation context is still syncing.";
@@ -107,7 +107,7 @@ export class ContactsService {
       const contactConflicts = conflictsMap.get(contact._id.toString()) || [];
 
       // Get all conversations for this session ID
-      const sessionConvs = conversations.filter(c => c.visitor?.sessionId === contact.sessionId);
+      const sessionConvs = conversations.filter(c => c.sessionId === contact.sessionId);
       const convTags = sessionConvs.flatMap(c => c.tags || []);
       
       // Combine contact's tags and all associated conversation tags
@@ -168,9 +168,9 @@ export class ContactsService {
       throw new Error("Conversation not found for organization");
     }
 
-    const sessionId = conversation.visitor?.sessionId || `conv:${conversationId}`;
-    const existingName = conversation.visitor?.name;
-    const existingEmail = conversation.visitor?.email;
+    const sessionId = conversation.sessionId || `conv:${conversationId}`;
+    const existingName = "";
+    const existingEmail = "";
 
     const resolvedName = (input.name || existingName || "Anonymous User").trim();
     const resolvedEmail = (input.email || existingEmail || "").trim().toLowerCase();
@@ -190,10 +190,7 @@ export class ContactsService {
     const note = (input.note || "").trim();
     const company = (input.company || "").trim();
 
-    const visitorUpdate: Record<string, unknown> = {
-      "visitor.name": resolvedName,
-      "visitor.isAnonymous": !resolvedName || !resolvedEmail,
-      "visitor.providedInfoAt": new Date(),
+    const conversationUpdate: Record<string, unknown> = {
       "metadata.contactCapturedByAIAt": new Date(),
       "metadata.contactCapturedByAI": true,
       "metadata.analyzed": true,
@@ -206,15 +203,14 @@ export class ContactsService {
     };
 
     if (resolvedEmail) {
-      visitorUpdate["visitor.email"] = resolvedEmail;
-      visitorUpdate["metadata.senderEmail"] = resolvedEmail;
+      conversationUpdate["metadata.senderEmail"] = resolvedEmail;
     }
-    visitorUpdate["metadata.senderName"] = resolvedName;
+    conversationUpdate["metadata.senderName"] = resolvedName;
     if (resolvedPhone) {
-      visitorUpdate["metadata.visitorPhone"] = resolvedPhone;
+      conversationUpdate["metadata.visitorPhone"] = resolvedPhone;
     }
 
-    await Conversation.updateOne({ _id: conversationId }, { $set: visitorUpdate });
+    await Conversation.updateOne({ _id: conversationId }, { $set: conversationUpdate });
 
     const orgObjectId = new Types.ObjectId(organizationId);
 
@@ -568,5 +564,35 @@ export class ContactsService {
       conflict.resolvedBy = agentName;
       await conflict.save();
     }
+  }
+
+  async updateContact(
+    organizationId: string,
+    contactId: string,
+    data: { name?: string; email?: string; phone?: string; company?: string; tags?: string[] }
+  ): Promise<any> {
+    const { name, email, phone, company, tags } = data;
+    const updateFields: any = {};
+    if (name) updateFields.name = name;
+    if (email) updateFields.email = email;
+    if (phone) updateFields.phone = phone;
+    if (company !== undefined) updateFields.company = company;
+    if (tags !== undefined) updateFields.tags = tags;
+
+    const updated = await Contact.findOneAndUpdate(
+      {
+        organizationId: new Types.ObjectId(organizationId),
+        _id: new Types.ObjectId(contactId),
+      },
+      {
+        $set: updateFields,
+      },
+      { new: true }
+    );
+    if (!updated) throw new Error("Contact not found");
+
+
+
+    return updated;
   }
 }

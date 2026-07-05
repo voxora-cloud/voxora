@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useSaveWidget, useWidget } from "@/domains/widget/hooks";
-import type { CreateWidgetData } from "@/domains/widget/types";
+import type { CreateWidgetData } from "@/domains/widget/types/types";
 import { validateWidgetForm } from "@/shared/lib/validation";
 import { toast } from "sonner";
 import { Loader } from "@/shared/ui/loader";

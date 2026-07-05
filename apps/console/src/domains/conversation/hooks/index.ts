@@ -1,8 +1,8 @@
 export { useConversations } from "./useConversations";
 export { useConversationDetail } from "./useConversationDetail";
 export { useUpdateConversationStatus } from "./useUpdateConversationStatus";
-export { useUpdateVisitorInfo } from "./useUpdateVisitorInfo";
 export { useRouteConversation } from "./useRouteConversation";
+export { useUpdateContactAssociation } from "./useUpdateContactAssociation";
 
-export { useMyConversations, useUnassignedConversations } from "./useInboxConversations";
+export { useMyConversations } from "./useInboxConversations";
 export { useAgentRuns } from "./useAgentRuns";

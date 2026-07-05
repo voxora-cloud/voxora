@@ -6,6 +6,16 @@ export function escapeHtml(str: string) {
     .replace(/"/g, '&quot;');
 }
 
+function parseAttributes(attrStr: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const regex = /(\w+)=&quot;([^&]*?)&quot;/g;
+  let match;
+  while ((match = regex.exec(attrStr)) !== null) {
+    attrs[match[1]] = match[2];
+  }
+  return attrs;
+}
+
 export function stripMarkdown(text: string) {
   if (!text) return "";
   return text
@@ -29,12 +39,19 @@ export function stripMarkdown(text: string) {
 export function stripStreamingInteractiveMarkup(text: string) {
   if (!text) return "";
 
-  const marker = '<interaone-';
+  const markers = ['<interaone-', '<div'];
   const lowerText = text.toLowerCase();
-  const componentStart = lowerText.indexOf(marker);
+  
+  let firstIndex = -1;
+  for (const marker of markers) {
+    const idx = lowerText.indexOf(marker);
+    if (idx !== -1 && (firstIndex === -1 || idx < firstIndex)) {
+      firstIndex = idx;
+    }
+  }
 
-  if (componentStart !== -1) {
-    return text.slice(0, componentStart).trimEnd();
+  if (firstIndex !== -1) {
+    return text.slice(0, firstIndex).trimEnd();
   }
 
   // A stream chunk can end partway through the opening marker. Hide that
@@ -42,8 +59,10 @@ export function stripStreamingInteractiveMarkup(text: string) {
   const lastOpeningBracket = lowerText.lastIndexOf('<');
   if (lastOpeningBracket !== -1) {
     const trailingText = lowerText.slice(lastOpeningBracket);
-    if (marker.startsWith(trailingText)) {
-      return text.slice(0, lastOpeningBracket).trimEnd();
+    for (const marker of markers) {
+      if (marker.startsWith(trailingText)) {
+        return text.slice(0, lastOpeningBracket).trimEnd();
+      }
     }
   }
 
@@ -199,20 +218,34 @@ export function parseMarkdown(text: string) {
   // Trim both leading and trailing whitespace/newlines left over from thinking blocks or LLM formatting
   s = s.trim();
 
+  // Unescape divs to support HTML layout blocks
+  s = s.replace(/&lt;div\s*([\s\S]*?)&gt;/g, function(_, attrs) {
+    const cleanAttrs = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    return `<div ${cleanAttrs}>`.replace(/\s+>/, '>');
+  });
+  s = s.replace(/&lt;\/div&gt;/g, '</div>');
+
   // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
   // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
   s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
     let content = innerContent;
     // Replace inputs inside form to not have individual submit button wrappers
-    content = content.replace(/&lt;interaone-input\s+name=&quot;([^&]+?)&quot;\s+placeholder=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g,
-      '<div class="vx-form-row"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /></div>'
-    );
+    content = content.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+      const attrs = parseAttributes(attrStr);
+      const name = attrs.name || '';
+      const placeholder = attrs.placeholder || '';
+      const val = attrs.value || '';
+      return `<div class="vx-form-row"><input type="text" class="vx-form-input" name="${name}" placeholder="${placeholder}" value="${val}" data-interaone-input /></div>`;
+    });
     // Replace checkboxes inside form
     content = content.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g,
       '<div class="vx-form-row"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label></div>'
     );
     // Replace radios inside form
-    content = content.replace(/&lt;interaone-radio\s+name=&quot;([^&]+?)&quot;\s+options=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, function(_: string, name: string, optionsStr: string) {
+    content = content.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+      const attrs = parseAttributes(attrStr);
+      const name = attrs.name || '';
+      const optionsStr = attrs.options || '';
       const options = optionsStr.split(',').map((o: string) => o.trim());
       const radiosHtml = options.map((opt: string, i: number) => `
         <label class="vx-form-radio-label">
@@ -232,9 +265,13 @@ export function parseMarkdown(text: string) {
   });
 
   // Parse InteraOne Interactive Components (escaped XML)
-  s = s.replace(/&lt;interaone-input\s+name=&quot;([^&]+?)&quot;\s+placeholder=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, 
-    '<div class="vx-interactive-form vx-input-wrapper"><input type="text" class="vx-form-input" name="$1" placeholder="$2" data-interaone-input /><button class="vx-form-submit" data-action="submit-input" data-target="$1">Submit</button></div>'
-  );
+  s = s.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+    const attrs = parseAttributes(attrStr);
+    const name = attrs.name || '';
+    const placeholder = attrs.placeholder || '';
+    const val = attrs.value || '';
+    return `<div class="vx-interactive-form vx-input-wrapper"><input type="text" class="vx-form-input" name="${name}" placeholder="${placeholder}" value="${val}" data-interaone-input /><button class="vx-form-submit" data-action="submit-input" data-target="${name}">Submit</button></div>`;
+  });
 
   s = s.replace(/&lt;interaone-button\s+action=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-button&gt;/g,
     '<button class="vx-form-button" data-interaone-button data-action="$1">$2</button>'
@@ -244,7 +281,10 @@ export function parseMarkdown(text: string) {
     '<div class="vx-interactive-form vx-checkbox-wrapper"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label><button class="vx-form-submit" data-action="submit-checkbox" data-target="$1">Submit</button></div>'
   );
 
-  s = s.replace(/&lt;interaone-radio\s+name=&quot;([^&]+?)&quot;\s+options=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, function(_, name, optionsStr) {
+  s = s.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+    const attrs = parseAttributes(attrStr);
+    const name = attrs.name || '';
+    const optionsStr = attrs.options || '';
     const options = optionsStr.split(',').map((o: string) => o.trim());
     const radiosHtml = options.map((opt: string, i: number) => `
       <label class="vx-form-radio-label">
@@ -288,9 +328,6 @@ export function parseMarkdown(text: string) {
   s = s.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
   s = s.replace(/_([^\n_]+?)_/g, '<em>$1</em>');
 
-  // Horizontal rule
-  s = s.replace(/^[-*]{3,}$/gm, '<hr>');
-
   // Unordered lists
   s = s.replace(/((?:^[ \t]*[-*+] .+\n?)+)/gm, function (block) {
     const items = block.trim().split('\n').map(function (line) {
@@ -312,7 +349,7 @@ export function parseMarkdown(text: string) {
   s = renderMarkdownTables(s);
 
   // Paragraphs and Block element wrapping
-  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<hr>|<section class="md-table-(?:scroll|list)"[\s\S]*?<\/section>|<form[\s\S]*?<\/form>|<div[\s\S]*?<\/div>|<button[\s\S]*?<\/button>)/g;
+  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<section class="md-table-(?:scroll|list)"[\s\S]*?<\/section>|<form[\s\S]*?<\/form>|<div[\s\S]*?<\/div>|<button[\s\S]*?<\/button>)/g;
   const parts = s.split(blockTagRegex);
 
   return parts
@@ -326,7 +363,6 @@ export function parseMarkdown(text: string) {
         trimmedPart.startsWith('<h1') ||
         trimmedPart.startsWith('<h2') ||
         trimmedPart.startsWith('<h3') ||
-        trimmedPart.startsWith('<hr') ||
         trimmedPart.startsWith('<section class="md-table-scroll"') ||
         trimmedPart.startsWith('<section class="md-table-list"') ||
         trimmedPart.startsWith('<form') ||

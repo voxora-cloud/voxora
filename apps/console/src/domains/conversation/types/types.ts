@@ -10,6 +10,7 @@ export interface ConversationVisitor {
   name: string;
   email: string;
   isAnonymous: boolean;
+  phone?: string;
 }
 
 export interface ConversationMessage {
@@ -35,27 +36,36 @@ export interface ConversationListItem {
     senderId: {
       name: string;
     };
+    metadata?: {
+      source?: string;
+      senderName?: string;
+    };
   };
-  status: "open" | "pending" | "resolved" | "closed";
+  status: "open" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
   tags: string[];
-  visitor?: ConversationVisitor;
+  sessionId: string;
   metadata?: {
     source?: string;
     customer?: {
       name?: string;
       email?: string;
       phone?: string;
+      company?: string;
       initialMessage?: string;
       startedAt?: string;
     };
     customerName?: string;
+    senderName?: string;
+    senderEmail?: string;
+    visitorPhone?: string;
     escalatedAt?: string;
     escalationReason?: string;
     pendingEscalation?: boolean;
   };
   assignedTo?: { _id: string; name: string; email: string };
   unreadCount: number;
+  channel?: string;
   createdAt: string;
   lastMessageAt?: string;
 }
@@ -65,15 +75,25 @@ export interface ConversationDetail {
   subject: string;
   status: string;
   priority: string;
-  visitor?: ConversationVisitor;
+  sessionId: string;
+  channel?: string;
+  assignedTo?: { _id: string; name: string; email: string };
+  tags?: string[];
   metadata: {
     customer?: {
       name?: string;
       email?: string;
       phone?: string;
+      company?: string;
     };
+    customerName?: string;
+    senderName?: string;
+    senderEmail?: string;
+    visitorPhone?: string;
     source?: string;
   };
+  createdAt: string;
+  updatedAt?: string;
 }
 
 

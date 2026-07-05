@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import type { CreateWidgetData } from "../types";
+import type { CreateWidgetData } from "../types/types";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 
@@ -36,9 +36,8 @@ export function WidgetAppearanceForm({
               placeholder="Acme Support"
               value={formData.displayName}
               onChange={(e) => onInputChange("displayName", e.target.value)}
-              className={`h-12 rounded-xl border-border bg-background/80 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text ${
-                validationErrors.displayName ? "border-red-500/50" : ""
-              }`}
+              className={`h-12 rounded-xl border-border bg-background/80 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text ${validationErrors.displayName ? "border-red-500/50" : ""
+                }`}
               required
             />
             {validationErrors.displayName && (

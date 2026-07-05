@@ -11,10 +11,8 @@ import {
   Tag,
   ExternalLink,
   Clock,
-  Bot,
   Send,
   Globe,
-  Wifi,
   AlertCircle,
   CheckCircle2,
   XCircle,
@@ -44,20 +42,20 @@ import { Label } from "@/shared/ui/label";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TicketSource = "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
+type TicketSource = "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner";
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
 
 // ─── Meta maps ────────────────────────────────────────────────────────────────
 
 const SOURCE_META: Record<TicketSource, { label: string; icon: React.ReactNode; gradient: string; ring: string }> = {
-  ai:       { label: "AI",       icon: <Bot className="h-3.5 w-3.5" />,      gradient: "from-violet-500 to-purple-600",   ring: "ring-violet-500/30" },
-  agent:    { label: "Agent",    icon: <User className="h-3.5 w-3.5" />,     gradient: "from-slate-500 to-slate-600",     ring: "ring-slate-400/30" },
-  api:      { label: "API",      icon: <Wifi className="h-3.5 w-3.5" />,     gradient: "from-sky-500 to-cyan-600",        ring: "ring-sky-500/30" },
   widget:   { label: "Widget",   icon: <Globe className="h-3.5 w-3.5" />,    gradient: "from-emerald-500 to-teal-600",    ring: "ring-emerald-500/30" },
   email:    { label: "Email",    icon: <Mail className="h-3.5 w-3.5" />,     gradient: "from-amber-500 to-orange-500",    ring: "ring-amber-500/30" },
-  whatsapp: { label: "WhatsApp", icon: <Phone className="h-3.5 w-3.5" />,    gradient: "from-green-500 to-emerald-600",  ring: "ring-green-500/30" },
+  whatsapp: { label: "WhatsApp", icon: <Phone className="h-3.5 w-3.5" />,    gradient: "from-green-500 to-emerald-600",   ring: "ring-green-500/30" },
   telegram: { label: "Telegram", icon: <Send className="h-3.5 w-3.5" />,     gradient: "from-blue-500 to-indigo-600",    ring: "ring-blue-500/30" },
+  agent:    { label: "Agent",    icon: <User className="h-3.5 w-3.5" />,     gradient: "from-slate-500 to-slate-600",    ring: "ring-slate-400/30" },
+  admin:    { label: "Admin",    icon: <Shield className="h-3.5 w-3.5" />,   gradient: "from-violet-500 to-purple-600",  ring: "ring-violet-500/30" },
+  owner:    { label: "Owner",    icon: <Zap className="h-3.5 w-3.5" />,      gradient: "from-rose-500 to-pink-600",      ring: "ring-rose-500/30" },
 };
 
 const STATUS_META: Record<TicketStatus, { label: string; icon: React.ReactNode; pill: string; bar: string; pulse: boolean }> = {
@@ -116,25 +114,33 @@ function PriorityBadge({ priority }: { priority: string }) {
 // ─── Note item ────────────────────────────────────────────────────────────────
 
 function NoteItem({ note }: {
-  note: { id: string; author: string; authorType: "ai" | "agent" | "system"; content: string; createdAt: string };
+  note: { id: string; author: string; authorType: "ai" | "agent" | "admin" | "owner"; content: string; createdAt: string };
 }) {
   const isAI     = note.authorType === "ai";
-  const isSystem = note.authorType === "system";
-  const avatarGradient = isAI ? "from-violet-500 to-purple-600" : isSystem ? "from-slate-400 to-slate-500" : "from-primary to-primary/80";
+  const isAdmin  = note.authorType === "admin";
+  const isOwner  = note.authorType === "owner";
+  const avatarGradient =
+    isAI    ? "from-violet-500 to-purple-600" :
+    isAdmin ? "from-rose-500 to-pink-600" :
+    isOwner ? "from-amber-500 to-orange-500" :
+    "from-primary to-primary/80";
 
   return (
     <div className="relative flex gap-4">
       {/* Avatar column */}
       <div className="relative z-10 shrink-0">
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${avatarGradient} text-[11px] font-bold text-white shadow-md ring-2 ring-background`}>
-          {isAI ? "AI" : isSystem ? "S" : note.author.charAt(0).toUpperCase()}
+          {isAI ? "AI" : isAdmin ? "AD" : isOwner ? "OW" : note.author.charAt(0).toUpperCase()}
         </div>
       </div>
 
       {/* Bubble */}
       <div className="min-w-0 flex-1 pb-2">
         <div className={`rounded-2xl rounded-tl-sm border p-4 shadow-sm backdrop-blur-sm transition-shadow hover:shadow-md ${
-          isAI ? "border-violet-500/20 bg-violet-500/5" : isSystem ? "border-border bg-muted/40" : "border-border bg-card"
+          isAI    ? "border-violet-500/20 bg-violet-500/5" :
+          isAdmin ? "border-rose-500/20 bg-rose-500/5" :
+          isOwner ? "border-amber-500/20 bg-amber-500/5" :
+          "border-border bg-card"
         }`}>
           <div className="mb-2.5 flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-foreground">{note.author}</span>
@@ -143,9 +149,14 @@ function NoteItem({ note }: {
                 <Sparkles className="h-2.5 w-2.5" /> AI
               </span>
             )}
-            {isSystem && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground border border-border">
-                <Shield className="h-2.5 w-2.5" /> System
+            {isAdmin && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-rose-500 border border-rose-500/20">
+                <Shield className="h-2.5 w-2.5" /> Admin
+              </span>
+            )}
+            {isOwner && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-500 border border-amber-500/20">
+                <Zap className="h-2.5 w-2.5" /> Owner
               </span>
             )}
             <span className="ml-auto text-[11px] text-muted-foreground">
@@ -177,7 +188,7 @@ export function TicketDetailPage() {
   useEffect(() => {
     membersApi.listMembers().then((res) => {
       if (res.success && res.data?.members)
-        setMembers(res.data.members.filter((m) => m.inviteStatus === "active" && m.user));
+        setMembers(res.data.members.filter((m) => m.inviteStatus === "accepted" && m.user));
     });
   }, []);
 

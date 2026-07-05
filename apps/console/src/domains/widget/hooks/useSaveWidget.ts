@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { widgetApi } from "../api/widget.api";
-import type { UpdateWidgetData, Widget } from "../types";
+import type { UpdateWidgetData, Widget } from "../types/types";
 
 interface SaveWidgetPayload {
   data: UpdateWidgetData;

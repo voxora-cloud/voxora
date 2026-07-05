@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MessageSquareDashed, Sparkles } from "lucide-react";
-import type { WidgetSuggestion } from "../types";
+import type { WidgetSuggestion } from "../types/types";
 import {
   Dialog,
   DialogContent,
@@ -32,10 +32,9 @@ function FaqCheckbox({
       className={`
         relative flex items-center justify-center w-5 h-5 rounded-md border-2 shrink-0
         transition-all duration-150
-        ${
-          checked
-            ? "bg-primary border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
-            : disabled
+        ${checked
+          ? "bg-primary border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
+          : disabled
             ? "bg-muted/30 border-border/40 opacity-40"
             : "bg-background border-border group-hover:border-primary/60"
         }
@@ -72,9 +71,8 @@ function SelectionBar({
         {Array.from({ length: max }).map((_, i) => (
           <span
             key={i}
-            className={`h-1.5 w-6 rounded-full transition-all duration-300 ${
-              i < selected ? "bg-primary" : "bg-border"
-            }`}
+            className={`h-1.5 w-6 rounded-full transition-all duration-300 ${i < selected ? "bg-primary" : "bg-border"
+              }`}
           />
         ))}
       </div>
@@ -209,10 +207,9 @@ export function WidgetSuggestionsForm({
                         className={`
                           group flex items-start gap-3.5 p-3.5 rounded-xl border
                           transition-all duration-150 select-none
-                          ${
-                            isDisabled
-                              ? "border-border/40 bg-muted/10 cursor-not-allowed opacity-50"
-                              : isSelected
+                          ${isDisabled
+                            ? "border-border/40 bg-muted/10 cursor-not-allowed opacity-50"
+                            : isSelected
                               ? "border-primary/40 bg-primary/5 cursor-pointer"
                               : "border-border bg-background/60 cursor-pointer hover:border-primary/30 hover:bg-muted/30"
                           }
@@ -238,11 +235,10 @@ export function WidgetSuggestionsForm({
                         {/* FAQ details */}
                         <div className="flex-1 min-w-0 pt-px">
                           <p
-                            className={`text-sm font-medium leading-snug ${
-                              isDisabled
+                            className={`text-sm font-medium leading-snug ${isDisabled
                                 ? "text-muted-foreground"
                                 : "text-foreground"
-                            }`}
+                              }`}
                           >
                             {faq.title}
                           </p>
@@ -256,15 +252,14 @@ export function WidgetSuggestionsForm({
                           {/* Status pill */}
                           <div className="mt-1.5">
                             <span
-                              className={`inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide ${
-                                faq.status === "indexed"
+                              className={`inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide ${faq.status === "indexed"
                                   ? "bg-green-500/10 text-green-500 border border-green-500/20"
                                   : faq.status === "queued"
-                                  ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                                  : faq.status === "indexing"
-                                  ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
-                                  : "bg-muted text-muted-foreground border border-border"
-                              }`}
+                                    ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                                    : faq.status === "indexing"
+                                      ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                                      : "bg-muted text-muted-foreground border border-border"
+                                }`}
                             >
                               {faq.status}
                             </span>
@@ -335,21 +330,18 @@ export function WidgetSuggestionsForm({
                     onClick={() =>
                       update(index, { showOutside: !suggestion.showOutside })
                     }
-                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                      suggestion.showOutside
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${suggestion.showOutside
                         ? "bg-primary"
                         : "bg-muted-foreground/25"
-                    }`}
-                    aria-label={`Toggle show outside widget for suggestion ${
-                      index + 1
-                    }`}
+                      }`}
+                    aria-label={`Toggle show outside widget for suggestion ${index + 1
+                      }`}
                   >
                     <span
-                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                        suggestion.showOutside
+                      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${suggestion.showOutside
                           ? "translate-x-4"
                           : "translate-x-0"
-                      }`}
+                        }`}
                     />
                   </button>
                 </div>

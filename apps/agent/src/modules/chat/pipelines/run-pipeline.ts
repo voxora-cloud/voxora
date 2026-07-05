@@ -272,23 +272,30 @@ export async function runPipeline(job: AIJobData): Promise<void> {
   // ── AI DISABLED / SUBSCRIPTION EXPIRED CHECK ─────────────────────────────
   const isAiEnabled = job.aiEnabled !== false;
   const isSubActive = job.subscriptionExpired !== true;
+  const canEscalate = job.fallbackToAgent !== false;
 
   if (!isAiEnabled || !isSubActive) {
     console.log(
-      `[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}). Escalating conversation ${conversationId}`,
+      `[Pipeline] AI is disabled/expired (aiEnabled: ${isAiEnabled}, subActive: ${isSubActive}).`
     );
-    try {
-      await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
-        organizationId: job.organizationId,
-        reason: !isSubActive
-          ? "Subscription expired — auto-escalated to human"
-          : "AI disabled — auto-escalated to human",
-      });
-    } catch (escErr: any) {
-      console.error(
-        "[Pipeline] Failed to escalate conversation on AI disabled/expired:",
-        escErr.message,
-      );
+    if (canEscalate) {
+      console.log(`[Pipeline] Escalating conversation ${conversationId}`);
+      try {
+        await internalApi.post(`/conversations/ai/${conversationId}/escalate`, {
+          organizationId: job.organizationId,
+          reason: !isSubActive
+            ? "Subscription expired — auto-escalated to human"
+            : "AI disabled — auto-escalated to human",
+          unassigned: true,
+        });
+      } catch (escErr: any) {
+        console.error(
+          "[Pipeline] Failed to escalate conversation on AI disabled/expired:",
+          escErr.message,
+        );
+      }
+    } else {
+      console.log(`[Pipeline] Escalation is disabled — dropping conversation without response/escalation.`);
     }
     console.timeEnd(t("total"));
     return;

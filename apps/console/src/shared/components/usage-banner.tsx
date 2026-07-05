@@ -77,7 +77,6 @@ export function UsageBanner() {
     messages: "AI messages",
     humanAgents: "human agents",
     contacts: "contacts",
-    teams: "teams",
     knowledgeItems: "knowledge items",
   };
 
@@ -88,11 +87,10 @@ export function UsageBanner() {
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 text-sm mb-3 ${
-        isCritical
-          ? "border-destructive/30 bg-destructive/10 text-destructive"
-          : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-      }`}
+      className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 text-sm mb-3 ${isCritical
+        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+        }`}
     >
       <AlertTriangle className="h-4 w-4 shrink-0" />
       <span className="flex-1">

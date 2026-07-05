@@ -1,7 +1,4 @@
 export type OrgRole = "owner" | "admin" | "agent";
-
-
-
 export interface Organization {
   _id: string;
   name: string;
@@ -35,7 +32,7 @@ export interface ApiResponse<T> {
 }
 
 export type RequestOptions = {
-    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-    body?: unknown;
-    headers?: Record<string, string>;
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  body?: unknown;
+  headers?: Record<string, string>;
 }

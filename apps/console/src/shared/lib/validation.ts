@@ -207,3 +207,13 @@ export const validateWidgetForm = (
     errors,
   };
 };
+
+export function validateCompanyName(companyName: string) {
+  if (!companyName) {
+    return "Organization is required";
+  }
+  if (companyName.length < 2) {
+    return "Organization name must be at least 2 characters";
+  }
+  return null;
+}

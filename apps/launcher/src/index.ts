@@ -195,6 +195,7 @@ class InteraOneLoader {
         pageTitle: this.getCurrentPageTitle(),
         source: 'widget',
         appearance: this.appearance ?? undefined,
+        isMobile: this.isMobileView(),
       },
     } as InitWidgetMessage);
   }

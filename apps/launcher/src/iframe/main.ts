@@ -185,6 +185,14 @@ async function handleInitWidget(payload: any) {
   (window as any).__InteraOnePageUrl = payload.pageUrl;
   (window as any).__InteraOnePageTitle = payload.pageTitle || '';
 
+  if (payload.isMobile) {
+    document.documentElement.classList.add('is-mobile');
+    document.body.classList.add('is-mobile');
+  } else {
+    document.documentElement.classList.remove('is-mobile');
+    document.body.classList.remove('is-mobile');
+  }
+
   if (payload.appearance) applyWidgetAppearance(payload.appearance);
 
   await bootstrapSession(payload, function (token: string, sessionId: string) {

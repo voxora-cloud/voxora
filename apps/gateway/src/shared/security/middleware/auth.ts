@@ -59,7 +59,7 @@ export const authenticate = async (
       const membership = await Membership.findOne({
         userId: decoded.userId,
         organizationId: decoded.activeOrganizationId,
-        inviteStatus: "active",
+        inviteStatus: "accepted",
       });
 
       if (!membership) {

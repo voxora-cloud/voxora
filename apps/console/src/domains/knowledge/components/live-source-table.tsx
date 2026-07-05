@@ -23,7 +23,7 @@ import {
   Newspaper,
   BookOpen as BookOpenIcon,
 } from "lucide-react";
-import type { LiveSource } from "../types";
+import type { LiveSource } from "../types/types";
 import {
   Pagination,
   PaginationContent,

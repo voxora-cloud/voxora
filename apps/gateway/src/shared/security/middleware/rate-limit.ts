@@ -76,7 +76,7 @@ async function resolveCurrentCount(
       return Membership.countDocuments({
         organizationId,
         role: "agent",
-        inviteStatus: { $in: ["active", "pending"] },
+        inviteStatus: { $in: ["accepted", "pending"] },
       });
 
     case "contacts":

@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { ConversationService } from "./conversation.service";
 import { AuthenticatedRequest } from "@shared/security/middleware/auth";
+import { Contact, Message, Conversation } from "@shared/models";
 import { getSocketManager } from "@sockets/index";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
@@ -16,14 +18,12 @@ export const getConversations = asyncHandler(async (req: Request, res: Response)
   const { status, limit = 50, offset = 0, assignedToMe, unassigned } = req.query;
   const { userId, orgRole } = (req as AuthenticatedRequest).user;
 
-  let assignedTo: string | null | undefined = userId;
+  let assignedTo: string | null | undefined = undefined;
 
   if (unassigned === "true") {
     assignedTo = null; // Explicitly null for unassigned
   } else if (assignedToMe === "true") {
     assignedTo = userId;
-  } else if (orgRole === "admin" || orgRole === "owner") {
-    assignedTo = undefined; // Undefined for "All" view
   }
 
   const result = await conversationService.getConversations(getOrgId(req), {
@@ -40,39 +40,22 @@ export const getConversations = asyncHandler(async (req: Request, res: Response)
 
 export const getConversationById = asyncHandler(async (req: Request, res: Response) => {
   const conversationId = req.params.conversationId as string;
-  const result = await conversationService.getConversationById(getOrgId(req), conversationId);
+  const userId = (req as AuthenticatedRequest).user.userId;
+  const orgId = getOrgId(req);
+  const result = await conversationService.getConversationById(orgId, conversationId);
   if (!result) return sendError(res, 404, "Conversation not found");
+
+  // Record this conversation in agent's recents list in the database asynchronously
+  conversationService.upsertRecentConversation(userId, orgId, conversationId).catch(err => {
+    logger.error(`Failed to upsert recent conversation: ${err.message}`);
+  });
+
   sendResponse(res, 200, true, "Conversation fetched successfully", result);
 });
 
 
 
-// ─── Visitor info update ────────────────────────────────────────────────────────
 
-export const updateVisitorInfo = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { name, email, sessionId } = req.body;
-
-  if (!name && !email) return sendError(res, 400, "At least name or email is required");
-
-  // Visitor info update doesn't require org auth (widget), but widgetId => orgId lookup
-  // For now accept without org scope since the widget public key resolves org server-side
-  const result = await conversationService.updateVisitorInfo(
-    (req as any).user?.activeOrganizationId || "",
-    conversationId,
-    { name, email, sessionId },
-  );
-
-  if (!result.found) return sendError(res, 404, "Conversation not found");
-  if (!result.validSession) return sendError(res, 403, "Invalid session ID");
-
-  const sm = getSocketManager();
-  if (sm?.ioInstance) {
-    sm.ioInstance.emit("visitor_info_updated", { conversationId, visitorName: name, visitorEmail: email, timestamp: new Date() });
-  }
-
-  sendResponse(res, 200, true, "Visitor information updated successfully", { name, email, isAnonymous: !(name && email) });
-});
 
 // ─── Route conversation ─────────────────────────────────────────────────────────
 
@@ -245,66 +228,121 @@ export const aiGetMemory = asyncHandler(async (req: Request, res: Response) => {
 
 export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
   const conversationId = req.params.conversationId as string;
-  const { organizationId, reason, agentId } = req.body;
+  const { organizationId, reason, agentId, unassigned } = req.body;
 
   if (!organizationId) return sendError(res, 400, "organizationId is required");
 
-  // If no specific agentId provided, auto-assign using existing logic (agent > admin > owner)
+  // Determine if we should attempt auto-assignment
   let resolvedAgentId = agentId;
-  if (!resolvedAgentId) {
+  if (!unassigned && !resolvedAgentId) {
     const autoAssign = await conversationService.autoAssignConversation(organizationId);
     resolvedAgentId = autoAssign.agentId || undefined;
   }
 
-  const result = await conversationService.routeConversation(
+  const sm = getSocketManager();
+
+  // PATH A: Route to an online agent
+  if (resolvedAgentId) {
+    const result = await conversationService.routeConversation(
+      organizationId,
+      conversationId,
+      { agentId: resolvedAgentId, reason },
+      "ai_tool",
+    );
+
+    if (!result.found) return sendError(res, 404, "Conversation not found");
+
+    // Set status to open
+    await conversationService.updateConversationStatus(organizationId, conversationId, "open", "ai_tool");
+
+    // Fire real-time events for assigned agent & conversation room
+    if (sm && result.selectedAgentId) {
+      try {
+        sm.emitToUser?.(result.selectedAgentId.toString(), "new_widget_conversation", {
+          conversationId,
+          subject: result.originalConversation?.subject,
+          routedTo: result.selectedAgentId,
+          agentName: result.agentName,
+          reason: reason || "AI escalation",
+          timestamp: new Date(),
+        });
+        sm.emitToConversation(conversationId, "conversation_escalated", {
+          conversationId,
+          reason: reason || "AI escalated this conversation to a human agent",
+          agent: {
+            id: result.selectedAgentId.toString(),
+            name: result.agentName,
+            email: result.agentEmail,
+          },
+        });
+      } catch (err: any) {
+        logger.error(`[AI Escalate] Socket emit failed: ${err?.message}`);
+      }
+    }
+
+    return sendResponse(res, 200, true, "Escalated to human agent", {
+      conversationId,
+      assignedAgent: result.selectedAgentId?.toString() || null,
+      agentName: result.agentName || null,
+      status: "open",
+    });
+  }
+
+  // PATH B: Escalated as Unassigned (both AI is disabled, or no agents are online)
+  // Create and save an elegant system/backlog escalation notification message
+  const supportMsg = new Message({
     organizationId,
     conversationId,
-    { agentId: resolvedAgentId, reason },
-    "ai_tool",
-  );
+    senderId: "support-team",
+    content: "Our team will get back to you shortly.",
+    type: "text",
+    metadata: {
+      senderName: "Support Team",
+      senderEmail: "support@interaone.internal",
+      source: "system",
+    },
+  });
+  await supportMsg.save();
 
-  if (!result.found) return sendError(res, 404, "Conversation not found");
+  // Update conversation record to be open and unassigned
+  await Conversation.findByIdAndUpdate(conversationId, {
+    $set: {
+      status: "open",
+      assignedTo: null,
+      "metadata.escalatedAt": new Date(),
+      "metadata.escalationReason": reason,
+      "metadata.pendingEscalation": false,
+    },
+  });
 
-  // Set status to pending
-  await conversationService.updateConversationStatus(organizationId, conversationId, "pending", "ai_tool");
-
-  // Fire real-time events so the dashboard reacts immediately
-  const sm = getSocketManager();
-  if (sm && result.selectedAgentId) {
-    try {
-      sm.emitToUser?.(result.selectedAgentId.toString(), "new_widget_conversation", {
-        conversationId,
-        subject: result.originalConversation?.subject,
-        routedTo: result.selectedAgentId,
-        agentName: result.agentName,
-        reason: reason || "AI escalation",
-        timestamp: new Date(),
-      });
-      sm.emitToConversation(conversationId, "conversation_escalated", {
-        conversationId,
-        reason: reason || "AI escalated this conversation to a human agent",
-        agent: {
-          id: result.selectedAgentId.toString(),
-          name: result.agentName,
-          email: result.agentEmail,
-        },
-      });
-    } catch (err: any) {
-      logger.error(`[AI Escalate] Socket emit failed: ${err?.message}`);
-    }
-  } else if (sm) {
-    // No agent online — notify org room so any agent can pick it up
+  if (sm) {
+    // Notify organization room so lists refresh in real-time
     sm.ioInstance?.to(`org:${organizationId}`).emit("conversation_pending", {
       conversationId,
       reason: reason || "AI escalated — awaiting agent",
     });
+    sm.emitToConversation(conversationId, "status_updated", {
+      conversationId,
+      status: "open",
+    });
+    sm.emitToConversation(conversationId, "new_message", {
+      conversationId,
+      message: {
+        _id: supportMsg._id,
+        senderId: supportMsg.senderId,
+        content: supportMsg.content,
+        type: supportMsg.type,
+        metadata: supportMsg.metadata,
+        createdAt: supportMsg.createdAt,
+      },
+    });
   }
 
-  sendResponse(res, 200, true, "Escalated to human agent", {
+  return sendResponse(res, 200, true, "Escalated to human backlog (unassigned)", {
     conversationId,
-    assignedAgent: result.selectedAgentId?.toString() || null,
-    agentName: result.agentName || null,
-    status: "pending",
+    assignedAgent: null,
+    agentName: null,
+    status: "open",
   });
 });
 
@@ -351,4 +389,131 @@ export const aiCloseInactiveConversations = asyncHandler(async (req: Request, re
 export const aiGetPendingAnalysisConversations = asyncHandler(async (req: Request, res: Response) => {
   const result = await conversationService.getPendingAnalysisConversations();
   sendResponse(res, 200, true, "Pending analysis conversations fetched successfully", result);
+});
+
+export const updateContactAssociation = asyncHandler(async (req: Request, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const organizationId = getOrgId(req);
+  const { name, email, phone, company, tags } = req.body;
+
+  const conversation = await Conversation.findOne({
+    _id: conversationId,
+    organizationId,
+  });
+
+  if (!conversation) {
+    return sendError(res, 404, "Conversation not found");
+  }
+
+  const sessionId = conversation.sessionId || `conv:${conversationId}`;
+  let contact = null;
+
+  // 1. If email is provided, check if a contact already exists with that email
+  if (email && email.trim() !== "") {
+    const trimmedEmail = email.trim().toLowerCase();
+    contact = await Contact.findOne({
+      organizationId,
+      email: trimmedEmail,
+    });
+
+    if (contact) {
+      // Attach/merge existing contact to this conversation by matching session ID
+      contact.sessionId = sessionId;
+      contact.conversationId = new Types.ObjectId(conversationId);
+      if (name) contact.name = name.trim();
+      if (phone) contact.phone = phone.trim();
+      if (company) contact.company = company.trim();
+      if (tags) contact.tags = tags;
+      await contact.save();
+    }
+  }
+
+  // 2. If no contact was found by email, check if one already exists with the current sessionId
+  if (!contact) {
+    contact = await Contact.findOne({
+      organizationId,
+      sessionId,
+    });
+
+    if (contact) {
+      // Update its fields
+      if (name) contact.name = name.trim();
+      if (email) contact.email = email.trim().toLowerCase();
+      if (phone) contact.phone = phone.trim();
+      if (company) contact.company = company.trim();
+      if (tags) contact.tags = tags;
+      await contact.save();
+    } else {
+      // 3. Create a brand new contact linked to this conversation session
+      contact = await Contact.create({
+        organizationId,
+        sessionId,
+        conversationId: new Types.ObjectId(conversationId),
+        name: name ? name.trim() : "Anonymous User",
+        email: email ? email.trim().toLowerCase() : undefined,
+        phone: phone ? phone.trim() : undefined,
+        company: company ? company.trim() : undefined,
+        tags: tags || [],
+        source: "agent",
+        lastActivityAt: new Date(),
+      });
+    }
+  }
+
+  // Also sync key conversation metadata
+  const conversationUpdate: Record<string, any> = {};
+  if (contact.name) conversationUpdate["metadata.senderName"] = contact.name;
+  if (contact.email) conversationUpdate["metadata.senderEmail"] = contact.email;
+  if (contact.phone) conversationUpdate["metadata.visitorPhone"] = contact.phone;
+
+  if (Object.keys(conversationUpdate).length > 0) {
+    await Conversation.updateOne({ _id: conversationId }, { $set: conversationUpdate });
+  }
+
+  // Emit socket changes so the frontend UI re-fetches or updates
+  const sm = getSocketManager();
+  if (sm) {
+    try {
+      sm.emitToConversation(conversationId, "conversation_updated", {
+        conversationId,
+        contact: {
+          id: contact._id.toString(),
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
+          company: contact.company,
+        },
+      });
+    } catch (err: any) {
+      logger.error(`Failed to emit contact update socket: ${err?.message}`);
+    }
+  }
+
+  sendResponse(res, 200, true, "Contact associated successfully", {
+    contact: {
+      id: contact._id.toString(),
+      name: contact.name,
+      email: contact.email,
+      phone: contact.phone,
+      company: contact.company,
+    },
+  });
+});
+
+// ─── GET recent conversations ──────────────────────────────────────────────────
+
+export const getRecentConversations = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as AuthenticatedRequest).user.userId;
+  const orgId = getOrgId(req);
+  const results = await conversationService.getRecentConversations(userId, orgId);
+  sendResponse(res, 200, true, "Recent conversations fetched successfully", results);
+});
+
+// ─── CLEAR recent conversations ────────────────────────────────────────────────
+
+export const clearRecentConversations = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as AuthenticatedRequest).user.userId;
+  const orgId = getOrgId(req);
+  await conversationService.clearRecentConversations(userId, orgId);
+  sendResponse(res, 200, true, "Recent conversations cleared successfully", null);
 });

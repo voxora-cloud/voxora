@@ -1,7 +1,7 @@
 export { User, IUser } from "./User";
 export { Organization, IOrganization } from "./Organization";
 export { Membership, IMembership, MembershipRole } from "./Membership";
-export { Conversation, IConversation, IVisitor } from "./Conversation";
+export { Conversation, IConversation } from "./Conversation";
 export { Message, IMessage } from "./Message";
 export { Widget, IWidget } from "./Widget";
 export { Knowledge, IKnowledge } from "./Knowledge";
@@ -16,4 +16,5 @@ export { SystemEvent, ISystemEvent, EventCategory } from "./SystemEvent";
 export { Ticket, ITicket, TicketStatus, TicketPriority, TicketSource } from "./Ticket";
 export { Channel, IChannel, ChannelType, ChannelVerificationStatus, IDnsRecord, IEmailChannelConfig, IChannelConfig } from "./Channel";
 export { ContactConflict, IContactConflict } from "./ContactConflict";
+export { RecentConversation, IRecentConversation } from "./RecentConversation";
 

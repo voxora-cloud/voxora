@@ -12,7 +12,7 @@ export class MembershipService {
     static async listMembers(organizationId: string) {
         const memberships = await Membership.find({
             organizationId,
-            inviteStatus: { $in: ["active", "pending", "inactive"] },
+            inviteStatus: { $in: ["accepted", "pending"] },
         }).populate("userId", "name email status lastSeen");
 
         return memberships.map((m) => ({
@@ -150,7 +150,7 @@ export class MembershipService {
             throw new Error("Invitation has expired. Please request a new invite.");
         }
 
-        membership.inviteStatus = "active";
+        membership.inviteStatus = "accepted";
         membership.activatedAt = new Date();
         await membership.save();
 
@@ -274,7 +274,7 @@ export class MembershipService {
         }
 
         if (targetMembership.role === "owner" && requestingUserId !== targetMembership.userId.toString()) {
-            const ownerCount = await Membership.countDocuments({ organizationId, role: "owner", inviteStatus: "active" });
+            const ownerCount = await Membership.countDocuments({ organizationId, role: "owner", inviteStatus: "accepted" });
             // Let them suspend if they are an owner and there's another active owner
             if (ownerCount <= 1) {
                 throw new Error("Cannot suspend the last active owner of an organization");
@@ -286,13 +286,19 @@ export class MembershipService {
         }
 
         const targetUser = await User.findById(targetMembership.userId).select("name email").lean();
-        const membership = await Membership.findOneAndUpdate(
-            { _id: targetMemberId, organizationId },
-            { inviteStatus: newStatus },
-            { new: true },
-        );
+        
+        let membership = null;
+        if (newStatus === "inactive") {
+            await Membership.findByIdAndDelete(targetMembership._id);
+        } else {
+            membership = await Membership.findOneAndUpdate(
+                { _id: targetMemberId, organizationId },
+                { inviteStatus: "accepted" },
+                { new: true },
+            );
+        }
 
-        if (membership) {
+        if (newStatus === "inactive" || membership) {
             const verb = newStatus === "active" ? "reactivated" : "suspended";
             await this.notifyRoleManagementAction(
                 organizationId,

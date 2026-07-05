@@ -1,12 +1,12 @@
 import { io } from "socket.io-client";
 import { state, API_BASE_URL } from './config';
-import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep } from './ui';
+import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel } from './ui';
 import { parseMarkdown, parseStreamingMarkdown } from './utils/markdown';
 
 let authRetryCount = 0;
 const MAX_AUTH_RETRIES = 3;
 
-type ConversationVisualState = 'human' | 'closed' | 'pending' | 'open';
+type ConversationVisualState = 'human' | 'closed' | 'pending' | 'open' | 'resolved';
 
 export function setAiResponding(responding: boolean) {
   state._aiResponding = responding;
@@ -40,8 +40,17 @@ function resetStreamState() {
 let _currentToolStepEl: HTMLElement | null = null;
 
 function releaseToolSteps() {
-  // Keep the completed panel in the conversation, but release the reference so
-  // the next response gets its own execution panel.
+  if (state._toolStepsEl) {
+    const title = state._toolStepsEl.querySelector('.tool-call-title');
+    if (title) title.textContent = 'Steps completed';
+    
+    // Complete any step that might still be marked as loading
+    const activeSteps = state._toolStepsEl.querySelectorAll('.tool-step.is-loading');
+    activeSteps.forEach(step => {
+      step.classList.remove('is-loading');
+      step.classList.add('is-done');
+    });
+  }
   state._toolStepsEl = null;
   _currentToolStepEl = null;
 }
@@ -108,6 +117,21 @@ function removeStateBanner() {
   if (banner) banner.remove();
 }
 
+function getBannerIcon(stateType: ConversationVisualState): string {
+  switch (stateType) {
+    case 'human':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+    case 'pending':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`;
+    case 'resolved':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+    case 'closed':
+      return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
+    default:
+      return '';
+  }
+}
+
 function showStateBanner(stateType: ConversationVisualState, title: string, subtitle?: string) {
   const app = document.getElementById('app');
   const topbar = document.querySelector('.widget-topbar');
@@ -122,12 +146,18 @@ function showStateBanner(stateType: ConversationVisualState, title: string, subt
   }
 
   banner.className = `conversation-state-banner state-${stateType}`;
+  const iconHtml = getBannerIcon(stateType);
+
   banner.innerHTML = `
-    <div class="state-main">
-      <span class="state-dot"></span>
-      <span class="state-title">${title}</span>
+    <div class="state-banner-inner" style="display: flex; gap: 12px; align-items: flex-start;">
+      ${iconHtml ? `<div class="state-icon-wrapper" style="flex-shrink: 0; margin-top: 1px;">${iconHtml}</div>` : ''}
+      <div class="state-content" style="flex-grow: 1; text-align: left;">
+        <div class="state-main" style="display: flex; align-items: center; gap: 8px;">
+          <span class="state-title">${title}</span>
+        </div>
+        ${subtitle ? `<div class="state-subtitle">${subtitle}</div>` : ''}
+      </div>
     </div>
-    ${subtitle ? `<div class="state-subtitle">${subtitle}</div>` : ''}
   `;
 }
 
@@ -277,6 +307,16 @@ function bindSocketEvents() {
       state._completedStreamMessageIds.add(finalStreamMessageId);
     }
 
+    // Ensure human connection card is shown before any human message is rendered
+    const isHumanMsg = data.message?.metadata?.source === 'web' || data.message?.metadata?.source === 'agent';
+    if (isHumanMsg && !state._joinCardShown) {
+      state._escalationShown = true;
+      const name = data.message?.metadata?.senderName || 'Support Agent';
+      showStateBanner('human', 'Live human support connected', `You are now chatting with ${name}`);
+      showAgentConnectedCard(name);
+      removeToolStepsPanel();
+    }
+
     try {
       // Preserve the execution history, then release it for the next response.
       releaseToolSteps();
@@ -314,7 +354,7 @@ function bindSocketEvents() {
       } else {
         removeTypingDots();
         hideTyping();
-        typeMessage(data.message.content);
+        typeMessage(data.message.content, data.message.metadata?.senderName);
       }
     } finally {
       // new_message is the completion signal for both streamed and regular replies.
@@ -428,16 +468,13 @@ function bindSocketEvents() {
     hideTyping();
     setAiResponding(false);
     clearOutcomePanel();
+    removeToolStepsPanel();
     setComposerEnabled(true, data.agent?.name ? `Reply to ${data.agent.name}...` : 'Reply to support...');
     if (data.agent?.name) {
       state._escalationShown = true;
       const name = data.agent.name;
       showStateBanner('human', 'Live human support connected', `You are now chatting with ${name}`);
       showAgentConnectedCard(name);
-      // Show agent default welcome message after a short delay
-      setTimeout(() => {
-        addMessage(`Hi! I'm ${name}. I'll be helping you from here — feel free to share what you need! 😊`, 'agent', name, 'text');
-      }, 800);
     } else {
       state._escalationShown = true;
       showStateBanner('human', 'Live human support connected');
@@ -463,22 +500,27 @@ function bindSocketEvents() {
       showStateBanner('pending', 'Waiting for support team', 'Your chat is in queue. We will be with you shortly.');
       addSystemNotice("⏳ Your query is pending review — we'll be right with you");
     } else if (status === 'open') {
+      removeTypingDots();
+      hideTyping();
+      setAiResponding(false);
+
+      // Mark as escalation active so subsequent messages do not lock the composer
+      state._escalationShown = true;
+
+      const banner = document.getElementById('conversationStateBanner');
+      const wasClosedOrResolved = banner && (banner.classList.contains('state-closed') || banner.classList.contains('state-resolved'));
+
       clearOutcomePanel();
-      setComposerEnabled(true, state._escalationShown ? 'Reply to your support agent...' : 'Type your message...');
-      if (state._escalationShown) {
-        showStateBanner('human', 'Live human support connected');
-      } else {
-        removeStateBanner();
+      showStateBanner('human', 'Connecting with support', 'Our team will be with you shortly...');
+      setComposerEnabled(true, 'Reply to support...');
+
+      if (wasClosedOrResolved) {
+        addSystemNotice('🔄 This conversation has been reopened');
       }
-      addSystemNotice('🔄 This conversation has been reopened');
     } else if (status === 'resolved') {
       clearOutcomePanel();
-      setComposerEnabled(true, state._escalationShown ? 'Reply to your support agent...' : 'Type your message...');
-      if (state._escalationShown) {
-        showStateBanner('human', 'Live human support connected');
-      } else {
-        removeStateBanner();
-      }
+      setComposerEnabled(true, 'Type a message to reopen...');
+      showStateBanner('resolved', 'Conversation resolved', 'Marked as resolved. Type to reopen.');
     }
   });
 }

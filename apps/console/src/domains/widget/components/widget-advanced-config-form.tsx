@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useVerifyDomain } from "../hooks";
 import { toast } from "sonner";
-import type { CreateWidgetData } from "../types";
+import type { CreateWidgetData } from "../types/types";
 import { Label } from "@/shared/ui/label";
 
 import { Textarea } from "@/shared/ui/textarea";
@@ -81,21 +81,19 @@ function ToggleCard({
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
-      className={`w-full text-left flex items-center gap-4 rounded-xl border p-4 transition-all duration-200 group ${
-        disabled
+      className={`w-full text-left flex items-center gap-4 rounded-xl border p-4 transition-all duration-200 group ${disabled
           ? "opacity-50 cursor-not-allowed border-border/40 bg-muted/10"
           : checked
             ? "border-primary/40 bg-primary/5 shadow-sm shadow-primary/10 cursor-pointer"
             : "border-border/60 bg-card/50 hover:border-border hover:bg-card cursor-pointer"
-      }`}
+        }`}
     >
       {/* Icon badge */}
       <div
-        className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${
-          checked && !disabled
+        className={`h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${checked && !disabled
             ? "bg-primary/15 text-primary"
             : "bg-muted text-muted-foreground group-hover:bg-muted/80"
-        }`}
+          }`}
       >
         <Icon className="h-4 w-4" />
       </div>
@@ -110,14 +108,12 @@ function ToggleCard({
 
       {/* Pill toggle */}
       <div
-        className={`relative h-5 w-9 rounded-full flex-shrink-0 transition-colors duration-200 ${
-          checked && !disabled ? "bg-primary" : "bg-muted-foreground/30"
-        }`}
+        className={`relative h-5 w-9 rounded-full flex-shrink-0 transition-colors duration-200 ${checked && !disabled ? "bg-primary" : "bg-muted-foreground/30"
+          }`}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-            checked && !disabled ? "translate-x-4" : "translate-x-0.5"
-          }`}
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked && !disabled ? "translate-x-4" : "translate-x-0.5"
+            }`}
         />
       </div>
     </button>
@@ -287,39 +283,33 @@ export function WidgetAdvancedConfigForm({
             <button
               type="button"
               onClick={() => updateAppearance("theme", "light")}
-              className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all ${
-                formData.appearance.theme === "light"
+              className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all ${formData.appearance.theme === "light"
                   ? "border-primary/50 bg-primary/5 ring-2 ring-primary/20 shadow-lg"
                   : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
-              }`}
+                }`}
             >
-              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
-                formData.appearance.theme === "light" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-              }`}>
+              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${formData.appearance.theme === "light" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                }`}>
                 <Sun className="h-6 w-6" />
               </div>
-              <span className={`text-sm font-semibold ${
-                formData.appearance.theme === "light" ? "text-foreground" : "text-muted-foreground"
-              }`}>Light Mode</span>
+              <span className={`text-sm font-semibold ${formData.appearance.theme === "light" ? "text-foreground" : "text-muted-foreground"
+                }`}>Light Mode</span>
             </button>
 
             <button
               type="button"
               onClick={() => updateAppearance("theme", "dark")}
-              className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all ${
-                formData.appearance.theme === "dark"
+              className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border transition-all ${formData.appearance.theme === "dark"
                   ? "border-primary/50 bg-primary/5 ring-2 ring-primary/20 shadow-lg"
                   : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
-              }`}
+                }`}
             >
-              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
-                formData.appearance.theme === "dark" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
-              }`}>
+              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${formData.appearance.theme === "dark" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                }`}>
                 <Moon className="h-6 w-6" />
               </div>
-              <span className={`text-sm font-semibold ${
-                formData.appearance.theme === "dark" ? "text-foreground" : "text-muted-foreground"
-              }`}>Dark Mode</span>
+              <span className={`text-sm font-semibold ${formData.appearance.theme === "dark" ? "text-foreground" : "text-muted-foreground"
+                }`}>Dark Mode</span>
             </button>
           </div>
         </div>
@@ -708,31 +698,30 @@ export function WidgetAdvancedConfigForm({
           </p>
           <ul className="space-y-0.5 px-2">
             {tabs.map(({ id, label, icon: Icon, badge }) => {
-            const active = activeTab === id;
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab(id)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer group ${
-                    active
-                      ? "bg-background text-foreground shadow-sm border border-border/60"
-                      : "text-muted-foreground hover:text-foreground hover:bg-background/60"
-                  }`}
-                >
-                  <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${active ? "text-primary" : ""}`} />
-                  <span className="flex-1 text-left">{label}</span>
-                  {badge && (
-                    <Badge className="text-[10px] px-1.5 py-0 h-4 bg-primary/15 text-primary border-primary/20 font-medium">
-                      {badge}
-                    </Badge>
-                  )}
-                  {active && <ChevronRight className="h-3 w-3 text-muted-foreground ml-auto" />}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+              const active = activeTab === id;
+              return (
+                <li key={id}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab(id)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer group ${active
+                        ? "bg-background text-foreground shadow-sm border border-border/60"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/60"
+                      }`}
+                  >
+                    <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${active ? "text-primary" : ""}`} />
+                    <span className="flex-1 text-left">{label}</span>
+                    {badge && (
+                      <Badge className="text-[10px] px-1.5 py-0 h-4 bg-primary/15 text-primary border-primary/20 font-medium">
+                        {badge}
+                      </Badge>
+                    )}
+                    {active && <ChevronRight className="h-3 w-3 text-muted-foreground ml-auto" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
 
         {/* Panel */}

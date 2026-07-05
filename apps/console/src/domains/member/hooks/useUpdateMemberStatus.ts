@@ -13,7 +13,7 @@ export function useUpdateMemberStatus() {
       status,
     }: {
       memberId: string;
-      status: "active" | "inactive";
+      status: "active" | "suspend";
     }) => {
       // Add artificial delay for optimistic update visibility
       await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -27,14 +27,11 @@ export function useUpdateMemberStatus() {
       const previousData =
         queryClient.getQueryData<MembersResponse>(["members"]);
 
-      // Optimistically update member status
+      // Optimistically remove member when suspending (backend deletes the membership)
       if (previousData) {
-        const updatedMembers = previousData.data.members.map(
-          (member: Member) =>
-            member.membershipId === memberId
-              ? { ...member, inviteStatus: status }
-              : member
-        );
+        const updatedMembers = status === "suspend"
+          ? previousData.data.members.filter((m: Member) => m.membershipId !== memberId)
+          : previousData.data.members;
 
         const updatedData: MembersResponse = {
           ...previousData,
@@ -60,7 +57,7 @@ export function useUpdateMemberStatus() {
     },
     onSuccess: (_data, variables) => {
       const action = variables.status === "active" ? "reactivated" : "suspended";
-      toast.success(`Member ${action} successfully`);
+      toast.success(`Member ${action} successfully.`);
     },
     onSettled: () => {
       // Refetch to get real data

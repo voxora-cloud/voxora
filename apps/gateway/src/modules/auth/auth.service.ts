@@ -162,7 +162,7 @@ export class AuthService {
     // Load all active memberships
     const memberships = await Membership.find({
       userId: user._id,
-      inviteStatus: "active",
+      inviteStatus: "accepted",
     }).populate("organizationId", "name slug logoUrl plan whiteLabelEnabled");
 
     if (memberships.length === 0) {

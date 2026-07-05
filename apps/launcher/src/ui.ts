@@ -16,12 +16,14 @@ export class WidgetUI {
   private outsideChipsContainer: HTMLElement | null = null;
   private onToggle?: (isOpen: boolean) => void;
   private customSize: { width: number; height: number } | null = null;
+  private activePanelWidth: number | null = null;
   private hostWidth: string | null = null;
   private hostHeight: string | null = null;
   private hostOverflowY: string | null = null;
   private hostOverflowX: string | null = null;
   private hostTransition: string | null = null;
   private documentOverflow: string | null = null;
+  private hostMinHeight: string | null = null;
   private pageVisible = true;
   private resizeHandler: (() => void) | null = null;
 
@@ -139,6 +141,9 @@ export class WidgetUI {
     if (this.hostOverflowX !== null) {
       html.style.overflowX = this.hostOverflowX;
     }
+
+    // Reset so the next open captures fresh values
+    this.hostWidth = null;
   }
 
 
@@ -167,7 +172,7 @@ export class WidgetUI {
       height: '60px',
       borderRadius: '50%',
       background: bgColor,
-      boxShadow: `0 8px 24px ${shadowColor}`,
+      boxShadow: '0 8px 24px rgba(15, 23, 42, 0.16)', // Neutral premium shadow
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
@@ -190,14 +195,14 @@ export class WidgetUI {
     this.button.addEventListener('mouseenter', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1.1)';
-        this.button.style.boxShadow = `0 12px 32px ${shadowColor}`;
+        this.button.style.boxShadow = '0 12px 32px rgba(15, 23, 42, 0.22)';
       }
     });
 
     this.button.addEventListener('mouseleave', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1)';
-        this.button.style.boxShadow = `0 8px 24px ${shadowColor}`;
+        this.button.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.16)';
       }
     });
 
@@ -283,7 +288,7 @@ export class WidgetUI {
         chip.style.background = `linear-gradient(180deg, ${accentColor}, ${accentColor})`;
         chip.style.color = '#ffffff';
         chip.style.transform = 'translateY(-2px) scale(1.01)';
-        chip.style.boxShadow = '0 14px 28px rgba(2, 6, 23, 0.28), 0 0 0 1px rgba(255,255,255,0.15)';
+        chip.style.boxShadow = '0 14px 28px rgba(15, 23, 42, 0.24)';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
           iconBubble.style.background = 'rgba(255,255,255,0.18)';
@@ -294,7 +299,7 @@ export class WidgetUI {
         chip.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))';
         chip.style.color = '#0f172a';
         chip.style.transform = 'translateY(0) scale(1)';
-        chip.style.boxShadow = '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)';
+        chip.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
           iconBubble.style.background = 'rgba(132,92,108,0.14)';
@@ -354,7 +359,8 @@ export class WidgetUI {
       transition: 'transform 0.24s ease-in-out, opacity 0.24s ease',
       pointerEvents: 'none',
       borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
-      background: 'transparent',
+      background: '#131314',
+      boxShadow: '-10px 0 40px rgba(15, 23, 42, 0.08)',
     });
 
     Object.assign(this.iframe.style, {
@@ -420,14 +426,22 @@ export class WidgetUI {
     if (!this.iframe) return;
 
     this.state.isOpen = true;
+    // Lock the panel width at open-time so scrollbar-induced innerWidth shifts
+    // don't desync the dock and the host squeeze.
+    this.activePanelWidth = Math.round(window.innerWidth * 0.25);
     if (this.dockContainer) this.dockContainer.style.pointerEvents = 'auto';
 
     if (this.button) {
       this.setButtonOpenChrome();
-      this.button.style.transform = 'scale(1)';
+      Object.assign(this.button.style, {
+        transform: 'scale(0)',
+        opacity: '0',
+        visibility: 'hidden',
+        pointerEvents: 'none',
+        display: 'none',
+      });
       this.button.setAttribute('aria-label', 'Close chat');
       this.button.setAttribute('title', 'Close chat');
-      this.button.style.display = 'none';
     }
 
     // Animate widget in
@@ -441,7 +455,14 @@ export class WidgetUI {
     this.applyHostDockSpacing(this.getPanelWidth());
 
     // Hide outside chips while widget is open
-    if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
+    if (this.outsideChipsContainer) {
+      Object.assign(this.outsideChipsContainer.style, {
+        display: 'none',
+        visibility: 'hidden',
+        opacity: '0',
+        pointerEvents: 'none',
+      });
+    }
 
     if (this.onToggle) this.onToggle(true);
   }
@@ -453,13 +474,19 @@ export class WidgetUI {
     if (!this.iframe) return;
 
     this.state.isOpen = false;
+    this.activePanelWidth = null;
 
     if (this.button) {
       this.setButtonClosedChrome();
-      this.button.style.transform = 'scale(1)';
+      Object.assign(this.button.style, {
+        transform: 'scale(1)',
+        opacity: '1',
+        visibility: 'visible',
+        pointerEvents: 'auto',
+        display: this.pageVisible ? 'flex' : 'none',
+      });
       this.button.setAttribute('aria-label', this.getLauncherLabel());
       this.button.setAttribute('title', this.getLauncherTitle());
-      this.button.style.display = this.pageVisible ? 'flex' : 'none';
     }
 
     // Animate widget out
@@ -475,7 +502,12 @@ export class WidgetUI {
 
     // Restore outside chips
     if (this.outsideChipsContainer) {
-      this.outsideChipsContainer.style.display = this.pageVisible ? 'flex' : 'none';
+      Object.assign(this.outsideChipsContainer.style, {
+        display: this.pageVisible ? 'flex' : 'none',
+        visibility: this.pageVisible ? 'visible' : 'hidden',
+        opacity: this.pageVisible ? '1' : '0',
+        pointerEvents: this.pageVisible ? 'auto' : 'none',
+      });
     }
 
     if (this.onToggle) this.onToggle(false);
@@ -494,9 +526,34 @@ export class WidgetUI {
 
     if (this.dockContainer) this.dockContainer.style.display = 'block';
 
-    if (!this.state.isOpen && this.button) this.button.style.display = 'flex';
+    // Re-apply dock spacing and visibility if the widget is already open —
+    // SPA navigations can change scroll/layout state which desyncs the squeeze,
+    // and the dock container's opacity/transform may need to be reasserted.
+    if (this.state.isOpen) {
+      if (this.dockContainer) {
+        this.dockContainer.style.transform = 'translateX(0)';
+        this.dockContainer.style.opacity = '1';
+        this.dockContainer.style.pointerEvents = 'auto';
+      }
+      this.applyHostDockSpacing(this.getPanelWidth());
+    }
+
+    if (!this.state.isOpen && this.button) {
+      Object.assign(this.button.style, {
+        display: 'flex',
+        opacity: '1',
+        visibility: 'visible',
+        transform: 'scale(1)',
+        pointerEvents: 'auto',
+      });
+    }
     if (!this.state.isOpen && this.outsideChipsContainer) {
-      this.outsideChipsContainer.style.display = 'flex';
+      Object.assign(this.outsideChipsContainer.style, {
+        display: 'flex',
+        visibility: 'visible',
+        opacity: '1',
+        pointerEvents: 'auto',
+      });
     }
   }
 
@@ -558,6 +615,9 @@ export class WidgetUI {
   }
 
   private getPanelWidth(): number {
+    // Use the locked width while the panel is open to avoid jitter from
+    // scrollbar-induced innerWidth changes.
+    if (this.activePanelWidth !== null) return this.activePanelWidth;
     return Math.round(window.innerWidth * 0.25);
   }
 

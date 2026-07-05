@@ -12,6 +12,13 @@ export function escapeHtml(str: string): string {
 export function parseMarkdown(text: string): string {
   let s = escapeHtml(text || "");
 
+  // Unescape divs to support HTML layout blocks
+  s = s.replace(/&lt;div\s*([\s\S]*?)&gt;/g, function(_, attrs) {
+    const cleanAttrs = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    return `<div ${cleanAttrs}>`.replace(/\s+>/, '>');
+  });
+  s = s.replace(/&lt;\/div&gt;/g, '</div>');
+
   // Code blocks (``` ... ```)
   s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, function (_, code) {
     return '<pre><code>' + code.trim() + '</code></pre>';
@@ -40,9 +47,6 @@ export function parseMarkdown(text: string): string {
   s = s.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
   s = s.replace(/_([^\n_]+?)_/g, '<em>$1</em>');
 
-  // Horizontal rule
-  s = s.replace(/^[-*]{3,}$/gm, '<hr>');
-
   // Unordered lists
   s = s.replace(/((?:^[ \t]*[-*+] .+\n?)+)/gm, function (block) {
     const items = block.trim().split('\n').map(function (line) {
@@ -60,7 +64,7 @@ export function parseMarkdown(text: string): string {
   });
 
   // Paragraphs and Block element wrapping
-  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<hr>)/g;
+  const blockTagRegex = /(<ul>[\s\S]*?<\/ul>|<ol>[\s\S]*?<\/ol>|<pre>[\s\S]*?<\/pre>|<h3>[\s\S]*?<\/h3>|<h2>[\s\S]*?<\/h2>|<h1>[\s\S]*?<\/h1>|<div[\s\S]*?<\/div>)/g;
   const parts = s.split(blockTagRegex);
 
   return parts
@@ -74,7 +78,7 @@ export function parseMarkdown(text: string): string {
         trimmedPart.startsWith('<h1') ||
         trimmedPart.startsWith('<h2') ||
         trimmedPart.startsWith('<h3') ||
-        trimmedPart.startsWith('<hr')
+        trimmedPart.startsWith('<div')
       ) {
         return trimmedPart;
       }

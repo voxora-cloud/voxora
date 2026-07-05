@@ -13,7 +13,7 @@ import {
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { useCreateEmailChannel } from "../hooks/use-channels";
-import type { DnsRecord } from "../types/channel.types";
+import type { DnsRecord } from "../types/types";
 
 // ── Step types ────────────────────────────────────────────────────────────────
 
@@ -32,28 +32,25 @@ function StepIndicator({ current }: { current: Step }) {
       {steps.map((s, i) => (
         <div key={s.key} className="flex items-center gap-2">
           <div
-            className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-              i < currentIdx
+            className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${i < currentIdx
                 ? "bg-emerald-500 text-white"
                 : i === currentIdx
                   ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                   : "bg-muted text-muted-foreground"
-            }`}
+              }`}
           >
             {i < currentIdx ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
           </div>
           <span
-            className={`text-sm font-medium hidden sm:block ${
-              i === currentIdx ? "text-foreground" : "text-muted-foreground"
-            }`}
+            className={`text-sm font-medium hidden sm:block ${i === currentIdx ? "text-foreground" : "text-muted-foreground"
+              }`}
           >
             {s.label}
           </span>
           {i < steps.length - 1 && (
             <div
-              className={`h-px w-8 sm:w-12 mx-1 transition-all duration-500 ${
-                i < currentIdx ? "bg-emerald-500" : "bg-border"
-              }`}
+              className={`h-px w-8 sm:w-12 mx-1 transition-all duration-500 ${i < currentIdx ? "bg-emerald-500" : "bg-border"
+                }`}
             />
           )}
         </div>

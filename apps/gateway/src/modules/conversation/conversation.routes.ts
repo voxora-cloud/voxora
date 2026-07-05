@@ -7,7 +7,6 @@ import {
   validateRequest,
   validateAiSecret,
 } from "@shared/security/middleware";
-import { conversationSchema } from "./conversation.schema";
 
 const router = Router();
 
@@ -185,6 +184,9 @@ router.use(auth, resolveOrganization, requireRole("agent"));
  */
 router.get("/", ConversationController.getConversations);
 
+router.get("/recents", ConversationController.getRecentConversations);
+router.delete("/recents", ConversationController.clearRecentConversations);
+
 /**
  * @openapi
  * /conversations/{conversationId}:
@@ -246,43 +248,11 @@ router.patch(
   ConversationController.updateConversationStatus,
 );
 
-/**
- * @openapi
- * /conversations/{conversationId}/visitor:
- *   patch:
- *     summary: Update visitor contact details associated with the conversation session
- *     tags:
- *       - Conversations
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: conversationId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               phone:
- *                 type: string
- *     responses:
- *       200:
- *         description: Visitor details updated successfully
- */
-router.patch(
-  "/:conversationId/visitor",
-  validateRequest(conversationSchema.updateVisitor),
-  ConversationController.updateVisitorInfo,
+router.post(
+  "/:conversationId/contact",
+  ConversationController.updateContactAssociation,
 );
+
 
 /**
  * @openapi

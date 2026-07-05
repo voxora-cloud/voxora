@@ -4,7 +4,6 @@ import type {
   ConversationsResponse,
   RouteResponse,
   StatusResponse,
-  VisitorUpdateResponse,
 } from "../types/types";
 
 class ConversationsApi {
@@ -32,15 +31,6 @@ class ConversationsApi {
     });
   }
 
-  async updateVisitorInfo(
-    conversationId: string,
-    payload: { name?: string; email?: string; sessionId: string },
-  ): Promise<VisitorUpdateResponse> {
-    return apiClient.patch<VisitorUpdateResponse>(
-      `/conversations/${conversationId}/visitor`,
-      payload,
-    );
-  }
 
   async routeConversation(
     conversationId: string,
@@ -54,6 +44,24 @@ class ConversationsApi {
 
   async getAgentRuns(conversationId: string): Promise<any> {
     return apiClient.get<any>(`/conversations/${conversationId}/agent-runs`);
+  }
+
+  async updateContactAssociation(
+    conversationId: string,
+    payload: { name?: string; email?: string; phone?: string; company?: string; tags?: string[] },
+  ): Promise<any> {
+    return apiClient.post<any>(
+      `/conversations/${conversationId}/contact`,
+      payload,
+    );
+  }
+
+  async getRecentConversations(): Promise<any> {
+    return apiClient.get<any>("/conversations/recents");
+  }
+
+  async clearRecentConversations(): Promise<any> {
+    return apiClient.delete<any>("/conversations/recents");
   }
 }
 

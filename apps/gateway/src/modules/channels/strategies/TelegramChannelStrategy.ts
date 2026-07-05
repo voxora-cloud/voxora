@@ -212,7 +212,7 @@ export class TelegramChannelStrategy implements IChannelStrategy {
       // visitor sessionId is "telegram-<chatId>"
       let conversation = await Conversation.findOne({
         organizationId,
-        "visitor.sessionId": `telegram-${chatId}`,
+        sessionId: `telegram-${chatId}`,
         status: { $in: ["open", "pending"] },
         $or: [
           { channel: "telegram_channel", channelId: payload.channelId },
@@ -236,12 +236,7 @@ export class TelegramChannelStrategy implements IChannelStrategy {
           metadata: {
             chatId: chatId.toString(),
           },
-          visitor: {
-            sessionId: `telegram-${chatId}`,
-            name: senderName,
-            email: fromUser?.username ? `${fromUser.username}@telegram.local` : `${chatId}@telegram.local`,
-            isAnonymous: false,
-          },
+          sessionId: `telegram-${chatId}`,
         });
 
         logger.info("[TelegramChannelStrategy] Created new conversation for inbound Telegram", {

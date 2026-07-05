@@ -77,7 +77,7 @@ export class SocketManager {
         const membership = await Membership.findOne({
           userId: decoded.userId,
           organizationId: orgId,
-          inviteStatus: "active",
+          inviteStatus: "accepted",
         });
         if (!membership) return next(new Error("Authentication error: Not a member of this organization"));
 

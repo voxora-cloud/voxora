@@ -38,6 +38,7 @@ import {
   isEeEnabledByEnv,
 } from "@/shared/ee";
 import { OrgSwitcher } from "@/shared/components/org-switcher";
+import { playNotificationSound } from "@/shared/lib/audio";
 import { UsageBanner } from "@/shared/components/usage-banner";
 import { UpgradeModalRoot } from "@/shared/components/upgrade-modal";
 import { useTheme } from "@/shared/theme/theme-context";
@@ -208,6 +209,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     socketRef.current = socket;
 
     socket.on("notification", (newNotif: NotificationApiItem) => {
+      playNotificationSound();
       setNotifications(prev => [
         {
           ...newNotif,

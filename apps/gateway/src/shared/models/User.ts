@@ -6,7 +6,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
-  status: "online" | "away" | "busy" | "offline";
+  status: "online" | "busy" | "offline";
   lastSeen: Date;
   isActive: boolean;
   emailVerified: boolean;
@@ -35,7 +35,7 @@ const userSchema = new Schema<IUser>(
       required: function(this: any) { return this.isActive; }, 
       minlength: 6 
     },
-    status: { type: String, enum: ["online", "away", "busy", "offline"], default: "offline" },
+    status: { type: String, enum: ["online", "busy", "offline"], default: "offline" },
     lastSeen: { type: Date, default: Date.now },
     isActive: { type: Boolean, default: true },
     emailVerified: { type: Boolean, default: false },

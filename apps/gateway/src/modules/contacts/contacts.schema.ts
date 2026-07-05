@@ -40,4 +40,13 @@ export const contactsSchema = {
   resolveConflict: Joi.object({
     action: Joi.string().valid("apply", "dismiss").required(),
   }),
+
+  updateContact: Joi.object({
+    name: Joi.string().trim().max(120),
+    email: Joi.string().email().allow(""),
+    phone: Joi.string().trim().max(40).allow(""),
+    company: Joi.string().trim().max(120).allow(""),
+  })
+    .or("name", "email", "phone", "company")
+    .options({ stripUnknown: true }),
 };

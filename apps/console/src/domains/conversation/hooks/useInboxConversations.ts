@@ -10,11 +10,4 @@ export const useMyConversations = () => {
   });
 };
 
-export const useUnassignedConversations = () => {
-  return useQuery({
-    queryKey: ["conversations", "unassigned"],
-    queryFn: () => conversationsApi.getConversations("pending", { unassigned: true }),
-    select: (res) => res.data?.conversations ?? [],
-    refetchOnWindowFocus: true,
-  });
-};
+

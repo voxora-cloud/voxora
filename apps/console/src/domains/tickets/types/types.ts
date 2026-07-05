@@ -1,7 +1,7 @@
 export interface TicketNote {
   id: string;
   author: string;
-  authorType: "agent" | "ai" | "system";
+  authorType: "ai" | "agent" | "admin" | "owner";
   content: string;
   createdAt: string;
 }
@@ -37,7 +37,7 @@ export interface Ticket {
   description: string | null;
   status: "open" | "in_progress" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
-  source: "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
+  source: "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner";
   assignedTo: {
     id: string;
     name: string;
@@ -75,7 +75,7 @@ export interface CreateTicketData {
   title: string;
   description?: string;
   priority?: "low" | "medium" | "high" | "urgent";
-  source?: "agent" | "widget" | "email" | "whatsapp" | "telegram";
+  source?: "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner";
   tags?: string[];
   conversationId?: string;
   contactId?: string;

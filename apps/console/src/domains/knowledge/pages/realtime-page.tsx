@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
-import type { LiveSource, AddLiveSourceFormData, SyncFrequency } from "../types";
+import type { LiveSource, AddLiveSourceFormData, SyncFrequency } from "../types/types";
 import {
   useCreateLiveSource,
   useDeleteKnowledgeItem,

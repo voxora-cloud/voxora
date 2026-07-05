@@ -1,5 +1,5 @@
 import { apiClient } from "@/shared/lib/api-client";
-import type { CreateWidgetData, UpdateWidgetData, WidgetResponse } from "../types";
+import type { CreateWidgetData, UpdateWidgetData, WidgetResponse } from "../types/types";
 
 export const widgetApi = {
   getWidget: () => apiClient.get<WidgetResponse>("/widget/manage"),

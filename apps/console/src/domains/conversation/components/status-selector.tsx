@@ -6,7 +6,7 @@ import {
   SelectTrigger,
 } from "@/shared/ui/select";
 import { toast } from "sonner";
-import { Edit } from "lucide-react";
+import { PlayCircle, CheckCircle2, XCircle, Circle } from "lucide-react";
 import { useUpdateConversationStatus } from "../hooks";
 
 interface StatusSelectorProps {
@@ -16,9 +16,9 @@ interface StatusSelectorProps {
 }
 
 const statusConfig = {
-  open: { label: "Open", color: "bg-green-100 text-green-700" },
-  pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700" },
+  open:     { label: "Open",     color: "bg-green-100 text-green-700" },
   resolved: { label: "Resolved", color: "bg-blue-100 text-blue-700" },
+  closed:   { label: "Closed",   color: "bg-zinc-100 text-zinc-600" },
 };
 
 export function StatusSelector({
@@ -53,11 +53,27 @@ export function StatusSelector({
     }
   };
 
+  const getStatusIcon = (currentStat: string) => {
+    switch (currentStat) {
+      case "resolved":
+        return <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 mr-2 shrink-0" />;
+      case "closed":
+        return <XCircle className="h-3.5 w-3.5 text-zinc-500 mr-2 shrink-0" />;
+      default: // open
+        return <Circle className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/20 mr-2 shrink-0" />;
+    }
+  };
+
   return (
     <Select value={status} onValueChange={handleStatusChange} disabled={updating}>
-      <SelectTrigger className="h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground w-auto cursor-pointer">
-        <Edit className="h-4 w-4 mr-2" />
-        {statusConfig[status as keyof typeof statusConfig]?.label || "Status"}
+      <SelectTrigger 
+        className="h-9 w-28 px-3 flex items-center justify-center border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer [&>svg:last-child]:hidden shadow-sm text-xs font-semibold"
+        title={`Change Status (Current: ${statusConfig[status as keyof typeof statusConfig]?.label || status})`}
+      >
+        <div className="flex items-center justify-center">
+          {getStatusIcon(status)}
+          <span>{statusConfig[status as keyof typeof statusConfig]?.label || status}</span>
+        </div>
       </SelectTrigger>
       <SelectContent>
         {Object.entries(statusConfig).map(([key, config]) => (

@@ -109,7 +109,7 @@ export class OrganizationService {
                 userId: new Types.ObjectId(userId),
                 organizationId: organization._id,
                 role: "owner" as MembershipRole,
-                inviteStatus: "active",
+                inviteStatus: "accepted",
                 activatedAt: new Date(),
                 permissions: [
                     "manage_teams",
@@ -135,7 +135,7 @@ export class OrganizationService {
      * List all organizations a user belongs to (with role info).
      */
     static async getUserOrganizations(userId: string) {
-        const memberships = await Membership.find({ userId, inviteStatus: "active" }).populate<{
+        const memberships = await Membership.find({ userId, inviteStatus: "accepted" }).populate<{
             organizationId: IOrganization;
         }>("organizationId", "name slug logoUrl plan whiteLabelEnabled isActive");
 
@@ -155,7 +155,7 @@ export class OrganizationService {
         const membership = await Membership.findOne({
             userId,
             organizationId: orgId,
-            inviteStatus: "active",
+            inviteStatus: "accepted",
         });
         if (!membership) throw new Error("Organization not found or access denied");
 
@@ -195,7 +195,7 @@ export class OrganizationService {
      */
     static async deleteOrganization(orgId: string) {
         await Organization.findByIdAndUpdate(orgId, { isActive: false });
-        await Membership.updateMany({ organizationId: orgId }, { inviteStatus: "inactive" });
+        await Membership.deleteMany({ organizationId: orgId });
     }
 
     /**
@@ -209,7 +209,7 @@ export class OrganizationService {
         const membership = await Membership.findOne({
             userId,
             organizationId: targetOrgId,
-            inviteStatus: "active",
+            inviteStatus: "accepted",
         });
 
         if (!membership) {

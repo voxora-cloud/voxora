@@ -1,20 +1,12 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { IOrganization } from "./Organization";
 
-export interface IVisitor {
-  sessionId: string;
-  name: string;
-  email: string;
-  isAnonymous: boolean;
-  providedInfoAt?: Date;
-}
-
 export interface IConversation extends Document {
   _id: Types.ObjectId;
   organizationId: Types.ObjectId | IOrganization;
   participants: Types.ObjectId[];
   subject?: string;
-  status: "open" | "pending" | "resolved" | "closed";
+  status: "open" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
   assignedTo?: Types.ObjectId | null;
   tags: string[];
@@ -23,7 +15,7 @@ export interface IConversation extends Document {
   metadata: Record<string, any>;
   channelId?: Types.ObjectId;
   channel?: string;
-  visitor?: IVisitor;
+  sessionId: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,7 +25,7 @@ const conversationSchema = new Schema<IConversation>(
     organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true },
     participants: [{ type: Schema.Types.ObjectId, ref: "User", required: true }],
     subject: { type: String, maxlength: 200 },
-    status: { type: String, enum: ["open", "pending", "resolved", "closed"], default: "open" },
+    status: { type: String, enum: ["open", "resolved", "closed"], default: "open" },
     priority: { type: String, enum: ["low", "medium", "high", "urgent"], default: "medium" },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", default: null },
     tags: [{ type: String, trim: true }],
@@ -42,13 +34,7 @@ const conversationSchema = new Schema<IConversation>(
     metadata: { type: Schema.Types.Mixed, default: {} },
     channelId: { type: Schema.Types.ObjectId, ref: "Channel" },
     channel: { type: String, trim: true },
-    visitor: {
-      sessionId: { type: String, index: true },
-      name: { type: String, default: "Anonymous User" },
-      email: { type: String, default: "anonymous@temp.local" },
-      isAnonymous: { type: Boolean, default: true },
-      providedInfoAt: Date,
-    },
+    sessionId: { type: String, required: true, index: true },
   },
   { timestamps: true },
 );
