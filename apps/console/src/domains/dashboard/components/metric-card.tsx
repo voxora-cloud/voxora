@@ -19,34 +19,40 @@ export function MetricCard({
   icon: Icon,
   description,
 }: MetricCardProps) {
+  const displayValue = typeof value === "number" ? value.toLocaleString() : value;
+
   return (
-    <Card className="p-6 cursor-default hover:shadow-lg transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <h3 className="text-3xl font-bold text-foreground">{value}</h3>
-            {change && (
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  changeType === "positive" && "text-success",
-                  changeType === "negative" && "text-destructive",
-                  changeType === "neutral" && "text-muted-foreground"
-                )}
-              >
-                {change}
-              </span>
-            )}
-          </div>
-          {description && (
-            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-          )}
-        </div>
-        <div className="rounded-full bg-primary/10 p-3">
-          <Icon className="h-5 w-5 text-primary" />
+    <Card className="min-h-32 cursor-default gap-0 p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-muted/30 text-muted-foreground">
+          <Icon className="h-4 w-4" />
         </div>
       </div>
+
+      <div className="mt-3 flex items-baseline gap-2">
+        <h3 className="font-mono text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+          {displayValue}
+        </h3>
+        {change && (
+          <span
+            className={cn(
+              "text-xs font-medium",
+              changeType === "positive" && "text-success",
+              changeType === "negative" && "text-destructive",
+              changeType === "neutral" && "text-muted-foreground"
+            )}
+          >
+            {change}
+          </span>
+        )}
+      </div>
+
+      {description && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {description}
+        </p>
+      )}
     </Card>
   );
 }

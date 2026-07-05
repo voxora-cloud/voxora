@@ -186,7 +186,16 @@ export class TicketsService {
 
     if (!ticket) return null;
 
-    // Fetch full contact profile + conversations
+    // Fetch the contact profile and all conversations related by visitor session.
+    // The ticket's origin conversation is included explicitly because anonymous
+    // visitors do not necessarily have a Contact record yet.
+    type RelatedConversation = {
+      id: string;
+      status: string;
+      lastMessage: string;
+      updatedAt: string;
+    };
+
     let contactProfile: {
       id: string;
       name: string | null;
@@ -194,54 +203,71 @@ export class TicketsService {
       phone: string | null;
       company: string | null;
       tags: string[];
-      conversations: Array<{
-        id: string;
-        status: string;
-        lastMessage: string;
-        updatedAt: string;
-      }>;
+      conversations: RelatedConversation[];
     } | null = null;
+    let relatedConversations: RelatedConversation[] = [];
+    let contact: any = null;
 
     if (ticket.contactId) {
-      const contact = await Contact.findOne({
+      contact = await Contact.findOne({
         _id: ticket.contactId,
         organizationId: ticket.organizationId,
       })
         .select("name email phone company tags sessionId")
         .lean();
+    }
 
-      if (contact) {
-        // Fetch all conversations for this contact by sessionId
-        const convDocs = contact.sessionId
-          ? await Conversation.find({
-              organizationId: ticket.organizationId,
-              sessionId: contact.sessionId,
-            })
-              .select("status subject updatedAt")
-              .sort({ updatedAt: -1 })
-              .limit(20)
-              .lean()
-          : [];
+    let sessionId = contact?.sessionId;
+    if (!sessionId && ticket.conversationId) {
+      const originConversation = await Conversation.findOne({
+        _id: ticket.conversationId,
+        organizationId: ticket.organizationId,
+      })
+        .select("sessionId")
+        .lean();
+      sessionId = originConversation?.sessionId;
+    }
 
-        contactProfile = {
-          id: contact._id.toString(),
-          name: contact.name || null,
-          email: contact.email || null,
-          phone: contact.phone || null,
-          company: contact.company || null,
-          tags: contact.tags || [],
-          conversations: convDocs.map((c: any) => ({
-            id: c._id.toString(),
-            status: c.status,
-            lastMessage: c.subject || "No preview available",
-            updatedAt: c.updatedAt?.toISOString?.() ?? "",
-          })),
-        };
-      }
+    const relatedConversationFilters: Record<string, unknown>[] = [];
+    if (sessionId) relatedConversationFilters.push({ sessionId });
+    if (ticket.conversationId) relatedConversationFilters.push({ _id: ticket.conversationId });
+
+    if (relatedConversationFilters.length > 0) {
+      const convDocs = await Conversation.find({
+        organizationId: ticket.organizationId,
+        $or: relatedConversationFilters,
+      })
+        .select("status subject updatedAt")
+        .sort({ updatedAt: -1 })
+        .limit(20)
+        .lean();
+
+      relatedConversations = convDocs.map((conversation: any) => ({
+        id: conversation._id.toString(),
+        status: conversation.status,
+        lastMessage: conversation.subject || "No preview available",
+        updatedAt: conversation.updatedAt?.toISOString?.() ?? "",
+      }));
+    }
+
+    if (contact) {
+      contactProfile = {
+        id: contact._id.toString(),
+        name: contact.name || null,
+        email: contact.email || null,
+        phone: contact.phone || null,
+        company: contact.company || null,
+        tags: contact.tags || [],
+        conversations: relatedConversations,
+      };
     }
 
     const requesterContact = await this.getRequesterContact(ticket);
-    return this.formatTicket(ticket, { requesterContact, contactProfile });
+    return this.formatTicket(ticket, {
+      requesterContact,
+      contactProfile,
+      relatedConversations,
+    });
   }
 
   // ─── Update ────────────────────────────────────────────────────────────────
@@ -399,6 +425,12 @@ export class TicketsService {
           updatedAt: string;
         }>;
       } | null;
+      relatedConversations?: Array<{
+        id: string;
+        status: string;
+        lastMessage: string;
+        updatedAt: string;
+      }>;
     } = {},
   ) {
     return {
@@ -432,6 +464,7 @@ export class TicketsService {
       closedAt: ticket.closedAt || null,
       requesterContact: options.requesterContact,
       contactProfile: options.contactProfile ?? null,
+      relatedConversations: options.relatedConversations ?? [],
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
     };

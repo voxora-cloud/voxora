@@ -3,7 +3,7 @@ import { Button } from "@/shared/ui/button";
 import { Textarea } from "@/shared/ui/textarea";
 
 import { useAuth } from "@/domains/auth/hooks";
-import { MoreVertical, Send, ArrowLeft, Clock, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Cpu, Bot, ChevronRight, Info } from "lucide-react";
+import { Send, ArrowLeft, Clock, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Cpu, Bot, ChevronRight, Info } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";

@@ -6,7 +6,7 @@ import {
   SelectTrigger,
 } from "@/shared/ui/select";
 import { toast } from "sonner";
-import { PlayCircle, CheckCircle2, XCircle, Circle } from "lucide-react";
+import { CheckCircle2, XCircle, Circle } from "lucide-react";
 import { useUpdateConversationStatus } from "../hooks";
 
 interface StatusSelectorProps {

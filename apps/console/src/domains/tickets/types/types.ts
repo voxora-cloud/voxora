@@ -1,7 +1,7 @@
 export interface TicketNote {
   id: string;
   author: string;
-  authorType: "ai" | "agent" | "admin" | "owner";
+  authorType: "agent" | "ai" | "system";
   content: string;
   createdAt: string;
 }
@@ -27,6 +27,8 @@ export interface TicketContactProfile {
   }>;
 }
 
+export type TicketRelatedConversation = TicketContactProfile["conversations"][number];
+
 export interface Ticket {
   id: string;
   ticketNumber: string;
@@ -37,7 +39,7 @@ export interface Ticket {
   description: string | null;
   status: "open" | "in_progress" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
-  source: "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner";
+  source: "ai" | "agent" | "api" | "widget" | "email" | "whatsapp" | "telegram";
   assignedTo: {
     id: string;
     name: string;
@@ -50,6 +52,7 @@ export interface Ticket {
   closedAt: string | null;
   requesterContact?: TicketRequesterContact;
   contactProfile?: TicketContactProfile | null;
+  relatedConversations?: TicketRelatedConversation[];
   createdAt: string;
   updatedAt: string;
 }
@@ -75,7 +78,7 @@ export interface CreateTicketData {
   title: string;
   description?: string;
   priority?: "low" | "medium" | "high" | "urgent";
-  source?: "widget" | "email" | "whatsapp" | "telegram" | "agent" | "admin" | "owner";
+  source?: "agent" | "widget" | "email" | "whatsapp" | "telegram";
   tags?: string[];
   conversationId?: string;
   contactId?: string;
