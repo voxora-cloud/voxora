@@ -129,10 +129,28 @@ const sourceColors: Record<keyof DashboardSummary["source"], string> = {
 
 const formatIntegerTick = (value: number) => Math.round(value).toLocaleString();
 
-const formatShortDate = (value: string) => {
+const formatShortDate = (value: string, showCalendarDate = false) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", { weekday: "short" });
+  return date.toLocaleDateString(
+    "en-US",
+    showCalendarDate
+      ? { month: "short", day: "numeric" }
+      : { weekday: "short" },
+  );
+};
+
+const getXAxisTicks = (data: Array<{ date: string }>) => {
+  if (data.length <= 7) return data.map((row) => row.date);
+
+  const step = data.length <= 14 ? 2 : 5;
+  const ticks = data
+    .filter((_, index) => index % step === 0)
+    .map((row) => row.date);
+  const lastDate = data.at(-1)?.date;
+
+  if (lastDate && ticks.at(-1) !== lastDate) ticks.push(lastDate);
+  return ticks;
 };
 
 const formatLongDate = (value?: string) => {
@@ -410,6 +428,9 @@ export function MessageVolumeBarChart({
 }: {
   data: DashboardTrends["messageVolume"];
 }) {
+  const xAxisTicks = getXAxisTicks(data);
+  const showCalendarDate = data.length > 7;
+
   return (
     <ChartContainer config={messageChartConfig} className="h-full w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -417,12 +438,14 @@ export function MessageVolumeBarChart({
           <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" opacity={0.55} />
           <XAxis
             dataKey="date"
+            ticks={xAxisTicks}
             axisLine={false}
             tickLine={false}
             interval={0}
-            minTickGap={8}
+            minTickGap={16}
+            height={32}
             tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-            tickFormatter={formatShortDate}
+            tickFormatter={(value) => formatShortDate(value, showCalendarDate)}
           />
           <YAxis
             allowDecimals={false}
@@ -471,6 +494,9 @@ export function ConversationOutcomesBarChart({
 }: {
   data: DashboardTrends["conversationStatus"];
 }) {
+  const xAxisTicks = getXAxisTicks(data);
+  const showCalendarDate = data.length > 7;
+
   return (
     <ChartContainer config={conversationChartConfig} className="h-full w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -478,12 +504,14 @@ export function ConversationOutcomesBarChart({
           <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="var(--border)" opacity={0.55} />
           <XAxis
             dataKey="date"
+            ticks={xAxisTicks}
             axisLine={false}
             tickLine={false}
             interval={0}
-            minTickGap={8}
+            minTickGap={16}
+            height={32}
             tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
-            tickFormatter={formatShortDate}
+            tickFormatter={(value) => formatShortDate(value, showCalendarDate)}
           />
           <YAxis
             allowDecimals={false}
@@ -568,7 +596,7 @@ export function AIInteractionSourcesPieChart({
             data={data}
             dataKey="value"
             nameKey="source"
-            shape={(props: PieSectorShapeProps, index: any) => (
+            shape={(props: PieSectorShapeProps, index: number) => (
               <SourceSectorShape
                 {...props}
                 index={index}

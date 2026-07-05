@@ -19,15 +19,15 @@ export function WidgetInstallationCode({
   const snippet = `<script\n  src="${cdnUrl}"\n  data-InteraOne-public-key="${publicKey || "your-widget-key"}"\n  async>\n</script>`;
 
   return (
-    <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl overflow-hidden">
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
       {/* Header */}
-      <div className="px-6 lg:px-8 pt-6 pb-4 border-b border-border/60">
+      <div className="border-b border-border/60 px-6 py-5">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
             <Code2 className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Installation</h2>
+            <h2 className="text-base font-semibold text-foreground">Installation</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               Paste this snippet before the closing{" "}
               <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">&lt;/body&gt;</code>{" "}
@@ -38,13 +38,13 @@ export function WidgetInstallationCode({
       </div>
 
       {/* Body */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 divide-y lg:divide-y-0 lg:divide-x divide-border/60">
+      <div className="grid grid-cols-1 divide-y divide-border/60 lg:grid-cols-5 lg:divide-x lg:divide-y-0">
         {/* Code panel — 3 cols */}
-        <div className="lg:col-span-3 p-5 lg:p-6">
+        <div className="p-5 sm:p-6 lg:col-span-3">
           {/* Editor chrome */}
           <div className="rounded-xl overflow-hidden border border-border bg-muted/50">
             {/* Titlebar */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-card border-b border-border/70">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border/70 bg-card px-4 py-2.5">
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-destructive/80" />
                 <div className="w-2.5 h-2.5 rounded-full bg-warning/80" />
@@ -54,7 +54,7 @@ export function WidgetInstallationCode({
               <button
                 type="button"
                 onClick={onCopy}
-                className={`cursor-pointer inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold border transition-all duration-200 ${isCopied
+                className={`ml-auto cursor-pointer inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-[11px] font-semibold border transition-all duration-200 ${isCopied
                     ? "bg-primary/15 border-primary/30 text-primary"
                     : "bg-background/70 border-border text-muted-foreground hover:bg-accent/70 hover:border-primary/20 hover:text-foreground"
                   }`}
@@ -98,7 +98,7 @@ export function WidgetInstallationCode({
         </div>
 
         {/* Steps panel — 2 cols */}
-        <div className="lg:col-span-2 p-5 lg:p-6 space-y-5">
+        <div className="space-y-5 p-5 sm:p-6 lg:col-span-2">
           <div className="flex items-center gap-2">
             <Terminal className="h-4 w-4 text-primary" />
             <h4 className="text-sm font-semibold text-foreground">How to install</h4>
@@ -130,6 +130,6 @@ export function WidgetInstallationCode({
           )}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

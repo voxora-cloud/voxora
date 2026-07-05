@@ -63,6 +63,10 @@ function withWidgetDefaults(data: Partial<CreateWidgetData> | null | undefined):
   return {
     ...DEFAULT_WIDGET_FORM_DATA,
     ...data,
+    displayName:
+      typeof data.displayName === "string"
+        ? data.displayName
+        : DEFAULT_WIDGET_FORM_DATA.displayName,
     appearance: {
       ...DEFAULT_WIDGET_FORM_DATA.appearance,
       ...data.appearance,
@@ -145,8 +149,9 @@ export function WidgetPage() {
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
 
+    const normalizedDisplayName = formData.displayName.trim();
     const validation = validateWidgetForm(
-      formData.displayName,
+      normalizedDisplayName,
     );
 
     if (!validation.isValid) {
@@ -157,7 +162,7 @@ export function WidgetPage() {
         }
       });
       setValidationErrors(errors);
-      toast.error("Please fix the validation errors");
+      toast.error(validation.errors[0]?.message || "Please fix the validation errors");
       return;
     }
 
@@ -181,7 +186,7 @@ export function WidgetPage() {
         ).filter(Boolean),
       };
       const widgetData = {
-        displayName: formData.displayName,
+        displayName: normalizedDisplayName,
         appearance: formData.appearance,
         behavior,
         ai: formData.ai,
@@ -250,38 +255,42 @@ export function WidgetPage() {
         subtitle="Customize your chat widget to match your brand"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Main content column */}
-        <div className="lg:col-span-8 space-y-6">
-          <WidgetAppearanceForm
-            formData={formData}
-            validationErrors={validationErrors}
-            onInputChange={handleInputChange}
-            onSubmit={handleSubmit}
-          />
-
+        <main className="min-w-0 space-y-5">
           <WidgetAdvancedConfigForm
             formData={formData}
             onChange={setFormData}
+            generalError={validationErrors.displayName}
+            beforeContent={
+              <WidgetAppearanceForm
+                formData={formData}
+                validationErrors={validationErrors}
+                onInputChange={handleInputChange}
+                onSubmit={handleSubmit}
+              />
+            }
           />
 
-          <WidgetSuggestionsForm
-            suggestions={formData.suggestions}
-            onChange={(suggestions) => setFormData((prev) => ({ ...prev, suggestions }))}
-          />
-        </div>
+          <section className="space-y-3">
+            <h2 className="text-base font-semibold text-foreground">Features</h2>
+            <WidgetSuggestionsForm
+              suggestions={formData.suggestions}
+              onChange={(suggestions) => setFormData((prev) => ({ ...prev, suggestions }))}
+            />
+          </section>
+        </main>
 
         {/* Sticky sidebar column */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="lg:sticky lg:top-6 space-y-6">
-            <WidgetActionsPanel
-              isSaving={saveWidget.isPending}
-              isExistingWidget={isExistingWidget}
-              onSave={() => handleSubmit()}
-              onReset={handleResetDefaults}
-            />
-          </div>
-        </div>
+        <aside className="xl:sticky xl:top-6">
+          <WidgetActionsPanel
+            formData={formData}
+            isSaving={saveWidget.isPending}
+            isExistingWidget={isExistingWidget}
+            onSave={() => handleSubmit()}
+            onReset={handleResetDefaults}
+          />
+        </aside>
       </div>
 
       <WidgetInstallationCode

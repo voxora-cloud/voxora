@@ -139,13 +139,13 @@ export function WidgetSuggestionsForm({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl overflow-hidden">
-      <div className="p-6 lg:p-8 space-y-5">
+    <section className="overflow-hidden rounded-lg border border-border bg-background">
+      <div className="space-y-5 p-5 sm:p-6">
 
         {/* ── Header row ──────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div>
-            <h2 className="text-xl font-semibold">Quick Actions</h2>
+            <h2 className="text-sm font-semibold">Quick actions</h2>
             <p className="text-sm text-muted-foreground mt-1">
               Up to 3 FAQ suggestions shown as quick-reply buttons in the widget.
             </p>
@@ -309,11 +309,11 @@ export function WidgetSuggestionsForm({
 
         {/* ── Active suggestion chips ──────────────────────────────────────── */}
         {suggestions.length > 0 ? (
-          <div className="space-y-2.5">
+          <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70">
             {suggestions.map((suggestion, index) => (
               <div
                 key={index}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-muted/20"
+                className="flex items-center gap-3 bg-background px-4 py-3.5"
               >
                 {/* Number badge */}
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 border border-primary/20">
@@ -377,6 +377,6 @@ export function WidgetSuggestionsForm({
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

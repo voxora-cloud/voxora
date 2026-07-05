@@ -19,16 +19,21 @@ export function WidgetAppearanceForm({
   onSubmit,
 }: WidgetAppearanceFormProps) {
   return (
-    <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl overflow-hidden">
-      <div className="p-6 lg:p-8">
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">Display name</h2>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          The name visitors see in the widget header.
+        </p>
+      </div>
 
-        <form onSubmit={onSubmit} className="space-y-8">
-          <div className="space-y-3">
+      <form onSubmit={onSubmit}>
+        <div className="space-y-2">
             <Label
               htmlFor="displayName"
-              className="text-sm font-medium text-foreground/90"
+              className="sr-only"
             >
-              Display Name
+              Widget name
             </Label>
             <Input
               id="displayName"
@@ -36,7 +41,7 @@ export function WidgetAppearanceForm({
               placeholder="Acme Support"
               value={formData.displayName}
               onChange={(e) => onInputChange("displayName", e.target.value)}
-              className={`h-12 rounded-xl border-border bg-background/80 backdrop-blur-sm focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all cursor-text ${
+              className={`h-11 rounded-lg border-border bg-background shadow-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/20 cursor-text ${
                 validationErrors.displayName ? "border-red-500/50" : ""
               }`}
               required
@@ -46,12 +51,8 @@ export function WidgetAppearanceForm({
                 {validationErrors.displayName}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Shown in the widget header
-            </p>
-          </div>
-        </form>
-      </div>
-    </div>
+        </div>
+      </form>
+    </section>
   );
 }
