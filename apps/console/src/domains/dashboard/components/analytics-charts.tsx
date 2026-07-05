@@ -596,10 +596,9 @@ export function AIInteractionSourcesPieChart({
             data={data}
             dataKey="value"
             nameKey="source"
-            shape={(props: PieSectorShapeProps, index: number) => (
+            shape={(props: any, index?: any) => (
               <SourceSectorShape
                 {...props}
-                index={index}
                 total={total}
                 isActive={safeActiveIndex !== null && index === safeActiveIndex}
               />
