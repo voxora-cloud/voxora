@@ -1,9 +1,22 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "@/shared/ui/button";
 import { Textarea } from "@/shared/ui/textarea";
 
 import { useAuth } from "@/domains/auth/hooks";
-import { Send, ArrowLeft, Clock, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Cpu, Bot, ChevronRight, Info } from "lucide-react";
+import {
+  Send,
+  ArrowLeft,
+  Clock,
+  User,
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  Cpu,
+  Bot,
+  ChevronRight,
+  Info,
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";
@@ -12,6 +25,7 @@ import { UpdateContactDialog } from "./update-contact-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversationDetail, useAgentRuns } from "../hooks";
 import type { ConversationDetail, ConversationMessage } from "../types/types";
+import { conversationsApi } from "../api/conversations.api";
 import { useContacts } from "@/domains/contacts/hooks/use-contacts";
 import { toContactViewModel } from "@/domains/contacts/types/types";
 import { ContactDetailsCard } from "@/domains/contacts/components/contact-details-card";
@@ -34,102 +48,148 @@ function parseMessageContentToHtml(content: string): string {
     .replace(/'/g, "&#039;");
 
   // Restore the specific XML tags we want to parse
-  s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, '<interaone-form id="$1">$2</interaone-form>');
-  s = s.replace(/&lt;interaone-input\s+name=&quot;([^&]+?)&quot;\s+placeholder=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, '<interaone-input name="$1" placeholder="$2" />');
-  s = s.replace(/&lt;interaone-button\s+action=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-button&gt;/g, '<interaone-button action="$1">$2</interaone-button>');
-  s = s.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g, '<interaone-checkbox name="$1">$2</interaone-checkbox>');
-  s = s.replace(/&lt;interaone-radio\s+name=&quot;([^&]+?)&quot;\s+options=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g, '<interaone-radio name="$1" options="$2" />');
+  s = s.replace(
+    /&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g,
+    '<interaone-form id="$1">$2</interaone-form>',
+  );
+  s = s.replace(
+    /&lt;interaone-input\s+name=&quot;([^&]+?)&quot;\s+placeholder=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g,
+    '<interaone-input name="$1" placeholder="$2" />',
+  );
+  s = s.replace(
+    /&lt;interaone-button\s+action=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-button&gt;/g,
+    '<interaone-button action="$1">$2</interaone-button>',
+  );
+  s = s.replace(
+    /&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g,
+    '<interaone-checkbox name="$1">$2</interaone-checkbox>',
+  );
+  s = s.replace(
+    /&lt;interaone-radio\s+name=&quot;([^&]+?)&quot;\s+options=&quot;([^&]+?)&quot;\s*(?:\/)?&gt;/g,
+    '<interaone-radio name="$1" options="$2" />',
+  );
 
   // Unescape divs to support HTML layout blocks
   s = s.replace(/&lt;div\s*([\s\S]*?)&gt;/g, (_: string, attrs: string) => {
-    const cleanAttrs = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-    return `<div ${cleanAttrs}>`.replace(/\s+>/, '>');
+    const cleanAttrs = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+    return `<div ${cleanAttrs}>`.replace(/\s+>/, ">");
   });
-  s = s.replace(/&lt;\/div&gt;/g, '</div>');
+  s = s.replace(/&lt;\/div&gt;/g, "</div>");
 
   // Strip thinking blocks
-  s = s.replace(/&lt;thinking&gt;[\s\S]*?&lt;\/thinking&gt;/gi, '');
-  s = s.replace(/&lt;thought&gt;[\s\S]*?&lt;\/thought&gt;/gi, '');
+  s = s.replace(/&lt;thinking&gt;[\s\S]*?&lt;\/thinking&gt;/gi, "");
+  s = s.replace(/&lt;thought&gt;[\s\S]*?&lt;\/thought&gt;/gi, "");
 
   // Parse Form Container
-  s = s.replace(/<interaone-form\s+id="([^"]+?)">([\s\S]*?)<\/interaone-form>/g, (_: string, __: string, innerContent: string) => {
-    let content = innerContent;
-    // Inside form, parse input
-    content = content.replace(/<interaone-input\s+name="([^"]+?)"\s+placeholder="([^"]+?)"\s*(?:\/)?>/g,
-      '<div class="mb-2"><label class="block text-[10px] font-semibold text-muted-foreground uppercase mb-1">$1</label><div class="w-full px-2.5 py-1.5 text-xs bg-muted/40 border border-border/80 rounded text-muted-foreground/80 select-none">$2</div></div>'
-    );
-    // Inside form, parse checkbox
-    content = content.replace(/<interaone-checkbox\s+name="([^"]+?)">([\s\S]+?)<\/interaone-checkbox>/g,
-      '<div class="flex items-center gap-2 mb-2"><input type="checkbox" disabled class="rounded border-border text-primary pointer-events-none scale-90" /><span class="text-xs text-foreground/80">$2</span></div>'
-    );
-    // Inside form, parse radio
-    content = content.replace(/<interaone-radio\s+name="([^"]+?)"\s+options="([^"]+?)"\s*(?:\/)?>/g, (_: string, name: string, optionsStr: string) => {
-      const options = optionsStr.split(',').map((o: string) => o.trim());
-      const radiosHtml = options.map((opt: string) => `
+  s = s.replace(
+    /<interaone-form\s+id="([^"]+?)">([\s\S]*?)<\/interaone-form>/g,
+    (_: string, __: string, innerContent: string) => {
+      let content = innerContent;
+      // Inside form, parse input
+      content = content.replace(
+        /<interaone-input\s+name="([^"]+?)"\s+placeholder="([^"]+?)"\s*(?:\/)?>/g,
+        '<div class="mb-2"><label class="block text-[10px] font-semibold text-muted-foreground uppercase mb-1">$1</label><div class="w-full px-2.5 py-1.5 text-xs bg-muted/40 border border-border/80 rounded text-muted-foreground/80 select-none">$2</div></div>',
+      );
+      // Inside form, parse checkbox
+      content = content.replace(
+        /<interaone-checkbox\s+name="([^"]+?)">([\s\S]+?)<\/interaone-checkbox>/g,
+        '<div class="flex items-center gap-2 mb-2"><input type="checkbox" disabled class="rounded border-border text-primary pointer-events-none scale-90" /><span class="text-xs text-foreground/80">$2</span></div>',
+      );
+      // Inside form, parse radio
+      content = content.replace(
+        /<interaone-radio\s+name="([^"]+?)"\s+options="([^"]+?)"\s*(?:\/)?>/g,
+        (_: string, name: string, optionsStr: string) => {
+          const options = optionsStr.split(",").map((o: string) => o.trim());
+          const radiosHtml = options
+            .map(
+              (opt: string) => `
         <div class="flex items-center gap-2">
           <input type="radio" disabled class="text-primary pointer-events-none scale-90" />
           <span class="text-xs text-foreground/80">${opt}</span>
         </div>
-      `).join('');
-      return `<div class="mb-2"><label class="block text-[10px] font-semibold text-muted-foreground uppercase mb-1">${name}</label><div class="flex flex-col gap-1.5 pl-1">${radiosHtml}</div></div>`;
-    });
+      `,
+            )
+            .join("");
+          return `<div class="mb-2"><label class="block text-[10px] font-semibold text-muted-foreground uppercase mb-1">${name}</label><div class="flex flex-col gap-1.5 pl-1">${radiosHtml}</div></div>`;
+        },
+      );
 
-    return `
+      return `
       <div class="border border-border/80 rounded-xl p-3 bg-muted/20 my-2.5 max-w-sm select-none">
         <div class="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-2 flex items-center gap-1.5 select-none">Form Component (Read-Only)</div>
         <div class="space-y-1">${content}</div>
         <div class="w-full text-center py-1.5 mt-2 bg-secondary text-secondary-foreground border border-border text-xs rounded-lg font-medium opacity-50 select-none">Submit Form</div>
       </div>
     `;
-  });
+    },
+  );
 
   // Parse stand-alone input
-  s = s.replace(/<interaone-input\s+name="([^"]+?)"\s+placeholder="([^"]+?)"\s*(?:\/)?>/g, 
-    '<div class="flex items-center gap-2 max-w-sm border border-border/80 rounded-lg bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground/90 my-2 select-none"><span class="font-semibold text-foreground">$2</span> <span class="text-[10px] text-muted-foreground/60">(Triage input request)</span></div>'
+  s = s.replace(
+    /<interaone-input\s+name="([^"]+?)"\s+placeholder="([^"]+?)"\s*(?:\/)?>/g,
+    '<div class="flex items-center gap-2 max-w-sm border border-border/80 rounded-lg bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground/90 my-2 select-none"><span class="font-semibold text-foreground">$2</span> <span class="text-[10px] text-muted-foreground/60">(Triage input request)</span></div>',
   );
 
   // Parse stand-alone suggestion buttons
-  s = s.replace(/<interaone-button\s+action="([^"]+?)">([\s\S]+?)<\/interaone-button>/g,
-    '<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-muted text-foreground border border-border mr-1.5 mb-1.5 shadow-sm opacity-90 select-none cursor-default">$2</span>'
+  s = s.replace(
+    /<interaone-button\s+action="([^"]+?)">([\s\S]+?)<\/interaone-button>/g,
+    '<span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-muted text-foreground border border-border mr-1.5 mb-1.5 shadow-sm opacity-90 select-none cursor-default">$2</span>',
   );
 
   // Parse stand-alone checkbox
-  s = s.replace(/<interaone-checkbox\s+name="([^"]+?)">([\s\S]+?)<\/interaone-checkbox>/g,
-    '<div class="flex items-center gap-2 text-xs text-muted-foreground/90 my-2 select-none"><input type="checkbox" disabled class="rounded border-border text-primary scale-90" /><span>$2</span></div>'
+  s = s.replace(
+    /<interaone-checkbox\s+name="([^"]+?)">([\s\S]+?)<\/interaone-checkbox>/g,
+    '<div class="flex items-center gap-2 text-xs text-muted-foreground/90 my-2 select-none"><input type="checkbox" disabled class="rounded border-border text-primary scale-90" /><span>$2</span></div>',
   );
 
   // Parse stand-alone radio
-  s = s.replace(/<interaone-radio\s+name="([^"]+?)"\s+options="([^"]+?)"\s*(?:\/)?>/g, (_: string, name: string, optionsStr: string) => {
-    const options = optionsStr.split(',').map((o: string) => o.trim());
-    const radiosHtml = options.map((opt: string) => `
+  s = s.replace(
+    /<interaone-radio\s+name="([^"]+?)"\s+options="([^"]+?)"\s*(?:\/)?>/g,
+    (_: string, name: string, optionsStr: string) => {
+      const options = optionsStr.split(",").map((o: string) => o.trim());
+      const radiosHtml = options
+        .map(
+          (opt: string) => `
       <div class="flex items-center gap-2">
         <input type="radio" disabled class="text-primary scale-90" />
         <span>${opt}</span>
       </div>
-    `).join('');
-    return `
+    `,
+        )
+        .join("");
+      return `
       <div class="my-2 select-none">
         <div class="text-[10px] uppercase font-semibold text-muted-foreground mb-1">${name}</div>
         <div class="flex flex-col gap-1 pl-1 text-xs text-muted-foreground">${radiosHtml}</div>
       </div>
     `;
-  });
+    },
+  );
 
   // Markdown: Code blocks
-  s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre class="bg-muted p-2 rounded text-xs font-mono my-2 overflow-x-auto border border-border select-all">$1</pre>');
+  s = s.replace(
+    /```[\w]*\n?([\s\S]*?)```/g,
+    '<pre class="bg-muted p-2 rounded text-xs font-mono my-2 overflow-x-auto border border-border select-all">$1</pre>',
+  );
 
   // Markdown: Inline code
-  s = s.replace(/`([^`]+)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-[11px] font-mono border border-border/60">$1</code>');
+  s = s.replace(
+    /`([^`]+)`/g,
+    '<code class="bg-muted px-1.5 py-0.5 rounded text-[11px] font-mono border border-border/60">$1</code>',
+  );
 
   // Markdown: Bold + Italic
-  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
   // Links
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">$1</a>');
+  s = s.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline">$1</a>',
+  );
 
   // Collapse newlines and surrounding indentation between HTML tags to prevent layout gaps
-  s = s.replace(/>\s*\n\s*</g, '><');
+  s = s.replace(/>\s*\n\s*</g, "><");
 
   return s;
 }
@@ -157,16 +217,51 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { data: conversationResponse, isLoading } = useConversationDetail(conversationId);
+  const { data: conversationResponse, isLoading } =
+    useConversationDetail(conversationId);
   const { data: contacts = [] } = useContacts();
   const [isContactSidebarOpen, setIsContactSidebarOpen] = useState(true);
+
+  const clearUnreadCount = useCallback(
+    (targetConversationId: string) => {
+      queryClient.setQueriesData(
+        { queryKey: ["conversations"] },
+        (previous: any) => {
+          if (Array.isArray(previous)) {
+            return previous.map((conv) =>
+              conv._id === targetConversationId
+                ? { ...conv, unreadCount: 0 }
+                : conv,
+            );
+          }
+
+          const conversations = previous?.data?.conversations;
+          if (!Array.isArray(conversations)) return previous;
+
+          return {
+            ...previous,
+            data: {
+              ...previous.data,
+              conversations: conversations.map((conv: any) =>
+                conv._id === targetConversationId
+                  ? { ...conv, unreadCount: 0 }
+                  : conv,
+              ),
+            },
+          };
+        },
+      );
+    },
+    [queryClient],
+  );
 
   const matchedContact = useMemo(() => {
     if (!conversation) return null;
     const conversationSessionId = conversation.sessionId;
     if (!conversationSessionId) return null;
 
-    const raw = contacts.find(c => c.sessionId === conversationSessionId) || null;
+    const raw =
+      contacts.find((c) => c.sessionId === conversationSessionId) || null;
     return raw ? toContactViewModel(raw) : null;
   }, [contacts, conversation]);
 
@@ -174,12 +269,20 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     if (!conversation) return null;
     if (matchedContact) return matchedContact;
 
-    const name = conversation.metadata?.customer?.name || conversation.metadata?.customerName || "Anonymous Visitor";
+    const name =
+      conversation.metadata?.customer?.name ||
+      conversation.metadata?.customerName ||
+      "Anonymous Visitor";
     const email = conversation.metadata?.customer?.email || "";
     const phone = conversation.metadata?.customer?.phone || "";
     const sessionId = conversation.sessionId || "";
 
-    const displayEmail = (email && email !== "anonymous@temp.local" && !email.endsWith("@anonymous.interaone")) ? email : "";
+    const displayEmail =
+      email &&
+      email !== "anonymous@temp.local" &&
+      !email.endsWith("@anonymous.interaone")
+        ? email
+        : "";
 
     return {
       id: "temp-contact",
@@ -230,30 +333,34 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       (data: { conversationId: string; message: ConversationMessage }) => {
         if (data.conversationId !== conversationId) return;
         if (data.message?.metadata?.source === "web") return;
-        
+
         playNotificationSound();
-        
+
         setMessages((prev) => {
           if (prev.some((m) => m._id === data.message._id)) return prev;
           return [...prev, data.message];
         });
+
+        conversationsApi
+          .markAsRead(conversationId)
+          .then(() => clearUnreadCount(conversationId))
+          .catch(() => {
+            void 0;
+          });
       },
     );
 
-    socketInstance.on(
-      "customer_typing",
-      (data: { conversationId: string }) => {
-        if (data.conversationId !== conversationId) return;
-        setIsCustomerTyping(true);
-        if (customerTypingHideRef.current) {
-          clearTimeout(customerTypingHideRef.current);
-        }
-        customerTypingHideRef.current = setTimeout(
-          () => setIsCustomerTyping(false),
-          3000,
-        );
-      },
-    );
+    socketInstance.on("customer_typing", (data: { conversationId: string }) => {
+      if (data.conversationId !== conversationId) return;
+      setIsCustomerTyping(true);
+      if (customerTypingHideRef.current) {
+        clearTimeout(customerTypingHideRef.current);
+      }
+      customerTypingHideRef.current = setTimeout(
+        () => setIsCustomerTyping(false),
+        3000,
+      );
+    });
 
     socketInstance.on(
       "customer_stopped_typing",
@@ -266,7 +373,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         }
       },
     );
-
 
     setSocket(socketInstance);
 
@@ -294,13 +400,20 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         void 0;
       }
     };
-  }, [conversationId]);
+  }, [clearUnreadCount, conversationId]);
 
   useEffect(() => {
     if (!conversationResponse?.data?.conversation) return;
     setConversation(conversationResponse.data.conversation);
     setMessages(conversationResponse.data.messages || []);
-  }, [conversationResponse]);
+
+    conversationsApi
+      .markAsRead(conversationId)
+      .then(() => clearUnreadCount(conversationId))
+      .catch(() => {
+        void 0;
+      });
+  }, [clearUnreadCount, conversationId, conversationResponse]);
 
   useEffect(() => {
     if (conversation) {
@@ -386,7 +499,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     message.senderId === user?.id;
 
   const getBubbleClass = (message: ConversationMessage) => {
-    const isAi = message.metadata?.source === "ai" || message.senderId === "ai-bot";
+    const isAi =
+      message.metadata?.source === "ai" || message.senderId === "ai-bot";
     const isAgent = isAgentMessage(message);
 
     if (isAi) {
@@ -399,7 +513,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   };
 
   const renderMessageHeader = (message: ConversationMessage) => {
-    const isAi = message.metadata?.source === "ai" || message.senderId === "ai-bot";
+    const isAi =
+      message.metadata?.source === "ai" || message.senderId === "ai-bot";
     const isAgent = isAgentMessage(message);
 
     if (isAi) {
@@ -413,14 +528,16 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     if (isAgent) {
       return (
         <span className="flex items-center gap-1 text-[11px] font-semibold text-primary-foreground/90 select-none">
-          <User className="h-3.5 w-3.5" /> {message.metadata?.senderName || "Support"} (Agent)
+          <User className="h-3.5 w-3.5" />{" "}
+          {message.metadata?.senderName || "Support"} (Agent)
         </span>
       );
     }
 
     return (
       <span className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground select-none">
-        <User className="h-3.5 w-3.5" /> {message.metadata?.senderName || customerName} (Customer)
+        <User className="h-3.5 w-3.5" />{" "}
+        {message.metadata?.senderName || customerName} (Customer)
       </span>
     );
   };
@@ -491,24 +608,25 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         );
       } catch {
         return (
-          <div 
+          <div
             className="text-sm whitespace-pre-wrap leading-relaxed select-text"
-            dangerouslySetInnerHTML={{ __html: parseMessageContentToHtml(message.content) }}
+            dangerouslySetInnerHTML={{
+              __html: parseMessageContentToHtml(message.content),
+            }}
           />
         );
       }
     }
 
     return (
-      <div 
+      <div
         className="text-sm whitespace-pre-wrap leading-relaxed select-text"
-        dangerouslySetInnerHTML={{ __html: parseMessageContentToHtml(message.content) }}
+        dangerouslySetInnerHTML={{
+          __html: parseMessageContentToHtml(message.content),
+        }}
       />
     );
   };
-
-
-
 
   if (isLoading) {
     return (
@@ -523,10 +641,13 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
   const customerName = contactDetails?.name || "Anonymous User";
   const customerEmail =
-    (contactDetails?.email && contactDetails.email !== "anonymous@temp.local")
+    contactDetails?.email && contactDetails.email !== "anonymous@temp.local"
       ? contactDetails.email
       : "No email provided";
-  const isAnonymous = !contactDetails || contactDetails.id === "temp-contact" || contactDetails.email === "";
+  const isAnonymous =
+    !contactDetails ||
+    contactDetails.id === "temp-contact" ||
+    contactDetails.email === "";
 
   return (
     <div className="h-full flex bg-background overflow-hidden w-full">
@@ -543,7 +664,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                 if (stateFrom) {
                   navigate(stateFrom);
                 } else {
-                  const isAssignedToMe = conversation?.assignedTo?._id === user?.id || conversation?.assignedTo === user?.id;
+                  const isAssignedToMe =
+                    conversation?.assignedTo?._id === user?.id ||
+                    conversation?.assignedTo === user?.id;
                   if (isAssignedToMe) {
                     navigate("/dashboard/conversations/inbox/assigned");
                   } else {
@@ -574,14 +697,18 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate font-semibold text-foreground">{customerName}</h2>
+                  <h2 className="truncate font-semibold text-foreground">
+                    {customerName}
+                  </h2>
                   {isAnonymous && (
                     <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded-full">
                       Anonymous
                     </span>
                   )}
                 </div>
-                <p className="truncate text-sm text-muted-foreground">{customerEmail}</p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {customerEmail}
+                </p>
               </div>
             </div>
           </div>
@@ -613,12 +740,22 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               variant="ghost"
               size="icon-sm"
               className={`h-8 w-8 cursor-pointer rounded-md ${
-                isContactSidebarOpen ? "bg-muted text-foreground" : "text-muted-foreground"
+                isContactSidebarOpen
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground"
               }`}
               onClick={() => setIsContactSidebarOpen(!isContactSidebarOpen)}
-              aria-label={isContactSidebarOpen ? "Hide contact details" : "Show contact details"}
+              aria-label={
+                isContactSidebarOpen
+                  ? "Hide contact details"
+                  : "Show contact details"
+              }
               aria-pressed={isContactSidebarOpen}
-              title={isContactSidebarOpen ? "Hide Contact Details" : "Show Contact Details"}
+              title={
+                isContactSidebarOpen
+                  ? "Hide Contact Details"
+                  : "Show Contact Details"
+              }
             >
               <Info className="h-4 w-4" />
             </Button>
@@ -663,7 +800,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     <div
                       key={message._id}
                       className={`flex ${
-                        isAgentMessage(message) ? "justify-end" : "justify-start"
+                        isAgentMessage(message)
+                          ? "justify-end"
+                          : "justify-start"
                       }`}
                     >
                       <div
@@ -733,7 +872,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                 visitor={{
                   name: contactDetails?.name,
                   email: contactDetails?.email,
-                  phone: contactDetails?.phone !== "Not provided" ? contactDetails?.phone : "",
+                  phone:
+                    contactDetails?.phone !== "Not provided"
+                      ? contactDetails?.phone
+                      : "",
                   company: contactDetails?.company,
                   tags: contactDetails?.tags,
                 }}
@@ -760,18 +902,24 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 }
 
 function AgentRunsTab({ conversationId }: { conversationId: string }) {
-  const { data: runsResponse, isLoading, refetch } = useAgentRuns(conversationId);
+  const {
+    data: runsResponse,
+    isLoading,
+    refetch,
+  } = useAgentRuns(conversationId);
   const [expandedRuns, setExpandedRuns] = useState<Record<string, boolean>>({});
-  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const runs = runsResponse?.data || [];
 
   const toggleRun = (id: string) => {
-    setExpandedRuns(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpandedRuns((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const toggleStep = (id: string) => {
-    setExpandedSteps(prev => ({ ...prev, [id]: !prev[id] }));
+    setExpandedSteps((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   if (isLoading) {
@@ -788,7 +936,9 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
       <div className="p-8 text-center text-muted-foreground flex-1 flex flex-col items-center justify-center bg-background">
         <Bot className="h-12 w-12 text-muted-foreground/40 mb-3" />
         <p className="font-semibold text-foreground">No agent runs recorded</p>
-        <p className="text-sm mt-1">The AI Agent hasn't processed any turns in this conversation yet.</p>
+        <p className="text-sm mt-1">
+          The AI Agent hasn't processed any turns in this conversation yet.
+        </p>
       </div>
     );
   }
@@ -796,8 +946,15 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-background [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-sm font-semibold text-foreground">Execution History ({runs.length})</h3>
-        <Button variant="ghost" size="sm" onClick={() => refetch()} className="text-xs cursor-pointer">
+        <h3 className="text-sm font-semibold text-foreground">
+          Execution History ({runs.length})
+        </h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => refetch()}
+          className="text-xs cursor-pointer"
+        >
           Refresh
         </Button>
       </div>
@@ -809,7 +966,10 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
           const durationSec = (run.duration / 1000).toFixed(2);
 
           return (
-            <div key={run._id} className="border border-border rounded-lg bg-card overflow-hidden transition-all duration-200">
+            <div
+              key={run._id}
+              className="border border-border rounded-lg bg-card overflow-hidden transition-all duration-200"
+            >
               {/* Header */}
               <div
                 onClick={() => toggleRun(run._id)}
@@ -822,17 +982,25 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
                     <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate text-foreground">{dateStr}</p>
-                    <p className="text-xs text-muted-foreground truncate font-mono">Msg Ref: {run.messageId}</p>
+                    <p className="text-sm font-medium truncate text-foreground">
+                      {dateStr}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate font-mono">
+                      Msg Ref: {run.messageId}
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-4 shrink-0 self-end sm:self-auto">
                   <div className="text-right hidden sm:block">
-                    <p className="text-xs font-semibold text-foreground">{durationSec}s duration</p>
+                    <p className="text-xs font-semibold text-foreground">
+                      {durationSec}s duration
+                    </p>
                     {run.usage && (
                       <p className="text-[10px] text-muted-foreground">
-                        Tokens: {run.usage.totalTokens || 0} ({run.usage.promptTokens || 0} in / {run.usage.completionTokens || 0} out)
+                        Tokens: {run.usage.totalTokens || 0} (
+                        {run.usage.promptTokens || 0} in /{" "}
+                        {run.usage.completionTokens || 0} out)
                       </p>
                     )}
                   </div>
@@ -850,20 +1018,32 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
                   {/* Summary/Error */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-muted/40 p-3 rounded-lg">
                     <div>
-                      <span className="text-muted-foreground font-medium">Status: </span>
-                      <span className={`font-semibold capitalize ${isSuccess ? "text-emerald-600" : "text-rose-600"}`}>
+                      <span className="text-muted-foreground font-medium">
+                        Status:{" "}
+                      </span>
+                      <span
+                        className={`font-semibold capitalize ${isSuccess ? "text-emerald-600" : "text-rose-600"}`}
+                      >
                         {run.status}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground font-medium">Duration: </span>
-                      <span className="font-semibold text-foreground">{run.duration} ms ({durationSec}s)</span>
+                      <span className="text-muted-foreground font-medium">
+                        Duration:{" "}
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {run.duration} ms ({durationSec}s)
+                      </span>
                     </div>
                     {run.usage && (
                       <div>
-                        <span className="text-muted-foreground font-medium">Token Usage: </span>
+                        <span className="text-muted-foreground font-medium">
+                          Token Usage:{" "}
+                        </span>
                         <span className="font-semibold text-foreground">
-                          {run.usage.promptTokens || 0} prompt / {run.usage.completionTokens || 0} comp ({run.usage.totalTokens || 0} total)
+                          {run.usage.promptTokens || 0} prompt /{" "}
+                          {run.usage.completionTokens || 0} comp (
+                          {run.usage.totalTokens || 0} total)
                         </span>
                       </div>
                     )}
@@ -877,9 +1057,13 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
 
                   {/* Steps */}
                   <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tool Execution Steps ({run.steps?.length || 0})</h4>
-                    {(!run.steps || run.steps.length === 0) ? (
-                      <p className="text-xs text-muted-foreground italic">No tools were executed during this run.</p>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Tool Execution Steps ({run.steps?.length || 0})
+                    </h4>
+                    {!run.steps || run.steps.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">
+                        No tools were executed during this run.
+                      </p>
                     ) : (
                       <div className="relative border-l border-border pl-4 ml-2 space-y-4">
                         {run.steps.map((step: any, index: number) => {
@@ -891,7 +1075,7 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
                             <div key={index} className="relative">
                               {/* Timeline dot */}
                               <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border border-card bg-primary" />
-                              
+
                               <div className="border border-border rounded-md bg-background overflow-hidden">
                                 <div
                                   onClick={() => toggleStep(stepId)}
@@ -899,16 +1083,30 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
                                 >
                                   <div className="flex items-center space-x-2">
                                     <Cpu className="h-3.5 w-3.5 text-blue-500" />
-                                    <span className="font-semibold text-foreground font-mono">{step.toolName}</span>
+                                    <span className="font-semibold text-foreground font-mono">
+                                      {step.toolName}
+                                    </span>
                                     {hasStepError ? (
-                                      <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px] font-semibold border border-rose-100">Error</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px] font-semibold border border-rose-100">
+                                        Error
+                                      </span>
                                     ) : (
-                                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-semibold border border-emerald-100">Success</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px] font-semibold border border-emerald-100">
+                                        Success
+                                      </span>
                                     )}
                                   </div>
                                   <div className="flex items-center space-x-2">
-                                    <span className="text-muted-foreground">{new Date(step.timestamp).toLocaleTimeString()}</span>
-                                    {isStepExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                                    <span className="text-muted-foreground">
+                                      {new Date(
+                                        step.timestamp,
+                                      ).toLocaleTimeString()}
+                                    </span>
+                                    {isStepExpanded ? (
+                                      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+                                    ) : (
+                                      <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                                    )}
                                   </div>
                                 </div>
 
@@ -916,18 +1114,25 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
                                   <div className="p-3 border-t border-border bg-muted/20 space-y-2 text-xs">
                                     {step.error && (
                                       <div className="bg-rose-50 text-rose-700 p-2 rounded border border-rose-100 font-mono text-[11px]">
-                                        <span className="font-bold">Execution Error:</span> {step.error}
+                                        <span className="font-bold">
+                                          Execution Error:
+                                        </span>{" "}
+                                        {step.error}
                                       </div>
                                     )}
                                     <div>
-                                      <div className="font-semibold text-muted-foreground mb-1">Arguments:</div>
+                                      <div className="font-semibold text-muted-foreground mb-1">
+                                        Arguments:
+                                      </div>
                                       <pre className="p-2 rounded bg-muted/80 text-[11px] font-mono overflow-x-auto text-foreground">
                                         {JSON.stringify(step.args, null, 2)}
                                       </pre>
                                     </div>
                                     {step.result !== undefined && (
                                       <div>
-                                        <div className="font-semibold text-muted-foreground mb-1">Result:</div>
+                                        <div className="font-semibold text-muted-foreground mb-1">
+                                          Result:
+                                        </div>
                                         <pre className="p-2 rounded bg-muted/80 text-[11px] font-mono overflow-x-auto text-foreground">
                                           {JSON.stringify(step.result, null, 2)}
                                         </pre>

@@ -51,7 +51,12 @@ export class OllamaLLMProvider implements LLMProvider {
         this.executeGenerate(messages, options, tokenTracker),
         new Promise<LLMGenerateResult>((_, reject) =>
           setTimeout(
-            () => reject(new Error(`Ollama generation timed out after ${maxTimeoutMs}ms`)),
+            () =>
+              reject(
+                new Error(
+                  `Ollama generation timed out after ${maxTimeoutMs}ms`,
+                ),
+              ),
             maxTimeoutMs,
           ),
         ),
@@ -129,7 +134,8 @@ export class OllamaLLMProvider implements LLMProvider {
     }));
 
     const toolLabels: Record<string, string> = {
-      faq_retrieval: "Searching knowledge base",
+      faq_retrieval: "Searching FAQs",
+      knowledge_retrieval: "Searching uploaded knowledge",
       web_crawl: "Searching web",
       conversation_memory: "Checking conversation history",
       seek_contact: "Looking up contact",
@@ -143,33 +149,34 @@ export class OllamaLLMProvider implements LLMProvider {
       mark_query_resolved: "Marking query resolved",
     };
 
-    const ollamaTools = tools.length > 0
-      ? tools.map((t) => {
-          const properties: Record<string, unknown> = {};
-          const required: string[] = [];
+    const ollamaTools =
+      tools.length > 0
+        ? tools.map((t) => {
+            const properties: Record<string, unknown> = {};
+            const required: string[] = [];
 
-          for (const [k, v] of Object.entries(t.parameters)) {
-            if (k === "organizationId" || k === "conversationId") continue;
-            const paramDef = v as unknown as Record<string, unknown>;
-            const { required: req, ...rest } = paramDef;
-            properties[k] = rest;
-            if (req) required.push(k);
-          }
+            for (const [k, v] of Object.entries(t.parameters)) {
+              if (k === "organizationId" || k === "conversationId") continue;
+              const paramDef = v as unknown as Record<string, unknown>;
+              const { required: req, ...rest } = paramDef;
+              properties[k] = rest;
+              if (req) required.push(k);
+            }
 
-          return {
-            type: "function",
-            function: {
-              name: t.name,
-              description: t.description,
-              parameters: {
-                type: "object",
-                properties,
-                ...(required.length > 0 ? { required } : {}),
+            return {
+              type: "function",
+              function: {
+                name: t.name,
+                description: t.description,
+                parameters: {
+                  type: "object",
+                  properties,
+                  ...(required.length > 0 ? { required } : {}),
+                },
               },
-            },
-          };
-        })
-      : undefined;
+            };
+          })
+        : undefined;
 
     const MAX_TOOL_LOOPS = 5;
     const steps: LLMGenerateStep[] = [];
@@ -188,17 +195,16 @@ export class OllamaLLMProvider implements LLMProvider {
       if (system) payload.system = system;
       if (ollamaTools) payload.tools = ollamaTools;
 
-      let toolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = [];
+      let toolCalls: Array<{
+        id: string;
+        function: { name: string; arguments: string };
+      }> = [];
 
       if (onStream) {
-        const response = await axios.post(
-          `${this.baseUrl}/api/chat`,
-          payload,
-          {
-            responseType: "stream",
-            timeout: parseInt(process.env.OLLAMA_MAX_TIMEOUT_MS || "60000", 10),
-          },
-        );
+        const response = await axios.post(`${this.baseUrl}/api/chat`, payload, {
+          responseType: "stream",
+          timeout: parseInt(process.env.OLLAMA_MAX_TIMEOUT_MS || "60000", 10),
+        });
 
         for await (const chunk of response.data) {
           const lines = chunk.toString().split("\n").filter(Boolean);
@@ -237,7 +243,8 @@ export class OllamaLLMProvider implements LLMProvider {
                   tokenTracker.accumulate({
                     promptTokens: data.prompt_eval_count,
                     completionTokens: data.eval_count || 0,
-                    totalTokens: (data.prompt_eval_count || 0) + (data.eval_count || 0),
+                    totalTokens:
+                      (data.prompt_eval_count || 0) + (data.eval_count || 0),
                   });
                 }
               }
@@ -250,7 +257,9 @@ export class OllamaLLMProvider implements LLMProvider {
         const response = await axios.post(
           `${this.baseUrl}/api/chat`,
           { ...payload, stream: false },
-          { timeout: parseInt(process.env.OLLAMA_MAX_TIMEOUT_MS || "60000", 10) },
+          {
+            timeout: parseInt(process.env.OLLAMA_MAX_TIMEOUT_MS || "60000", 10),
+          },
         );
 
         const data = response.data;
@@ -299,7 +308,10 @@ export class OllamaLLMProvider implements LLMProvider {
         tool_calls: toolCalls.map((tc) => ({
           id: tc.id,
           type: "function",
-          function: { name: tc.function.name, arguments: tc.function.arguments },
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
         })),
       });
 
@@ -344,17 +356,27 @@ export class OllamaLLMProvider implements LLMProvider {
 
           ollamaMessages.push({
             role: "tool",
-            content: typeof result === "string" ? result : JSON.stringify(result),
+            content:
+              typeof result === "string" ? result : JSON.stringify(result),
           });
 
           if (onToolEvent) {
             let detail: string | undefined;
-            if (call.function.name === "faq_retrieval" && result && typeof result === "object") {
+            if (
+              (call.function.name === "faq_retrieval" ||
+                call.function.name === "knowledge_retrieval") &&
+              result &&
+              typeof result === "object"
+            ) {
               const r = result as any;
               if (r.results && Array.isArray(r.results)) {
                 detail = `Retrieved ${r.results.length} document${r.results.length !== 1 ? "s" : ""}`;
               }
-            } else if (call.function.name === "create_ticket" && result && typeof result === "object") {
+            } else if (
+              call.function.name === "create_ticket" &&
+              result &&
+              typeof result === "object"
+            ) {
               const r = result as any;
               if (r.ticketNumber) detail = `Ticket ${r.ticketNumber}`;
             }
@@ -428,7 +450,8 @@ export class OllamaLLMProvider implements LLMProvider {
               tokenTracker.accumulate({
                 promptTokens: data.prompt_eval_count,
                 completionTokens: data.eval_count || 0,
-                totalTokens: (data.prompt_eval_count || 0) + (data.eval_count || 0),
+                totalTokens:
+                  (data.prompt_eval_count || 0) + (data.eval_count || 0),
               });
             }
           } catch {
@@ -457,7 +480,9 @@ export class OllamaLLMProvider implements LLMProvider {
     const finalCleanText = cleanFinalResponse(responseText);
 
     return {
-      text: finalCleanText || "I’m sorry, but I could not produce a final response from the available information.",
+      text:
+        finalCleanText ||
+        "I’m sorry, but I could not produce a final response from the available information.",
       usage: tokenTracker.toUsage(),
       steps,
     };

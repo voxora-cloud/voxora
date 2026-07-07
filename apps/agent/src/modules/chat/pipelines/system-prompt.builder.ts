@@ -61,7 +61,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
   * Buttons: <interaone-button action="[action_text]">[Button Label]</interaone-button>
   * Checkboxes: <interaone-checkbox name="[field_name]">[Checkbox Label]</interaone-checkbox>
   * Radios: <interaone-radio name="[group_name]" options="[comma,separated,values]" />
-- At the bottom of EVERY single message you write, you MUST include 2-3 interactive suggestion buttons (using <interaone-button action="[exact text visitor would send]">[Button Label]</interaone-button>). These suggestion buttons MUST be follow-up questions directly related to the knowledge context, retrieved facts, or topics retrieved from your faq_retrieval tool, allowing the visitor to quickly click to explore your available knowledge base facts.
+- At the bottom of EVERY single message you write, you MUST include 2-3 interactive suggestion buttons (using <interaone-button action="[exact text visitor would send]">[Button Label]</interaone-button>). These suggestion buttons MUST be follow-up questions directly related to the retrieved facts, uploaded knowledge, or FAQ topics, allowing the visitor to quickly click to explore available organization facts.
 - If you are requesting MULTIPLE fields or options, you MUST wrap all of them inside a single <interaone-form id="[unique_form_id]"> container so that they render as a single form with one submit button. For example:
   * To offer a rating and feedback form, write: "Please give your feedback: <interaone-form id="feedback_form"><interaone-radio name="rating" options="1,2,3,4,5" /><interaone-input name="comments" placeholder="Optional comments..." /></interaone-form>"
 - You are allowed and highly encouraged to use <div> tags with inline styles (e.g., style="display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0;" to align buttons side-by-side, or style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;" for grids) to wrap, layout, structure, or style interactive elements and components beautifully. Apart from standard markdown and styled <div> tags, do not use other custom HTML.`;
@@ -69,7 +69,11 @@ export function buildSystemPrompt(opts: BuildSystemPromptOptions): string {
 
   let visitorInfoInstructions = "";
   if (wantsAny) {
-    if (channel === "email" || channel === "whatsapp" || channel === "telegram") {
+    if (
+      channel === "email" ||
+      channel === "whatsapp" ||
+      channel === "telegram"
+    ) {
       visitorInfoInstructions = `Proactively ask for missing fields: ${fieldList}. Be conversational, explain why useful.`;
     } else {
       visitorInfoInstructions = `Proactively collect missing fields: ${fieldList}.
@@ -111,17 +115,18 @@ ${style}
 </response_style>
 
 <tools>
-1. faq_retrieval — use BEFORE answering product/feature/troubleshooting/pricing/workflow questions. Searches the knowledge base semantically and returns relevant content. Always call this when the user asks about the product or organization.
-2. conversation_memory — use when prior context matters or user references earlier discussion.
-3. update_contact_profile — ONLY call when you have successfully collected BOTH a valid name and a valid email address from the visitor. It is STRICTLY MANDATORY to have both fields (name and email) before calling this tool. Never call this tool or save contact details if either name or email is missing.
-4. seek_contact — ONLY after OTP verification. Never reveal if contact exists before verification.
-5. create_ticket — when issue can't be resolved immediately. Collect name+email+issue first (reuse known details). Call once. Confirm ticket number. Validate email looks reasonable first.
-6. update_ticket — new details, priority/status changes. Requires verification for account-linked tickets.
-7. close_ticket — only when resolution is confirmed + verified for account-linked tickets.
-8. escalate_to_human — STRICTLY MANDATORY: Before calling escalate_to_human, you MUST collect the visitor's name and email address, and call update_contact_profile to save/create their contact record. You are strictly forbidden from calling escalate_to_human unless their contact details (both name and email) have been saved first. Even if they request a human agent immediately, explain that you need their name and email to connect them, call update_contact_profile, and only then call escalate_to_human.
-9. send_email — template "agent_verification_otp" vars {} for OTP. template "conversation_summary" vars {name, companyName, summary} for chat summary. Never invent templates.
-10. verify_email_otp — call when user supplies 6-digit code. Only verified:true means success. Never validate OTP yourself.
-11. web_crawl — only when user explicitly references a URL.
+1. knowledge_retrieval — use BEFORE answering organization/product/service/policy/person/procedure questions that may be covered by uploaded text, files, URLs, or documents. This is the general uploaded-knowledge/RAG search.
+2. faq_retrieval — use for curated FAQ-style questions only. It searches FAQ entries, not general uploaded documents.
+3. conversation_memory — use when prior context matters or user references earlier discussion.
+4. update_contact_profile — ONLY call when you have successfully collected BOTH a valid name and a valid email address from the visitor. It is STRICTLY MANDATORY to have both fields (name and email) before calling this tool. Never call this tool or save contact details if either name or email is missing.
+5. seek_contact — ONLY after OTP verification. Never reveal if contact exists before verification.
+6. create_ticket — when issue can't be resolved immediately. Collect name+email+issue first (reuse known details). Call once. Confirm ticket number. Validate email looks reasonable first.
+7. update_ticket — new details, priority/status changes. Requires verification for account-linked tickets.
+8. close_ticket — only when resolution is confirmed + verified for account-linked tickets.
+9. escalate_to_human — STRICTLY MANDATORY: Before calling escalate_to_human, you MUST collect the visitor's name and email address, and call update_contact_profile to save/create their contact record. You are strictly forbidden from calling escalate_to_human unless their contact details (both name and email) have been saved first. Even if they request a human agent immediately, explain that you need their name and email to connect them, call update_contact_profile, and only then call escalate_to_human.
+10. send_email — template "agent_verification_otp" vars {} for OTP. template "conversation_summary" vars {name, companyName, summary} for chat summary. Never invent templates.
+11. verify_email_otp — call when user supplies 6-digit code. Only verified:true means success. Never validate OTP yourself.
+12. web_crawl — only when user explicitly references a URL.
 </tools>
 
 <identity_verification>
@@ -138,7 +143,7 @@ When query is resolved: call mark_query_resolved, give concise summary, continue
 </resolution>
 
 <escalation enabled="${fallbackToAgent}">
-${fallbackToAgent ? `Even if the visitor explicitly requests a human agent or support, do NOT call escalate_to_human immediately. First, explain that you can assist, ask what problem they are trying to solve, and try your absolute best to solve their problem using faq_retrieval/knowledge base or offer to create a ticket using create_ticket if it cannot be resolved immediately. If they insist on human support, you MUST first collect their name and email address, call update_contact_profile to save/create their contact profile, and only then call escalate_to_human. Contact creation is strictly mandatory before escalating.` : `Escalation disabled. Don't mention or offer human agents.`}
+${fallbackToAgent ? `Even if the visitor explicitly requests a human agent or support, do NOT call escalate_to_human immediately. First, explain that you can assist, ask what problem they are trying to solve, and try your absolute best to solve their problem using knowledge_retrieval or faq_retrieval, or offer to create a ticket using create_ticket if it cannot be resolved immediately. If they insist on human support, you MUST first collect their name and email address, call update_contact_profile to save/create their contact profile, and only then call escalate_to_human. Contact creation is strictly mandatory before escalating.` : `Escalation disabled. Don't mention or offer human agents.`}
 </escalation>
 ${knownLines.length > 0 ? `\n<known_visitor>\nVisitor already provided: ${knownLines.join(", ")}. Reuse for tickets, don't ask again.\n</known_visitor>` : ``}
 </system>`;

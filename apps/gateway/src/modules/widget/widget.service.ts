@@ -1,7 +1,10 @@
 import crypto from "crypto";
 import { Widget, Conversation, Membership } from "@shared/models";
 import logger from "@shared/core/logger";
-import { enqueueDomainVerificationPendingEmail, enqueueDomainVerificationCompletedEmail } from "@shared/queues/email.queue";
+import {
+  enqueueDomainVerificationPendingEmail,
+  enqueueDomainVerificationCompletedEmail,
+} from "@shared/queues/email.queue";
 import { buildDefaultWidgetConfig } from "@shared/core/widget-default-config";
 import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
@@ -84,11 +87,14 @@ function withWidgetConfigDefaults(input: any, isUpdate = false): any {
 
   if (!isUpdate || input.suggestions !== undefined) {
     if (Array.isArray(input.suggestions)) {
-      output.suggestions = input.suggestions.slice(0, 3).map((s: any) => ({
-        text: String(s.text || "").trim(),
-        showOutside: Boolean(s.showOutside),
-        faqId: s.faqId ? String(s.faqId) : null,
-      })).filter((s: any) => s.text.length > 0);
+      output.suggestions = input.suggestions
+        .slice(0, 3)
+        .map((s: any) => ({
+          text: String(s.text || "").trim(),
+          showOutside: s.showOutside ?? true,
+          faqId: s.faqId ? String(s.faqId) : null,
+        }))
+        .filter((s: any) => s.text.length > 0);
     } else if (!output.suggestions) {
       output.suggestions = defaults.suggestions;
     }
@@ -100,7 +106,9 @@ function withWidgetConfigDefaults(input: any, isUpdate = false): any {
 export class WidgetService {
   private isMobileUserAgent(userAgent?: string): boolean {
     if (!userAgent) return false;
-    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(userAgent);
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(
+      userAgent,
+    );
   }
 
   private isQrReferrer(referrer?: string): boolean {
@@ -108,9 +116,11 @@ export class WidgetService {
 
     try {
       const parsed = new URL(referrer);
-      const get = (key: string) => (parsed.searchParams.get(key) || "").toLowerCase();
+      const get = (key: string) =>
+        (parsed.searchParams.get(key) || "").toLowerCase();
 
-      const source = get("source") || get("src") || get("utm_source") || get("entry");
+      const source =
+        get("source") || get("src") || get("utm_source") || get("entry");
       const medium = get("utm_medium") || get("medium");
       const campaign = get("utm_campaign") || get("campaign");
       const qrFlag = get("qr") || get("is_qr");
@@ -120,7 +130,9 @@ export class WidgetService {
 
       return /\bqr\b|qrcode/.test(parsed.pathname.toLowerCase());
     } catch {
-      return /[?&](source|src|utm_source|entry)=qr\b|[?&](qr|is_qr)=(1|true|yes)\b/i.test(referrer);
+      return /[?&](source|src|utm_source|entry)=qr\b|[?&](qr|is_qr)=(1|true|yes)\b/i.test(
+        referrer,
+      );
     }
   }
 
@@ -128,7 +140,11 @@ export class WidgetService {
     return this.isMobileUserAgent(userAgent) && this.isQrReferrer(referrer);
   }
 
-  async generateWidgetToken(InteraOnePublicKey: string, origin?: string, requestOrigin?: string) {
+  async generateWidgetToken(
+    InteraOnePublicKey: string,
+    origin?: string,
+    requestOrigin?: string,
+  ) {
     if (!InteraOnePublicKey) {
       throw createServiceError("InteraOne public key is required", 400);
     }
@@ -158,13 +174,18 @@ export class WidgetService {
     };
   }
 
-  async getWidgetConfigByPublicKey(InteraOnePublicKey: string, requestOrigin?: string) {
+  async getWidgetConfigByPublicKey(
+    InteraOnePublicKey: string,
+    requestOrigin?: string,
+  ) {
     if (!InteraOnePublicKey) {
       throw createServiceError("InteraOne public key is required", 400);
     }
 
     const widget = await Widget.findById(InteraOnePublicKey)
-      .select("organizationId displayName appearance behavior ai conversation features suggestions verifiedDomain domainVerificationStatus")
+      .select(
+        "organizationId displayName appearance behavior ai conversation features suggestions verifiedDomain domainVerificationStatus",
+      )
       .lean();
 
     if (!widget) {
@@ -174,12 +195,16 @@ export class WidgetService {
     this.enforceVerifiedDomain(widget, requestOrigin);
 
     const defaults = buildDefaultWidgetConfig();
-    const { logoUrl: _ignoredLogoUrl, ...appearance } = (widget as any).appearance || {};
+    const { logoUrl: _ignoredLogoUrl, ...appearance } =
+      (widget as any).appearance || {};
 
     // Local development and self-hosted installs do not require DNS verification.
-    const isDomainVerified = !requiresDomainVerification(config.app.env, requestOrigin)
-      || widget.domainVerificationStatus === "verified";
-    const endUserDomAccess = isDomainVerified ? ((widget as any).features?.endUserDomAccess ?? false) : false;
+    const isDomainVerified =
+      !requiresDomainVerification(config.app.env, requestOrigin) ||
+      widget.domainVerificationStatus === "verified";
+    const endUserDomAccess = isDomainVerified
+      ? ((widget as any).features?.endUserDomAccess ?? false)
+      : false;
 
     return {
       organizationId: (widget as any).organizationId,
@@ -195,7 +220,8 @@ export class WidgetService {
         },
         ai: {
           enabled: (widget as any).ai?.enabled ?? defaults.ai.enabled,
-          fallbackToAgent: (widget as any).ai?.fallbackToAgent ?? defaults.ai.fallbackToAgent,
+          fallbackToAgent:
+            (widget as any).ai?.fallbackToAgent ?? defaults.ai.fallbackToAgent,
         },
         conversation: {
           collectUserInfo: {
@@ -216,23 +242,38 @@ export class WidgetService {
   }
 
   private enforceVerifiedDomain(
-    widget: { verifiedDomain?: string | null; domainVerificationStatus?: string | null },
+    widget: {
+      verifiedDomain?: string | null;
+      domainVerificationStatus?: string | null;
+    },
     requestOrigin?: string,
   ): void {
     if (!requiresDomainVerification(config.app.env, requestOrigin)) return;
 
-    if (!widget.verifiedDomain || widget.domainVerificationStatus !== "verified") {
-      throw createServiceError("A verified domain is required for this widget", 403);
+    if (
+      !widget.verifiedDomain ||
+      widget.domainVerificationStatus !== "verified"
+    ) {
+      throw createServiceError(
+        "A verified domain is required for this widget",
+        403,
+      );
     }
 
     if (!requestOrigin) {
-      throw createServiceError("Origin header is required for verified widgets", 403);
+      throw createServiceError(
+        "Origin header is required for verified widgets",
+        403,
+      );
     }
 
     const clientDomain = normalizeDomain(requestOrigin);
     const allowedDomain = normalizeDomain(widget.verifiedDomain);
     if (clientDomain !== allowedDomain) {
-      throw createServiceError(`Unauthorized origin: widget is locked to domain "${allowedDomain}"`, 403);
+      throw createServiceError(
+        `Unauthorized origin: widget is locked to domain "${allowedDomain}"`,
+        403,
+      );
     }
   }
 
@@ -259,16 +300,24 @@ export class WidgetService {
     if (existingWidget) {
       const cleanUpdates: any = { ...normalizedWidgetData, organizationId };
       if (widgetData?.verifiedDomain !== undefined) {
-        const normalizedNew = widgetData.verifiedDomain ? normalizeDomain(widgetData.verifiedDomain) : "";
-        const normalizedOld = existingWidget.verifiedDomain ? normalizeDomain(existingWidget.verifiedDomain) : "";
+        const normalizedNew = widgetData.verifiedDomain
+          ? normalizeDomain(widgetData.verifiedDomain)
+          : "";
+        const normalizedOld = existingWidget.verifiedDomain
+          ? normalizeDomain(existingWidget.verifiedDomain)
+          : "";
         if (normalizedNew !== normalizedOld) {
           if (normalizedNew) {
             cleanUpdates.verifiedDomain = normalizedNew;
-            if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+            if (
+              !requiresDomainVerification(config.app.env) ||
+              isLocalDomain(normalizedNew)
+            ) {
               cleanUpdates.domainVerificationToken = null;
               cleanUpdates.domainVerificationStatus = "verified";
             } else {
-              cleanUpdates.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+              cleanUpdates.domainVerificationToken =
+                "interaone_" + crypto.randomBytes(16).toString("hex");
               cleanUpdates.domainVerificationStatus = "pending";
             }
           } else {
@@ -279,22 +328,25 @@ export class WidgetService {
         }
       }
 
-      return Widget.findOneAndUpdate(
-        { organizationId },
-        cleanUpdates,
-        { new: true, runValidators: true },
-      );
+      return Widget.findOneAndUpdate({ organizationId }, cleanUpdates, {
+        new: true,
+        runValidators: true,
+      });
     }
 
     const newWidgetData = { ...normalizedWidgetData };
     if (widgetData?.verifiedDomain) {
       const normalizedNew = normalizeDomain(widgetData.verifiedDomain);
       newWidgetData.verifiedDomain = normalizedNew;
-      if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+      if (
+        !requiresDomainVerification(config.app.env) ||
+        isLocalDomain(normalizedNew)
+      ) {
         newWidgetData.domainVerificationToken = null;
         newWidgetData.domainVerificationStatus = "verified";
       } else {
-        newWidgetData.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+        newWidgetData.domainVerificationToken =
+          "interaone_" + crypto.randomBytes(16).toString("hex");
         newWidgetData.domainVerificationStatus = "pending";
       }
     }
@@ -351,7 +403,10 @@ export class WidgetService {
   }
 
   async updateWidget(organizationId: string, updateData: any) {
-    const normalizedUpdateData = withWidgetConfigDefaults(updateData || {}, true);
+    const normalizedUpdateData = withWidgetConfigDefaults(
+      updateData || {},
+      true,
+    );
     const allowedUpdates: any = {
       displayName: normalizedUpdateData.displayName,
       appearance: normalizedUpdateData.appearance,
@@ -369,17 +424,25 @@ export class WidgetService {
     const existingWidget = await Widget.findOne({ organizationId });
 
     if (updateData?.verifiedDomain !== undefined) {
-      const normalizedNew = updateData.verifiedDomain ? normalizeDomain(updateData.verifiedDomain) : "";
-      const normalizedOld = existingWidget?.verifiedDomain ? normalizeDomain(existingWidget.verifiedDomain) : "";
+      const normalizedNew = updateData.verifiedDomain
+        ? normalizeDomain(updateData.verifiedDomain)
+        : "";
+      const normalizedOld = existingWidget?.verifiedDomain
+        ? normalizeDomain(existingWidget.verifiedDomain)
+        : "";
 
       if (normalizedNew !== normalizedOld) {
         if (normalizedNew) {
           cleanUpdates.verifiedDomain = normalizedNew;
-          if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+          if (
+            !requiresDomainVerification(config.app.env) ||
+            isLocalDomain(normalizedNew)
+          ) {
             cleanUpdates.domainVerificationToken = null;
             cleanUpdates.domainVerificationStatus = "verified";
           } else {
-            cleanUpdates.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+            cleanUpdates.domainVerificationToken =
+              "interaone_" + crypto.randomBytes(16).toString("hex");
             cleanUpdates.domainVerificationStatus = "pending";
           }
         } else {
@@ -390,10 +453,14 @@ export class WidgetService {
       }
     }
 
-    let widget = await Widget.findOneAndUpdate({ organizationId }, cleanUpdates, {
-      new: true,
-      runValidators: true,
-    });
+    let widget = await Widget.findOneAndUpdate(
+      { organizationId },
+      cleanUpdates,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
 
     if (!widget) {
       const initData: any = {
@@ -409,11 +476,15 @@ export class WidgetService {
       if (updateData?.verifiedDomain) {
         const normalizedNew = normalizeDomain(updateData.verifiedDomain);
         initData.verifiedDomain = normalizedNew;
-        if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+        if (
+          !requiresDomainVerification(config.app.env) ||
+          isLocalDomain(normalizedNew)
+        ) {
           initData.domainVerificationToken = null;
           initData.domainVerificationStatus = "verified";
         } else {
-          initData.domainVerificationToken = "interaone_" + crypto.randomBytes(16).toString("hex");
+          initData.domainVerificationToken =
+            "interaone_" + crypto.randomBytes(16).toString("hex");
           initData.domainVerificationStatus = "pending";
         }
       }
@@ -423,9 +494,23 @@ export class WidgetService {
 
     const oldStatus = existingWidget?.domainVerificationStatus;
     const newStatus = widget?.domainVerificationStatus;
-    if (widget && newStatus === "pending" && oldStatus !== "pending" && widget.verifiedDomain && widget.domainVerificationToken) {
-      this.sendDomainVerificationEmail(organizationId, "pending", widget.verifiedDomain, widget.domainVerificationToken).catch(err => {
-        logger.error(`Failed to send domain pending email for org ${organizationId}:`, err);
+    if (
+      widget &&
+      newStatus === "pending" &&
+      oldStatus !== "pending" &&
+      widget.verifiedDomain &&
+      widget.domainVerificationToken
+    ) {
+      this.sendDomainVerificationEmail(
+        organizationId,
+        "pending",
+        widget.verifiedDomain,
+        widget.domainVerificationToken,
+      ).catch((err) => {
+        logger.error(
+          `Failed to send domain pending email for org ${organizationId}:`,
+          err,
+        );
       });
     }
 
@@ -438,7 +523,10 @@ export class WidgetService {
       throw createServiceError("Widget not found", 404);
     }
 
-    if (!requiresDomainVerification(config.app.env) || isLocalDomain(widget.verifiedDomain || "")) {
+    if (
+      !requiresDomainVerification(config.app.env) ||
+      isLocalDomain(widget.verifiedDomain || "")
+    ) {
       widget.domainVerificationStatus = "verified";
       widget.domainVerificationToken = undefined;
       await widget.save();
@@ -450,7 +538,10 @@ export class WidgetService {
     }
 
     if (!widget.verifiedDomain || !widget.domainVerificationToken) {
-      throw createServiceError("Domain verification has not been configured for this widget", 400);
+      throw createServiceError(
+        "Domain verification has not been configured for this widget",
+        400,
+      );
     }
 
     const host = normalizeDomain(widget.verifiedDomain);
@@ -460,7 +551,10 @@ export class WidgetService {
       txtRecords = await dns.promises.resolveTxt(host);
     } catch (dnsError: any) {
       logger.warn(`DNS lookup failed for domain ${host}: ${dnsError.message}`);
-      throw createServiceError(`Verification failed: Could not find any TXT records for "${host}". Please make sure the record has propagated.`, 400);
+      throw createServiceError(
+        `Verification failed: Could not find any TXT records for "${host}". Please make sure the record has propagated.`,
+        400,
+      );
     }
 
     const isTokenFound = txtRecords.some((record) =>
@@ -477,11 +571,20 @@ export class WidgetService {
     widget.domainVerificationStatus = "verified";
     await widget.save();
 
-    logger.info(`Widget domain verified successfully for org ${organizationId}: ${widget.verifiedDomain}`);
+    logger.info(
+      `Widget domain verified successfully for org ${organizationId}: ${widget.verifiedDomain}`,
+    );
 
     if (widget.verifiedDomain) {
-      this.sendDomainVerificationEmail(organizationId, "completed", widget.verifiedDomain).catch(err => {
-        logger.error(`Failed to send domain completed email for org ${organizationId}:`, err);
+      this.sendDomainVerificationEmail(
+        organizationId,
+        "completed",
+        widget.verifiedDomain,
+      ).catch((err) => {
+        logger.error(
+          `Failed to send domain completed email for org ${organizationId}:`,
+          err,
+        );
       });
     }
 
@@ -508,16 +611,28 @@ export class WidgetService {
       const user = admin.userId as any;
       if (user && user.email) {
         if (event === "pending" && token) {
-          await enqueueDomainVerificationPendingEmail(user.email, user.name || "Administrator", domain, token);
+          await enqueueDomainVerificationPendingEmail(
+            user.email,
+            user.name || "Administrator",
+            domain,
+            token,
+          );
         } else if (event === "completed") {
-          await enqueueDomainVerificationCompletedEmail(user.email, user.name || "Administrator", domain);
+          await enqueueDomainVerificationCompletedEmail(
+            user.email,
+            user.name || "Administrator",
+            domain,
+          );
         }
       }
     }
   }
 
-  async initConversation(input: InitConversationInput): Promise<InitConversationResult> {
-    const { organizationId, message, InteraOnePublicKey, sessionId, source } = input;
+  async initConversation(
+    input: InitConversationInput,
+  ): Promise<InitConversationResult> {
+    const { organizationId, message, InteraOnePublicKey, sessionId, source } =
+      input;
 
     const interactionSource = normalizeInteractionSource(source);
     const assignedAgentId: string | null = null;
@@ -545,9 +660,7 @@ export class WidgetService {
       },
     });
 
-    logger.info(
-      `New conversation initialized: ${conversation.id} from widget`,
-    );
+    logger.info(`New conversation initialized: ${conversation.id} from widget`);
 
     tracker.trackEvent(
       organizationId.toString(),
@@ -578,7 +691,11 @@ export class WidgetService {
       };
 
       try {
-        sm.emitToOrg(organizationId.toString(), "new_widget_conversation", payload);
+        sm.emitToOrg(
+          organizationId.toString(),
+          "new_widget_conversation",
+          payload,
+        );
         logger.info(
           `Emitted 'new_widget_conversation' for ${conversation._id} to org ${organizationId}`,
         );

@@ -23,16 +23,21 @@ export class ConversationService {
     organizationId: string,
     options: ListConversationsOptions,
   ) {
-    const { status, limit = 50, offset = 0, assignedTo } = options;
+    const { status, limit = 50, offset = 0, assignedTo, userId } = options;
 
     const filter: any = { organizationId };
 
     // Fetch all ticket conversation IDs for this organization
-    const tickets = await Ticket.find({
-      organizationId,
-      conversationId: { $ne: null }
-    }, "conversationId").lean();
-    const ticketConversationIds = tickets.map((t) => t.conversationId).filter(Boolean);
+    const tickets = await Ticket.find(
+      {
+        organizationId,
+        conversationId: { $ne: null },
+      },
+      "conversationId",
+    ).lean();
+    const ticketConversationIds = tickets
+      .map((t) => t.conversationId)
+      .filter(Boolean);
 
     if (assignedTo === null) {
       // Specifically requesting unassigned conversations (In Queue)
@@ -65,6 +70,19 @@ export class ConversationService {
 
     const conversationIds = conversations.map((c) => c._id);
     const orgIdObj = new Types.ObjectId(organizationId);
+    const unreadMessageFilters = conversations.map((conv) => {
+      const readAt = userId
+        ? (conv.metadata as any)?.agentReads?.[userId]?.lastReadAt
+        : null;
+      const readDate = readAt ? new Date(readAt) : null;
+
+      return {
+        conversationId: conv._id,
+        ...(readDate && !Number.isNaN(readDate.getTime())
+          ? { createdAt: { $gt: readDate } }
+          : {}),
+      };
+    });
 
     const [latestMessages, unreadCounts] = await Promise.all([
       Message.aggregate([
@@ -87,9 +105,11 @@ export class ConversationService {
       Message.aggregate([
         {
           $match: {
-            conversationId: { $in: conversationIds },
             organizationId: orgIdObj,
             "metadata.source": "widget",
+            ...(unreadMessageFilters.length > 0
+              ? { $or: unreadMessageFilters }
+              : { conversationId: { $in: [] } }),
           },
         },
         {
@@ -143,7 +163,21 @@ export class ConversationService {
     return { conversation, messages };
   }
 
-
+  async markConversationRead(
+    organizationId: string,
+    conversationId: string,
+    userId: string,
+  ) {
+    return Conversation.findOneAndUpdate(
+      { _id: conversationId, organizationId },
+      {
+        $set: {
+          [`metadata.agentReads.${userId}.lastReadAt`]: new Date(),
+        },
+      },
+      { new: true },
+    ).lean();
+  }
 
   /**
    * Auto-assign conversation to a team/agent within the org.
@@ -378,9 +412,7 @@ export class ConversationService {
     }
 
     const visitorName =
-      contact?.name && contact.name !== "Anonymous User"
-        ? contact.name
-        : null;
+      contact?.name && contact.name !== "Anonymous User" ? contact.name : null;
     const visitorEmail =
       contact?.email && contact.email !== "anonymous@temp.local"
         ? contact.email
@@ -458,11 +490,13 @@ export class ConversationService {
     }));
   }
 
-  async closeInactiveConversations(inactivityLimitMs = 30 * 60 * 1000): Promise<{ closedCount: number }> {
+  async closeInactiveConversations(
+    inactivityLimitMs = 30 * 60 * 1000,
+  ): Promise<{ closedCount: number }> {
     const cutoffTime = new Date(Date.now() - inactivityLimitMs);
     const inactiveConversations = await Conversation.find({
       status: { $in: ["open", "pending"] },
-      updatedAt: { $lt: cutoffTime }
+      updatedAt: { $lt: cutoffTime },
     });
 
     let closedCount = 0;
@@ -471,7 +505,7 @@ export class ConversationService {
         conv.organizationId.toString(),
         conv._id.toString(),
         "closed",
-        "system_inactivity_worker"
+        "system_inactivity_worker",
       );
       closedCount++;
     }
@@ -482,35 +516,43 @@ export class ConversationService {
   async getPendingAnalysisConversations(): Promise<any[]> {
     const conversations = await Conversation.find({
       status: { $in: ["closed", "resolved"] },
-      "metadata.analyzed": { $ne: true }
-    }).limit(100).lean();
+      "metadata.analyzed": { $ne: true },
+    })
+      .limit(100)
+      .lean();
 
     const results = [];
     for (const conv of conversations) {
       const messages = await Message.find({
         organizationId: conv.organizationId,
         conversationId: conv._id,
-      }).sort({ createdAt: 1 }).lean();
+      })
+        .sort({ createdAt: 1 })
+        .lean();
 
-      const contact = conv.sessionId ? await Contact.findOne({
-        organizationId: conv.organizationId,
-        sessionId: conv.sessionId,
-      }).lean() : null;
+      const contact = conv.sessionId
+        ? await Contact.findOne({
+            organizationId: conv.organizationId,
+            sessionId: conv.sessionId,
+          }).lean()
+        : null;
 
       results.push({
         conversationId: conv._id.toString(),
         organizationId: conv.organizationId.toString(),
-        visitor: contact ? {
-          sessionId: contact.sessionId,
-          name: contact.name,
-          email: contact.email,
-          phone: contact.phone,
-          company: contact.company,
-        } : { sessionId: conv.sessionId },
-        messages: messages.map(m => ({
+        visitor: contact
+          ? {
+              sessionId: contact.sessionId,
+              name: contact.name,
+              email: contact.email,
+              phone: contact.phone,
+              company: contact.company,
+            }
+          : { sessionId: conv.sessionId },
+        messages: messages.map((m) => ({
           role: m.metadata?.source === "widget" ? "user" : "assistant",
           content: m.content || "",
-        }))
+        })),
       });
     }
 
@@ -520,18 +562,25 @@ export class ConversationService {
   /**
    * Add or update a recent conversation for a user
    */
-  async upsertRecentConversation(userId: string, organizationId: string, conversationId: string): Promise<void> {
+  async upsertRecentConversation(
+    userId: string,
+    organizationId: string,
+    conversationId: string,
+  ): Promise<void> {
     try {
       await RecentConversation.findOneAndUpdate(
         { userId, conversationId },
         { openedAt: new Date(), organizationId },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
 
       // Keep only top 10 recent conversations for this user and organization
-      const recents = await RecentConversation.find({ userId, organizationId }).sort({ openedAt: -1 });
+      const recents = await RecentConversation.find({
+        userId,
+        organizationId,
+      }).sort({ openedAt: -1 });
       if (recents.length > 10) {
-        const toDelete = recents.slice(10).map(r => r._id);
+        const toDelete = recents.slice(10).map((r) => r._id);
         await RecentConversation.deleteMany({ _id: { $in: toDelete } });
       }
     } catch (error: any) {
@@ -542,7 +591,10 @@ export class ConversationService {
   /**
    * Get recent conversations for a user
    */
-  async getRecentConversations(userId: string, organizationId: string): Promise<any[]> {
+  async getRecentConversations(
+    userId: string,
+    organizationId: string,
+  ): Promise<any[]> {
     try {
       const recents = await RecentConversation.find({ userId, organizationId })
         .sort({ openedAt: -1 })
@@ -551,19 +603,27 @@ export class ConversationService {
 
       const results = [];
       for (const recent of recents) {
-        const conv = await Conversation.findOne({ _id: recent.conversationId, organizationId }).lean();
+        const conv = await Conversation.findOne({
+          _id: recent.conversationId,
+          organizationId,
+        }).lean();
         if (!conv) continue;
 
         // Get last message
-        const lastMsg = await Message.findOne({ conversationId: conv._id, organizationId })
+        const lastMsg = await Message.findOne({
+          conversationId: conv._id,
+          organizationId,
+        })
           .sort({ createdAt: -1 })
           .lean();
 
         // Get contact
-        const contact = conv.sessionId ? await Contact.findOne({
-          organizationId,
-          sessionId: conv.sessionId,
-        }).lean() : null;
+        const contact = conv.sessionId
+          ? await Contact.findOne({
+              organizationId,
+              sessionId: conv.sessionId,
+            }).lean()
+          : null;
 
         results.push({
           _id: conv._id.toString(),
@@ -584,7 +644,10 @@ export class ConversationService {
   /**
    * Clear all recent conversations for a user
    */
-  async clearRecentConversations(userId: string, organizationId: string): Promise<void> {
+  async clearRecentConversations(
+    userId: string,
+    organizationId: string,
+  ): Promise<void> {
     try {
       await RecentConversation.deleteMany({ userId, organizationId });
     } catch (error: any) {

@@ -208,9 +208,11 @@ router.delete("/recents", ConversationController.clearRecentConversations);
  *       404:
  *         description: Conversation not found
  */
-router.get(
-  "/:conversationId",
-  ConversationController.getConversationById,
+router.get("/:conversationId", ConversationController.getConversationById);
+
+router.post(
+  "/:conversationId/read",
+  ConversationController.markConversationRead,
 );
 
 /**
@@ -253,7 +255,6 @@ router.post(
   ConversationController.updateContactAssociation,
 );
 
-
 /**
  * @openapi
  * /conversations/{conversationId}/route:
@@ -284,10 +285,7 @@ router.post(
  *       200:
  *         description: Conversation routed successfully
  */
-router.post(
-  "/:conversationId/route",
-  ConversationController.routeConversation,
-);
+router.post("/:conversationId/route", ConversationController.routeConversation);
 
 /**
  * @openapi
@@ -308,10 +306,6 @@ router.post(
  *       200:
  *         description: History retrieved successfully
  */
-router.get(
-  "/:conversationId/agent-runs",
-  ConversationController.getAgentRuns,
-);
+router.get("/:conversationId/agent-runs", ConversationController.getAgentRuns);
 
 export default router;
-

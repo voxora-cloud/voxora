@@ -7,7 +7,10 @@ import type {
 } from "../types/types";
 
 class ConversationsApi {
-  async getConversations(status?: string, options?: { assignedToMe?: boolean; unassigned?: boolean }): Promise<ConversationsResponse> {
+  async getConversations(
+    status?: string,
+    options?: { assignedToMe?: boolean; unassigned?: boolean },
+  ): Promise<ConversationsResponse> {
     const params = new URLSearchParams();
     if (status && status !== "all") {
       params.set("status", status);
@@ -21,16 +24,31 @@ class ConversationsApi {
     );
   }
 
-  async getConversationById(conversationId: string): Promise<ConversationDetailResponse> {
-    return apiClient.get<ConversationDetailResponse>(`/conversations/${conversationId}`);
+  async getConversationById(
+    conversationId: string,
+  ): Promise<ConversationDetailResponse> {
+    return apiClient.get<ConversationDetailResponse>(
+      `/conversations/${conversationId}`,
+    );
   }
 
-  async updateStatus(conversationId: string, status: string): Promise<StatusResponse> {
-    return apiClient.patch<StatusResponse>(`/conversations/${conversationId}/status`, {
-      status,
-    });
+  async updateStatus(
+    conversationId: string,
+    status: string,
+  ): Promise<StatusResponse> {
+    return apiClient.patch<StatusResponse>(
+      `/conversations/${conversationId}/status`,
+      {
+        status,
+      },
+    );
   }
 
+  async markAsRead(conversationId: string): Promise<{ success: boolean }> {
+    return apiClient.post<{ success: boolean }>(
+      `/conversations/${conversationId}/read`,
+    );
+  }
 
   async routeConversation(
     conversationId: string,
@@ -48,7 +66,13 @@ class ConversationsApi {
 
   async updateContactAssociation(
     conversationId: string,
-    payload: { name?: string; email?: string; phone?: string; company?: string; tags?: string[] },
+    payload: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      tags?: string[];
+    },
   ): Promise<any> {
     return apiClient.post<any>(
       `/conversations/${conversationId}/contact`,
