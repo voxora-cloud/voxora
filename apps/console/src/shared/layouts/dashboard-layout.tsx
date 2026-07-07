@@ -119,6 +119,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState<"all" | "unread">("all");
   const [isContentFullscreen, setIsContentFullscreen] = useState(false);
+  const [hasInboxBadge, setHasInboxBadge] = useState(false);
+
+  // Clear badge when on the inbox page
+  useEffect(() => {
+    if (location.pathname.startsWith("/dashboard/conversations/inbox")) {
+      setHasInboxBadge(false);
+    }
+  }, [location.pathname]);
   const searchContainerRef = useRef<HTMLFormElement | null>(null);
   // Keep one widget loader alive across route-level DashboardLayout remounts.
   // The router mounts a fresh layout for each dashboard page, so removing and
@@ -313,6 +321,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ].slice(0, 50)); // Keep last 50
     });
 
+    socket.on("new_widget_conversation", () => {
+      playNotificationSound();
+      if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
+        setHasInboxBadge(true);
+      }
+    });
+
+    socket.on("conversation_pending", () => {
+      playNotificationSound();
+      if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
+        setHasInboxBadge(true);
+      }
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -446,7 +468,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
                 >
                   <item.icon className="h-4 w-4 mr-3" />
-                  <span>{item.label}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.label === "Inbox" && hasInboxBadge && (
+                    <span className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse mr-1" />
+                  )}
                 </Button>
               </Link>
             ))}

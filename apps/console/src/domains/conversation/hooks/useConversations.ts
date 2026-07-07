@@ -5,5 +5,7 @@ export const useConversations = (status: string, options?: { unassigned?: boolea
     queryKey: ["conversations", status, options],
     queryFn: () => conversationsApi.getConversations(status, options),
     select: (response) => response.data.conversations || [],
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };

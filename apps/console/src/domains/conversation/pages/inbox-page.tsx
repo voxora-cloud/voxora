@@ -51,13 +51,17 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
     });
 
     const handleUpdate = () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      // Invalidates all queries whose key starts with "conversations"
+      // (covers ["conversations", status, opts] and ["conversations", "mine"])
+      queryClient.invalidateQueries({ queryKey: ["conversations"], exact: false });
     };
 
     socket.on("new_widget_conversation", handleUpdate);
     socket.on("conversation_pending", handleUpdate);
     socket.on("conversation_assigned", handleUpdate);
+    socket.on("conversation_escalated", handleUpdate);
     socket.on("status_updated", handleUpdate);
+    socket.on("conversation_removed", handleUpdate);
 
     return () => {
       socket.disconnect();
