@@ -533,8 +533,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       {/* Left Chat / Runs Column */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden border-r border-border">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-          <div className="flex items-center space-x-3">
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-card p-4">
+          <div className="flex min-w-0 items-center space-x-3">
             <Button
               variant="ghost"
               size="icon"
@@ -556,8 +556,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               <ArrowLeft className="h-4 w-4" />
             </Button>
 
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center relative">
+            <div className="flex min-w-0 items-center space-x-3">
+              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
                 <span className="text-blue-700 font-semibold">
                   {customerName
                     .split(" ")
@@ -572,21 +572,21 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                   />
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-semibold text-foreground">{customerName}</h2>
+                  <h2 className="truncate font-semibold text-foreground">{customerName}</h2>
                   {isAnonymous && (
                     <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded-full">
                       Anonymous
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">{customerEmail}</p>
+                <p className="truncate text-sm text-muted-foreground">{customerEmail}</p>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border bg-background p-0.5 shadow-xs">
             <RouteConversationDialog
               conversationId={conversationId}
               onRouted={() => {
@@ -610,13 +610,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             />
 
             <Button
-              variant={isContactSidebarOpen ? "secondary" : "outline"}
-              className="h-9 w-28 flex items-center justify-center border border-input cursor-pointer text-xs font-semibold"
+              variant="ghost"
+              size="icon-sm"
+              className={`h-8 w-8 cursor-pointer rounded-md ${
+                isContactSidebarOpen ? "bg-muted text-foreground" : "text-muted-foreground"
+              }`}
               onClick={() => setIsContactSidebarOpen(!isContactSidebarOpen)}
+              aria-label={isContactSidebarOpen ? "Hide contact details" : "Show contact details"}
+              aria-pressed={isContactSidebarOpen}
               title={isContactSidebarOpen ? "Hide Contact Details" : "Show Contact Details"}
             >
-              <Info className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
-              Info
+              <Info className="h-4 w-4" />
             </Button>
           </div>
         </div>

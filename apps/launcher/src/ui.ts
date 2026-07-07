@@ -27,6 +27,17 @@ export class WidgetUI {
   private pageVisible = true;
   private resizeHandler: (() => void) | null = null;
 
+  private ensureHostFonts(): void {
+    if (document.getElementById('InteraOne-fonts')) return;
+
+    const fontStylesheet = document.createElement('link');
+    fontStylesheet.id = 'InteraOne-fonts';
+    fontStylesheet.rel = 'stylesheet';
+    fontStylesheet.href =
+      'https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap';
+    document.head.appendChild(fontStylesheet);
+  }
+
   private isMobileSheet(): boolean {
     return window.innerWidth <= 768;
   }
@@ -151,6 +162,10 @@ export class WidgetUI {
    * Create and mount chat button
    */
   createButton(): HTMLElement {
+    this.ensureHostFonts();
+    document.getElementById('InteraOne-chat-button')?.remove();
+    document.getElementById('InteraOne-outside-chips')?.remove();
+
     this.button = document.createElement('div');
     this.button.id = 'InteraOne-chat-button';
     this.button.setAttribute('role', 'button');
@@ -159,8 +174,6 @@ export class WidgetUI {
 
     const bgColor = '#845C6C'; // fallback based on theme
     const buttonTextColor = this.config.appearance?.textColor || 'white';
-    const shadowColor = bgColor.startsWith('#') ? `${bgColor}66` : 'rgba(132,92,108,0.4)';
-
     this.renderButtonIdleContent();
 
     Object.assign(this.button.style, {
@@ -172,7 +185,7 @@ export class WidgetUI {
       height: '60px',
       borderRadius: '50%',
       background: bgColor,
-      boxShadow: '0 8px 24px rgba(15, 23, 42, 0.16)', // Neutral premium shadow
+      boxShadow: 'none',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
@@ -195,14 +208,14 @@ export class WidgetUI {
     this.button.addEventListener('mouseenter', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1.1)';
-        this.button.style.boxShadow = '0 12px 32px rgba(15, 23, 42, 0.22)';
+        this.button.style.boxShadow = 'none';
       }
     });
 
     this.button.addEventListener('mouseleave', () => {
       if (!this.state.isOpen && this.button) {
         this.button.style.transform = 'scale(1)';
-        this.button.style.boxShadow = '0 8px 24px rgba(15, 23, 42, 0.16)';
+        this.button.style.boxShadow = 'none';
       }
     });
 
@@ -272,12 +285,12 @@ export class WidgetUI {
         fontSize: '13px',
         fontWeight: '600',
         cursor: 'pointer',
-        boxShadow: '0 10px 24px rgba(2, 6, 23, 0.2), 0 0 0 1px rgba(15, 23, 42, 0.06)',
+        boxShadow: 'none',
         whiteSpace: 'normal',
         maxWidth: '300px',
         overflow: 'visible',
         transition: 'all 0.22s cubic-bezier(0.22, 1, 0.36, 1)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif',
+        fontFamily: '"Hanken Grotesk", sans-serif',
         display: 'inline-flex',
         alignItems: 'center',
         gap: '8px',
@@ -288,7 +301,7 @@ export class WidgetUI {
         chip.style.background = `linear-gradient(180deg, ${accentColor}, ${accentColor})`;
         chip.style.color = '#ffffff';
         chip.style.transform = 'translateY(-2px) scale(1.01)';
-        chip.style.boxShadow = '0 14px 28px rgba(15, 23, 42, 0.24)';
+        chip.style.boxShadow = 'none';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
           iconBubble.style.background = 'rgba(255,255,255,0.18)';
@@ -299,7 +312,7 @@ export class WidgetUI {
         chip.style.background = 'linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9))';
         chip.style.color = '#0f172a';
         chip.style.transform = 'translateY(0) scale(1)';
-        chip.style.boxShadow = '0 10px 24px rgba(15, 23, 42, 0.12)';
+        chip.style.boxShadow = 'none';
         const iconBubble = chip.firstElementChild as HTMLElement | null;
         if (iconBubble) {
           iconBubble.style.background = 'rgba(132,92,108,0.14)';
@@ -336,6 +349,9 @@ export class WidgetUI {
    * Create iframe widget
    */
   createIframe(src: string): HTMLIFrameElement {
+    document.getElementById('InteraOne-widget-dock')?.remove();
+    document.getElementById('InteraOne-widget-iframe')?.remove();
+
     this.iframe = document.createElement('iframe');
     this.iframe.id = 'InteraOne-widget-iframe';
     this.iframe.src = src;
@@ -360,7 +376,7 @@ export class WidgetUI {
       pointerEvents: 'none',
       borderLeft: '1px solid rgba(15, 23, 42, 0.14)',
       background: '#131314',
-      boxShadow: '-10px 0 40px rgba(15, 23, 42, 0.08)',
+      boxShadow: 'none',
     });
 
     Object.assign(this.iframe.style, {
@@ -424,6 +440,27 @@ export class WidgetUI {
   open(): void {
     if (!this.pageVisible) return;
     if (!this.iframe) return;
+
+    if (this.state.isOpen) {
+      if (this.button) {
+        this.button.style.display = 'none';
+        this.button.style.visibility = 'hidden';
+        this.button.style.pointerEvents = 'none';
+      }
+      if (this.outsideChipsContainer) {
+        this.outsideChipsContainer.style.display = 'none';
+        this.outsideChipsContainer.style.visibility = 'hidden';
+        this.outsideChipsContainer.style.pointerEvents = 'none';
+      }
+      if (this.dockContainer) {
+        this.dockContainer.style.display = 'block';
+        this.dockContainer.style.transform = 'translateX(0)';
+        this.dockContainer.style.opacity = '1';
+        this.dockContainer.style.pointerEvents = 'auto';
+      }
+      this.applyHostDockSpacing(this.getPanelWidth());
+      return;
+    }
 
     this.state.isOpen = true;
     // Lock the panel width at open-time so scrollbar-induced innerWidth shifts

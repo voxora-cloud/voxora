@@ -1,9 +1,13 @@
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap");
+
 :root {
   --vx-bg: #18181b;
   --vx-accent: #845C6C;
   --vx-text: #f4f4f5;
   --vx-border: rgba(255, 255, 255, 0.08);
   --vx-input-bg: rgba(255, 255, 255, 0.04);
+  --font-sans: "Hanken Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .light-theme {
@@ -228,7 +232,7 @@
 html,
 body {
   height: 100%;
-  font-family: "Space Grotesk", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-sans);
   overflow: hidden;
 }
 
@@ -242,7 +246,7 @@ body {
   overflow: hidden;
   border: 1px solid var(--vx-border);
   border-radius: 0;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
   position: relative;
 }
 
@@ -829,6 +833,7 @@ body {
 
 .history-item-date {
   font-size: 11px;
+  font-family: var(--font-mono);
   color: color-mix(in srgb, var(--vx-text, #f4f4f5) 38%, transparent);
   display: flex;
   align-items: center;
@@ -1147,9 +1152,7 @@ body {
   cursor: pointer;
   text-align: left;
   border-radius: 12px;
-  box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 color-mix(in srgb, var(--vx-text, #fafafa) 7%, transparent);
+  box-shadow: none;
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
   animation: suggestionRise 0.28s ease both;
 }
@@ -1170,9 +1173,7 @@ body {
     linear-gradient(180deg, color-mix(in srgb, var(--vx-text, #fafafa) 12%, transparent), color-mix(in srgb, var(--vx-text, #fafafa) 6%, transparent));
   border-color: color-mix(in srgb, var(--vx-text, #fafafa) 22%, transparent);
   transform: translateY(-1px);
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.14),
-    inset 0 1px 0 color-mix(in srgb, var(--vx-text, #fafafa) 9%, transparent);
+  box-shadow: none;
 }
 
 .suggestion-btn:hover::after {
@@ -1653,15 +1654,13 @@ body {
   border-radius: 16px;
   background: var(--vx-input-bg);
   border: 1.5px solid var(--vx-border);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16);
+  box-shadow: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
 }
 
 .chat-input-box:is(:hover, :focus-within) {
   border-color: var(--vx-accent);
-  box-shadow:
-    0 16px 42px rgba(0, 0, 0, 0.24),
-    0 0 0 3px color-mix(in srgb, var(--vx-accent) 15%, transparent);
+  box-shadow: none;
   transform: translateY(-1px);
 }
 
@@ -1803,6 +1802,7 @@ body {
 
 .message-time {
   display: none;
+  font-family: var(--font-mono);
   /* Hide timestamps for ultra-minimal look */
 }
 
@@ -1824,7 +1824,7 @@ body {
   background: rgba(255, 255, 255, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: #a855f7;
 }
@@ -2913,6 +2913,7 @@ body {
 /* ── Char counter ───────────────────────────────────────────────────────── */
 .char-counter {
   font-size: 11px;
+  font-family: var(--font-mono);
   color: color-mix(in srgb, var(--vx-text, #fafafa) 30%, transparent);
   font-weight: 500;
   opacity: 0;

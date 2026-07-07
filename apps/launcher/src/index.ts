@@ -44,6 +44,7 @@ class InteraOneLoader {
   private appearance: WidgetServerConfig | null = null;
   private allowHostDomAccess = true;
   private isVisibleForCurrentPage = true;
+  private destroyed = false;
   private cleanupCallbacks: Array<() => void> = [];
 
   constructor() {
@@ -79,6 +80,7 @@ class InteraOneLoader {
 
   private async init(): Promise<void> {
     const cfg = await this.api.fetchConfig().catch(() => null);
+    if (this.destroyed) return;
     if (!cfg) {
       console.error('[InteraOneWidget] Configuration unavailable — widget not loaded.');
       return;
@@ -306,10 +308,24 @@ class InteraOneLoader {
     }
     return `v_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
   }
+
+  destroy(): void {
+    this.destroyed = true;
+    this.cleanupCallbacks.splice(0).forEach((cleanup) => cleanup());
+    this.ui?.destroy();
+    this.pendingMessages = [];
+    this.iframe = null;
+    this.iframeReady = false;
+    this.state.isOpen = false;
+  }
 }
 
 function boot(): void {
-  new InteraOneLoader();
+  const widgetWindow = window as Window & {
+    __InteraOneWidgetLoader?: InteraOneLoader;
+  };
+  widgetWindow.__InteraOneWidgetLoader?.destroy();
+  widgetWindow.__InteraOneWidgetLoader = new InteraOneLoader();
 }
 
 if (document.readyState === 'loading') {

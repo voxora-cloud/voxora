@@ -746,7 +746,7 @@ export function ContactsPage() {
                     <h4 className="font-semibold text-sm">{conflict.contactName}</h4>
                     <p className="text-xs text-muted-foreground">{conflict.contactEmail || "No email"}</p>
                   </div>
-                  <Badge variant="outline" className="capitalize text-xs font-mono">
+                  <Badge variant="outline" className="capitalize text-xs">
                     {conflict.field} Mismatch
                   </Badge>
                 </div>

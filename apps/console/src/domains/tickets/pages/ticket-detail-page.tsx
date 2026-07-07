@@ -279,7 +279,7 @@ export function TicketDetailPage() {
     new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="grid min-h-[calc(100vh-10.5rem)] lg:grid-cols-[190px_minmax(0,1fr)_270px] xl:grid-cols-[210px_minmax(0,1fr)_300px]">
         <aside className="border-b border-border bg-muted/25 lg:border-b-0 lg:border-r">
           <div className="grid grid-cols-2 divide-x divide-border/70 lg:block lg:divide-x-0">

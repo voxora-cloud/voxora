@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { Card } from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
 import { Loader } from "@/shared/ui/loader";
 import {
   Select,
@@ -31,8 +32,7 @@ import {
 } from "./analytics-charts";
 import { MetricCard } from "./metric-card";
 import { MostAskedQuestionsCard } from "./most-asked-questions-card";
-
-const emptyAnalyticsMessage = "Currently, we don’t have enough data to show this information.";
+import { AnalyticsEmptyState } from "./analytics-empty-state";
 
 const formatDuration = (ms?: number | null) => {
   if (!ms) return "—";
@@ -44,8 +44,18 @@ const formatDuration = (ms?: number | null) => {
 
 export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: string }) {
   const [days, setDays] = useState(7);
-  const { data: summary, isLoading: summaryLoading } = useAnalyticsSummary();
-  const { data: trends, isLoading: trendsLoading } = useAnalyticsTrends(days);
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    isError: summaryError,
+    refetch: refetchSummary,
+  } = useAnalyticsSummary();
+  const {
+    data: trends,
+    isLoading: trendsLoading,
+    isError: trendsError,
+    refetch: refetchTrends,
+  } = useAnalyticsTrends(days);
 
   const messageVolumeData = trends?.messageVolume ?? [];
   const conversationStatusData = trends?.conversationStatus ?? [];
@@ -66,6 +76,23 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader size="lg" />
+      </div>
+    );
+  }
+
+  if (summaryError || trendsError) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+        <p className="font-medium text-foreground">Unable to load analytics</p>
+        <p className="text-sm text-muted-foreground">
+          Please try again. Your dashboard data has not been changed.
+        </p>
+        <Button
+          variant="outline"
+          onClick={() => void Promise.all([refetchSummary(), refetchTrends()])}
+        >
+          Retry
+        </Button>
       </div>
     );
   }
@@ -153,9 +180,7 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
             {hasMessageVolume ? (
               <MessageVolumeBarChart data={messageVolumeData} />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
-                <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
-              </div>
+              <AnalyticsEmptyState />
             )}
           </div>
         </Card>
@@ -166,9 +191,7 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
             {hasConversationStatus ? (
               <ConversationOutcomesBarChart data={conversationStatusData} />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
-                <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
-              </div>
+              <AnalyticsEmptyState />
             )}
           </div>
         </Card>
@@ -183,9 +206,7 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
             {hasSourceData ? (
               <AIInteractionSourcesPieChart source={sourceData} />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border px-6 text-center">
-                <p className="text-sm text-muted-foreground">{emptyAnalyticsMessage}</p>
-              </div>
+              <AnalyticsEmptyState />
             )}
           </div>
         </Card>

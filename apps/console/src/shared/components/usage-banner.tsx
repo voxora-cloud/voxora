@@ -101,7 +101,7 @@ export function UsageBanner() {
           </>
         ) : (
           <>
-            You've used <strong>{stat.pct}%</strong> of your monthly {label}.{" "}
+            You've used <strong className="font-mono tabular-nums">{stat.pct}%</strong> of your monthly {label}.{" "}
             {resetsDate && `Resets ${resetsDate}.`}
           </>
         )}

@@ -14,13 +14,15 @@ const CACHE_TTL = {
 };
 
 const CACHE_KEYS = {
-  ownerSummary: (orgId: string, days: number) => `analytics:owner:summary:${orgId}:${days}d`,
-  ownerTrends: (orgId: string, days: number) => `analytics:owner:trends:${orgId}:${days}d`,
+  summary: (orgId: string, days: number, agentId?: string) =>
+    `analytics:${agentId ? `agent-${agentId}` : "organization"}:summary:${orgId}:${days}d`,
+  trends: (orgId: string, days: number, agentId?: string) =>
+    `analytics:${agentId ? `agent-${agentId}` : "organization"}:trends:${orgId}:${days}d`,
 };
 
 export class AnalyticsService {
-  static async getOwnerSummary(organizationId: string, days = 30) {
-    const cacheKey = CACHE_KEYS.ownerSummary(organizationId, days);
+  static async getOwnerSummary(organizationId: string, days = 30, agentId?: string) {
+    const cacheKey = CACHE_KEYS.summary(organizationId, days, agentId);
 
     // Try Redis cache first
     try {
@@ -34,7 +36,7 @@ export class AnalyticsService {
     }
 
     // Cache miss - compute result
-    const result = await this._computeOwnerSummary(organizationId, days);
+    const result = await this._computeOwnerSummary(organizationId, days, agentId);
 
     // Store in Redis
     try {
@@ -46,19 +48,41 @@ export class AnalyticsService {
     return result;
   }
 
-  private static async _computeOwnerSummary(organizationId: string, days: number) {
+  private static async _computeOwnerSummary(
+    organizationId: string,
+    days: number,
+    agentId?: string,
+  ) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
+    const agentObjectId = agentId ? new mongoose.Types.ObjectId(agentId) : undefined;
+    const conversationMatch = {
+      organizationId: orgObjectId,
+      createdAt: { $gte: startDate },
+      ...(agentObjectId ? { assignedTo: agentObjectId } : {}),
+    };
+    const scopedConversationIds = agentObjectId
+      ? await Conversation.distinct("_id", {
+          organizationId: orgObjectId,
+          assignedTo: agentObjectId,
+        })
+      : undefined;
+    const scopedConversationIdStrings = scopedConversationIds?.map(String);
+    const analyticsScope = agentId
+      ? {
+          $or: [
+            { conversationId: { $in: scopedConversationIdStrings } },
+            { agentId },
+          ],
+        }
+      : {};
 
     // Single $facet pipeline for all Conversation aggregations
     const [conversationFacet, analyticsEventFacet, totalMessages] = await Promise.all([
       // ─────── SINGLE FACET FOR CONVERSATION QUERIES ───────
       Conversation.aggregate([
         {
-          $match: {
-            organizationId: orgObjectId,
-            createdAt: { $gte: startDate },
-          },
+          $match: conversationMatch,
         },
         {
           $facet: {
@@ -181,6 +205,7 @@ export class AnalyticsService {
             organizationId: { $in: [organizationId, orgObjectId] },
             category: "analytics",
             eventTime: { $gte: startDate },
+            ...analyticsScope,
           },
         },
         {
@@ -239,6 +264,9 @@ export class AnalyticsService {
       Message.countDocuments({
         organizationId: { $in: [organizationId, orgObjectId] },
         createdAt: { $gte: startDate },
+        ...(scopedConversationIds
+          ? { conversationId: { $in: scopedConversationIds } }
+          : {}),
       }),
     ]);
 
@@ -300,8 +328,8 @@ export class AnalyticsService {
     };
   }
 
-  static async getOwnerTrends(organizationId: string, days = 7) {
-    const cacheKey = CACHE_KEYS.ownerTrends(organizationId, days);
+  static async getOwnerTrends(organizationId: string, days = 7, agentId?: string) {
+    const cacheKey = CACHE_KEYS.trends(organizationId, days, agentId);
 
     // Try Redis cache first
     try {
@@ -315,7 +343,7 @@ export class AnalyticsService {
     }
 
     // Cache miss - compute result
-    const result = await this._computeOwnerTrends(organizationId, days);
+    const result = await this._computeOwnerTrends(organizationId, days, agentId);
 
     // Store in Redis
     try {
@@ -327,10 +355,30 @@ export class AnalyticsService {
     return result;
   }
 
-  private static async _computeOwnerTrends(organizationId: string, days: number) {
+  private static async _computeOwnerTrends(
+    organizationId: string,
+    days: number,
+    agentId?: string,
+  ) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const endDate = dayjs().endOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
+    const agentObjectId = agentId ? new mongoose.Types.ObjectId(agentId) : undefined;
+    const scopedConversationIds = agentObjectId
+      ? await Conversation.distinct("_id", {
+          organizationId: orgObjectId,
+          assignedTo: agentObjectId,
+        })
+      : undefined;
+    const scopedConversationIdStrings = scopedConversationIds?.map(String);
+    const analyticsScope = agentId
+      ? {
+          $or: [
+            { conversationId: { $in: scopedConversationIdStrings } },
+            { agentId },
+          ],
+        }
+      : {};
 
     const [messageRows, conversationRows, aiCostRows] = await Promise.all([
       Message.aggregate([
@@ -339,6 +387,9 @@ export class AnalyticsService {
             organizationId: { $in: [organizationId, orgObjectId] },
             createdAt: { $gte: startDate, $lte: endDate },
             "metadata.source": { $in: ["ai", "web", "agent", "widget"] },
+            ...(scopedConversationIds
+              ? { conversationId: { $in: scopedConversationIds } }
+              : {}),
           },
         },
         {
@@ -367,6 +418,7 @@ export class AnalyticsService {
       Conversation.find({
         organizationId: orgObjectId,
         createdAt: { $lte: endDate },
+        ...(agentObjectId ? { assignedTo: agentObjectId } : {}),
         $or: [
           { createdAt: { $gte: startDate } },
           { closedAt: { $gte: startDate } },
@@ -388,6 +440,7 @@ export class AnalyticsService {
             category: "analytics",
             eventTime: { $gte: startDate },
             eventType: { $in: ["ai_response", "ai_token_usage"] },
+            ...analyticsScope,
           },
         },
         {
@@ -499,7 +552,7 @@ export class AnalyticsService {
   static async invalidateCache(organizationId: string) {
     try {
       // Delete all analytics caches for this organization
-      const pattern = `analytics:owner:*:${organizationId}:*`;
+      const pattern = `analytics:*:*:${organizationId}:*`;
       for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
         await redisClient.del(key);
       }

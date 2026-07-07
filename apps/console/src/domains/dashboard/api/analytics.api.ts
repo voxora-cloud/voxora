@@ -1,5 +1,9 @@
 import { apiClient } from "@/shared/lib/api-client";
-import type { DashboardSummary, DashboardTrends } from "../types/types";
+import type {
+  AgentDashboardStats,
+  DashboardSummary,
+  DashboardTrends,
+} from "../types/types";
 
 export type { DashboardSummary, DashboardTrends };
 
@@ -22,12 +26,20 @@ export const hasInteractionSourceData = (source?: DashboardSummary["source"]) =>
 
 class AnalyticsApi {
   async getSummary(): Promise<DashboardSummary> {
-    const response = await apiClient.get<{ success: boolean; data: DashboardSummary }>("/analytics/owner/summary");
+    const response = await apiClient.get<{ success: boolean; data: DashboardSummary }>("/analytics/summary");
     return response.data;
   }
 
   async getTrends(days: number): Promise<DashboardTrends> {
-    const response = await apiClient.get<{ success: boolean; data: DashboardTrends }>(`/analytics/owner/trends?days=${days}`);
+    const response = await apiClient.get<{ success: boolean; data: DashboardTrends }>(`/analytics/trends?days=${days}`);
+    return response.data;
+  }
+
+  async getAgentStats(): Promise<AgentDashboardStats> {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: AgentDashboardStats;
+    }>("/agent/stats");
     return response.data;
   }
 }

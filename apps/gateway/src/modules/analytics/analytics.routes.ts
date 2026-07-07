@@ -8,6 +8,8 @@ const analyticsRouter = Router();
 analyticsRouter.use(authenticate, resolveOrganization);
 
 // All authenticated org roles can view analytics
+analyticsRouter.get("/summary", requireRole("agent"), AnalyticsController.getSummary);
+analyticsRouter.get("/trends", requireRole("agent"), AnalyticsController.getTrends);
 
 /**
  * @openapi
@@ -24,7 +26,7 @@ analyticsRouter.use(authenticate, resolveOrganization);
  *       401:
  *         description: Unauthorized
  */
-analyticsRouter.get("/owner/summary", requireRole("agent"), AnalyticsController.getOwnerSummary);
+analyticsRouter.get("/owner/summary", requireRole("admin"), AnalyticsController.getOwnerSummary);
 
 /**
  * @openapi
@@ -41,6 +43,6 @@ analyticsRouter.get("/owner/summary", requireRole("agent"), AnalyticsController.
  *       401:
  *         description: Unauthorized
  */
-analyticsRouter.get("/owner/trends", requireRole("agent"), AnalyticsController.getOwnerTrends);
+analyticsRouter.get("/owner/trends", requireRole("admin"), AnalyticsController.getOwnerTrends);
 
 export { analyticsRouter };

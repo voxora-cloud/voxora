@@ -44,3 +44,32 @@ export interface DashboardTrends {
     estimatedCostUsd: number;
   }>;
 }
+
+export interface AgentDashboardStats {
+  overview: {
+    totalConversations: number;
+    activeConversations: number;
+    waitingForAgent: number;
+    resolvedToday: number;
+    handledToday: number;
+    messagesSentToday: number;
+    avgResponseTimeMs: number | null;
+    avgResolutionTimeMs: number | null;
+    changes: {
+      resolvedToday: number;
+      handledToday: number;
+      messagesSentToday: number;
+    };
+  };
+  activity: Array<{ day: string; conversations: number; messages: number }>;
+  responseTime: Array<{ hour: string; responseTime: number }>;
+  conversationBreakdown: Array<{ status: string; count: number }>;
+  weekSummary: {
+    conversationsHandled: number;
+    conversationsChange: number;
+    messagesSent: number;
+    messagesChange: number;
+    resolutionRate: number;
+    resolutionRateChange: number;
+  };
+}
