@@ -6,15 +6,77 @@ import {
 import { vectorStore } from "../../../infrastructure/vector";
 import { ProviderFactory } from "../../../infrastructure/providers";
 
-export class FaqRetrievalTool implements Tool {
-  readonly name = "faq_retrieval";
+const STOP_WORDS = new Set([
+  "a",
+  "about",
+  "an",
+  "and",
+  "are",
+  "as",
+  "ask",
+  "at",
+  "be",
+  "for",
+  "from",
+  "i",
+  "in",
+  "is",
+  "it",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "tell",
+  "that",
+  "the",
+  "this",
+  "to",
+  "what",
+  "who",
+  "why",
+  "with",
+  "you",
+]);
+
+function meaningfulTokens(value: string): string[] {
+  return value
+    .toLowerCase()
+    .split(/[^a-z0-9]+/i)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !STOP_WORDS.has(token));
+}
+
+function hasLexicalMatch(
+  query: string,
+  payload: Record<string, unknown>,
+): boolean {
+  const queryTokens = meaningfulTokens(query);
+  if (queryTokens.length === 0) return false;
+
+  const searchable = [
+    payload.content,
+    payload.text,
+    payload.fileName,
+    payload.title,
+    payload.sourceUrl,
+  ]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ")
+    .toLowerCase();
+
+  return queryTokens.some((token) => searchable.includes(token));
+}
+
+export class KnowledgeRetrievalTool implements Tool {
+  readonly name = "knowledge_retrieval";
   readonly description =
-    "Search curated FAQ entries only. Use when the user asks a common/support FAQ-style question and you need the matching FAQ answer. This is not general document/RAG search.";
+    "Search uploaded knowledge base documents, text entries, files, and crawled pages using semantic retrieval. Use this before answering organization/product questions that may be covered by uploaded knowledge. This is the general RAG tool.";
 
   readonly parameters: Record<string, ToolParameterSchema> = {
     query: {
       type: "string",
-      description: "The user's question to search for in the knowledge base.",
+      description: "The user's question to search for in uploaded knowledge.",
       required: true,
     },
     organizationId: {
@@ -54,39 +116,38 @@ export class FaqRetrievalTool implements Tool {
         }
       }
 
-      // Embed the query
       const embeddingProvider = ProviderFactory.getEmbeddingProvider();
       const queryVector = await embeddingProvider.embed(query, {
         organizationId,
         conversationId: context?.conversationId,
       });
 
-      // Search only FAQ vectors in Qdrant
       const results = await vectorStore.search(queryVector, {
         organizationId,
         topK,
-        type: "faq",
       });
 
       if (!results.length) {
         return {
           status: "no_results",
-          message: "No relevant content found in knowledge base",
+          message: "No relevant uploaded knowledge found",
           results: [],
         };
       }
 
-      // Filter by minimum relevance score
-      // Small 384d models (like MiniLM) produce lower similarity scores than 1024d models.
       const isSmallModel = embeddingProvider.dimensions <= 384;
-      const MIN_SCORE = isSmallModel ? 0.5 : 0.65;
-      const relevant = results.filter((r) => r.score >= MIN_SCORE);
+      const minScore = isSmallModel ? 0.5 : 0.65;
+      const relevant = results.filter((r) => {
+        if ((r.payload as any)?.type === "faq") return false;
+        if (r.score >= minScore) return true;
+        return hasLexicalMatch(query, r.payload as Record<string, unknown>);
+      });
 
       if (!relevant.length) {
         return {
           status: "no_results",
           message:
-            "No sufficiently relevant content found (below similarity threshold)",
+            "No sufficiently relevant uploaded knowledge found for this question",
           results: [],
         };
       }
@@ -99,12 +160,15 @@ export class FaqRetrievalTool implements Tool {
           source:
             (r.payload as any)?.fileName ||
             (r.payload as any)?.sourceUrl ||
-            "Knowledge base",
+            "Uploaded knowledge",
           score: Math.round(r.score * 100) / 100,
         })),
       };
     } catch (e: any) {
-      return { status: "error", message: e?.message || "FAQ retrieval failed" };
+      return {
+        status: "error",
+        message: e?.message || "Knowledge retrieval failed",
+      };
     }
   }
 }

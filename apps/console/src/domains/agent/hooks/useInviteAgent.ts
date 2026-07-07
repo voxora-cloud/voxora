@@ -67,13 +67,14 @@ export const useInviteAgent = () => {
       }
       toast.error("Failed to invite agent");
     },
-    onSuccess: (response) => {
+    onSuccess: (_response, variables) => {
       toast.success("Agent invited successfully", {
-        description: `An invitation has been sent to ${response.data.user.email}`,
+        description: `An invitation has been sent to ${variables.email}`,
       });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["agents"] });
+      queryClient.invalidateQueries({ queryKey: ["members"] });
     },
   });
 };

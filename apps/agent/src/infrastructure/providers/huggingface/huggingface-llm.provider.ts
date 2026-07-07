@@ -40,17 +40,19 @@ export class HuggingFaceLLMProvider implements LLMProvider {
     latencyTracker.start();
     const tokenTracker = new TokenTracker();
     const model = options.model ?? this.defaultModel;
-    const maxTimeoutMs = parseInt(
-      process.env.HF_MAX_TIMEOUT_MS || "60000",
-      10,
-    );
+    const maxTimeoutMs = parseInt(process.env.HF_MAX_TIMEOUT_MS || "60000", 10);
 
     try {
       const result = await Promise.race([
         this.executeGenerate(messages, options, tokenTracker),
         new Promise<LLMGenerateResult>((_, reject) =>
           setTimeout(
-            () => reject(new Error(`Hugging Face generation timed out after ${maxTimeoutMs}ms`)),
+            () =>
+              reject(
+                new Error(
+                  `Hugging Face generation timed out after ${maxTimeoutMs}ms`,
+                ),
+              ),
             maxTimeoutMs,
           ),
         ),
@@ -114,7 +116,8 @@ export class HuggingFaceLLMProvider implements LLMProvider {
     } = options;
 
     const toolLabels: Record<string, string> = {
-      faq_retrieval: "Searching knowledge base",
+      faq_retrieval: "Searching FAQs",
+      knowledge_retrieval: "Searching uploaded knowledge",
       web_crawl: "Searching web",
       conversation_memory: "Checking conversation history",
       seek_contact: "Looking up contact",
@@ -128,33 +131,34 @@ export class HuggingFaceLLMProvider implements LLMProvider {
       mark_query_resolved: "Marking query resolved",
     };
 
-    const hfTools = tools.length > 0
-      ? tools.map((t) => {
-          const properties: Record<string, unknown> = {};
-          const required: string[] = [];
+    const hfTools =
+      tools.length > 0
+        ? tools.map((t) => {
+            const properties: Record<string, unknown> = {};
+            const required: string[] = [];
 
-          for (const [k, v] of Object.entries(t.parameters)) {
-            if (k === "organizationId" || k === "conversationId") continue;
-            const paramDef = v as unknown as Record<string, unknown>;
-            const { required: req, ...rest } = paramDef;
-            properties[k] = rest;
-            if (req) required.push(k);
-          }
+            for (const [k, v] of Object.entries(t.parameters)) {
+              if (k === "organizationId" || k === "conversationId") continue;
+              const paramDef = v as unknown as Record<string, unknown>;
+              const { required: req, ...rest } = paramDef;
+              properties[k] = rest;
+              if (req) required.push(k);
+            }
 
-          return {
-            type: "function",
-            function: {
-              name: t.name,
-              description: t.description,
-              parameters: {
-                type: "object",
-                properties,
-                ...(required.length > 0 ? { required } : {}),
+            return {
+              type: "function",
+              function: {
+                name: t.name,
+                description: t.description,
+                parameters: {
+                  type: "object",
+                  properties,
+                  ...(required.length > 0 ? { required } : {}),
+                },
               },
-            },
-          };
-        })
-      : undefined;
+            };
+          })
+        : undefined;
 
     const hfMessages: any[] = messages.map((m) => ({
       role: m.role,
@@ -180,7 +184,10 @@ export class HuggingFaceLLMProvider implements LLMProvider {
         payload.tools = hfTools;
       }
 
-      let toolCalls: Array<{ id: string; function: { name: string; arguments: string } }> = [];
+      let toolCalls: Array<{
+        id: string;
+        function: { name: string; arguments: string };
+      }> = [];
 
       if (onStream) {
         const stream = this.client.chatCompletionStream(payload);
@@ -235,8 +242,13 @@ export class HuggingFaceLLMProvider implements LLMProvider {
         }
 
         // If no usage was reported in the stream, perform fallback token estimation
-        if (tokenTracker.toUsage().totalTokens === undefined || tokenTracker.toUsage().totalTokens === 0) {
-          const estimatedPrompt = Math.ceil(JSON.stringify(hfMessages).length / 4);
+        if (
+          tokenTracker.toUsage().totalTokens === undefined ||
+          tokenTracker.toUsage().totalTokens === 0
+        ) {
+          const estimatedPrompt = Math.ceil(
+            JSON.stringify(hfMessages).length / 4,
+          );
           const estimatedCompletion = Math.ceil(responseText.length / 4);
           tokenTracker.accumulate({
             promptTokens: estimatedPrompt,
@@ -268,7 +280,9 @@ export class HuggingFaceLLMProvider implements LLMProvider {
             totalTokens: usage.total_tokens,
           });
         } else {
-          const estimatedPrompt = Math.ceil(JSON.stringify(hfMessages).length / 4);
+          const estimatedPrompt = Math.ceil(
+            JSON.stringify(hfMessages).length / 4,
+          );
           const estimatedCompletion = Math.ceil(responseText.length / 4);
           tokenTracker.accumulate({
             promptTokens: estimatedPrompt,
@@ -286,7 +300,8 @@ export class HuggingFaceLLMProvider implements LLMProvider {
         // Patterns:
         // 1. <tool_call>{"name": "tool_name", "arguments": {...}}</tool_call>
         // 2. <toolname>{"arg": "val"}</toolname>
-        const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*(?:<\/tool_call>|$)/gi;
+        const toolCallRegex =
+          /<tool_call>\s*([\s\S]*?)\s*(?:<\/tool_call>|$)/gi;
         let match;
         while ((match = toolCallRegex.exec(responseText)) !== null) {
           try {
@@ -296,7 +311,11 @@ export class HuggingFaceLLMProvider implements LLMProvider {
             if (name) {
               toolCalls.push({
                 id: `call_${Date.now()}_${toolCalls.length}`,
-                function: { name, arguments: typeof args === "string" ? args : JSON.stringify(args) },
+                function: {
+                  name,
+                  arguments:
+                    typeof args === "string" ? args : JSON.stringify(args),
+                },
               });
             }
           } catch {}
@@ -308,9 +327,14 @@ export class HuggingFaceLLMProvider implements LLMProvider {
             // Check both standard name and name without underscores (e.g. faq_retrieval and faqretrieval)
             const cleanNames = [t.name, t.name.replace(/_/g, "")];
             for (const name of cleanNames) {
-              const customTagRegex = new RegExp(`<${name}>\\s*([\\s\\S]*?)\\s*(?:</${name}>|$)`, "gi");
+              const customTagRegex = new RegExp(
+                `<${name}>\\s*([\\s\\S]*?)\\s*(?:</${name}>|$)`,
+                "gi",
+              );
               let customMatch;
-              while ((customMatch = customTagRegex.exec(responseText)) !== null) {
+              while (
+                (customMatch = customTagRegex.exec(responseText)) !== null
+              ) {
                 try {
                   const argsText = customMatch[1].trim();
                   JSON.parse(argsText); // Ensure it's valid JSON
@@ -347,7 +371,10 @@ export class HuggingFaceLLMProvider implements LLMProvider {
         tool_calls: toolCalls.map((tc) => ({
           id: tc.id,
           type: "function",
-          function: { name: tc.function.name, arguments: tc.function.arguments },
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
         })),
       });
 
@@ -394,17 +421,27 @@ export class HuggingFaceLLMProvider implements LLMProvider {
             role: "tool",
             tool_call_id: call.id,
             name: call.function.name,
-            content: typeof result === "string" ? result : JSON.stringify(result),
+            content:
+              typeof result === "string" ? result : JSON.stringify(result),
           });
 
           if (onToolEvent) {
             let detail: string | undefined;
-            if (call.function.name === "faq_retrieval" && result && typeof result === "object") {
+            if (
+              (call.function.name === "faq_retrieval" ||
+                call.function.name === "knowledge_retrieval") &&
+              result &&
+              typeof result === "object"
+            ) {
               const r = result as any;
               if (r.results && Array.isArray(r.results)) {
                 detail = `Retrieved ${r.results.length} document${r.results.length !== 1 ? "s" : ""}`;
               }
-            } else if (call.function.name === "create_ticket" && result && typeof result === "object") {
+            } else if (
+              call.function.name === "create_ticket" &&
+              result &&
+              typeof result === "object"
+            ) {
               const r = result as any;
               if (r.ticketNumber) detail = `Ticket ${r.ticketNumber}`;
             }
@@ -499,7 +536,9 @@ export class HuggingFaceLLMProvider implements LLMProvider {
     const finalCleanText = cleanFinalResponse(responseText);
 
     return {
-      text: finalCleanText || "I’m sorry, but I could not produce a final response from the available information.",
+      text:
+        finalCleanText ||
+        "I’m sorry, but I could not produce a final response from the available information.",
       usage: tokenTracker.toUsage(),
       steps,
     };

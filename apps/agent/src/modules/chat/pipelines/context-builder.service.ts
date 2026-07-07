@@ -211,8 +211,8 @@ export async function buildContext(
   }
 
   // ── PROMPT ASSEMBLY ───────────────────────────────────────────────────────
-  // RAG is no longer injected here — the LLM calls faq_retrieval tool when it
-  // needs knowledge context. This saves 3-4s embedding latency on every message.
+  // RAG is no longer injected here — the LLM calls knowledge_retrieval when it
+  // needs uploaded knowledge context. This saves 3-4s embedding latency on every message.
   console.time(t("prompt:build"));
   const systemPrompt = buildSystemPrompt({
     companyName,

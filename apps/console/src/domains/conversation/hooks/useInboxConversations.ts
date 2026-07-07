@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { conversationsApi } from "../api/conversations.api";
 
-export const useMyConversations = () => {
+export const useMyConversations = (status?: string) => {
   return useQuery({
-    queryKey: ["conversations", "mine"],
-    queryFn: () => conversationsApi.getConversations(undefined, { assignedToMe: true }),
+    queryKey: ["conversations", "mine", status],
+    queryFn: () =>
+      conversationsApi.getConversations(status, { assignedToMe: true }),
     select: (res) => res.data?.conversations ?? [],
     refetchOnWindowFocus: true,
   });
 };
-
-
