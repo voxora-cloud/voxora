@@ -9,6 +9,7 @@ interface Config {
     clientUrl: string;
     mode: "cloud" | "self-host";
     apiUrl: string;
+    allowedDomains: string[];
   };
   database: {
     mongoUri: string;
@@ -136,6 +137,10 @@ const config: Config = {
         : "http://localhost:5173"),
     mode: (process.env.INTERAONE_MODE || "self-host") === "cloud" ? "cloud" : "self-host",
     apiUrl: process.env.PUBLIC_API_URL || "http://localhost:3002",
+    allowedDomains: (process.env.ALLOWED_DOMAINS || process.env.ALLOWED_DOMAIN || "")
+      .split(",")
+      .map(d => d.trim().toLowerCase())
+      .filter(Boolean),
   },
   database: {
     mongoUri: process.env.MONGODB_URI!,

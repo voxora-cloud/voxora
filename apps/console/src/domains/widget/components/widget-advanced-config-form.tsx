@@ -47,6 +47,7 @@ interface WidgetAdvancedConfigFormProps {
   onChange: (next: CreateWidgetData) => void;
   beforeContent?: ReactNode;
   generalError?: string;
+  onSaveDomain?: () => void;
 }
 
 type TabId = "general" | "appearance" | "ai" | "behavior" | "conversation" | "features" | "domain";
@@ -185,6 +186,7 @@ export function WidgetAdvancedConfigForm({
   onChange,
   beforeContent,
   generalError,
+  onSaveDomain,
 }: WidgetAdvancedConfigFormProps) {
   const [activeTab, setActiveTab] = useState<TabId>("appearance");
   const [pageRuleInput, setPageRuleInput] = useState("");
@@ -616,8 +618,17 @@ export function WidgetAdvancedConfigForm({
                     : {}),
                 })}
                 placeholder="example.com"
-                className="h-10 text-sm"
+                className="h-10 text-sm flex-1 cursor-text"
               />
+              {onSaveDomain && (
+                <Button
+                  type="button"
+                  onClick={onSaveDomain}
+                  className="h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold cursor-pointer border-0 shadow-sm transition-all"
+                >
+                  Submit
+                </Button>
+              )}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1">
               {domainVerificationRequired

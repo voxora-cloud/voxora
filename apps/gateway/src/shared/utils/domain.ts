@@ -1,4 +1,5 @@
 import { URL } from "url";
+import config from "@shared/infra/config";
 
 /**
  * Normalizes a user-inputted domain name or URL down to its clean hostname.
@@ -9,21 +10,21 @@ import { URL } from "url";
 export function normalizeDomain(input: string): string {
   if (!input) return "";
   let host = input.trim().toLowerCase();
-  
+
   // Ensure it has a protocol so URL parses it correctly
   if (!/^https?:\/\//i.test(host)) {
     host = "http://" + host;
   }
-  
+
   try {
     const parsed = new URL(host);
     let hostname = parsed.hostname;
-    
+
     // Strip leading "www."
     if (hostname.startsWith("www.")) {
       hostname = hostname.substring(4);
     }
-    
+
     return hostname;
   } catch {
     // Fallback: strip common patterns manually
@@ -51,6 +52,18 @@ export function isLocalDomain(input?: string): boolean {
     || /^127(?:\.\d{1,3}){3}$/.test(hostname);
 }
 
+export function isAllowedDomain(domain: string): boolean {
+  if (!domain) return false;
+  const normalized = normalizeDomain(domain);
+  const allowed = config.app.allowedDomains || [];
+  return allowed.some(d => normalizeDomain(d) === normalized);
+}
+
 export function requiresDomainVerification(environment: string, origin?: string): boolean {
-  return environment === "production" && !isLocalDomain(origin);
+  if (environment !== "production") return false;
+  if (!origin) return true;
+  const normalized = normalizeDomain(origin);
+  if (isLocalDomain(normalized)) return false;
+  if (isAllowedDomain(normalized)) return false;
+  return true;
 }

@@ -262,6 +262,7 @@ export function WidgetPage() {
             formData={formData}
             onChange={setFormData}
             generalError={validationErrors.displayName}
+            onSaveDomain={() => handleSubmit()}
             beforeContent={
               <WidgetAppearanceForm
                 formData={formData}
