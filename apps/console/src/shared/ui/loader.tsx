@@ -4,34 +4,68 @@ interface LoaderProps {
 }
 
 export function Loader({ size = 'md', className = '' }: LoaderProps) {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-12 h-12',
-    lg: 'w-16 h-16',
+  const config = {
+    sm: { containerWidth: '24px', containerHeight: '24px', barWidth: '2px', barHeight: '16px', gap: '3px' },
+    md: { containerWidth: '60px', containerHeight: '60px', barWidth: '4px', barHeight: '36px', gap: '5px' },
+    lg: { containerWidth: '96px', containerHeight: '96px', barWidth: '6px', barHeight: '56px', gap: '7px' },
   };
+
+  const current = config[size] || config.md;
 
   return (
     <div className={`flex items-center justify-center ${className}`}>
-      <svg
-        className={`${sizeClasses[size]} animate-spin text-primary`}
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        ></circle>
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        ></path>
-      </svg>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes scaleBar {
+          0%, 40%, 100% {
+            transform: scaleY(0.08);
+          }
+          20% {
+            transform: scaleY(1);
+          }
+        }
+        .interaone-loader {
+          --speed-of-animation: 0.9s;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: ${current.containerWidth};
+          height: ${current.containerHeight};
+          gap: ${current.gap};
+        }
+        .interaone-loader span {
+          width: ${current.barWidth};
+          height: ${current.barHeight};
+          background: var(--primary);
+          animation: scaleBar var(--speed-of-animation) ease-in-out infinite;
+          border-radius: 9999px;
+        }
+        .interaone-loader span:nth-child(1) {
+          background: var(--primary);
+        }
+        .interaone-loader span:nth-child(2) {
+          background: var(--secondary);
+          animation-delay: -0.8s;
+        }
+        .interaone-loader span:nth-child(3) {
+          background: var(--success);
+          animation-delay: -0.7s;
+        }
+        .interaone-loader span:nth-child(4) {
+          background: var(--warning);
+          animation-delay: -0.6s;
+        }
+        .interaone-loader span:nth-child(5) {
+          background: var(--destructive);
+          animation-delay: -0.5s;
+        }
+      `}} />
+      <div className="interaone-loader">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
     </div>
   );
 }

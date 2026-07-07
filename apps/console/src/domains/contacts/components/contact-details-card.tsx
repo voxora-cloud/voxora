@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Sparkles, BadgeCheck, AlertTriangle } from "lucide-react";
+import { Sparkles, BadgeCheck, AlertTriangle, MessageSquare, Mail, Send, Phone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
@@ -9,17 +9,25 @@ import { Badge } from "@/shared/ui/badge";
 import { contactsApi } from "../api/contacts.api";
 import type { Contact } from "../types/types";
 import { useNavigate } from "react-router";
+import { ContactDialog } from "./contact-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/ui/dialog";
 
 interface ContactDetailsCardProps {
   contact: Contact;
   onResolveConflictsClick?: () => void;
+  conversationId?: string;
 }
 
-export function ContactDetailsCard({ contact, onResolveConflictsClick }: ContactDetailsCardProps) {
+export function ContactDetailsCard({
+  contact,
+  onResolveConflictsClick,
+  conversationId,
+}: ContactDetailsCardProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [newTag, setNewTag] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const [isConversationsDialogOpen, setIsConversationsDialogOpen] = useState(false);
 
   const handleAddTag = async () => {
     if (!newTag.trim()) return;
@@ -65,12 +73,50 @@ export function ContactDetailsCard({ contact, onResolveConflictsClick }: Contact
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  const getChannelIcon = (channel: string) => {
+    switch (channel?.toLowerCase()) {
+      case "email":
+        return <Mail className="h-3 w-3 shrink-0" />;
+      case "telegram":
+        return <Send className="h-3 w-3 shrink-0 rotate-[-30deg]" />;
+      case "whatsapp":
+        return <Phone className="h-3 w-3 shrink-0" />;
+      default:
+        return <MessageSquare className="h-3 w-3 shrink-0" />;
+    }
+  };
+
+  const getChannelBadge = (channel: string) => {
+    const label = channel?.toLowerCase() === "widget" ? "web" : channel;
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 capitalize leading-none shrink-0">
+        {getChannelIcon(channel)}
+        <span>{label}</span>
+      </span>
+    );
+  };
+
   return (
     <>
       <div className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{contact.name}</h2>
-          <p className="text-sm text-muted-foreground">{contact.email || contact.phone}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{contact.name}</h2>
+            <p className="text-sm text-muted-foreground">{contact.email || contact.phone}</p>
+          </div>
+           <ContactDialog
+            mode="update"
+            contactId={contact.id}
+            conversationId={conversationId}
+            contact={{
+              name: contact.name,
+              email: contact.email || "",
+              phone: contact.phone !== "Not provided" ? contact.phone : "",
+              company: contact.company || "",
+              tags: contact.tags,
+            }}
+            triggerType="icon"
+          />
         </div>
         <div className="text-sm text-muted-foreground">
           {contact.company || "Independent"}
@@ -175,16 +221,19 @@ export function ContactDetailsCard({ contact, onResolveConflictsClick }: Contact
       <div className="space-y-3">
         <h3 className="text-sm font-semibold">Recent conversations</h3>
         <div className="space-y-2">
-          {contact.conversations.map((conversation) => (
+          {contact.conversations.slice(0, 3).map((conversation) => (
             <div
               key={conversation.id}
               onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conversation.id}`)}
               className="rounded-lg border border-border p-3 text-sm cursor-pointer hover:bg-muted/40 transition-colors"
             >
               <div className="flex items-center justify-between mb-1">
-                <Badge variant="secondary" className="capitalize">
-                  {conversation.status}
-                </Badge>
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="secondary" className="capitalize">
+                    {conversation.status}
+                  </Badge>
+                  {getChannelBadge(conversation.channel)}
+                </div>
                 <span className="text-xs text-muted-foreground">
                   {formatRelative(conversation.updatedAt)}
                 </span>
@@ -195,8 +244,65 @@ export function ContactDetailsCard({ contact, onResolveConflictsClick }: Contact
           {contact.conversations.length === 0 && (
             <p className="text-sm text-muted-foreground">No recent conversations.</p>
           )}
+          {contact.conversations.length > 3 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs text-primary hover:underline flex items-center justify-center gap-1 mt-1 cursor-pointer"
+              onClick={() => setIsConversationsDialogOpen(true)}
+            >
+              View all ({contact.conversations.length})
+            </Button>
+          )}
         </div>
       </div>
+
+      <Dialog open={isConversationsDialogOpen} onOpenChange={setIsConversationsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              All Conversations
+            </DialogTitle>
+            <DialogDescription>
+              Browse all conversation history for {contact.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {contact.conversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={() => {
+                  setIsConversationsDialogOpen(false);
+                  navigate(`/dashboard/conversations/inbox/chat/${conversation.id}`);
+                }}
+                className="rounded-lg border border-border p-3 text-sm cursor-pointer hover:bg-muted/40 transition-all select-none duration-150"
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize leading-none shrink-0 ${
+                      (conversation.status as string) === "open"
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25"
+                        : (conversation.status as string) === "pending"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25"
+                        : (conversation.status as string) === "resolved"
+                        ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25"
+                        : "bg-muted text-muted-foreground border-border"
+                    }`}>
+                      {conversation.status}
+                    </span>
+                    {getChannelBadge(conversation.channel)}
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {formatRelative(conversation.updatedAt)}
+                  </span>
+                </div>
+                <p className="text-muted-foreground line-clamp-2">{conversation.lastMessage}</p>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

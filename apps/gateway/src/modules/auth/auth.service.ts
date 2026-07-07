@@ -78,6 +78,13 @@ export class AuthService {
         { name: data.organizationName }
       );
 
+      if (data.domain) {
+        const widgetService = new WidgetService();
+        await widgetService.updateWidget(organization._id.toString(), {
+          verifiedDomain: data.domain,
+        });
+      }
+
       signupContext = {
         userId: user._id.toString(),
         userName: user.name,

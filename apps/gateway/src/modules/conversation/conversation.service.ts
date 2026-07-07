@@ -572,6 +572,7 @@ export class ConversationService {
           channel: conv.channel || conv.metadata?.source || "widget",
           lastMessage: lastMsg?.content || "",
           openedAt: recent.openedAt.getTime(),
+          status: conv.status,
         });
       }
       return results;

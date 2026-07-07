@@ -27,6 +27,7 @@ import {
   useAssignTicket,
 } from "../hooks";
 import { Button } from "@/shared/ui/button";
+import { Loader } from "@/shared/ui/loader";
 import { Input } from "@/shared/ui/input";
 import {
   Pagination,
@@ -417,7 +418,7 @@ export function TicketsPage() {
         {/* Table */}
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <Loader size="md" />
           </div>
         ) : filteredTickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">

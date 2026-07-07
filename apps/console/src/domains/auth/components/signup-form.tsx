@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ArrowRight,
   ArrowLeft,
+  Globe,
 } from "lucide-react";
 import { Link } from "react-router";
 import { Label } from "@/shared/ui/label";
@@ -30,17 +31,18 @@ import { OTPInput } from "./otp-input.tsx";
 import { ResendOTPTimer } from "./resend-otp-timer.tsx";
 import { authApi } from "../api/auth.api.ts";
 
-type FieldName = "name" | "email" | "password" | "confirmPassword" | "companyName";
+type FieldName = "name" | "email" | "password" | "confirmPassword" | "companyName" | "verifiedDomain";
 type FieldErrors = Partial<Record<FieldName, string>>;
 type TouchedFields = Record<FieldName, boolean>;
 
-const totalSteps = 4;
+const totalSteps = 5;
 
 const STEPS = [
   { number: 1, label: "Profile", icon: User },
   { number: 2, label: "Verify", icon: ShieldCheck },
   { number: 3, label: "Workspace", icon: Building2 },
   { number: 4, label: "Security", icon: Lock },
+  { number: 5, label: "Domain", icon: Globe },
 ];
 
 const stepVariants = {
@@ -89,6 +91,7 @@ export function SignupForm() {
     password: "",
     confirmPassword: "",
     companyName: "",
+    verifiedDomain: "",
   });
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -98,6 +101,7 @@ export function SignupForm() {
     password: false,
     confirmPassword: false,
     companyName: false,
+    verifiedDomain: false,
   });
 
   const passwordChecks = useMemo(
@@ -142,6 +146,9 @@ export function SignupForm() {
         !validatePasswordConfirmation(formData.password, formData.confirmPassword)
       );
     }
+    if (step === 5) {
+      return true;
+    }
     return true;
   };
 
@@ -168,6 +175,8 @@ export function SignupForm() {
     } else if (currentStep === 3) {
       setCurrentStep(4);
     } else if (currentStep === 4) {
+      setCurrentStep(5);
+    } else if (currentStep === 5) {
       handleFinalSubmit();
     }
   };
@@ -180,6 +189,7 @@ export function SignupForm() {
         email: formData.email,
         organizationName: formData.companyName,
         password: formData.password,
+        domain: formData.verifiedDomain.trim() || undefined,
       },
       {
         onSuccess: () => {
@@ -473,6 +483,41 @@ export function SignupForm() {
             </motion.div>
           )}
 
+          {currentStep === 5 && (
+            <motion.div
+              key="step-5"
+              variants={stepVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={stepTransition}
+              className="space-y-4"
+            >
+              <div className="rounded-2xl bg-muted/20 border border-border/40 p-4 mb-2">
+                <p className="text-xs text-muted-foreground leading-relaxed font-normal">
+                  Set the primary website domain where the chat widget will be embedded (e.g., <span className="font-semibold text-foreground">example.com</span>). This step is optional and can be skipped.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="verifiedDomain" className="type-label-caps text-muted-foreground">Authorized Domain</Label>
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider bg-muted px-2 py-0.5 rounded">Optional</span>
+                </div>
+                <div className="relative">
+                  <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <Input
+                    id="verifiedDomain"
+                    name="verifiedDomain"
+                    placeholder="example.com"
+                    className="pl-10 h-12 rounded-sm border-border/60 bg-muted/30 focus:bg-background transition-colors cursor-text font-normal"
+                    value={formData.verifiedDomain}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
         </AnimatePresence>
       </div>
 
@@ -499,7 +544,15 @@ export function SignupForm() {
             {isInitiating || isVerifying || isCompleting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            {currentStep === 4 ? "Complete Setup" : currentStep === 2 ? "Verify Email" : currentStep === 3 ? "Next — Security" : "Continue"}
+            {currentStep === 5
+              ? (formData.verifiedDomain.trim() ? "Complete Setup" : "Skip & Complete")
+              : currentStep === 4
+                ? "Next — Domain"
+                : currentStep === 2
+                  ? "Verify Email"
+                  : currentStep === 3
+                    ? "Next — Security"
+                    : "Continue"}
             {!isInitiating && !isVerifying && !isCompleting && (
               <ArrowRight className="h-4 w-4 ml-2" />
             )}
@@ -515,7 +568,7 @@ export function SignupForm() {
           </p>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <p className="text-center text-xs text-muted-foreground/60 leading-relaxed">
             By continuing, you agree to our{" "}
             <a href="#" className="underline hover:text-muted-foreground">Terms of Service</a>{" "}

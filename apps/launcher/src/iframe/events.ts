@@ -7,6 +7,9 @@ import { stripMarkdown } from './utils/markdown';
 function clearWidgetStateChrome() {
   document.getElementById('conversationStateBanner')?.remove();
   document.getElementById('conv-closed-banner')?.remove();
+  document.getElementById('vx-outcome-overlay')?.remove();
+  const chatInputBox = document.getElementById('chatInputBox');
+  if (chatInputBox) chatInputBox.style.display = 'block';
 }
 
 function setComposerEnabled(enabled: boolean, placeholder?: string) {
@@ -94,16 +97,10 @@ function showOutcomePanel(_status: 'closed') {
 function applyConversationVisualStateFromHistory(conversation: any) {
   const status = (conversation?.status || 'open').toLowerCase();
 
-  if (status === 'closed') {
-    showStateBanner('closed', 'Conversation closed', 'Start a new chat if you need more help');
-    setComposerEnabled(false, 'Conversation closed. Start a new chat.');
-    showOutcomePanel('closed');
-    return;
-  }
-
-  if (status === 'resolved') {
-    showStateBanner('resolved', 'Conversation resolved', 'Marked as resolved. Type a message to reopen.');
-    setComposerEnabled(true, 'Type a message to reopen...');
+  if (status === 'closed' || status === 'resolved') {
+    showStateBanner(status, `Conversation ${status}`, `Start a new chat if you need more help`);
+    setComposerEnabled(false, `Conversation ${status}. Start a new chat.`);
+    showOutcomeOverlay(status as 'closed' | 'resolved');
     return;
   }
 
@@ -687,7 +684,7 @@ function renderHistoryList(convs: any[]) {
   });
 }
 
-function startNewConversation() {
+export function startNewConversation() {
   // Close history overlay
   if (elements.historyOverlay) elements.historyOverlay.style.display = 'none';
   const searchEl = document.getElementById('historySearch') as HTMLInputElement | null;
@@ -724,6 +721,50 @@ function startNewConversation() {
     elements.messageInput.value = '';
     elements.messageInput.focus();
   }
+}
+
+export function showOutcomeOverlay(status: 'closed' | 'resolved') {
+  // 1. Hide the composer input box
+  const chatInputBox = document.getElementById('chatInputBox');
+  if (chatInputBox) chatInputBox.style.display = 'none';
+
+  // 2. Remove any existing outcome overlay
+  document.getElementById('vx-outcome-overlay')?.remove();
+
+  // 3. Create the central outcome overlay element
+  const overlay = document.createElement('div');
+  overlay.id = 'vx-outcome-overlay';
+  overlay.className = `vx-outcome-overlay ${status}`;
+
+  const icon = status === 'closed'
+    ? `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`
+    : `<svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`;
+
+  const title = status === 'closed' ? 'Conversation Closed' : 'Conversation Resolved';
+  const description = status === 'closed'
+    ? 'This conversation has been closed. Start a new chat if you need further assistance.'
+    : 'This conversation has been resolved. You can start a new chat if you have more questions.';
+
+  overlay.innerHTML = `
+    <div class="outcome-icon-wrapper">${icon}</div>
+    <div class="outcome-title">${title}</div>
+    <div class="outcome-description">${description}</div>
+    <button class="outcome-btn" id="overlayNewChatBtn">New Chat</button>
+  `;
+
+  // Append it to the main widget app container
+  const app = document.getElementById('app');
+  if (app) {
+    app.appendChild(overlay);
+  }
+
+  // Bind the New Chat button handler
+  document.getElementById('overlayNewChatBtn')?.addEventListener('click', () => {
+    // 4. Restore composer/input box display when a new chat starts
+    if (chatInputBox) chatInputBox.style.display = 'block';
+    overlay.remove();
+    startNewConversation();
+  }, { once: true });
 }
 
 /**

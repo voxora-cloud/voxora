@@ -2,6 +2,7 @@ import { io } from "socket.io-client";
 import { state, API_BASE_URL } from './config';
 import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel } from './ui';
 import { parseMarkdown, parseStreamingMarkdown } from './utils/markdown';
+import { showOutcomeOverlay } from './events';
 
 let authRetryCount = 0;
 const MAX_AUTH_RETRIES = 3;
@@ -495,7 +496,7 @@ function bindSocketEvents() {
       addSystemNotice('🔒 This conversation has been closed');
       showStateBanner('closed', 'Conversation closed', 'Start a new chat if you need more help');
       setComposerEnabled(false, 'Conversation closed. Start a new chat.');
-      showOutcomePanel();
+      showOutcomeOverlay('closed');
     } else if (status === 'pending') {
       showStateBanner('pending', 'Waiting for support team', 'Your chat is in queue. We will be with you shortly.');
       addSystemNotice("⏳ Your query is pending review — we'll be right with you");
@@ -511,6 +512,11 @@ function bindSocketEvents() {
       const wasClosedOrResolved = banner && (banner.classList.contains('state-closed') || banner.classList.contains('state-resolved'));
 
       clearOutcomePanel();
+      // Remove overlay if present
+      document.getElementById('vx-outcome-overlay')?.remove();
+      const chatInputBox = document.getElementById('chatInputBox');
+      if (chatInputBox) chatInputBox.style.display = 'block';
+
       showStateBanner('human', 'Connecting with support', 'Our team will be with you shortly...');
       setComposerEnabled(true, 'Reply to support...');
 
@@ -518,9 +524,10 @@ function bindSocketEvents() {
         addSystemNotice('🔄 This conversation has been reopened');
       }
     } else if (status === 'resolved') {
-      clearOutcomePanel();
-      setComposerEnabled(true, 'Type a message to reopen...');
-      showStateBanner('resolved', 'Conversation resolved', 'Marked as resolved. Type to reopen.');
+      addSystemNotice('✅ This conversation has been resolved');
+      showStateBanner('resolved', 'Conversation resolved', 'Start a new chat if you need more help');
+      setComposerEnabled(false, 'Conversation resolved. Start a new chat.');
+      showOutcomeOverlay('resolved');
     }
   });
 }

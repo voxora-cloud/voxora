@@ -23,13 +23,7 @@ import {
 import { membersApi } from "@/domains/member/api/members.api";
 import type { Member } from "@/domains/member/types/types";
 import { Button } from "@/shared/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui/dialog";
+
 import { Textarea } from "@/shared/ui/textarea";
 import {
   useAddTicketNote,
@@ -38,6 +32,8 @@ import {
   useUpdateTicket,
   useUpdateTicketStatus,
 } from "../hooks";
+import { ContactDialog } from "@/domains/contacts/components/contact-form";
+import { Loader } from "@/shared/ui/loader";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -199,7 +195,7 @@ export function TicketDetailPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [newNote, setNewNote] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
-  const [relatedConversationsTicketId, setRelatedConversationsTicketId] = useState<string | null>(null);
+
 
   const assignTicket = useAssignTicket();
   const updateStatus = useUpdateTicketStatus();
@@ -232,9 +228,9 @@ export function TicketDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-[65vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
-          Loading ticket…
+        <div className="flex flex-col items-center gap-3 text-sm font-medium text-muted-foreground">
+          <Loader size="md" />
+          <span>Loading ticket…</span>
         </div>
       </div>
     );
@@ -264,8 +260,7 @@ export function TicketDetailPage() {
   const contactPhone = ticket.contactProfile?.phone || ticket.requesterContact?.phone;
   const contactCompany = ticket.contactProfile?.company;
   const contactTags = ticket.contactProfile?.tags || [];
-  const conversations = ticket.relatedConversations || ticket.contactProfile?.conversations || [];
-  const relatedConversationsOpen = relatedConversationsTicketId === ticketId;
+
   const ticketTags = ticket.tags || [];
   const formatDateTime = (date: string) =>
     new Date(date).toLocaleString(undefined, {
@@ -514,12 +509,28 @@ export function TicketDetailPage() {
           </div>
 
           <PaneSection title="Contact details">
-            <div className="mb-3 flex items-center gap-2.5">
-              <Avatar label={contactName} />
-              <div className="min-w-0">
-                <p className="truncate text-xs font-bold text-foreground">{contactName}</p>
-                {contactCompany && <p className="truncate text-[10px] text-muted-foreground">{contactCompany}</p>}
+            <div className="mb-3 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Avatar label={contactName} />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-foreground">{contactName}</p>
+                  {contactCompany && <p className="truncate text-[10px] text-muted-foreground">{contactCompany}</p>}
+                </div>
               </div>
+              <ContactDialog
+                mode="update"
+                contactId={ticket.contactId || undefined}
+                conversationId={ticket.conversationId || undefined}
+                contact={{
+                  name: contactName,
+                  email: contactEmail || "",
+                  phone: contactPhone || "",
+                  company: contactCompany || "",
+                  tags: contactTags,
+                }}
+                triggerType="icon"
+                onSuccess={() => void refetch()}
+              />
             </div>
             <dl className="space-y-1.5">
               <DetailRow label="Email">
@@ -557,108 +568,8 @@ export function TicketDetailPage() {
             </dl>
           </PaneSection>
 
-          <PaneSection title="Related conversations">
-            {conversations.length > 0 ? (
-              <div className="space-y-2">
-                <div>
-                  {conversations.slice(0, 1).map((conversation) => (
-                    <button
-                      type="button"
-                      key={conversation.id}
-                      onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conversation.id}`)}
-                      className="group block w-full cursor-pointer rounded-lg border border-border bg-card p-3 text-left shadow-xs transition hover:border-primary/40 hover:bg-primary/[0.03]"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-xs font-semibold leading-4 text-foreground group-hover:text-primary">
-                            {conversation.lastMessage || "Conversation"}
-                          </p>
-                          <p className="mt-1 flex items-center gap-1 text-[10px] capitalize text-muted-foreground">
-                            <span className={`h-1.5 w-1.5 rounded-full ${conversation.status === "open" ? "bg-emerald-500" : "bg-muted-foreground/60"}`} />
-                            {conversation.status} · {formatShortDate(conversation.updatedAt)}
-                          </p>
-                        </div>
-                        <span className="flex shrink-0 items-center gap-1 text-[10px] font-bold text-primary">
-                          Open
-                          <ArrowUpRight className="h-3 w-3" />
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                {conversations.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setRelatedConversationsTicketId(ticketId ?? null)}
-                    className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary/5"
-                  >
-                    View all {conversations.length} conversations
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            ) : ticket.conversationId ? (
-              <Link
-                to={`/dashboard/conversations/inbox/chat/${ticket.conversationId}`}
-                className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs font-bold text-primary transition hover:bg-primary/10"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Origin conversation
-                <ArrowUpRight className="ml-auto h-3.5 w-3.5" />
-              </Link>
-            ) : (
-              <p className="text-xs text-muted-foreground">No related conversations</p>
-            )}
-          </PaneSection>
 
-          <Dialog
-            open={relatedConversationsOpen}
-            onOpenChange={(open) => setRelatedConversationsTicketId(open ? ticketId ?? null : null)}
-          >
-            <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
-              <DialogHeader className="border-b border-border px-5 py-4 pr-12">
-                <DialogTitle className="text-base">Related conversations</DialogTitle>
-                <DialogDescription>
-                  {conversations.length} conversations associated with this ticket
-                </DialogDescription>
-              </DialogHeader>
-              <div className="max-h-[65vh] space-y-2 overflow-y-auto p-4">
-                {conversations.map((conversation) => (
-                  <button
-                    type="button"
-                    key={conversation.id}
-                    onClick={() => {
-                      setRelatedConversationsTicketId(null);
-                      navigate(`/dashboard/conversations/inbox/chat/${conversation.id}`);
-                    }}
-                    className="group block w-full cursor-pointer rounded-lg border border-border bg-card p-3 text-left shadow-xs transition hover:border-primary/40 hover:bg-primary/[0.03]"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <MessageSquare className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-sm font-semibold text-foreground group-hover:text-primary">
-                          {conversation.lastMessage || "Conversation"}
-                        </p>
-                        <p className="mt-1 flex items-center gap-1.5 text-xs capitalize text-muted-foreground">
-                          <span className={`h-1.5 w-1.5 rounded-full ${conversation.status === "open" ? "bg-emerald-500" : "bg-muted-foreground/60"}`} />
-                          {conversation.status} · {formatShortDate(conversation.updatedAt)}
-                        </p>
-                      </div>
-                      <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary">
-                        Open
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
+
 
           <PaneSection title="Activity log">
             <div className="space-y-3">

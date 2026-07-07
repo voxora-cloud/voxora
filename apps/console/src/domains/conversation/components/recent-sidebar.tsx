@@ -10,6 +10,7 @@ interface RecentConversation {
   channel: string;
   lastMessage?: string;
   openedAt: number;
+  status?: string;
 }
 
 export function RecentConversationsSidebar() {
@@ -64,23 +65,54 @@ export function RecentConversationsSidebar() {
     }
   };
 
+  const getStatusBadge = (status?: string) => {
+    if (!status) return null;
+    const meta: Record<string, { label: string; style: string }> = {
+      open: {
+        label: "Open",
+        style: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
+      },
+      pending: {
+        label: "Pending",
+        style: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25",
+      },
+      resolved: {
+        label: "Resolved",
+        style: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/25",
+      },
+      closed: {
+        label: "Closed",
+        style: "bg-muted text-muted-foreground border-border",
+      },
+    };
+
+    const current = meta[status.toLowerCase()] || { label: status, style: "bg-muted text-muted-foreground border-border" };
+
+    return (
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border leading-none shrink-0 ${current.style}`}>
+        {current.label}
+      </span>
+    );
+  };
+
+  const getChannelBadge = (channel: string) => {
+    const label = channel?.toLowerCase() === "widget" ? "web" : channel;
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 capitalize leading-none shrink-0">
+        {getChannelIcon(channel)}
+        <span>{label}</span>
+      </span>
+    );
+  };
+
   const formatRecentTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    
-    if (compareDate.getTime() === today.getTime()) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (compareDate.getTime() === yesterday.getTime()) {
-      return "Yesterday";
-    } else {
-      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
+    const diff = Date.now() - timestamp;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   };
 
   if (isCollapsed) {
@@ -112,18 +144,23 @@ export function RecentConversationsSidebar() {
                       ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
                       : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
                   }`}
-                  title={conv.visitorName}
+                  title={`${conv.visitorName} (${conv.status || "open"})`}
                 >
                   {initials}
                 </button>
-                {/* Channel Icon Badge */}
-                <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border text-[8px] shadow-sm ${
-                  isActive 
-                    ? "bg-card text-primary border-primary" 
-                    : "bg-background text-muted-foreground border-border"
-                }`}>
-                  {getChannelIcon(conv.channel)}
-                </div>
+                {/* Status Dot */}
+                <div 
+                  className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-background shadow-xs ${
+                    conv.status === "open"
+                      ? "bg-emerald-500"
+                      : conv.status === "pending"
+                      ? "bg-amber-500"
+                      : conv.status === "resolved"
+                      ? "bg-blue-500"
+                      : "bg-zinc-400"
+                  }`} 
+                  title={`Status: ${conv.status || "open"}`}
+                />
               </div>
             );
           })}
@@ -135,11 +172,8 @@ export function RecentConversationsSidebar() {
   return (
     <div className="h-full w-[260px] flex flex-col bg-card border-r border-border transition-all duration-300">
       {/* Header */}
-      <div className="h-14 px-4 border-b border-border flex items-center justify-between shrink-0 bg-muted/20">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Clock className="h-4 w-4 shrink-0 text-primary/80" />
-          <span className="text-xs font-bold tracking-wider uppercase select-none text-foreground/80">Recents</span>
-        </div>
+      <div className="h-14 px-4 border-b border-border flex items-center justify-between shrink-0 bg-card">
+        <h3 className="text-sm font-semibold text-foreground select-none">Recent Chats</h3>
         <div className="flex items-center gap-1.5">
           {recents.length > 0 && (
             <button
@@ -184,18 +218,18 @@ export function RecentConversationsSidebar() {
               <button
                 key={conv._id}
                 onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conv._id}`)}
-                className={`w-full text-left flex items-center gap-3 py-3 px-3.5 transition-all border-b border-border/40 select-none duration-150 relative ${
+                className={`w-full text-left flex items-start gap-3 p-3.5 transition-all border-b border-border/40 select-none duration-200 relative ${
                   isActive
-                    ? "bg-accent border-b-accent text-accent-foreground shadow-sm"
-                    : "bg-transparent border-transparent text-muted-foreground hover:bg-muted/30"
+                    ? "bg-primary/[0.04] text-foreground"
+                    : "bg-transparent text-muted-foreground hover:bg-muted/20"
                 }`}
               >
                 {/* Active Indicator Line */}
                 {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
                 )}
 
-                {/* Avatar with Channel Icon Badge */}
+                 {/* Avatar */}
                 <div className="relative shrink-0">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-semibold border transition-all duration-150 ${
                     isActive 
@@ -204,26 +238,25 @@ export function RecentConversationsSidebar() {
                   }`}>
                     {initials}
                   </div>
-                  {/* Channel icon badge */}
-                  <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border text-[8px] shadow-sm ${
-                    isActive 
-                      ? "bg-card text-primary border-primary" 
-                      : "bg-background text-muted-foreground border-border"
-                  }`}>
-                    {getChannelIcon(conv.channel)}
-                  </div>
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0 pr-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <p className={`text-xs font-bold truncate text-foreground`}>
+                    <p className="text-xs font-bold truncate text-foreground">
                       {conv.visitorName}
                     </p>
                     <span className="text-[9px] text-muted-foreground/75 whitespace-nowrap">
                       {formatRecentTime(conv.openedAt)}
                     </span>
                   </div>
+                  
+                  {/* Source and Status Row */}
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                    {getChannelBadge(conv.channel)}
+                    {getStatusBadge(conv.status)}
+                  </div>
+
                   <p className="text-[11px] text-muted-foreground truncate leading-normal">
                     {conv.lastMessage || "No messages yet"}
                   </p>

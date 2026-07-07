@@ -31,6 +31,8 @@ import {
 import { useAuth } from "@/domains/auth/hooks/useAuth";
 import { useLogout } from "@/domains/auth/hooks/useLogout";
 import { authApi } from "@/domains/auth/api/auth.api";
+import { useConversationDetail } from "@/domains/conversation/hooks/useConversationDetail";
+import { useTicket } from "@/domains/tickets/hooks/useTicket";
 import io, { Socket } from "socket.io-client";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -88,6 +90,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const logoutMutation = useLogout();
   const { data: widgetData } = useWidget();
 
+  const chatMatch = location.pathname.match(/\/dashboard\/conversations\/inbox\/chat\/([a-fA-F0-9]+)/);
+  const conversationId = chatMatch ? chatMatch[1] : undefined;
+
+  const ticketMatch = location.pathname.match(/\/dashboard\/tickets\/([a-fA-F0-9]+)/);
+  const ticketId = ticketMatch ? ticketMatch[1] : undefined;
+
+  const { data: convResponse } = useConversationDetail(conversationId || "");
+  const { data: ticketDetail } = useTicket(ticketId);
+
+  const customerName = useMemo(() => {
+    if (!convResponse?.data?.conversation) return "Customer";
+    const c = convResponse.data.conversation;
+    return c.metadata?.customer?.name || c.metadata?.customerName || c.metadata?.senderName || "Anonymous Visitor";
+  }, [convResponse]);
+
+  const ticketTitle = useMemo(() => {
+    return ticketDetail?.title || "Ticket Details";
+  }, [ticketDetail]);
+
   const orgRole: OrgRole | null = isAuthenticated ? authApi.getOrgRole() : null;
   const canAccessContacts = true;
   const billingVisible =
@@ -98,6 +119,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState<"all" | "unread">("all");
   const [isContentFullscreen, setIsContentFullscreen] = useState(false);
+  const [hasInboxBadge, setHasInboxBadge] = useState(false);
+
+  // Clear badge when on the inbox page
+  useEffect(() => {
+    if (location.pathname.startsWith("/dashboard/conversations/inbox")) {
+      setHasInboxBadge(false);
+    }
+  }, [location.pathname]);
   const searchContainerRef = useRef<HTMLFormElement | null>(null);
   // Keep one widget loader alive across route-level DashboardLayout remounts.
   // The router mounts a fresh layout for each dashboard page, so removing and
@@ -183,9 +212,55 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [billingVisible, canAccessContacts, orgRole]);
 
   const breadcrumbs = useMemo(() => {
-    const parts = location.pathname.split("/").filter(Boolean);
-    if (parts.length === 0) return [{ label: "Home", to: "/" }];
+    const pathname = location.pathname;
+    
+    // 1. Dashboard root
+    if (pathname === "/dashboard" || pathname === "/dashboard/") {
+      return [{ label: "Dashboard", to: "/dashboard" }];
+    }
+    
+    // 2. Chat detail page
+    const chatMatch = pathname.match(/\/dashboard\/conversations\/inbox\/chat\/([a-fA-F0-9]+)/);
+    if (chatMatch) {
+      return [
+        { label: "Dashboard", to: "/dashboard" },
+        { label: "inbox", to: "/dashboard/conversations/inbox/open" },
+        { label: customerName, to: pathname },
+      ];
+    }
+    
+    // 3. Conversations Inbox list views
+    const inboxMatch = pathname.match(/\/dashboard\/conversations\/inbox\/([a-zA-Z0-9_-]+)/);
+    if (inboxMatch) {
+      const subpath = inboxMatch[1];
+      const subLabel = subpath === "open" ? "open" : subpath === "assigned" ? "Assigned" : subpath.charAt(0).toUpperCase() + subpath.slice(1);
+      return [
+        { label: "dashboard", to: "/dashboard" },
+        { label: "inbox", to: "/dashboard/conversations/inbox/open" },
+        { label: subLabel, to: pathname },
+      ];
+    }
 
+    // 4. Ticket detail view
+    const ticketDetailMatch = pathname.match(/\/dashboard\/tickets\/([a-fA-F0-9]+)/);
+    if (ticketDetailMatch) {
+      return [
+        { label: "Dashboard", to: "/dashboard" },
+        { label: "Tickets", to: "/dashboard/tickets" },
+        { label: ticketTitle, to: pathname },
+      ];
+    }
+
+    // 5. Ticket root list view
+    if (pathname === "/dashboard/tickets" || pathname === "/dashboard/tickets/") {
+      return [
+        { label: "Dashboard", to: "/dashboard" },
+        { label: "Tickets", to: "/dashboard/tickets" },
+      ];
+    }
+
+    // 6. Fallback/default logic for all other pages
+    const parts = pathname.split("/").filter(Boolean);
     const items: Array<{ label: string; to: string }> = [];
     let currentPath = "";
 
@@ -206,11 +281,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return items
       .map((item) =>
         item.to === "/dashboard/conversations"
-          ? { ...item, to: "/dashboard/conversations/inbox" }
+          ? { ...item, to: "/dashboard/conversations/inbox/open" }
           : item,
       )
       .filter((item, index, list) => item.to !== list[index + 1]?.to);
-  }, [location.pathname]);
+  }, [location.pathname, customerName, ticketTitle]);
 
   const searchResults = useMemo(() => {
     const term = searchQuery.trim().toLowerCase();
@@ -244,6 +319,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         },
         ...prev
       ].slice(0, 50)); // Keep last 50
+    });
+
+    socket.on("new_widget_conversation", () => {
+      playNotificationSound();
+      if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
+        setHasInboxBadge(true);
+      }
+    });
+
+    socket.on("conversation_pending", () => {
+      playNotificationSound();
+      if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
+        setHasInboxBadge(true);
+      }
     });
 
     return () => {
@@ -379,7 +468,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
                 >
                   <item.icon className="h-4 w-4 mr-3" />
-                  <span>{item.label}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.label === "Inbox" && hasInboxBadge && (
+                    <span className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse mr-1" />
+                  )}
                 </Button>
               </Link>
             ))}

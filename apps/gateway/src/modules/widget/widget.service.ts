@@ -264,7 +264,7 @@ export class WidgetService {
         if (normalizedNew !== normalizedOld) {
           if (normalizedNew) {
             cleanUpdates.verifiedDomain = normalizedNew;
-            if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+            if (!requiresDomainVerification(config.app.env, normalizedNew) || isLocalDomain(normalizedNew)) {
               cleanUpdates.domainVerificationToken = null;
               cleanUpdates.domainVerificationStatus = "verified";
             } else {
@@ -290,7 +290,7 @@ export class WidgetService {
     if (widgetData?.verifiedDomain) {
       const normalizedNew = normalizeDomain(widgetData.verifiedDomain);
       newWidgetData.verifiedDomain = normalizedNew;
-      if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+      if (!requiresDomainVerification(config.app.env, normalizedNew) || isLocalDomain(normalizedNew)) {
         newWidgetData.domainVerificationToken = null;
         newWidgetData.domainVerificationStatus = "verified";
       } else {
@@ -375,7 +375,7 @@ export class WidgetService {
       if (normalizedNew !== normalizedOld) {
         if (normalizedNew) {
           cleanUpdates.verifiedDomain = normalizedNew;
-          if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+          if (!requiresDomainVerification(config.app.env, normalizedNew) || isLocalDomain(normalizedNew)) {
             cleanUpdates.domainVerificationToken = null;
             cleanUpdates.domainVerificationStatus = "verified";
           } else {
@@ -409,7 +409,7 @@ export class WidgetService {
       if (updateData?.verifiedDomain) {
         const normalizedNew = normalizeDomain(updateData.verifiedDomain);
         initData.verifiedDomain = normalizedNew;
-        if (!requiresDomainVerification(config.app.env) || isLocalDomain(normalizedNew)) {
+        if (!requiresDomainVerification(config.app.env, normalizedNew) || isLocalDomain(normalizedNew)) {
           initData.domainVerificationToken = null;
           initData.domainVerificationStatus = "verified";
         } else {
@@ -438,7 +438,7 @@ export class WidgetService {
       throw createServiceError("Widget not found", 404);
     }
 
-    if (!requiresDomainVerification(config.app.env) || isLocalDomain(widget.verifiedDomain || "")) {
+    if (!requiresDomainVerification(config.app.env, widget.verifiedDomain || "") || isLocalDomain(widget.verifiedDomain || "")) {
       widget.domainVerificationStatus = "verified";
       widget.domainVerificationToken = undefined;
       await widget.save();

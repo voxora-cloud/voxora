@@ -70,6 +70,7 @@ export class ContactsService {
         id: conv._id.toString(),
         status: conv.status,
         lastMessage: firstMsg,
+        channel: conv.channel || conv.metadata?.source || "widget",
         updatedAt: conv.updatedAt.toISOString(),
       };
       
@@ -395,6 +396,7 @@ export class ContactsService {
         id: conversation.id,
         status: conversation.status,
         lastMessage: conversation.lastMessage,
+        channel: conversation.channel || conversation.metadata?.source || "widget",
         updatedAt: new Date(conversation.updatedAt).toISOString(),
       })),
       insights: {

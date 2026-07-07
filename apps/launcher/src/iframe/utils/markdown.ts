@@ -219,7 +219,7 @@ export function parseMarkdown(text: string) {
   s = s.trim();
 
   // Unescape divs to support HTML layout blocks
-  s = s.replace(/&lt;div\s*([\s\S]*?)&gt;/g, function(_, attrs) {
+  s = s.replace(/&lt;div\s*([\s\S]*?)&gt;/g, function(_: string, attrs: string) {
     const cleanAttrs = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
     return `<div ${cleanAttrs}>`.replace(/\s+>/, '>');
   });
@@ -230,7 +230,7 @@ export function parseMarkdown(text: string) {
   s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
     let content = innerContent;
     // Replace inputs inside form to not have individual submit button wrappers
-    content = content.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+    content = content.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
       const name = attrs.name || '';
       const placeholder = attrs.placeholder || '';
@@ -242,7 +242,7 @@ export function parseMarkdown(text: string) {
       '<div class="vx-form-row"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label></div>'
     );
     // Replace radios inside form
-    content = content.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+    content = content.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
       const name = attrs.name || '';
       const optionsStr = attrs.options || '';
@@ -265,7 +265,7 @@ export function parseMarkdown(text: string) {
   });
 
   // Parse InteraOne Interactive Components (escaped XML)
-  s = s.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+  s = s.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
     const attrs = parseAttributes(attrStr);
     const name = attrs.name || '';
     const placeholder = attrs.placeholder || '';
@@ -281,7 +281,7 @@ export function parseMarkdown(text: string) {
     '<div class="vx-interactive-form vx-checkbox-wrapper"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label><button class="vx-form-submit" data-action="submit-checkbox" data-target="$1">Submit</button></div>'
   );
 
-  s = s.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_, attrStr) {
+  s = s.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
     const attrs = parseAttributes(attrStr);
     const name = attrs.name || '';
     const optionsStr = attrs.options || '';
