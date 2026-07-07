@@ -14,6 +14,7 @@ import type { ConversationDetail, ConversationMessage } from "../types/types";
 import { useContacts } from "@/domains/contacts/hooks/use-contacts";
 import { toContactViewModel } from "@/domains/contacts/types/types";
 import { ContactDetailsCard } from "@/domains/contacts/components/contact-details-card";
+import { Loader } from "@/shared/ui/loader";
 
 import { playNotificationSound } from "@/shared/lib/audio";
 
@@ -513,7 +514,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+          <Loader size="lg" className="mb-2" />
           <p className="text-muted-foreground">Loading conversation...</p>
         </div>
       </div>
@@ -764,7 +765,7 @@ function AgentRunsTab({ conversationId }: { conversationId: string }) {
   if (isLoading) {
     return (
       <div className="p-8 text-center text-muted-foreground flex-1 flex flex-col items-center justify-center">
-        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2" />
+        <Loader size="md" className="mb-2" />
         <p>Loading agent execution history...</p>
       </div>
     );

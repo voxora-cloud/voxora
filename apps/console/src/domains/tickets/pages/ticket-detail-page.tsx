@@ -39,6 +39,7 @@ import {
   useUpdateTicketStatus,
 } from "../hooks";
 import { ContactDialog } from "@/domains/contacts/components/contact-form";
+import { Loader } from "@/shared/ui/loader";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -233,9 +234,9 @@ export function TicketDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-[65vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
-          Loading ticket…
+        <div className="flex flex-col items-center gap-3 text-sm font-medium text-muted-foreground">
+          <Loader size="md" />
+          <span>Loading ticket…</span>
         </div>
       </div>
     );
