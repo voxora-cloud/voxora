@@ -3225,3 +3225,101 @@ body {
 .light-theme .three-dots-loader span {
   background-color: var(--vx-text, #27272a);
 }
+
+/* ── VX Outcome Overlay ──────────────────────────────────────────────────── */
+.vx-outcome-overlay {
+  position: absolute;
+  top: 52px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(9, 9, 11, 0.64);
+  background: color-mix(in srgb, var(--vx-bg) 64%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  z-index: 100;
+  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.light-theme .vx-outcome-overlay {
+  background: rgba(255, 255, 255, 0.64);
+  background: color-mix(in srgb, var(--vx-bg) 64%, transparent);
+}
+
+.vx-outcome-overlay .outcome-icon-wrapper {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vx-outcome-overlay.resolved .outcome-icon-wrapper {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.15);
+}
+
+.vx-outcome-overlay.closed .outcome-icon-wrapper {
+  background: rgba(244, 63, 94, 0.12);
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.25);
+  box-shadow: 0 8px 30px rgba(244, 63, 94, 0.15);
+}
+
+.vx-outcome-overlay .outcome-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--vx-text, #fafafa);
+  margin-bottom: 8px;
+}
+
+.vx-outcome-overlay .outcome-description {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 280px;
+  line-height: 1.5;
+  margin-bottom: 28px;
+}
+
+.light-theme .vx-outcome-overlay .outcome-description {
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.vx-outcome-overlay .outcome-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--vx-accent, #845C6C), color-mix(in srgb, var(--vx-accent, #845C6C) 72%, #111827));
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.vx-outcome-overlay .outcome-btn:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px color-mix(in srgb, var(--vx-accent, #845C6C) 30%, transparent);
+}
+
+.vx-outcome-overlay .outcome-btn:active {
+  transform: translateY(0);
+}
