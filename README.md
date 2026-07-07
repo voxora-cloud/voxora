@@ -7,9 +7,9 @@
 <h2 align="center">InteraOne</h2>
 
 <p align="center">
-  <b>Open source alternative to Intercom & Zendesk — with a Single AI Brain</b>
+  <b>The open source, agentic alternative to Intercom & Zendesk</b>
   <br/>
-  <sub>Stop paying $74/month. Self-host for free, forever.</sub>
+  <sub>Intercom charges $0.99/resolution. Zendesk charges up to $2. We charge $0.</sub>
 </p>
 
 <p align="center">
@@ -30,46 +30,49 @@
 
 <br/>
 
-<img width="1536" height="1024" alt="InteraOne Dashboard" src="https://github.com/user-attachments/assets/671150cc-bb07-4e53-8d8b-12fced32559b" />
+<p align="center">
+  <img width="1536" height="1024" alt="InteraOne Dashboard" src="https://github.com/user-attachments/assets/671150cc-bb07-4e53-8d8b-12fced32559b" />
+</p>
 
 <hr/>
 
 ## Why InteraOne?
 
-| | InteraOne | Intercom | Zendesk | Chatwoot |
+| | **InteraOne** | **Intercom (Fin)** | **Zendesk** | **Chatwoot** |
 |---|---|---|---|---|
-| **Price** | Free & Open Source | $74/month | $55/month | Limited free |
-| **Self-hosted** | ✅ One click | ❌ | ❌ | ✅ |
+| **Base price** | Free & open source | $29–$132/agent/mo | $55–$169/agent/mo | $0–$99/agent/mo |
+| **AI resolution cost** | $0 — unlimited | $0.99 / resolution | $1.50–$2.00 / resolution | AI credits capped, $20/1k overage |
+| **Self-hosted** | ✅ One click | ❌ | ❌ | ✅ (no AI on free tier) |
 | **Single AI Brain** | ✅ | ❌ | ❌ | ❌ |
 | **WhatsApp + Email + Telegram + Widget** | ✅ | Partial | Partial | ✅ |
-| **Agent Latency** | ⚡ 500ms | Slow | Slow | No AI |
-| **4 LLM Providers** | ✅ | ❌ | ❌ | ❌ |
+| **Agent Latency** | ⚡ ~500ms | Varies | Varies | No native AI on free tier |
+| **Multiple LLM Providers** | ✅ | ❌ | ❌ | ❌ |
 | **RAG Knowledge Base** | ✅ | Limited | Limited | ❌ |
 | **Ticket + Inbox + Contacts AI** | ✅ | Partial | ✅ | ❌ |
 | **QR Code Offline→Online** | ✅ | ❌ | ❌ | ❌ |
 
+<sub>Pricing as of July 2026 — verify current rates before quoting.</sub>
+
 <hr/>
 
+<p align="center">
+  <img width="1536" height="1024" alt="InteraOne architecture overview" src="https://github.com/user-attachments/assets/fd53d983-e9f6-4677-83f6-83df4a3b5f5f" />
+</p>
 
-<img width="1536" height="1024" alt="tech-poster" src="https://github.com/user-attachments/assets/fd53d983-e9f6-4677-83f6-83df4a3b5f5f" />
+## 🚀 Quick One-Click Dev Setup
 
-
-## 🚀 Quick One Click Dev Setup
-
-### 1. Fork the Repository
+### 1. Fork the repository
 
 Fork this repository to your GitHub account.
 
-### 2. Clone Your Fork
+### 2. Clone your fork
 
 ```bash
-git clone https://github.com/<your-username>/interaOne.git
-cd interaOne
+git clone https://github.com/<your-username>/InteraOne.git
+cd InteraOne
 ```
 
----
-
-### 3. Configure Environment Variables
+### 3. Configure environment variables
 
 Copy all environment templates:
 
@@ -83,23 +86,40 @@ cp apps/launcher/.env.example apps/launcher/.env
 
 Update the `.env` files as needed for your local setup.
 
----
-
-### 4. Start the Development Environment
+### 4. Start the development environment
 
 ```bash
 make all
 ```
 
+Gateway, console, agent, worker, and launcher all spin up together.
+
+<hr/>
+
+## 🧱 Architecture
+
+| App | Role |
+|---|---|
+| `apps/gateway` | API gateway — routes and auth for all channels |
+| `apps/console` | Admin dashboard for inbox, contacts, and settings |
+| `apps/agent` | The AI brain — LLM orchestration across providers |
+| `apps/worker` | Background jobs, queues, async processing |
+| `apps/launcher` | Embeddable widget for websites and products |
+
+<hr/>
+
 ## ❤️ Contributors
 
-Thanks to these amazing people who are building InteraOne! 🚀
+The humans behind InteraOne 🚀
 
-<a href="https://github.com/interaone/interaone/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=interaone/interaone" />
+<a href="https://github.com/InteraOne/InteraOne/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=InteraOne/InteraOne" />
 </a>
 
+## 📄 License
+
+Distributed under the license in [LICENSE](./LICENSE).
 
 ## 🌟 Star Us!
 
-If you find InteraOne useful, please consider giving us a star on GitHub! It helps us grow and improve the project.
+If you find InteraOne useful, please consider giving us a star on GitHub! It helps us grow and reach more contributors.
