@@ -56,21 +56,21 @@ export function StatusSelector({
   const getStatusIcon = (currentStat: string) => {
     switch (currentStat) {
       case "resolved":
-        return <CheckCircle2 className="h-3.5 w-3.5 text-blue-500 mr-2 shrink-0" />;
+        return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-500" />;
       case "closed":
-        return <XCircle className="h-3.5 w-3.5 text-zinc-500 mr-2 shrink-0" />;
+        return <XCircle className="h-3.5 w-3.5 shrink-0 text-zinc-500" />;
       default: // open
-        return <Circle className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/20 mr-2 shrink-0" />;
+        return <Circle className="h-3.5 w-3.5 shrink-0 fill-emerald-500/20 text-emerald-500" />;
     }
   };
 
   return (
     <Select value={status} onValueChange={handleStatusChange} disabled={updating}>
-      <SelectTrigger 
-        className="h-9 w-28 px-3 flex items-center justify-center border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer [&>svg:last-child]:hidden shadow-sm text-xs font-semibold"
-        title={`Change Status (Current: ${statusConfig[status as keyof typeof statusConfig]?.label || status})`}
+      <SelectTrigger
+        className="h-8 w-auto min-w-[102px] gap-2 rounded-md border-0 bg-transparent px-2.5 text-xs font-semibold shadow-none hover:bg-muted focus:ring-0"
+        title={`Change status (current: ${statusConfig[status as keyof typeof statusConfig]?.label || status})`}
       >
-        <div className="flex items-center justify-center">
+        <div className="flex items-center gap-1.5">
           {getStatusIcon(status)}
           <span>{statusConfig[status as keyof typeof statusConfig]?.label || status}</span>
         </div>

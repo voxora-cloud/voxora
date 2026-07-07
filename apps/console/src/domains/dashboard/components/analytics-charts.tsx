@@ -332,7 +332,7 @@ function SourceSectorShape(props: SourceSectorShapeProps) {
         x={ex + (cos >= 0 ? 8 : -8)}
         y={ey + 10}
         textAnchor={textAnchor}
-        className="fill-muted-foreground text-[11px]"
+        className="fill-muted-foreground font-mono text-[11px]"
       >
         {`${Number(value || 0).toLocaleString()} (${percent}%)`}
       </text>
@@ -350,7 +350,7 @@ function SourceCenterLabel({
   if (!activeSource) {
     return (
       <g>
-        <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[22px] font-semibold">
+        <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-mono text-[22px] font-semibold">
           {total.toLocaleString()}
         </text>
         <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[12px]">
@@ -364,7 +364,7 @@ function SourceCenterLabel({
 
   return (
     <g>
-      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[22px] font-semibold">
+      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" className="fill-foreground font-mono text-[22px] font-semibold">
         {`${percent}%`}
       </text>
       <text x="50%" y="56%" textAnchor="middle" dominantBaseline="middle" className="fill-muted-foreground text-[12px]">

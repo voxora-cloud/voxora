@@ -1,4 +1,4 @@
-import { SystemEvent, Conversation, Message } from "@shared/models";
+import { SystemEvent, Conversation, Message, Membership } from "@shared/models";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import mongoose from "mongoose";
@@ -14,13 +14,250 @@ const CACHE_TTL = {
 };
 
 const CACHE_KEYS = {
-  ownerSummary: (orgId: string, days: number) => `analytics:owner:summary:${orgId}:${days}d`,
-  ownerTrends: (orgId: string, days: number) => `analytics:owner:trends:${orgId}:${days}d`,
+  summary: (orgId: string, days: number, agentId?: string) =>
+    `analytics:${agentId ? `agent-${agentId}` : "organization"}:summary:${orgId}:${days}d`,
+  trends: (orgId: string, days: number, agentId?: string) =>
+    `analytics:${agentId ? `agent-${agentId}` : "organization"}:trends:${orgId}:${days}d`,
 };
 
 export class AnalyticsService {
-  static async getOwnerSummary(organizationId: string, days = 30) {
-    const cacheKey = CACHE_KEYS.ownerSummary(organizationId, days);
+  static async getAgentStats(userId: string, organizationId: string) {
+    const membership = await Membership.findOne({ userId, organizationId });
+    if (!membership) return null;
+
+    const orgObjectId = new mongoose.Types.ObjectId(organizationId);
+    const agentObjectId = new mongoose.Types.ObjectId(userId);
+    const todayStart = dayjs().startOf("day");
+    const fourteenDaysAgo = dayjs().subtract(13, "days").startOf("day");
+
+    const [conversations, recentConversations, summary, trends] = await Promise.all([
+      Conversation.find({ organizationId: orgObjectId, assignedTo: agentObjectId })
+        .select("_id status createdAt updatedAt closedAt")
+        .lean(),
+      Conversation.find({ organizationId: orgObjectId, assignedTo: agentObjectId })
+        .select("subject status priority updatedAt")
+        .sort({ updatedAt: -1 })
+        .limit(5),
+      this.getOwnerSummary(organizationId, 30, userId),
+      this.getOwnerTrends(organizationId, 7, userId),
+    ]);
+
+    const conversationIds = conversations.map((conversation) => conversation._id);
+    const messages = conversationIds.length
+      ? await Message.find({
+          organizationId: orgObjectId,
+          conversationId: { $in: conversationIds },
+          createdAt: { $gte: fourteenDaysAgo.toDate() },
+        })
+          .select("conversationId metadata.source createdAt")
+          .sort({ createdAt: 1 })
+          .lean()
+      : [];
+
+    const activeConversationIds = new Set(
+      conversations
+        .filter((conversation) => conversation.status === "open")
+        .map((conversation) => conversation._id.toString()),
+    );
+    const latestSourceByConversation = new Map<string, string>();
+    const agentConversationDays = new Map<string, Set<string>>();
+    const agentMessagesByDay = new Map<string, number>();
+    const responseTimesByDay = new Map<string, number[]>();
+    const pendingCustomerMessageAt = new Map<string, dayjs.Dayjs>();
+    const customerSources = new Set(["widget", "web", "email", "whatsapp", "telegram", "link", "qr"]);
+    const isCustomerSource = (source: string) =>
+      customerSources.has(source) ||
+      customerSources.has(source.replace(/_channel$/, ""));
+
+    messages.forEach((message) => {
+      const conversationId = message.conversationId.toString();
+      const source = message.metadata?.source || "";
+      const createdAt = dayjs(message.createdAt);
+      const date = createdAt.format("YYYY-MM-DD");
+
+      latestSourceByConversation.set(conversationId, source);
+
+      if (isCustomerSource(source) && !pendingCustomerMessageAt.has(conversationId)) {
+        pendingCustomerMessageAt.set(conversationId, createdAt);
+      }
+
+      if (source !== "agent") return;
+
+      const conversationsForDay = agentConversationDays.get(date) || new Set<string>();
+      conversationsForDay.add(conversationId);
+      agentConversationDays.set(date, conversationsForDay);
+      agentMessagesByDay.set(date, (agentMessagesByDay.get(date) || 0) + 1);
+
+      const pendingAt = pendingCustomerMessageAt.get(conversationId);
+      if (pendingAt) {
+        const responseMs = createdAt.diff(pendingAt);
+        if (responseMs >= 0) {
+          const responseTimes = responseTimesByDay.get(date) || [];
+          responseTimes.push(responseMs);
+          responseTimesByDay.set(date, responseTimes);
+        }
+        pendingCustomerMessageAt.delete(conversationId);
+      }
+    });
+
+    const waitingForAgent = [...activeConversationIds].filter((conversationId) =>
+      isCustomerSource(latestSourceByConversation.get(conversationId) || ""),
+    ).length;
+
+    const activity = trends.messageVolume.map((row: { date: string }) => ({
+      day: dayjs(row.date).format("ddd"),
+      conversations: agentConversationDays.get(row.date)?.size || 0,
+      messages: agentMessagesByDay.get(row.date) || 0,
+    }));
+    const responseTime = trends.messageVolume.map((row: { date: string }) => {
+      const values = responseTimesByDay.get(row.date) || [];
+      const averageMs = values.length
+        ? values.reduce((sum, value) => sum + value, 0) / values.length
+        : 0;
+      return {
+        hour: dayjs(row.date).format("ddd"),
+        responseTime: Number((averageMs / 60000).toFixed(1)),
+      };
+    });
+
+    const allResponseTimes = [...responseTimesByDay.values()].flat();
+    const avgResponseTimeMs = allResponseTimes.length
+      ? Math.round(
+          allResponseTimes.reduce((sum, value) => sum + value, 0) /
+            allResponseTimes.length,
+        )
+      : null;
+
+    const currentWeekStart = dayjs().subtract(6, "days").startOf("day");
+    const previousWeekStart = dayjs().subtract(13, "days").startOf("day");
+    const currentWeekConversationIds = new Set<string>();
+    const previousWeekConversationIds = new Set<string>();
+    let currentWeekMessages = 0;
+    let previousWeekMessages = 0;
+
+    agentConversationDays.forEach((ids, date) => {
+      const day = dayjs(date);
+      if (day.isSame(currentWeekStart, "day") || day.isAfter(currentWeekStart)) {
+        ids.forEach((id) => currentWeekConversationIds.add(id));
+      } else if (day.isSame(previousWeekStart, "day") || day.isAfter(previousWeekStart)) {
+        ids.forEach((id) => previousWeekConversationIds.add(id));
+      }
+    });
+    agentMessagesByDay.forEach((count, date) => {
+      const day = dayjs(date);
+      if (day.isSame(currentWeekStart, "day") || day.isAfter(currentWeekStart)) {
+        currentWeekMessages += count;
+      } else if (day.isSame(previousWeekStart, "day") || day.isAfter(previousWeekStart)) {
+        previousWeekMessages += count;
+      }
+    });
+
+    const closedInRange = (start: dayjs.Dayjs, end?: dayjs.Dayjs) =>
+      conversations.filter((conversation) => {
+        if (!["resolved", "closed"].includes(conversation.status)) return false;
+        const closedAt = dayjs(conversation.closedAt || conversation.updatedAt);
+        return (
+          (closedAt.isSame(start, "day") || closedAt.isAfter(start)) &&
+          (!end || closedAt.isBefore(end))
+        );
+      }).length;
+
+    const resolvedHandledConversations = (
+      conversationIds: Set<string>,
+      start: dayjs.Dayjs,
+      end?: dayjs.Dayjs,
+    ) =>
+      conversations.filter((conversation) => {
+        if (
+          !conversationIds.has(conversation._id.toString()) ||
+          !["resolved", "closed"].includes(conversation.status)
+        ) {
+          return false;
+        }
+
+        const closedAt = dayjs(conversation.closedAt || conversation.updatedAt);
+        return (
+          (closedAt.isSame(start, "day") || closedAt.isAfter(start)) &&
+          (!end || closedAt.isBefore(end))
+        );
+      }).length;
+
+    const currentWeekResolved = resolvedHandledConversations(
+      currentWeekConversationIds,
+      currentWeekStart,
+    );
+    const previousWeekResolved = resolvedHandledConversations(
+      previousWeekConversationIds,
+      previousWeekStart,
+      currentWeekStart,
+    );
+    const resolutionRate = currentWeekConversationIds.size
+      ? Math.round((currentWeekResolved / currentWeekConversationIds.size) * 100)
+      : 0;
+    const previousResolutionRate = previousWeekConversationIds.size
+      ? Math.round((previousWeekResolved / previousWeekConversationIds.size) * 100)
+      : 0;
+
+    const percentageChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    const today = todayStart.format("YYYY-MM-DD");
+    const yesterday = todayStart.subtract(1, "day").format("YYYY-MM-DD");
+    const resolvedToday = closedInRange(todayStart);
+    const handledToday = agentConversationDays.get(today)?.size || 0;
+    const messagesSentToday = agentMessagesByDay.get(today) || 0;
+    const activeConversations = activeConversationIds.size;
+
+    return {
+      overview: {
+        totalConversations: conversations.length,
+        activeConversations,
+        waitingForAgent,
+        resolvedToday,
+        handledToday,
+        messagesSentToday,
+        avgResponseTimeMs,
+        avgResolutionTimeMs: summary.avgResolutionTimeMs,
+        changes: {
+          resolvedToday:
+            resolvedToday - closedInRange(todayStart.subtract(1, "day"), todayStart),
+          handledToday:
+            handledToday - (agentConversationDays.get(yesterday)?.size || 0),
+          messagesSentToday:
+            messagesSentToday - (agentMessagesByDay.get(yesterday) || 0),
+        },
+      },
+      activity,
+      responseTime,
+      conversationBreakdown: [
+        { status: "Active", count: activeConversations },
+        { status: "Waiting", count: waitingForAgent },
+        {
+          status: "Closed",
+          count: conversations.filter((conversation) =>
+            ["resolved", "closed"].includes(conversation.status),
+          ).length,
+        },
+      ],
+      weekSummary: {
+        conversationsHandled: currentWeekConversationIds.size,
+        conversationsChange: percentageChange(
+          currentWeekConversationIds.size,
+          previousWeekConversationIds.size,
+        ),
+        messagesSent: currentWeekMessages,
+        messagesChange: percentageChange(currentWeekMessages, previousWeekMessages),
+        resolutionRate,
+        resolutionRateChange: resolutionRate - previousResolutionRate,
+      },
+      recentConversations,
+    };
+  }
+
+  static async getOwnerSummary(organizationId: string, days = 30, agentId?: string) {
+    const cacheKey = CACHE_KEYS.summary(organizationId, days, agentId);
 
     // Try Redis cache first
     try {
@@ -34,7 +271,7 @@ export class AnalyticsService {
     }
 
     // Cache miss - compute result
-    const result = await this._computeOwnerSummary(organizationId, days);
+    const result = await this._computeOwnerSummary(organizationId, days, agentId);
 
     // Store in Redis
     try {
@@ -46,19 +283,41 @@ export class AnalyticsService {
     return result;
   }
 
-  private static async _computeOwnerSummary(organizationId: string, days: number) {
+  private static async _computeOwnerSummary(
+    organizationId: string,
+    days: number,
+    agentId?: string,
+  ) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
+    const agentObjectId = agentId ? new mongoose.Types.ObjectId(agentId) : undefined;
+    const conversationMatch = {
+      organizationId: orgObjectId,
+      createdAt: { $gte: startDate },
+      ...(agentObjectId ? { assignedTo: agentObjectId } : {}),
+    };
+    const scopedConversationIds = agentObjectId
+      ? await Conversation.distinct("_id", {
+          organizationId: orgObjectId,
+          assignedTo: agentObjectId,
+        })
+      : undefined;
+    const scopedConversationIdStrings = scopedConversationIds?.map(String);
+    const analyticsScope = agentId
+      ? {
+          $or: [
+            { conversationId: { $in: scopedConversationIdStrings } },
+            { agentId },
+          ],
+        }
+      : {};
 
     // Single $facet pipeline for all Conversation aggregations
     const [conversationFacet, analyticsEventFacet, totalMessages] = await Promise.all([
       // ─────── SINGLE FACET FOR CONVERSATION QUERIES ───────
       Conversation.aggregate([
         {
-          $match: {
-            organizationId: orgObjectId,
-            createdAt: { $gte: startDate },
-          },
+          $match: conversationMatch,
         },
         {
           $facet: {
@@ -181,6 +440,7 @@ export class AnalyticsService {
             organizationId: { $in: [organizationId, orgObjectId] },
             category: "analytics",
             eventTime: { $gte: startDate },
+            ...analyticsScope,
           },
         },
         {
@@ -239,6 +499,9 @@ export class AnalyticsService {
       Message.countDocuments({
         organizationId: { $in: [organizationId, orgObjectId] },
         createdAt: { $gte: startDate },
+        ...(scopedConversationIds
+          ? { conversationId: { $in: scopedConversationIds } }
+          : {}),
       }),
     ]);
 
@@ -300,8 +563,8 @@ export class AnalyticsService {
     };
   }
 
-  static async getOwnerTrends(organizationId: string, days = 7) {
-    const cacheKey = CACHE_KEYS.ownerTrends(organizationId, days);
+  static async getOwnerTrends(organizationId: string, days = 7, agentId?: string) {
+    const cacheKey = CACHE_KEYS.trends(organizationId, days, agentId);
 
     // Try Redis cache first
     try {
@@ -315,7 +578,7 @@ export class AnalyticsService {
     }
 
     // Cache miss - compute result
-    const result = await this._computeOwnerTrends(organizationId, days);
+    const result = await this._computeOwnerTrends(organizationId, days, agentId);
 
     // Store in Redis
     try {
@@ -327,10 +590,30 @@ export class AnalyticsService {
     return result;
   }
 
-  private static async _computeOwnerTrends(organizationId: string, days: number) {
+  private static async _computeOwnerTrends(
+    organizationId: string,
+    days: number,
+    agentId?: string,
+  ) {
     const startDate = dayjs().subtract(days - 1, "days").startOf("day").toDate();
     const endDate = dayjs().endOf("day").toDate();
     const orgObjectId = new mongoose.Types.ObjectId(organizationId);
+    const agentObjectId = agentId ? new mongoose.Types.ObjectId(agentId) : undefined;
+    const scopedConversationIds = agentObjectId
+      ? await Conversation.distinct("_id", {
+          organizationId: orgObjectId,
+          assignedTo: agentObjectId,
+        })
+      : undefined;
+    const scopedConversationIdStrings = scopedConversationIds?.map(String);
+    const analyticsScope = agentId
+      ? {
+          $or: [
+            { conversationId: { $in: scopedConversationIdStrings } },
+            { agentId },
+          ],
+        }
+      : {};
 
     const [messageRows, conversationRows, aiCostRows] = await Promise.all([
       Message.aggregate([
@@ -339,6 +622,9 @@ export class AnalyticsService {
             organizationId: { $in: [organizationId, orgObjectId] },
             createdAt: { $gte: startDate, $lte: endDate },
             "metadata.source": { $in: ["ai", "web", "agent", "widget"] },
+            ...(scopedConversationIds
+              ? { conversationId: { $in: scopedConversationIds } }
+              : {}),
           },
         },
         {
@@ -367,6 +653,7 @@ export class AnalyticsService {
       Conversation.find({
         organizationId: orgObjectId,
         createdAt: { $lte: endDate },
+        ...(agentObjectId ? { assignedTo: agentObjectId } : {}),
         $or: [
           { createdAt: { $gte: startDate } },
           { closedAt: { $gte: startDate } },
@@ -388,6 +675,7 @@ export class AnalyticsService {
             category: "analytics",
             eventTime: { $gte: startDate },
             eventType: { $in: ["ai_response", "ai_token_usage"] },
+            ...analyticsScope,
           },
         },
         {
@@ -499,7 +787,7 @@ export class AnalyticsService {
   static async invalidateCache(organizationId: string) {
     try {
       // Delete all analytics caches for this organization
-      const pattern = `analytics:owner:*:${organizationId}:*`;
+      const pattern = `analytics:*:*:${organizationId}:*`;
       for await (const key of redisClient.scanIterator({ MATCH: pattern, COUNT: 100 })) {
         await redisClient.del(key);
       }

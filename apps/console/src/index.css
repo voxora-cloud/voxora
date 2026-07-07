@@ -291,7 +291,7 @@
   }
 
   .type-label-caps {
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: var(--type-label-caps-size);
     line-height: var(--type-label-caps-line);
     font-weight: var(--type-label-caps-weight);

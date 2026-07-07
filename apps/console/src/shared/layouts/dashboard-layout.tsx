@@ -99,25 +99,50 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notificationFilter, setNotificationFilter] = useState<"all" | "unread">("all");
   const [isContentFullscreen, setIsContentFullscreen] = useState(false);
   const searchContainerRef = useRef<HTMLFormElement | null>(null);
-  const widgetScriptInjected = useRef(false);
-
-  // Inject widget script once for the entire dashboard session so the
-  // floating button persists across page navigations.
+  // Keep one widget loader alive across route-level DashboardLayout remounts.
+  // The router mounts a fresh layout for each dashboard page, so removing and
+  // reinjecting the iframe here would blank an open widget during navigation.
   useEffect(() => {
     const widgetId = widgetData?._id;
-    if (!widgetId || widgetScriptInjected.current) return;
+    if (!widgetId) return;
 
-    // Remove any stale widget elements before injecting fresh script.
-    document.getElementById("InteraOne-widget-script")?.remove();
-    document.getElementById("InteraOne-widget-button")?.remove();
+    const existingScript = document.getElementById(
+      "InteraOne-widget-script",
+    ) as HTMLScriptElement | null;
+    const existingWidgetId = existingScript?.getAttribute(
+      "data-InteraOne-public-key",
+    );
+    const existingDock = document.getElementById("InteraOne-widget-dock");
+    const existingIframe = document.getElementById(
+      "InteraOne-widget-iframe",
+    ) as HTMLIFrameElement | null;
+    const hasMountedWidget =
+      !!existingDock &&
+      !!existingIframe &&
+      existingIframe.isConnected &&
+      existingDock.contains(existingIframe) &&
+      !!existingIframe.getAttribute("src");
+
+    if (existingScript && existingWidgetId === widgetId && hasMountedWidget) {
+      return;
+    }
+
+    const widgetWindow = window as Window & {
+      __InteraOneWidgetLoader?: { destroy: () => void };
+    };
+    widgetWindow.__InteraOneWidgetLoader?.destroy();
+
+    existingScript?.remove();
+    document.getElementById("InteraOne-chat-button")?.remove();
+    document.getElementById("InteraOne-outside-chips")?.remove();
     document.getElementById("InteraOne-widget-iframe")?.remove();
+    document.getElementById("InteraOne-widget-dock")?.remove();
 
     const script = document.createElement("script");
     script.src = `${CDN_URL}?v=${Date.now()}`;
     script.setAttribute("data-InteraOne-public-key", widgetId);
     script.id = "InteraOne-widget-script";
     document.body.appendChild(script);
-    widgetScriptInjected.current = true;
   }, [widgetData?._id]);
 
   const searchableRoutes = useMemo(() => {
@@ -310,6 +335,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   const isConversationRoute = location.pathname.startsWith("/dashboard/conversations");
+  const isTicketRoute = location.pathname.startsWith("/dashboard/tickets");
+  const isTicketDetailRoute = /^\/dashboard\/tickets\/[^/]+\/?$/.test(location.pathname);
 
   const renderSidebar = () => {
     return (
@@ -792,8 +819,17 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <div className="flex-1 min-h-0 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                   {children}
                 </div>
+              ) : isTicketDetailRoute ? (
+                <>
+                  <UsageBanner />
+                  {children}
+                </>
               ) : (
-                <div className="min-h-[calc(100vh-4rem)] rounded-2xl border border-border bg-card shadow-sm p-4 sm:p-6 lg:p-8">
+                <div
+                  className={`min-h-[calc(100vh-4rem)] rounded-2xl border border-border bg-card p-4 sm:p-6 lg:p-8 ${
+                    isTicketRoute ? "" : "shadow-sm"
+                  }`}
+                >
                   <UsageBanner />
                   {children}
                 </div>

@@ -1,5 +1,7 @@
 import { MetricCard } from "./metric-card";
 import { Card } from "@/shared/ui/card";
+import { Button } from "@/shared/ui/button";
+import { Loader } from "@/shared/ui/loader";
 import {
   MessageSquare,
   Clock,
@@ -21,32 +23,8 @@ import {
   YAxis,
   CartesianGrid,
 } from "recharts";
-
-// Mock data
-const myActivityData = [
-  { day: "Mon", conversations: 8, messages: 42 },
-  { day: "Tue", conversations: 12, messages: 68 },
-  { day: "Wed", conversations: 9, messages: 51 },
-  { day: "Thu", conversations: 15, messages: 89 },
-  { day: "Fri", conversations: 11, messages: 64 },
-];
-
-const myResponseTimeData = [
-  { hour: "9AM", responseTime: 1.8 },
-  { hour: "10AM", responseTime: 2.3 },
-  { hour: "11AM", responseTime: 2.1 },
-  { hour: "12PM", responseTime: 2.9 },
-  { hour: "1PM", responseTime: 2.5 },
-  { hour: "2PM", responseTime: 2.2 },
-  { hour: "3PM", responseTime: 2.7 },
-  { hour: "4PM", responseTime: 2.4 },
-];
-
-const myConversationsData = [
-  { status: "Active", count: 6 },
-  { status: "Waiting", count: 3 },
-  { status: "Closed", count: 11 },
-];
+import { useAgentDashboardStats } from "../hooks/use-analytics";
+import { AnalyticsEmptyState } from "./analytics-empty-state";
 
 const chartConfig = {
   conversations: {
@@ -69,7 +47,47 @@ const chartConfig = {
 
 const formatIntegerTick = (value: number) => Math.round(value).toLocaleString();
 
+const formatDuration = (ms: number | null) => {
+  if (ms === null) return "—";
+  const minutes = ms / 60000;
+  return minutes < 1 ? `${Math.round(ms / 1000)}s` : `${minutes.toFixed(1)}m`;
+};
+
+const formatChange = (value: number, suffix = "") =>
+  `${value > 0 ? "+" : ""}${value}${suffix}`;
+
 export function AgentDashboard() {
+  const { data, isLoading, isError, refetch } = useAgentDashboardStats();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader size="lg" />
+      </div>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-3 text-center">
+        <p className="font-medium text-foreground">Unable to load agent analytics</p>
+        <p className="text-sm text-muted-foreground">Please try again.</p>
+        <Button variant="outline" onClick={() => void refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  const { overview, weekSummary } = data;
+  const hasDailyPerformance = data.activity.some(
+    (row) => row.conversations > 0 || row.messages > 0,
+  );
+  const hasResponseTime = data.responseTime.some((row) => row.responseTime > 0);
+  const hasConversationBreakdown = data.conversationBreakdown.some(
+    (row) => row.count > 0,
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,31 +103,29 @@ export function AgentDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="My Active Conversations"
-            value="6"
-            change="+2"
-            changeType="neutral"
+            value={overview.activeConversations}
             icon={MessageSquare}
             description="currently handling"
           />
           <MetricCard
             title="Waiting for Me"
-            value="3"
-            change="+1"
-            changeType="negative"
+            value={overview.waitingForAgent}
             icon={Clock}
             description="pending response"
           />
           <MetricCard
             title="Closed Today"
-            value="11"
-            change="+3"
-            changeType="positive"
+            value={overview.resolvedToday}
+            change={formatChange(overview.changes.resolvedToday)}
+            changeType={overview.changes.resolvedToday >= 0 ? "positive" : "negative"}
             icon={CheckCircle}
             description="resolved conversations"
           />
           <MetricCard
             title="Handled Today"
-            value="15"
+            value={overview.handledToday}
+            change={formatChange(overview.changes.handledToday)}
+            changeType={overview.changes.handledToday >= 0 ? "positive" : "negative"}
             icon={Activity}
             description="total conversations"
           />
@@ -122,47 +138,59 @@ export function AgentDashboard() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">Daily Performance</h3>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <LineChart data={myActivityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  type="monotone"
-                  dataKey="conversations"
-                  stroke="var(--color-conversations)"
-                  strokeWidth={2}
-                  dot={{ fill: "var(--color-conversations)" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="messages"
-                  stroke="var(--color-messages)"
-                  strokeWidth={2}
-                  dot={{ fill: "var(--color-messages)" }}
-                />
-              </LineChart>
-            </ChartContainer>
+            <div className="h-[300px]">
+              {hasDailyPerformance ? (
+                <ChartContainer config={chartConfig} className="h-full">
+                  <LineChart data={data.activity}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="day" />
+                    <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line
+                      type="monotone"
+                      dataKey="conversations"
+                      stroke="var(--color-conversations)"
+                      strokeWidth={2}
+                      dot={{ fill: "var(--color-conversations)" }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="messages"
+                      stroke="var(--color-messages)"
+                      strokeWidth={2}
+                      dot={{ fill: "var(--color-messages)" }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <AnalyticsEmptyState />
+              )}
+            </div>
           </Card>
 
           <Card className="p-6">
             <h3 className="text-lg font-semibold mb-4">My Response Time</h3>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <LineChart data={myResponseTimeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="hour" />
-                <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  type="monotone"
-                  dataKey="responseTime"
-                  stroke="var(--color-responseTime)"
-                  strokeWidth={2}
-                  dot={{ fill: "var(--color-responseTime)" }}
-                />
-              </LineChart>
-            </ChartContainer>
+            <div className="h-[300px]">
+              {hasResponseTime ? (
+                <ChartContainer config={chartConfig} className="h-full">
+                  <LineChart data={data.responseTime}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="hour" />
+                    <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line
+                      type="monotone"
+                      dataKey="responseTime"
+                      stroke="var(--color-responseTime)"
+                      strokeWidth={2}
+                      dot={{ fill: "var(--color-responseTime)" }}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <AnalyticsEmptyState />
+              )}
+            </div>
           </Card>
         </div>
       </div>
@@ -173,24 +201,20 @@ export function AgentDashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <MetricCard
             title="Avg Response Time"
-            value="2.4m"
-            change="-0.3m"
-            changeType="positive"
+            value={formatDuration(overview.avgResponseTimeMs)}
             icon={Clock}
-            description="faster than yesterday"
+            description="last 7 days"
           />
           <MetricCard
             title="Avg Resolution Time"
-            value="15.8m"
-            change="-2.1m"
-            changeType="positive"
+            value={formatDuration(overview.avgResolutionTimeMs)}
             icon={CheckCircle}
           />
           <MetricCard
             title="Messages Sent Today"
-            value="89"
-            change="+12"
-            changeType="positive"
+            value={overview.messagesSentToday}
+            change={formatChange(overview.changes.messagesSentToday)}
+            changeType={overview.changes.messagesSentToday >= 0 ? "positive" : "negative"}
             icon={MessageSquare}
           />
         </div>
@@ -202,19 +226,25 @@ export function AgentDashboard() {
           <h3 className="text-lg font-semibold mb-4">
             My Conversations Breakdown
           </h3>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <BarChart data={myConversationsData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar
-                dataKey="count"
-                fill="var(--color-count)"
-                radius={[8, 8, 0, 0]}
-              />
-            </BarChart>
-          </ChartContainer>
+          <div className="h-[300px]">
+            {hasConversationBreakdown ? (
+              <ChartContainer config={chartConfig} className="h-full">
+                <BarChart data={data.conversationBreakdown}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="status" />
+                  <YAxis allowDecimals={false} tickFormatter={formatIntegerTick} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar
+                    dataKey="count"
+                    fill="var(--color-count)"
+                    radius={[8, 8, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
+            ) : (
+              <AnalyticsEmptyState />
+            )}
+          </div>
         </Card>
 
         <Card className="p-6">
@@ -229,11 +259,13 @@ export function AgentDashboard() {
                   <p className="text-sm text-muted-foreground">
                     Conversations Handled
                   </p>
-                  <p className="text-xl font-bold">55</p>
+                  <p className="font-mono text-xl font-bold tabular-nums">{weekSummary.conversationsHandled}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-success font-medium">+8%</p>
+                <p className="font-mono text-sm font-medium tabular-nums text-success">
+                  {formatChange(weekSummary.conversationsChange, "%")}
+                </p>
                 <p className="text-xs text-muted-foreground">vs last week</p>
               </div>
             </div>
@@ -245,11 +277,13 @@ export function AgentDashboard() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Messages Sent</p>
-                  <p className="text-xl font-bold">314</p>
+                  <p className="font-mono text-xl font-bold tabular-nums">{weekSummary.messagesSent}</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-info font-medium">+12%</p>
+                <p className="font-mono text-sm font-medium tabular-nums text-info">
+                  {formatChange(weekSummary.messagesChange, "%")}
+                </p>
                 <p className="text-xs text-muted-foreground">vs last week</p>
               </div>
             </div>
@@ -263,12 +297,12 @@ export function AgentDashboard() {
                   <p className="text-sm text-muted-foreground">
                     Avg Rating
                   </p>
-                  <p className="text-xl font-bold">4.8/5.0</p>
+                  <p className="font-mono text-xl font-bold tabular-nums">—</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-primary font-medium">+0.2</p>
-                <p className="text-xs text-muted-foreground">improvement</p>
+                <p className="font-mono text-sm font-medium tabular-nums text-primary">—</p>
+                <p className="text-xs text-muted-foreground">no rating data</p>
               </div>
             </div>
 
@@ -281,11 +315,13 @@ export function AgentDashboard() {
                   <p className="text-sm text-muted-foreground">
                     Resolution Rate
                   </p>
-                  <p className="text-xl font-bold">96%</p>
+                  <p className="font-mono text-xl font-bold tabular-nums">{weekSummary.resolutionRate}%</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-warning font-medium">+3%</p>
+                <p className="font-mono text-sm font-medium tabular-nums text-warning">
+                  {formatChange(weekSummary.resolutionRateChange, "%")}
+                </p>
                 <p className="text-xs text-muted-foreground">vs last week</p>
               </div>
             </div>

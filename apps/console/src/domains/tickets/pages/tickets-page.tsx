@@ -91,8 +91,8 @@ const getStatusBadge = (status: string) => {
       );
     case "closed":
       return (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-secondary/10 border border-secondary/20 text-secondary-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
           Closed
         </span>
       );
@@ -261,7 +261,7 @@ export function TicketsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -288,7 +288,7 @@ export function TicketsPage() {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card/60 backdrop-blur-sm sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
             label: "Total Tickets",
@@ -314,20 +314,26 @@ export function TicketsPage() {
             icon: <CheckCircle className="h-5 w-5" />,
             color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
           },
-        ].map((card) => (
+        ].map((card, index) => (
           <div
             key={card.label}
-            className="rounded-xl border border-border bg-card/60 backdrop-blur-sm p-5 shadow-sm hover:shadow-md transition-all duration-300"
+            className={`p-4 ${
+              index < 3 ? "border-b lg:border-b-0" : ""
+            } ${
+              index === 0 || index === 2 ? "sm:border-r" : ""
+            } ${
+              index < 2 ? "sm:border-b" : "sm:border-b-0"
+            } lg:border-r lg:last:border-r-0`}
           >
-            <div className="flex items-center gap-4">
-              <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${card.color}`}>
+            <div className="flex items-center gap-3">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${card.color}`}>
                 {card.icon}
               </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   {card.label}
                 </p>
-                <h4 className="text-2xl font-extrabold tracking-tight mt-0.5">{card.value}</h4>
+                <h4 className="mt-0.5 font-mono text-xl font-bold tracking-tight tabular-nums">{card.value}</h4>
               </div>
             </div>
           </div>
@@ -335,10 +341,60 @@ export function TicketsPage() {
       </div>
 
       {/* Filters + Table */}
-      <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          {/* Status tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-2 md:pb-0">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground">Ticket queue</h2>
+              <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {totalTickets}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Review, prioritize, and assign customer requests.
+            </p>
+          </div>
+
+          {/* Search + selects */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-[minmax(220px,1fr)_auto_auto] lg:w-[680px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search title or ticket number..."
+                className="h-8 cursor-text pl-9 text-xs"
+              />
+            </div>
+            <select
+              value={priorityFilter}
+              onChange={(e) => { setPriorityFilter(e.target.value); setCurrentPage(1); }}
+              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All Priorities</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+            <select
+              value={assignedToFilter}
+              onChange={(e) => { setAssignedToFilter(e.target.value); setCurrentPage(1); }}
+              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="">All Assignments</option>
+              <option value="unassigned">Unassigned</option>
+              {members.map((m) => (
+                <option key={m.user._id} value={m.user._id}>
+                  {m.user.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Status tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-4 py-2">
             {[
               { label: "All", value: "" },
               { label: "Open", value: "open" },
@@ -356,44 +412,6 @@ export function TicketsPage() {
                 {tab.label}
               </Button>
             ))}
-          </div>
-
-          {/* Search + selects */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search title or #..."
-                className="pl-9 cursor-text h-8 text-xs"
-              />
-            </div>
-            <select
-              value={priorityFilter}
-              onChange={(e) => { setPriorityFilter(e.target.value); setCurrentPage(1); }}
-              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">All Priorities</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-            <select
-              value={assignedToFilter}
-              onChange={(e) => { setAssignedToFilter(e.target.value); setCurrentPage(1); }}
-              className="h-8 max-w-[180px] rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">All Assignments</option>
-              <option value="unassigned">Unassigned</option>
-              {members.map((m) => (
-                <option key={m.user._id} value={m.user._id}>
-                  {m.user.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         {/* Table */}
@@ -410,7 +428,7 @@ export function TicketsPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm shadow-sm">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-muted/40 border-b border-border text-xs font-semibold text-muted-foreground">
@@ -420,7 +438,7 @@ export function TicketsPage() {
                   <th className="p-3 w-[110px]">Priority</th>
                   <th className="p-3 w-[180px]">Assigned Agent</th>
                   <th className="p-3 w-[110px]">Source</th>
-                  <th className="p-3 w-[80px] text-right">Open</th>
+                  <th className="p-3 w-[80px] text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60 text-sm">
@@ -459,7 +477,7 @@ export function TicketsPage() {
                       <select
                         value={ticket.assignedTo?.id || ""}
                         onChange={(e) => handleAssignTicket(ticket.id, e.target.value || null)}
-                        className="h-7 w-full cursor-pointer rounded-lg border border-border/80 bg-background/50 hover:bg-background px-2 py-0.5 text-xs shadow-sm transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary"
+                        className="h-7 w-full cursor-pointer rounded-lg border border-border/80 bg-background/50 px-2 py-0.5 text-xs transition-colors hover:bg-background focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                       >
                         <option value="">Unassigned</option>
                         {members.map((m) => (
@@ -491,7 +509,7 @@ export function TicketsPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 items-center border-t border-border/40 pt-4 mt-4 gap-4">
+          <div className="grid grid-cols-1 items-center gap-4 border-t border-border/40 p-4 sm:grid-cols-3">
             <p className="text-xs text-muted-foreground text-center sm:text-left">
               Showing page {currentPage} of {totalPages}
             </p>

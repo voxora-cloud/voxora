@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import { Membership, Conversation } from "@shared/models";
+import { Membership } from "@shared/models";
 import { User } from "@shared/models";
 import logger from "@shared/core/logger";
 import { UpdateAgentProfileInput } from "./agent.types";
@@ -40,34 +39,4 @@ export class AgentService {
     return agent ? { status: agent.status, lastSeen: agent.lastSeen } : null;
   }
 
-  // ═══════════════════════════════════════════════════
-  //  AGENT STATS (org-scoped)
-  // ═══════════════════════════════════════════════════
-
-  async getAgentStats(userId: string, organizationId: string) {
-    const membership = await Membership.findOne({ userId, organizationId });
-    if (!membership) return null;
-
-    const [totalConversations, activeConversations, resolvedToday, recentConversations] = await Promise.all([
-      Conversation.countDocuments({ organizationId, assignedTo: userId }),
-      Conversation.countDocuments({ organizationId, assignedTo: userId, status: { $in: ["open", "pending"] } }),
-      Conversation.countDocuments({
-        organizationId,
-        assignedTo: userId,
-        status: "resolved",
-        updatedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
-      }),
-      Conversation.find({ organizationId, assignedTo: userId })
-        .select("subject status priority updatedAt")
-        .sort({ updatedAt: -1 })
-        .limit(5),
-    ]);
-
-    const user = await User.findById(userId).select("_id");
-
-    return {
-      overview: { totalConversations, activeConversations, resolvedToday, rating: 5.0, totalChats: totalConversations },
-      recentConversations,
-    };
-  }
 }

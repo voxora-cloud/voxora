@@ -71,9 +71,14 @@ export function RouteConversationDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="h-9 w-28 flex items-center justify-center border border-input bg-background hover:bg-accent hover:text-accent-foreground cursor-pointer text-xs font-semibold" title="Route Conversation">
-          <UserPlus className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
-          Route
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 cursor-pointer rounded-md px-2.5 text-xs font-semibold"
+          title="Route conversation"
+        >
+          <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="hidden sm:inline">Route</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
