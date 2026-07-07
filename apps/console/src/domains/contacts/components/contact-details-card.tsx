@@ -9,13 +9,19 @@ import { Badge } from "@/shared/ui/badge";
 import { contactsApi } from "../api/contacts.api";
 import type { Contact } from "../types/types";
 import { useNavigate } from "react-router";
+import { ContactDialog } from "./contact-form";
 
 interface ContactDetailsCardProps {
   contact: Contact;
   onResolveConflictsClick?: () => void;
+  conversationId?: string;
 }
 
-export function ContactDetailsCard({ contact, onResolveConflictsClick }: ContactDetailsCardProps) {
+export function ContactDetailsCard({
+  contact,
+  onResolveConflictsClick,
+  conversationId,
+}: ContactDetailsCardProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [newTag, setNewTag] = useState("");
@@ -68,9 +74,24 @@ export function ContactDetailsCard({ contact, onResolveConflictsClick }: Contact
   return (
     <>
       <div className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{contact.name}</h2>
-          <p className="text-sm text-muted-foreground">{contact.email || contact.phone}</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{contact.name}</h2>
+            <p className="text-sm text-muted-foreground">{contact.email || contact.phone}</p>
+          </div>
+           <ContactDialog
+            mode="update"
+            contactId={contact.id}
+            conversationId={conversationId}
+            contact={{
+              name: contact.name,
+              email: contact.email || "",
+              phone: contact.phone !== "Not provided" ? contact.phone : "",
+              company: contact.company || "",
+              tags: contact.tags,
+            }}
+            triggerType="icon"
+          />
         </div>
         <div className="text-sm text-muted-foreground">
           {contact.company || "Independent"}

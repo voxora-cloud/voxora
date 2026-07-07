@@ -3,12 +3,11 @@ import { Button } from "@/shared/ui/button";
 import { Textarea } from "@/shared/ui/textarea";
 
 import { useAuth } from "@/domains/auth/hooks";
-import { Send, ArrowLeft, Clock, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Cpu, Bot, ChevronRight, Info } from "lucide-react";
+import { Send, ArrowLeft, Clock, User, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Cpu, Bot, ChevronRight } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
-import { UpdateContactDialog } from "./update-contact-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversationDetail, useAgentRuns } from "../hooks";
 import type { ConversationDetail, ConversationMessage } from "../types/types";
@@ -620,7 +619,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               aria-pressed={isContactSidebarOpen}
               title={isContactSidebarOpen ? "Hide Contact Details" : "Show Contact Details"}
             >
-              <Info className="h-4 w-4" />
+              <User className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -726,18 +725,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           <div className="p-4 border-b border-border bg-card flex items-center justify-between">
             <h3 className="text-sm font-semibold">Contact details</h3>
             <div className="flex items-center gap-1">
-              <UpdateContactDialog
-                conversationId={conversationId}
-                contactId={contactDetails?.id}
-                triggerType="icon"
-                visitor={{
-                  name: contactDetails?.name,
-                  email: contactDetails?.email,
-                  phone: contactDetails?.phone !== "Not provided" ? contactDetails?.phone : "",
-                  company: contactDetails?.company,
-                  tags: contactDetails?.tags,
-                }}
-              />
               <Button
                 variant="ghost"
                 size="icon"
@@ -751,7 +738,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <ContactDetailsCard contact={contactDetails} />
+            <ContactDetailsCard contact={contactDetails} conversationId={conversationId} />
           </div>
         </div>
       )}

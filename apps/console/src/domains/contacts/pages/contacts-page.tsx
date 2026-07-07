@@ -12,7 +12,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/shared/ui/dialog";
 import {
   Select,
@@ -30,7 +29,7 @@ import {
   MessagesSquare,
   AlertTriangle,
 } from "lucide-react";
-import { AddContactForm } from "@/domains/contacts/components/add-contact-form";
+import { ContactDialog } from "@/domains/contacts/components/contact-form";
 import {
   useContacts,
   usePendingConflicts,
@@ -143,7 +142,6 @@ export function ContactsPage() {
   const [conversationFilter, setConversationFilter] = useState<string>("all");
   const [sortValue, setSortValue] = useState("recent");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { data: rawContacts = [], isLoading: isLoadingContacts, error: loadErrorData } = useContacts();
@@ -283,7 +281,6 @@ export function ContactsPage() {
 
     setAddedContacts((prev) => [newContact, ...prev]);
     setSelectedContactId(newContact.id);
-    setIsAddDialogOpen(false);
   };
 
   const handleBulkDelete = async () => {
@@ -368,27 +365,17 @@ export function ContactsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
+          <ContactDialog
+            mode="create"
+            onSubmit={handleAddContact}
+            triggerType="custom"
+            customTrigger={
               <Button className="cursor-pointer">
                 <Plus className="h-4 w-4 mr-2" />
                 Add contact
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-180">
-              <DialogHeader>
-                <DialogTitle>Add new contact</DialogTitle>
-                <DialogDescription>
-                  Capture customer details so agents can provide faster, more personal support.
-                </DialogDescription>
-              </DialogHeader>
-              <AddContactForm
-                onSubmit={handleAddContact}
-                onCancel={() => setIsAddDialogOpen(false)}
-                tagOptions={TAG_OPTIONS}
-              />
-            </DialogContent>
-          </Dialog>
+            }
+          />
         </div>
       </div>
 

@@ -38,6 +38,7 @@ import {
   useUpdateTicket,
   useUpdateTicketStatus,
 } from "../hooks";
+import { ContactDialog } from "@/domains/contacts/components/contact-form";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -514,12 +515,28 @@ export function TicketDetailPage() {
           </div>
 
           <PaneSection title="Contact details">
-            <div className="mb-3 flex items-center gap-2.5">
-              <Avatar label={contactName} />
-              <div className="min-w-0">
-                <p className="truncate text-xs font-bold text-foreground">{contactName}</p>
-                {contactCompany && <p className="truncate text-[10px] text-muted-foreground">{contactCompany}</p>}
+            <div className="mb-3 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Avatar label={contactName} />
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-bold text-foreground">{contactName}</p>
+                  {contactCompany && <p className="truncate text-[10px] text-muted-foreground">{contactCompany}</p>}
+                </div>
               </div>
+              <ContactDialog
+                mode="update"
+                contactId={ticket.contactId || undefined}
+                conversationId={ticket.conversationId || undefined}
+                contact={{
+                  name: contactName,
+                  email: contactEmail || "",
+                  phone: contactPhone || "",
+                  company: contactCompany || "",
+                  tags: contactTags,
+                }}
+                triggerType="icon"
+                onSuccess={() => void refetch()}
+              />
             </div>
             <dl className="space-y-1.5">
               <DetailRow label="Email">
