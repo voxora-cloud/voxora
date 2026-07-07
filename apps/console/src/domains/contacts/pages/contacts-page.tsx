@@ -28,6 +28,8 @@ import {
   Clock,
   MessagesSquare,
   AlertTriangle,
+  Loader2,
+  Tag,
 } from "lucide-react";
 import { ContactDialog } from "@/domains/contacts/components/contact-form";
 import {
@@ -96,6 +98,7 @@ const toContactViewModel = (item: ContactListItem): Contact => ({
           id: `conv-${item.id}`,
           status: "open",
           lastMessage: "Conversation context is still syncing.",
+          channel: "widget",
           updatedAt: item.updatedAt,
         },
       ],
@@ -143,6 +146,8 @@ export function ContactsPage() {
   const [sortValue, setSortValue] = useState("recent");
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkTagDialogOpen, setIsBulkTagDialogOpen] = useState(false);
+  const [bulkTagsInput, setBulkTagsInput] = useState("");
 
   const { data: rawContacts = [], isLoading: isLoadingContacts, error: loadErrorData } = useContacts();
   const { data: conflicts = [] } = usePendingConflicts();
@@ -297,13 +302,13 @@ export function ContactsPage() {
 
   const handleBulkAddTags = async () => {
     if (selectedContacts.length === 0) return;
-    const tagInput = window.prompt("Enter tags to add (comma-separated):");
-    if (!tagInput) return;
-    const tagsToAdd = tagInput.split(",").map((t) => t.trim()).filter(Boolean);
+    const tagsToAdd = bulkTagsInput.split(",").map((t) => t.trim()).filter(Boolean);
     if (tagsToAdd.length === 0) return;
     try {
       await bulkAddTagsMutation.mutateAsync({ ids: selectedContacts, tags: tagsToAdd });
       setSelectedContacts([]);
+      setBulkTagsInput("");
+      setIsBulkTagDialogOpen(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to add tags");
     }
@@ -521,7 +526,7 @@ export function ContactsPage() {
                   {selectedContacts.length} contacts selected
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={handleBulkAddTags} className="cursor-pointer">
+                  <Button variant="outline" size="sm" onClick={() => setIsBulkTagDialogOpen(true)} className="cursor-pointer">
                     Add tags
                   </Button>
                   <Button variant="outline" size="sm" onClick={handleBulkExport} className="cursor-pointer">
@@ -550,16 +555,25 @@ export function ContactsPage() {
               <span>Showing {startItem}-{endItem} of {totalItems} results</span>
             </div>
 
-            <div className="divide-y divide-border">
-              {paginatedContacts.map((contact) => (
-                <button
-                  key={contact.id}
-                  onClick={() => setSelectedContactId(contact.id)}
-                  className={`w-full text-left py-4 transition-colors cursor-pointer ${contact.id === selectedContactId
-                    ? "bg-muted/40"
-                    : "hover:bg-muted/20"
+            <div className="flex flex-col gap-1">
+              {paginatedContacts.map((contact) => {
+                const isActive = contact.id === selectedContactId;
+                const isSelected = selectedContacts.includes(contact.id);
+                return (
+                  <button
+                    key={contact.id}
+                    onClick={() => {
+                      setSelectedContactId(contact.id);
+                      toggleBulkSelect(contact.id);
+                    }}
+                    className={`w-full text-left py-3.5 px-4 rounded-lg transition-all cursor-pointer border-l-4 select-none ${
+                      isActive
+                        ? "bg-primary/[0.04] border-l-primary shadow-xs"
+                        : isSelected
+                        ? "bg-primary/[0.015] border-l-transparent"
+                        : "hover:bg-muted/30 border-l-transparent"
                     }`}
-                >
+                  >
                   <div className="flex items-start gap-4">
                     <div className="flex items-center gap-3">
                       <input
@@ -638,8 +652,9 @@ export function ContactsPage() {
                     </div>
                   </div>
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
 
             {totalPages > 1 && (
               <div className="pt-4 border-t border-border">
@@ -708,6 +723,56 @@ export function ContactsPage() {
         itemName={`${selectedContacts.length} selected contact(s)`}
         isDeleting={deleteContactsMutation.isPending}
       />
+
+      <Dialog open={isBulkTagDialogOpen} onOpenChange={setIsBulkTagDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5 text-primary" />
+              Add Tags in Bulk
+            </DialogTitle>
+            <DialogDescription>
+              Apply tags to the {selectedContacts.length} selected contacts. Enter tags separated by commas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bulk-tags-input">Tags</Label>
+              <Input
+                id="bulk-tags-input"
+                placeholder="e.g. VIP, Enterprise, At Risk"
+                value={bulkTagsInput}
+                onChange={(e) => setBulkTagsInput(e.target.value)}
+                autoFocus
+                className="cursor-text"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsBulkTagDialogOpen(false);
+                setBulkTagsInput("");
+              }}
+              disabled={bulkAddTagsMutation.isPending}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBulkAddTags}
+              disabled={bulkAddTagsMutation.isPending || !bulkTagsInput.trim()}
+              className="cursor-pointer bg-primary hover:bg-primary/95 text-primary-foreground border-0"
+            >
+              {bulkAddTagsMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Add Tags
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isConflictSheetOpen} onOpenChange={setIsConflictSheetOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">

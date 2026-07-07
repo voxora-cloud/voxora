@@ -9,6 +9,7 @@ export interface ContactConversation {
   id: string;
   status: "open" | "resolved" | "closed";
   lastMessage: string;
+  channel: string;
   updatedAt: string;
 }
 
@@ -63,6 +64,7 @@ export interface ContactListItem {
     id: string;
     status: "open" | "resolved" | "closed";
     lastMessage: string;
+    channel: string;
     updatedAt: string;
   }>;
   insights: {
@@ -116,6 +118,7 @@ export const toContactViewModel = (item: ContactListItem): Contact => ({
             id: `conv-${item.id}`,
             status: "open",
             lastMessage: "Conversation context is still syncing.",
+            channel: "widget",
             updatedAt: item.updatedAt,
           },
         ],
