@@ -39,7 +39,7 @@ class AnalyticsApi {
     const response = await apiClient.get<{
       success: boolean;
       data: AgentDashboardStats;
-    }>("/agent/stats");
+    }>("/analytics/agent/stats");
     return response.data;
   }
 }

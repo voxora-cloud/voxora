@@ -10,6 +10,7 @@ analyticsRouter.use(authenticate, resolveOrganization);
 // All authenticated org roles can view analytics
 analyticsRouter.get("/summary", requireRole("agent"), AnalyticsController.getSummary);
 analyticsRouter.get("/trends", requireRole("agent"), AnalyticsController.getTrends);
+analyticsRouter.get("/agent/stats", requireRole("agent"), AnalyticsController.getAgentStats);
 
 /**
  * @openapi

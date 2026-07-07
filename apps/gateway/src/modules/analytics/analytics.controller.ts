@@ -36,6 +36,21 @@ export class AnalyticsController {
     }
   }
 
+  static async getAgentStats(req: Request, res: Response) {
+    try {
+      const { activeOrganizationId, userId } = (req as AuthenticatedRequest).user;
+      const data = await AnalyticsService.getAgentStats(userId, activeOrganizationId);
+
+      if (!data) {
+        return res.status(404).json({ success: false, message: "Agent not found" });
+      }
+
+      res.json({ success: true, data });
+    } catch (error) {
+      res.status(500).json({ success: false, message: (error as Error).message });
+    }
+  }
+
   static async getOwnerSummary(req: Request, res: Response) {
     try {
       const { activeOrganizationId } = (req as AuthenticatedRequest).user;

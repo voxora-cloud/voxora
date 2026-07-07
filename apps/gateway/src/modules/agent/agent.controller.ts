@@ -28,12 +28,3 @@ export const updateStatus = asyncHandler(async (req: AuthenticatedRequest, res: 
   if (!result) return sendError(res, 404, "Agent not found");
   sendResponse(res, 200, true, "Status updated successfully", result);
 });
-
-
-// ─── STATS ───────────────────────────────────────────────────────────────────────
-
-export const getStats = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-  const stats = await agentService.getAgentStats(req.user.userId, req.user.activeOrganizationId);
-  if (!stats) return sendError(res, 404, "Agent not found");
-  sendResponse(res, 200, true, "Stats retrieved successfully", stats);
-});

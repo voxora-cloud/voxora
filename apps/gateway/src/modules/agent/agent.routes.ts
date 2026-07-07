@@ -86,19 +86,4 @@ router.patch(
   AgentController.updateStatus,
 );
 
-/**
- * @openapi
- * /agent/stats:
- *   get:
- *     summary: Get operational stats for the current agent
- *     tags:
- *       - Agent
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Agent statistics retrieved successfully
- */
-router.get("/stats", AgentController.getStats);
-
 export default router;

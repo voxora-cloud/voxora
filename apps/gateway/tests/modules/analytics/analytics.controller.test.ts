@@ -4,6 +4,7 @@ import type { AuthenticatedRequest } from "@shared/security/middleware";
 
 vi.mock("@modules/analytics/analytics.service", () => ({
   AnalyticsService: {
+    getAgentStats: vi.fn(),
     getOwnerSummary: vi.fn(),
     getOwnerTrends: vi.fn(),
   },
@@ -35,6 +36,7 @@ const createRequest = (
 describe("AnalyticsController role scoping", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(AnalyticsService.getAgentStats).mockResolvedValue({} as never);
     vi.mocked(AnalyticsService.getOwnerSummary).mockResolvedValue({} as never);
     vi.mocked(AnalyticsService.getOwnerTrends).mockResolvedValue({} as never);
   });
@@ -77,5 +79,17 @@ describe("AnalyticsController role scoping", () => {
       90,
       "user-123",
     );
+  });
+
+  it("loads agent dashboard stats from analytics service", async () => {
+    const res = createResponse();
+
+    await AnalyticsController.getAgentStats(createRequest("agent"), res);
+
+    expect(AnalyticsService.getAgentStats).toHaveBeenCalledWith(
+      "user-123",
+      "org-456",
+    );
+    expect(res.json).toHaveBeenCalledWith({ success: true, data: {} });
   });
 });
