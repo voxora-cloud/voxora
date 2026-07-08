@@ -91,6 +91,17 @@ class ConversationsApi {
     return response.data;
   }
 
+  async assistDraft(
+    conversationId: string,
+    payload: { draft: string; mode: "variations" | "reframe" },
+  ): Promise<{ options: string[] }> {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { options: string[] };
+    }>(`/conversations/${conversationId}/ai/draft-assist`, payload);
+    return response.data;
+  }
+
   async updateContactAssociation(
     conversationId: string,
     payload: {

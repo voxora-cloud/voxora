@@ -127,6 +127,25 @@ export const generateNote = asyncHandler(
   },
 );
 
+export const assistDraft = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const organizationId = getOrgId(req);
+    const data = await conversationService.assistDraft(
+      organizationId,
+      conversationId,
+      {
+        draft: req.body?.draft,
+        mode: req.body?.mode,
+      },
+    );
+
+    if (!data) return sendError(res, 404, "Conversation not found");
+
+    sendResponse(res, 200, true, "Draft assistance generated successfully", data);
+  },
+);
+
 // ─── Route conversation ─────────────────────────────────────────────────────────
 
 export const routeConversation = asyncHandler(

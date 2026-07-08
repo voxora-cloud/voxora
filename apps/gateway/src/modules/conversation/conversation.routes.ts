@@ -225,6 +225,11 @@ router.post(
   ConversationController.generateNote,
 );
 
+router.post(
+  "/:conversationId/ai/draft-assist",
+  ConversationController.assistDraft,
+);
+
 /**
  * @openapi
  * /conversations/{conversationId}/status:

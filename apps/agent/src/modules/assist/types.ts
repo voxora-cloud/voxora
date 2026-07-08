@@ -10,6 +10,8 @@ export interface AssistRequestBody {
   conversationId?: string;
   organizationId?: string;
   contactName?: string;
+  draft?: string;
+  mode?: "variations" | "reframe";
 }
 
 export interface AssistHttpRequest {

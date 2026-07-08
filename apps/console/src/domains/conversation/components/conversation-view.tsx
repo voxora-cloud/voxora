@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Info,
   Sparkles,
+  Shuffle,
+  Wand2,
   X,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
@@ -224,6 +226,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [activeTab, setActiveTab] = useState<"chat" | "runs">("chat");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isSuggestLoading, setIsSuggestLoading] = useState(false);
+  const [draftAssistOptions, setDraftAssistOptions] = useState<string[]>([]);
+  const [draftAssistMode, setDraftAssistMode] = useState<
+    "variations" | "reframe" | null
+  >(null);
+  const [isDraftAssistLoading, setIsDraftAssistLoading] = useState(false);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
   const [slashCommand, setSlashCommand] = useState<SlashCommandState | null>(
     null,
@@ -521,6 +528,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     setMessages((prev) => [...prev, tempMessage]);
     setNewMessage("");
     setSuggestions([]);
+    setDraftAssistOptions([]);
+    setDraftAssistMode(null);
     setSlashCommand(null);
   };
 
@@ -538,6 +547,37 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       toast.error(error?.message || "Failed to generate suggestions");
     } finally {
       setIsSuggestLoading(false);
+    }
+  };
+
+  const handleDraftAssist = async (mode: "variations" | "reframe") => {
+    const draft = newMessage.trim();
+    if (!draft) {
+      toast.message("Type a message first");
+      return;
+    }
+
+    setIsDraftAssistLoading(true);
+    setDraftAssistMode(mode);
+    try {
+      const result = await conversationsApi.assistDraft(conversationId, {
+        draft,
+        mode,
+      });
+      const options = result.options || [];
+      if (options.length === 0) {
+        toast.error("No rewrite options generated");
+        setDraftAssistOptions([]);
+        setDraftAssistMode(null);
+        return;
+      }
+      setDraftAssistOptions(options);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to rewrite draft");
+      setDraftAssistOptions([]);
+      setDraftAssistMode(null);
+    } finally {
+      setIsDraftAssistLoading(false);
     }
   };
 
@@ -664,6 +704,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   ) => {
     const val = e.target.value;
     setNewMessage(val);
+    if (!val.trim()) {
+      setDraftAssistOptions([]);
+      setDraftAssistMode(null);
+    }
     if (val.trim()) setTemplatePickerOpen(false);
     updateSlashCommand(val, e.target.selectionStart || val.length);
     if (!socket) return;
@@ -1037,6 +1081,40 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       <Sparkles className="h-3.5 w-3.5" />
                       {isSuggestLoading ? "Suggesting" : "Suggest"}
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDraftAssist("variations")}
+                      disabled={isDraftAssistLoading || !newMessage.trim()}
+                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 focus-visible:ring-blue-300 disabled:bg-blue-50 disabled:text-blue-700"
+                      title={
+                        newMessage.trim()
+                          ? "Generate draft variations"
+                          : "Type a message first"
+                      }
+                    >
+                      <Shuffle className="h-3.5 w-3.5" />
+                      Variations
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDraftAssist("reframe")}
+                      disabled={isDraftAssistLoading || !newMessage.trim()}
+                      className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-300 disabled:bg-emerald-50 disabled:text-emerald-700"
+                      title={
+                        newMessage.trim()
+                          ? "Reframe this draft"
+                          : "Type a message first"
+                      }
+                    >
+                      <Wand2 className="h-3.5 w-3.5" />
+                      {isDraftAssistLoading && draftAssistMode === "reframe"
+                        ? "Reframing"
+                        : "Reframe"}
+                    </Button>
                   </div>
                   {newMessage.trim() && (
                     <span className="text-xs text-muted-foreground">
@@ -1044,6 +1122,52 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     </span>
                   )}
                 </div>
+                {draftAssistOptions.length > 0 && (
+                  <div className="border-b border-border/70 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        {draftAssistMode === "reframe" ? (
+                          <Wand2 className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Shuffle className="h-3.5 w-3.5 text-blue-600" />
+                        )}
+                        {draftAssistMode === "reframe"
+                          ? "Reframed draft"
+                          : "Variations"}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => {
+                          setDraftAssistOptions([]);
+                          setDraftAssistMode(null);
+                        }}
+                        aria-label="Clear draft options"
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {draftAssistOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm leading-5 text-foreground shadow-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                          onClick={() => {
+                            setNewMessage(option);
+                            setDraftAssistOptions([]);
+                            setDraftAssistMode(null);
+                            setTimeout(() => textareaRef.current?.focus(), 0);
+                          }}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {suggestions.length > 0 && (
                   <div className="border-b border-border/70 py-3">
                     <div className="mb-2 flex items-center justify-between gap-2">

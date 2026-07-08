@@ -1,3 +1,4 @@
+import { assistDraft } from "./draft-assist.handler";
 import { generateNote } from "./generate-note.handler";
 import { readJsonBody, sendJson, validateAiSecret } from "./http";
 import { suggestReply } from "./suggest-reply.handler";
@@ -32,6 +33,11 @@ export async function handleAssistRoute(
 
     if (pathname === "/internal/generate-note") {
       sendJson(res, 200, { success: true, data: await generateNote(body) });
+      return true;
+    }
+
+    if (pathname === "/internal/draft-assist") {
+      sendJson(res, 200, { success: true, data: await assistDraft(body) });
       return true;
     }
 

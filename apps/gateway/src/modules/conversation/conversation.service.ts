@@ -273,6 +273,27 @@ export class ConversationService {
     });
   }
 
+  async assistDraft(
+    organizationId: string,
+    conversationId: string,
+    input: { draft?: string; mode?: "variations" | "reframe" },
+  ) {
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      organizationId,
+    })
+      .select("_id organizationId")
+      .lean();
+    if (!conversation) return null;
+
+    return postAgentInternal<{ options: string[] }>("/internal/draft-assist", {
+      conversationId,
+      organizationId,
+      draft: input.draft,
+      mode: input.mode,
+    });
+  }
+
   /**
    * Auto-assign conversation to a team/agent within the org.
    * Priority: online agents -> online admins -> null (no one online).
