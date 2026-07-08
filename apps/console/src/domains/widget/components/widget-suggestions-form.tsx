@@ -36,8 +36,8 @@ function FaqCheckbox({
           checked
             ? "bg-primary border-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.15)]"
             : disabled
-            ? "bg-muted/30 border-border/40 opacity-40"
-            : "bg-background border-border group-hover:border-primary/60"
+              ? "bg-muted/30 border-border/40 opacity-40"
+              : "bg-background border-border group-hover:border-primary/60"
         }
       `}
     >
@@ -59,13 +59,7 @@ function FaqCheckbox({
 }
 
 // ── 3-pip progress bar ───────────────────────────────────────────────────────
-function SelectionBar({
-  selected,
-  max,
-}: {
-  selected: number;
-  max: number;
-}) {
+function SelectionBar({ selected, max }: { selected: number; max: number }) {
   return (
     <div className="flex items-center gap-3">
       <div className="flex gap-1">
@@ -101,7 +95,7 @@ export function WidgetSuggestionsForm({
 
   const update = (index: number, patch: Partial<WidgetSuggestion>) => {
     const next = suggestions.map((s, i) =>
-      i === index ? { ...s, ...patch } : s
+      i === index ? { ...s, ...patch } : s,
     );
     onChange(next);
   };
@@ -110,7 +104,7 @@ export function WidgetSuggestionsForm({
     setIsDialogOpen(open);
     if (open) {
       setTempSelectedIds(
-        suggestions.map((s) => s.faqId).filter(Boolean) as string[]
+        suggestions.map((s) => s.faqId).filter(Boolean) as string[],
       );
     }
   };
@@ -130,7 +124,7 @@ export function WidgetSuggestionsForm({
       const existing = suggestions.find((s) => s.faqId === faq._id);
       return {
         text: faq.title,
-        showOutside: existing ? existing.showOutside : false,
+        showOutside: existing ? existing.showOutside : true,
         faqId: faq._id,
       };
     });
@@ -141,13 +135,13 @@ export function WidgetSuggestionsForm({
   return (
     <section className="overflow-hidden rounded-lg border border-border bg-background">
       <div className="space-y-5 p-5 sm:p-6">
-
         {/* ── Header row ──────────────────────────────────────────────────── */}
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
           <div>
             <h2 className="text-sm font-semibold">Quick actions</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Up to 3 FAQ suggestions shown as quick-reply buttons in the widget.
+              Up to 3 FAQ suggestions shown as quick-reply buttons in the
+              widget.
             </p>
           </div>
 
@@ -165,7 +159,6 @@ export function WidgetSuggestionsForm({
 
             {/* ── Dialog shell ──────────────────────────────────────────────── */}
             <DialogContent className="max-w-[460px] bg-card border border-border text-card-foreground p-0 overflow-hidden rounded-2xl gap-0">
-
               {/* Header */}
               <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
                 <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
@@ -184,7 +177,9 @@ export function WidgetSuggestionsForm({
                 {isFaqLoading ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-3">
                     <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-muted-foreground">Loading FAQs…</p>
+                    <p className="text-sm text-muted-foreground">
+                      Loading FAQs…
+                    </p>
                   </div>
                 ) : faqs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
@@ -200,8 +195,7 @@ export function WidgetSuggestionsForm({
                   faqs.map((faq) => {
                     const isSelected = tempSelectedIds.includes(faq._id);
                     const isDisabled =
-                      !isSelected &&
-                      tempSelectedIds.length >= MAX_SUGGESTIONS;
+                      !isSelected && tempSelectedIds.length >= MAX_SUGGESTIONS;
 
                     return (
                       <label
@@ -213,8 +207,8 @@ export function WidgetSuggestionsForm({
                             isDisabled
                               ? "border-border/40 bg-muted/10 cursor-not-allowed opacity-50"
                               : isSelected
-                              ? "border-primary/40 bg-primary/5 cursor-pointer"
-                              : "border-border bg-background/60 cursor-pointer hover:border-primary/30 hover:bg-muted/30"
+                                ? "border-primary/40 bg-primary/5 cursor-pointer"
+                                : "border-border bg-background/60 cursor-pointer hover:border-primary/30 hover:bg-muted/30"
                           }
                         `}
                       >
@@ -224,9 +218,7 @@ export function WidgetSuggestionsForm({
                           className="sr-only"
                           checked={isSelected}
                           disabled={isDisabled}
-                          onChange={() =>
-                            !isDisabled && toggleFaq(faq._id)
-                          }
+                          onChange={() => !isDisabled && toggleFaq(faq._id)}
                         />
 
                         {/* Visual checkbox */}
@@ -260,10 +252,10 @@ export function WidgetSuggestionsForm({
                                 faq.status === "indexed"
                                   ? "bg-green-500/10 text-green-500 border border-green-500/20"
                                   : faq.status === "queued"
-                                  ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                                  : faq.status === "indexing"
-                                  ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
-                                  : "bg-muted text-muted-foreground border border-border"
+                                    ? "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                                    : faq.status === "indexing"
+                                      ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                                      : "bg-muted text-muted-foreground border border-border"
                               }`}
                             >
                               {faq.status}

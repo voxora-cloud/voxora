@@ -12,7 +12,7 @@ import {
   Inbox,
   User2,
   Mail,
-  MessageSquare,
+  Send,
   Globe,
 } from "lucide-react";
 import type { ConversationListItem } from "../types/types";
@@ -27,6 +27,56 @@ const TABS: { id: Tab; label: string; icon: typeof Inbox }[] = [
   { id: "mine", label: "Assigned to Me", icon: User2 },
 ];
 
+const CHANNEL_FILTERS = [
+  { id: "all", label: "All", icon: Inbox },
+  { id: "web", label: "Web", icon: Globe },
+  { id: "email", label: "Email", icon: Mail },
+  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { id: "telegram", label: "Telegram", icon: Send },
+];
+
+const getChannelValue = (conv: ConversationListItem) =>
+  (conv.channel || conv.metadata?.source || "web")
+    .toLowerCase()
+    .replace(/_channel$/, "");
+
+const channelMatches = (channel: string, filter: string) => {
+  if (filter === "all") return true;
+  if (filter === "web")
+    return channel.includes("web") || channel.includes("widget");
+  return channel.includes(filter);
+};
+
+const getChannelDisplay = (channel: string) => {
+  if (channel.includes("email")) {
+    return {
+      label: "Email",
+      Icon: Mail,
+      className: "text-sky-600 dark:text-sky-400",
+    };
+  }
+  if (channel.includes("whatsapp")) {
+    return {
+      label: "WhatsApp",
+      Icon: MessageCircle,
+      className: "text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (channel.includes("telegram")) {
+    return {
+      label: "Telegram",
+      Icon: Send,
+      className: "text-blue-500 dark:text-blue-400",
+    };
+  }
+
+  return {
+    label: "Web",
+    Icon: Globe,
+    className: "text-indigo-600 dark:text-indigo-400",
+  };
+};
+
 export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -37,8 +87,12 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
-  const { data: allOpen = [], isLoading: loadingAll } = useConversations(statusFilter, { unassigned: true });
-  const { data: mine = [], isLoading: loadingMine } = useMyConversations();
+  const { data: allOpen = [], isLoading: loadingAll } = useConversations(
+    statusFilter,
+    { unassigned: true },
+  );
+  const { data: mine = [], isLoading: loadingMine } =
+    useMyConversations(statusFilter);
 
   // Socket: invalidate lists on new or escalated conversations
   useEffect(() => {
@@ -69,11 +123,9 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
   }, [queryClient]);
 
   const isLoading =
-    (tab === "all" && loadingAll) ||
-    (tab === "mine" && loadingMine);
+    (tab === "all" && loadingAll) || (tab === "mine" && loadingMine);
 
-  const rawList: ConversationListItem[] =
-    tab === "all" ? allOpen : mine;
+  const rawList: ConversationListItem[] = tab === "all" ? allOpen : mine;
 
   const list = useMemo(() => {
     let filtered = rawList;
@@ -101,14 +153,18 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
     // Filter by channel
     if (channelFilter !== "all") {
       filtered = filtered.filter((conv) => {
-        const chan = (conv.channel || conv.metadata?.source || "widget").toLowerCase();
-        return chan.includes(channelFilter);
+        const chan = getChannelValue(conv);
+        return channelMatches(chan, channelFilter);
       });
     }
 
     // Filter by priority
     if (priorityFilter !== "all") {
-      filtered = filtered.filter((conv) => conv.priority === priorityFilter);
+      filtered = filtered.filter((conv) =>
+        priorityFilter === "high_urgent"
+          ? conv.priority === "high" || conv.priority === "urgent"
+          : conv.priority === priorityFilter,
+      );
     }
 
     return filtered;
@@ -134,8 +190,6 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
   const isEscalated = (conv: ConversationListItem) =>
     !!conv.metadata?.escalatedAt;
 
-
-
   // Render
   return (
     <div className="flex flex-col h-full">
@@ -156,7 +210,13 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => navigate(id === "all" ? "/dashboard/conversations/inbox/open" : "/dashboard/conversations/inbox/assigned")}
+              onClick={() =>
+                navigate(
+                  id === "all"
+                    ? "/dashboard/conversations/inbox/open"
+                    : "/dashboard/conversations/inbox/assigned",
+                )
+              }
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded transition-colors cursor-pointer ${
                 tab === id
                   ? "bg-primary text-primary-foreground font-medium"
@@ -183,17 +243,24 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
           </select>
 
           {/* Channel Filter */}
-          <select
-            value={channelFilter}
-            onChange={(e) => setChannelFilter(e.target.value)}
-            className="h-9 px-3 py-1.5 text-xs bg-background text-foreground border border-input rounded-md cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary shadow-sm font-medium select-none"
-          >
-            <option value="all">All Channels</option>
-            <option value="widget">Widget / Web</option>
-            <option value="email">Email</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="telegram">Telegram</option>
-          </select>
+          <div className="flex h-9 items-center rounded-md border border-input bg-background p-0.5 shadow-sm">
+            {CHANNEL_FILTERS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                title={label}
+                onClick={() => setChannelFilter(id)}
+                className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium transition-colors cursor-pointer ${
+                  channelFilter === id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">{label}</span>
+              </button>
+            ))}
+          </div>
 
           {/* Priority Filter */}
           <select
@@ -204,7 +271,7 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
             <option value="all">All Priorities</option>
             <option value="low">Low Priority</option>
             <option value="medium">Medium Priority</option>
-            <option value="high">High/Urgent</option>
+            <option value="high_urgent">High/Urgent</option>
           </select>
 
           <div className="relative flex-grow md:flex-initial max-w-[180px]">
@@ -228,7 +295,9 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
         ) : list.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center px-6">
             <MessageCircle className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm font-medium text-foreground">No conversations</p>
+            <p className="text-sm font-medium text-foreground">
+              No conversations
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               {tab === "all"
                 ? "No open conversations right now."
@@ -247,12 +316,17 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
             const escalated = isEscalated(conv);
             const assignedToMe = conv.assignedTo?._id === user?.id;
             const isUnread = conv.unreadCount > 0;
-            const channel = conv.channel || conv.metadata?.source || "widget";
+            const channel = getChannelValue(conv);
+            const channelDisplay = getChannelDisplay(channel);
 
             return (
               <div
                 key={conv._id}
-                onClick={() => navigate(`${BASE_PATH}/chat/${conv._id}`, { state: { from: window.location.pathname } })}
+                onClick={() =>
+                  navigate(`${BASE_PATH}/chat/${conv._id}`, {
+                    state: { from: window.location.pathname },
+                  })
+                }
                 className="w-full flex items-start gap-4 px-4 py-3.5 hover:bg-muted/40 dark:hover:bg-zinc-900/40 transition-colors border-b border-border/40 cursor-pointer select-none"
               >
                 {/* Avatar */}
@@ -274,13 +348,17 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
                     <span className="text-[14px] font-semibold text-foreground truncate">
                       {name}
                     </span>
-                    <span className={`text-[11px] font-medium ${isUnread ? "text-emerald-500 font-semibold" : "text-muted-foreground/80"}`}>
+                    <span
+                      className={`text-[11px] font-medium ${isUnread ? "text-emerald-500 font-semibold" : "text-muted-foreground/80"}`}
+                    >
                       {getRelativeTime(conv.lastMessageAt || conv.createdAt)}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between gap-4">
-                    <p className={`text-[13px] truncate ${isUnread ? "text-foreground font-medium" : "text-muted-foreground/90"}`}>
+                    <p
+                      className={`text-[13px] truncate ${isUnread ? "text-foreground font-medium" : "text-muted-foreground/90"}`}
+                    >
                       {conv.lastMessage?.content || "No messages yet"}
                     </p>
                     {isUnread && (
@@ -293,35 +371,33 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
                   {/* Channel & Assignment row */}
                   <div className="flex items-center gap-2.5 mt-2 flex-wrap">
                     <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 font-medium">
-                      {channel.includes("email") ? (
-                        <Mail className="h-3.5 w-3.5" />
-                      ) : channel.includes("whatsapp") ? (
-                        <MessageSquare className="h-3.5 w-3.5 text-emerald-500" />
-                      ) : channel.includes("telegram") ? (
-                        <MessageSquare className="h-3.5 w-3.5 text-blue-400" />
-                      ) : (
-                        <Globe className="h-3.5 w-3.5 text-indigo-500" />
-                      )}
-                      <span className="capitalize">{channel.replace(/_channel$/, "")}</span>
+                      <channelDisplay.Icon
+                        className={`h-3.5 w-3.5 ${channelDisplay.className}`}
+                      />
+                      <span>{channelDisplay.label}</span>
                     </div>
 
                     {conv.assignedTo && (
                       <span className="flex items-center gap-1 text-[11px] text-muted-foreground/75 font-medium">
                         <span>•</span>
                         <User2 className="h-3.5 w-3.5 shrink-0" />
-                        <span>{assignedToMe ? "You" : conv.assignedTo.name}</span>
+                        <span>
+                          {assignedToMe ? "You" : conv.assignedTo.name}
+                        </span>
                       </span>
                     )}
 
                     {/* Status dot */}
                     <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-muted-foreground/85">
-                      <span className={`h-1.5 w-1.5 rounded-full ${
-                        conv.status === "open"
-                          ? "bg-emerald-500"
-                          : conv.status === "resolved"
-                          ? "bg-blue-400"
-                          : "bg-zinc-400"
-                      }`} />
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          conv.status === "open"
+                            ? "bg-emerald-500"
+                            : conv.status === "resolved"
+                              ? "bg-blue-400"
+                              : "bg-zinc-400"
+                        }`}
+                      />
                       <span className="capitalize">{conv.status}</span>
                     </span>
                   </div>
@@ -336,7 +412,8 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
       {list.length > 0 && (
         <div className="px-4 py-2 border-t border-border bg-card/30">
           <p className="text-[11px] text-muted-foreground">
-            {list.length} conversation{list.length !== 1 ? "s" : ""} · Click a row to open the chat
+            {list.length} conversation{list.length !== 1 ? "s" : ""} · Click a
+            row to open the chat
           </p>
         </div>
       )}

@@ -16,6 +16,140 @@ function parseAttributes(attrStr: string): Record<string, string> {
   return attrs;
 }
 
+function protectGeneratedAttribute(value: string) {
+  return value.replace(/_/g, '&#95;').replace(/\*/g, '&#42;');
+}
+
+function escapeHtmlAttribute(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function sanitizeGeneratedDivAttributes(attrStr: string) {
+  const attrs: string[] = [];
+  const regex = /([a-zA-Z][\w:-]*)=&quot;([\s\S]*?)&quot;/g;
+  let match;
+
+  while ((match = regex.exec(attrStr)) !== null) {
+    const name = match[1].toLowerCase();
+    const value = normalizeHtmlEntities(match[2]);
+
+    if (
+      name !== 'class'
+      && name !== 'style'
+      && name !== 'role'
+      && !name.startsWith('aria-')
+      && !name.startsWith('data-')
+    ) {
+      continue;
+    }
+
+    if (
+      name === 'style'
+      && /(expression\s*\(|url\s*\(|javascript:|@import|behavior\s*:)/i.test(value)
+    ) {
+      continue;
+    }
+
+    attrs.push(`${name}="${escapeHtmlAttribute(value)}"`);
+  }
+
+  return attrs.length ? ` ${attrs.join(' ')}` : '';
+}
+
+function normalizeHtmlEntities(text: string) {
+  return text
+    .replace(/&amp;(lt|gt|quot|#34|#39|amp);/gi, '&$1;')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#34;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+function renderInlineMarkdown(text: string) {
+  return text
+    .replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([\s\S]+?)__/g, '<strong>$1</strong>')
+    .replace(/\*([^\n*]+?)\*/g, '<em>$1</em>')
+    .replace(/_([^\n_]+?)_/g, '<em>$1</em>');
+}
+
+function stripStreamingMarkdownMarkers(text: string) {
+  return text
+    .replace(/(^|\n)([ \t]*)\* /g, '$1$2- ')
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '');
+}
+
+function stripStreamingInteractiveMarkup(text: string) {
+  if (!text) return "";
+
+  const lowerText = text.toLowerCase();
+  const marker = '<interaone-';
+  const componentStart = lowerText.indexOf(marker);
+  if (componentStart !== -1) {
+    return text.slice(0, componentStart).trimEnd();
+  }
+
+  const lastOpeningBracket = lowerText.lastIndexOf('<');
+  if (lastOpeningBracket !== -1) {
+    const trailingText = lowerText.slice(lastOpeningBracket);
+    if (marker.startsWith(trailingText)) {
+      return text.slice(0, lastOpeningBracket).trimEnd();
+    }
+  }
+
+  return text;
+}
+
+function stripHtmlLikeMarkup(
+  text: string,
+  preserveInteraOne = false,
+  preserveDiv = false,
+) {
+  if (!text) return "";
+  const preservedNames = [
+    preserveInteraOne ? 'interaone-' : '',
+    preserveDiv ? 'div\\b' : '',
+  ].filter(Boolean).join('|');
+  const preservedTagName = preservedNames ? `(?!${preservedNames})` : '';
+
+  return text
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\s*(thinking|thought)\s*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/&lt;\s*(thinking|thought)\s*&gt;[\s\S]*?&lt;\s*\/\s*\1\s*&gt;/gi, '')
+    .replace(/<\s*(thinking|thought)\s*>[\s\S]*$/gi, '')
+    .replace(/&lt;\s*(thinking|thought)\s*&gt;[\s\S]*$/gi, '')
+    .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/&lt;\s*(script|style)[\s\S]*?&lt;\s*\/\s*\1\s*&gt;/gi, '')
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/&lt;\s*br\s*\/?\s*&gt;/gi, '\n')
+    .replace(new RegExp(`<\\/?\\s*${preservedTagName}[a-z][a-z0-9:-]*(?:\\s+[^<>]*)?\\/?\\s*>`, 'gi'), '')
+    .replace(new RegExp(`&lt;\\/?\\s*${preservedTagName}[a-z][a-z0-9:-]*(?:\\s+[^&]*)?\\/?\\s*&gt;`, 'gi'), '')
+    .replace(new RegExp(`<[ \\t]*\\/?[ \\t]*${preservedTagName}[a-z][a-z0-9:-]*(?:[ \\t]+[^\\n<>]*)?$`, 'gim'), '')
+    .replace(new RegExp(`&lt;[ \\t]*\\/?[ \\t]*${preservedTagName}[a-z][a-z0-9:-]*(?:[ \\t]+[^\\n&]*)?$`, 'gim'), '');
+}
+
+function stripHtmlLikeMarkupOutsideCode(
+  text: string,
+  preserveInteraOne = false,
+  preserveDiv = false,
+) {
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]*`)/g);
+  return parts
+    .map((part) => (
+      part.startsWith('```') || part.startsWith('`')
+        ? part
+        : stripHtmlLikeMarkup(part, preserveInteraOne, preserveDiv)
+    ))
+    .join('');
+}
+
 export function stripMarkdown(text: string) {
   if (!text) return "";
   return text
@@ -27,52 +161,22 @@ export function stripMarkdown(text: string) {
     .trim();
 }
 
-/**
- * Interactive components are only useful once their complete markup is
- * available. While streaming, withhold the component section so partial tags
- * such as "<interaone-but" are not rendered as escaped text.
- *
- * The system prompt requires interactive components at the bottom of a reply,
- * so everything from the first component marker onward is deferred until the
- * final message arrives.
- */
-export function stripStreamingInteractiveMarkup(text: string) {
-  if (!text) return "";
-
-  const markers = ['<interaone-', '<div'];
-  const lowerText = text.toLowerCase();
-  
-  let firstIndex = -1;
-  for (const marker of markers) {
-    const idx = lowerText.indexOf(marker);
-    if (idx !== -1 && (firstIndex === -1 || idx < firstIndex)) {
-      firstIndex = idx;
-    }
-  }
-
-  if (firstIndex !== -1) {
-    return text.slice(0, firstIndex).trimEnd();
-  }
-
-  // A stream chunk can end partway through the opening marker. Hide that
-  // suffix as soon as it starts instead of briefly exposing raw HTML.
-  const lastOpeningBracket = lowerText.lastIndexOf('<');
-  if (lastOpeningBracket !== -1) {
-    const trailingText = lowerText.slice(lastOpeningBracket);
-    for (const marker of markers) {
-      if (marker.startsWith(trailingText)) {
-        return text.slice(0, lastOpeningBracket).trimEnd();
-      }
-    }
-  }
-
-  return text;
-}
-
 export function parseStreamingMarkdown(text: string) {
-  return parseMarkdown(stripIncompleteStreamingTable(
-    stripStreamingInteractiveMarkup(text),
+  const s = escapeHtml(stripHtmlLikeMarkupOutsideCode(
+    stripStreamingMarkdownMarkers(stripIncompleteStreamingTable(
+      stripStreamingInteractiveMarkup(normalizeHtmlEntities(text || "")),
+    )),
   ));
+
+  return s
+    .split(/\n{2,}/)
+    .map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return "";
+      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
+    })
+    .filter(Boolean)
+    .join('');
 }
 
 function parseTableRow(line: string) {
@@ -205,7 +309,11 @@ function renderMarkdownTables(html: string) {
 }
 
 export function parseMarkdown(text: string) {
-  let s = escapeHtml(text || "");
+  let s = escapeHtml(stripHtmlLikeMarkupOutsideCode(
+    normalizeHtmlEntities(text || ""),
+    true,
+    true,
+  ));
 
   // Strip <thinking>/<thought> tags (LLM reasoning artifacts that leak into stream)
   s = s.replace(/&lt;thinking&gt;[\s\S]*?&lt;\/thinking&gt;/gi, '');
@@ -218,38 +326,38 @@ export function parseMarkdown(text: string) {
   // Trim both leading and trailing whitespace/newlines left over from thinking blocks or LLM formatting
   s = s.trim();
 
-  // Unescape divs to support HTML layout blocks
+  // Preserve styled layout divs generated by the assistant, but keep the
+  // attribute surface narrow because this content is assigned with innerHTML.
   s = s.replace(/&lt;div\s*([\s\S]*?)&gt;/g, function(_: string, attrs: string) {
-    const cleanAttrs = attrs.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-    return `<div ${cleanAttrs}>`.replace(/\s+>/, '>');
+    return `<div${sanitizeGeneratedDivAttributes(attrs)}>`;
   });
   s = s.replace(/&lt;\/div&gt;/g, '</div>');
 
-  // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
-  // Parse InteraOne Form Containers (multiple fields grouped in one submit box)
-  s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_, formId, innerContent) {
+  // Parse only whitelisted InteraOne components. All normal/raw HTML has
+  // already been stripped above, so these internal controls can be rendered.
+  s = s.replace(/&lt;interaone-form\s+id=&quot;([^&]+?)&quot;&gt;([\s\S]*?)&lt;\/interaone-form&gt;/g, function(_: string, formId: string, innerContent: string) {
+    const safeFormId = protectGeneratedAttribute(formId);
     let content = innerContent;
-    // Replace inputs inside form to not have individual submit button wrappers
     content = content.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
-      const name = attrs.name || '';
-      const placeholder = attrs.placeholder || '';
-      const val = attrs.value || '';
+      const name = protectGeneratedAttribute(attrs.name || '');
+      const placeholder = protectGeneratedAttribute(attrs.placeholder || '');
+      const val = protectGeneratedAttribute(attrs.value || '');
       return `<div class="vx-form-row"><input type="text" class="vx-form-input" name="${name}" placeholder="${placeholder}" value="${val}" data-interaone-input /></div>`;
     });
-    // Replace checkboxes inside form
     content = content.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g,
-      '<div class="vx-form-row"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label></div>'
+      function(_: string, name: string, label: string) {
+        return `<div class="vx-form-row"><label class="vx-form-checkbox-label"><input type="checkbox" name="${protectGeneratedAttribute(name)}" data-interaone-checkbox /><span>${label}</span></label></div>`;
+      }
     );
-    // Replace radios inside form
     content = content.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
-      const name = attrs.name || '';
+      const name = protectGeneratedAttribute(attrs.name || '');
       const optionsStr = attrs.options || '';
       const options = optionsStr.split(',').map((o: string) => o.trim());
       const radiosHtml = options.map((opt: string, i: number) => `
         <label class="vx-form-radio-label">
-          <input type="radio" name="${name}" value="${opt}" ${i === 0 ? 'checked' : ''} data-interaone-radio />
+          <input type="radio" name="${name}" value="${protectGeneratedAttribute(opt)}" ${i === 0 ? 'checked' : ''} data-interaone-radio />
           <span>${opt}</span>
         </label>
       `).join('');
@@ -257,38 +365,42 @@ export function parseMarkdown(text: string) {
     });
 
     return `
-      <form class="vx-interactive-form vx-form-group" id="${formId}" data-interaone-form="${formId}">
+      <form class="vx-interactive-form vx-form-group" id="${safeFormId}" data-interaone-form="${safeFormId}">
         <div class="vx-form-body">${content}</div>
-        <button type="submit" class="vx-form-submit" data-action="submit-group-form" data-target="${formId}">Submit</button>
+        <button type="submit" class="vx-form-submit" data-action="submit-group-form" data-target="${safeFormId}">Submit</button>
       </form>
     `;
   });
 
-  // Parse InteraOne Interactive Components (escaped XML)
   s = s.replace(/&lt;interaone-input\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
     const attrs = parseAttributes(attrStr);
-    const name = attrs.name || '';
-    const placeholder = attrs.placeholder || '';
-    const val = attrs.value || '';
+    const name = protectGeneratedAttribute(attrs.name || '');
+    const placeholder = protectGeneratedAttribute(attrs.placeholder || '');
+    const val = protectGeneratedAttribute(attrs.value || '');
     return `<div class="vx-interactive-form vx-input-wrapper"><input type="text" class="vx-form-input" name="${name}" placeholder="${placeholder}" value="${val}" data-interaone-input /><button class="vx-form-submit" data-action="submit-input" data-target="${name}">Submit</button></div>`;
   });
 
   s = s.replace(/&lt;interaone-button\s+action=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-button&gt;/g,
-    '<button class="vx-form-button" data-interaone-button data-action="$1">$2</button>'
+    function(_: string, action: string, label: string) {
+      return `<button class="vx-form-button" data-interaone-button data-action="${protectGeneratedAttribute(action)}">${label}</button>`;
+    }
   );
 
   s = s.replace(/&lt;interaone-checkbox\s+name=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-checkbox&gt;/g,
-    '<div class="vx-interactive-form vx-checkbox-wrapper"><label class="vx-form-checkbox-label"><input type="checkbox" name="$1" data-interaone-checkbox /><span>$2</span></label><button class="vx-form-submit" data-action="submit-checkbox" data-target="$1">Submit</button></div>'
+    function(_: string, name: string, label: string) {
+      const safeName = protectGeneratedAttribute(name);
+      return `<div class="vx-interactive-form vx-checkbox-wrapper"><label class="vx-form-checkbox-label"><input type="checkbox" name="${safeName}" data-interaone-checkbox /><span>${label}</span></label><button class="vx-form-submit" data-action="submit-checkbox" data-target="${safeName}">Submit</button></div>`;
+    }
   );
 
   s = s.replace(/&lt;interaone-radio\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
     const attrs = parseAttributes(attrStr);
-    const name = attrs.name || '';
+    const name = protectGeneratedAttribute(attrs.name || '');
     const optionsStr = attrs.options || '';
     const options = optionsStr.split(',').map((o: string) => o.trim());
     const radiosHtml = options.map((opt: string, i: number) => `
       <label class="vx-form-radio-label">
-        <input type="radio" name="${name}" value="${opt}" ${i === 0 ? 'checked' : ''} data-interaone-radio />
+        <input type="radio" name="${name}" value="${protectGeneratedAttribute(opt)}" ${i === 0 ? 'checked' : ''} data-interaone-radio />
         <span>${opt}</span>
       </label>
     `).join('');
@@ -299,6 +411,10 @@ export function parseMarkdown(text: string) {
       </div>
     `;
   });
+
+  s = s
+    .replace(/&lt;\/?interaone-[\s\S]*?&gt;/gi, '')
+    .replace(/&lt;\/?interaone-[\s\S]*$/gi, '');
 
   // Code blocks (``` ... ```)
   s = s.replace(/```[\w]*\n?([\s\S]*?)```/g, function (_, code) {
@@ -322,11 +438,8 @@ export function parseMarkdown(text: string) {
   s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
 
   // Bold + italic
-  s = s.replace(/\*\*\*([\s\S]+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-  s = s.replace(/\*\*([\s\S]+?)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/\*([^\n*]+?)\*/g, '<em>$1</em>');
-  s = s.replace(/__([\s\S]+?)__/g, '<strong>$1</strong>');
-  s = s.replace(/_([^\n_]+?)_/g, '<em>$1</em>');
+  s = renderInlineMarkdown(s);
+  s = s.replace(/\*\*/g, '').replace(/__/g, '');
 
   // Unordered lists
   s = s.replace(/((?:^[ \t]*[-*+] .+\n?)+)/gm, function (block) {

@@ -10,202 +10,269 @@ import { tracker } from "@shared/utils/tracker";
 
 const conversationService = new ConversationService();
 
-const getOrgId = (req: Request): string => (req as AuthenticatedRequest).user.activeOrganizationId;
+const getOrgId = (req: Request): string =>
+  (req as AuthenticatedRequest).user.activeOrganizationId;
 
 // ─── GET all conversations ──────────────────────────────────────────────────────
 
-export const getConversations = asyncHandler(async (req: Request, res: Response) => {
-  const { status, limit = 50, offset = 0, assignedToMe, unassigned } = req.query;
-  const { userId, orgRole } = (req as AuthenticatedRequest).user;
+export const getConversations = asyncHandler(
+  async (req: Request, res: Response) => {
+    const {
+      status,
+      limit = 50,
+      offset = 0,
+      assignedToMe,
+      unassigned,
+    } = req.query;
+    const { userId, orgRole } = (req as AuthenticatedRequest).user;
 
-  let assignedTo: string | null | undefined = undefined;
+    let assignedTo: string | null | undefined = undefined;
 
-  if (unassigned === "true") {
-    assignedTo = null; // Explicitly null for unassigned
-  } else if (assignedToMe === "true") {
-    assignedTo = userId;
-  }
+    if (unassigned === "true") {
+      assignedTo = null; // Explicitly null for unassigned
+    } else if (assignedToMe === "true") {
+      assignedTo = userId;
+    }
 
-  const result = await conversationService.getConversations(getOrgId(req), {
-    status: status as string,
-    limit: Number(limit),
-    offset: Number(offset),
-    assignedTo,
-  });
+    const result = await conversationService.getConversations(getOrgId(req), {
+      status: status as string,
+      limit: Number(limit),
+      offset: Number(offset),
+      assignedTo,
+      userId,
+    });
 
-  sendResponse(res, 200, true, "Conversations fetched successfully", result);
-});
+    sendResponse(res, 200, true, "Conversations fetched successfully", result);
+  },
+);
 
 // ─── GET single conversation ────────────────────────────────────────────────────
 
-export const getConversationById = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const userId = (req as AuthenticatedRequest).user.userId;
-  const orgId = getOrgId(req);
-  const result = await conversationService.getConversationById(orgId, conversationId);
-  if (!result) return sendError(res, 404, "Conversation not found");
+export const getConversationById = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const userId = (req as AuthenticatedRequest).user.userId;
+    const orgId = getOrgId(req);
+    const result = await conversationService.getConversationById(
+      orgId,
+      conversationId,
+    );
+    if (!result) return sendError(res, 404, "Conversation not found");
 
-  // Record this conversation in agent's recents list in the database asynchronously
-  conversationService.upsertRecentConversation(userId, orgId, conversationId).catch(err => {
-    logger.error(`Failed to upsert recent conversation: ${err.message}`);
-  });
+    // Record this conversation in agent's recents list in the database asynchronously
+    conversationService
+      .upsertRecentConversation(userId, orgId, conversationId)
+      .catch((err) => {
+        logger.error(`Failed to upsert recent conversation: ${err.message}`);
+      });
 
-  sendResponse(res, 200, true, "Conversation fetched successfully", result);
-});
+    sendResponse(res, 200, true, "Conversation fetched successfully", result);
+  },
+);
 
+export const markConversationRead = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const { userId } = (req as AuthenticatedRequest).user;
+    const orgId = getOrgId(req);
 
+    const conversation = await conversationService.markConversationRead(
+      orgId,
+      conversationId,
+      userId,
+    );
 
+    if (!conversation) return sendError(res, 404, "Conversation not found");
 
+    sendResponse(res, 200, true, "Conversation marked as read", {
+      conversationId,
+    });
+  },
+);
 
 // ─── Route conversation ─────────────────────────────────────────────────────────
 
-export const routeConversation = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { agentId, reason } = req.body;
-  const orgId = getOrgId(req);
+export const routeConversation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const { agentId, reason } = req.body;
+    const orgId = getOrgId(req);
 
-  if (!agentId) return sendError(res, 400, "agentId must be provided");
+    if (!agentId) return sendError(res, 400, "agentId must be provided");
 
-  const result = await conversationService.routeConversation(
-    orgId,
-    conversationId,
-    { agentId, reason },
-    (req as AuthenticatedRequest).user.userId,
-  );
-
-  if (!result.found) return sendError(res, 404, "Conversation not found");
-  if (result.noAgent) return sendError(res, 404, "No available agents");
-  if (result.agentNotFound) return sendError(res, 404, "Agent not found");
-
-  const sm = getSocketManager();
-  if (sm && result.selectedAgentId) {
-    try {
-      const payload = {
-        conversationId: result.originalConversation!._id,
-        subject: result.originalConversation!.subject,
-        routedTo: result.selectedAgentId,
-        agentName: result.agentName,
-        reason: reason || "Manual routing",
-        timestamp: new Date(),
-      };
-      sm.emitToUser?.(result.selectedAgentId.toString(), "new_widget_conversation", payload);
-      sm.emitToConversation(conversationId, "conversation_escalated", {
-        conversationId,
-        reason: reason || "Transferred to another agent",
-        agent: { id: result.selectedAgentId.toString(), name: result.agentName, email: result.agentEmail },
-      });
-      const oldAgentId = result.originalConversation!.assignedTo;
-      if (oldAgentId && oldAgentId.toString() !== result.selectedAgentId.toString()) {
-        sm.emitToUser?.(oldAgentId.toString(), "conversation_removed", { conversationId });
-      }
-    } catch (err: any) {
-      logger.error(`Failed to emit routing notification: ${err?.message}`);
-    }
-  }
-
-  sendResponse(res, 200, true, "Conversation routed successfully", {
-    conversationId: result.updatedConversation?._id,
-    assignedTo: result.updatedConversation?.assignedTo,
-    agentName: result.agentName,
-  });
-
-  if (result.updatedConversation?._id && result.selectedAgentId) {
-    tracker.trackEvent(
+    const result = await conversationService.routeConversation(
       orgId,
-      "agent_assigned",
-      "system",
-      { reason: reason || "manual_routing" },
-      {
-        conversationId: result.updatedConversation._id.toString(),
-        agentId: result.selectedAgentId.toString(),
-        channel: "web",
-      },
+      conversationId,
+      { agentId, reason },
+      (req as AuthenticatedRequest).user.userId,
     );
-  }
-});
+
+    if (!result.found) return sendError(res, 404, "Conversation not found");
+    if (result.noAgent) return sendError(res, 404, "No available agents");
+    if (result.agentNotFound) return sendError(res, 404, "Agent not found");
+
+    const sm = getSocketManager();
+    if (sm && result.selectedAgentId) {
+      try {
+        const payload = {
+          conversationId: result.originalConversation!._id,
+          subject: result.originalConversation!.subject,
+          routedTo: result.selectedAgentId,
+          agentName: result.agentName,
+          reason: reason || "Manual routing",
+          timestamp: new Date(),
+        };
+        sm.emitToUser?.(
+          result.selectedAgentId.toString(),
+          "new_widget_conversation",
+          payload,
+        );
+        sm.emitToConversation(conversationId, "conversation_escalated", {
+          conversationId,
+          reason: reason || "Transferred to another agent",
+          agent: {
+            id: result.selectedAgentId.toString(),
+            name: result.agentName,
+            email: result.agentEmail,
+          },
+        });
+        const oldAgentId = result.originalConversation!.assignedTo;
+        if (
+          oldAgentId &&
+          oldAgentId.toString() !== result.selectedAgentId.toString()
+        ) {
+          sm.emitToUser?.(oldAgentId.toString(), "conversation_removed", {
+            conversationId,
+          });
+        }
+      } catch (err: any) {
+        logger.error(`Failed to emit routing notification: ${err?.message}`);
+      }
+    }
+
+    sendResponse(res, 200, true, "Conversation routed successfully", {
+      conversationId: result.updatedConversation?._id,
+      assignedTo: result.updatedConversation?.assignedTo,
+      agentName: result.agentName,
+    });
+
+    if (result.updatedConversation?._id && result.selectedAgentId) {
+      tracker.trackEvent(
+        orgId,
+        "agent_assigned",
+        "system",
+        { reason: reason || "manual_routing" },
+        {
+          conversationId: result.updatedConversation._id.toString(),
+          agentId: result.selectedAgentId.toString(),
+          channel: "web",
+        },
+      );
+    }
+  },
+);
 
 // ─── Update conversation status (full) ──────────────────────────────────────────
 
-export const updateConversationStatus = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { status } = req.body;
-  const orgId = getOrgId(req);
+export const updateConversationStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const { status } = req.body;
+    const orgId = getOrgId(req);
 
-  const result = await conversationService.updateConversationStatus(
-    orgId,
-    conversationId,
-    status,
-    (req as AuthenticatedRequest).user.userId,
-  );
-
-  if (!result.valid) return sendError(res, 400, "Status must be one of: open, pending, closed, resolved");
-  if (!result.found) return sendError(res, 404, "Conversation not found");
-
-  const sm = getSocketManager();
-  if (sm?.ioInstance) {
-    sm.ioInstance
-      .to(`org:${orgId}:conv:${conversationId}`)
-      .emit("status_updated", {
-        conversationId: result.conversation!._id,
-        status,
-        updatedBy: (req as any).user?.name || "Agent",
-        timestamp: new Date(),
-      });
-  }
-
-  sendResponse(res, 200, true, "Status updated successfully", {
-    conversationId: result.conversation!._id,
-    status: result.conversation!.status,
-  });
-
-  if (status === "closed" || status === "resolved") {
-    tracker.trackEvent(
+    const result = await conversationService.updateConversationStatus(
       orgId,
-      status === "closed" ? "conversation_closed" : "conversation_resolved",
-      "agent",
-      { updatedBy: (req as AuthenticatedRequest).user.userId },
-      {
-        conversationId: result.conversation!._id.toString(),
-        agentId: (req as AuthenticatedRequest).user.userId,
-        channel: "web",
-      },
+      conversationId,
+      status,
+      (req as AuthenticatedRequest).user.userId,
     );
-  }
-});
+
+    if (!result.valid)
+      return sendError(
+        res,
+        400,
+        "Status must be one of: open, pending, closed, resolved",
+      );
+    if (!result.found) return sendError(res, 404, "Conversation not found");
+
+    const sm = getSocketManager();
+    if (sm?.ioInstance) {
+      sm.ioInstance
+        .to(`org:${orgId}:conv:${conversationId}`)
+        .emit("status_updated", {
+          conversationId: result.conversation!._id,
+          status,
+          updatedBy: (req as any).user?.name || "Agent",
+          timestamp: new Date(),
+        });
+    }
+
+    sendResponse(res, 200, true, "Status updated successfully", {
+      conversationId: result.conversation!._id,
+      status: result.conversation!.status,
+    });
+
+    if (status === "closed" || status === "resolved") {
+      tracker.trackEvent(
+        orgId,
+        status === "closed" ? "conversation_closed" : "conversation_resolved",
+        "agent",
+        { updatedBy: (req as AuthenticatedRequest).user.userId },
+        {
+          conversationId: result.conversation!._id.toString(),
+          agentId: (req as AuthenticatedRequest).user.userId,
+          channel: "web",
+        },
+      );
+    }
+  },
+);
 
 // ─── AI-Internal: Conversation Gate (status/escalation check) ───────────────
 
-export const aiGetConversationGate = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { organizationId } = req.query as Record<string, string>;
+export const aiGetConversationGate = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const { organizationId } = req.query as Record<string, string>;
 
-  if (!organizationId) return sendError(res, 400, "organizationId is required");
+    if (!organizationId)
+      return sendError(res, 400, "organizationId is required");
 
-  const conv = await conversationService.getConversationGate(organizationId, conversationId);
-  if (!conv) return sendError(res, 404, "Conversation not found");
+    const conv = await conversationService.getConversationGate(
+      organizationId,
+      conversationId,
+    );
+    if (!conv) return sendError(res, 404, "Conversation not found");
 
-  sendResponse(res, 200, true, "Conversation gate fetched", { gate: conv });
-});
+    sendResponse(res, 200, true, "Conversation gate fetched", { gate: conv });
+  },
+);
 
 // ─── AI-Internal: Mark Query Resolved ────────────────────────────────────────
 
-export const aiResolveConversation = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { organizationId, resolutionEntry } = req.body;
+export const aiResolveConversation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const { organizationId, resolutionEntry } = req.body;
 
-  if (!organizationId) return sendError(res, 400, "organizationId is required");
-  if (!resolutionEntry) return sendError(res, 400, "resolutionEntry is required");
+    if (!organizationId)
+      return sendError(res, 400, "organizationId is required");
+    if (!resolutionEntry)
+      return sendError(res, 400, "resolutionEntry is required");
 
-  const result = await conversationService.markQueryResolved(
-    organizationId,
-    conversationId,
-    resolutionEntry,
-  );
+    const result = await conversationService.markQueryResolved(
+      organizationId,
+      conversationId,
+      resolutionEntry,
+    );
 
-  if (!result) return sendError(res, 404, "Conversation not found");
+    if (!result) return sendError(res, 404, "Conversation not found");
 
-  sendResponse(res, 200, true, "Query marked as resolved", { resolutionId: resolutionEntry.id });
-});
+    sendResponse(res, 200, true, "Query marked as resolved", {
+      resolutionId: resolutionEntry.id,
+    });
+  },
+);
 
 // ─── AI-Internal: Conversation Memory ────────────────────────────────────────
 
@@ -235,7 +302,8 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
   // Determine if we should attempt auto-assignment
   let resolvedAgentId = agentId;
   if (!unassigned && !resolvedAgentId) {
-    const autoAssign = await conversationService.autoAssignConversation(organizationId);
+    const autoAssign =
+      await conversationService.autoAssignConversation(organizationId);
     resolvedAgentId = autoAssign.agentId || undefined;
   }
 
@@ -253,19 +321,28 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     if (!result.found) return sendError(res, 404, "Conversation not found");
 
     // Set status to open
-    await conversationService.updateConversationStatus(organizationId, conversationId, "open", "ai_tool");
+    await conversationService.updateConversationStatus(
+      organizationId,
+      conversationId,
+      "open",
+      "ai_tool",
+    );
 
     // Fire real-time events for assigned agent & conversation room
     if (sm && result.selectedAgentId) {
       try {
-        sm.emitToUser?.(result.selectedAgentId.toString(), "new_widget_conversation", {
-          conversationId,
-          subject: result.originalConversation?.subject,
-          routedTo: result.selectedAgentId,
-          agentName: result.agentName,
-          reason: reason || "AI escalation",
-          timestamp: new Date(),
-        });
+        sm.emitToUser?.(
+          result.selectedAgentId.toString(),
+          "new_widget_conversation",
+          {
+            conversationId,
+            subject: result.originalConversation?.subject,
+            routedTo: result.selectedAgentId,
+            agentName: result.agentName,
+            reason: reason || "AI escalation",
+            timestamp: new Date(),
+          },
+        );
         sm.emitToConversation(conversationId, "conversation_escalated", {
           conversationId,
           reason: reason || "AI escalated this conversation to a human agent",
@@ -338,182 +415,236 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
-  return sendResponse(res, 200, true, "Escalated to human backlog (unassigned)", {
-    conversationId,
-    assignedAgent: null,
-    agentName: null,
-    status: "open",
-  });
+  return sendResponse(
+    res,
+    200,
+    true,
+    "Escalated to human backlog (unassigned)",
+    {
+      conversationId,
+      assignedAgent: null,
+      agentName: null,
+      status: "open",
+    },
+  );
 });
 
 // ─── Save Agent Run (AI-Internal) ───────────────────────────────────────────────
 
-export const aiSaveAgentRun = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const { organizationId, messageId, steps, duration, status, error, usage } = req.body;
+export const aiSaveAgentRun = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const { organizationId, messageId, steps, duration, status, error, usage } =
+      req.body;
 
-  if (!organizationId || !messageId || duration === undefined || !status) {
-    return sendError(res, 400, "Missing required fields");
-  }
+    if (!organizationId || !messageId || duration === undefined || !status) {
+      return sendError(res, 400, "Missing required fields");
+    }
 
-  const result = await conversationService.createAgentRun({
-    organizationId,
-    conversationId,
-    messageId,
-    steps: steps || [],
-    duration,
-    status,
-    error,
-    usage,
-  });
+    const result = await conversationService.createAgentRun({
+      organizationId,
+      conversationId,
+      messageId,
+      steps: steps || [],
+      duration,
+      status,
+      error,
+      usage,
+    });
 
-  sendResponse(res, 201, true, "Agent run logged successfully", result);
-});
+    sendResponse(res, 201, true, "Agent run logged successfully", result);
+  },
+);
 
 // ─── Get Agent Runs (Agent/Admin Dashboard) ─────────────────────────────────────
 
-export const getAgentRuns = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const orgId = getOrgId(req);
+export const getAgentRuns = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const orgId = getOrgId(req);
 
-  const runs = await conversationService.getAgentRuns(orgId, conversationId);
-  sendResponse(res, 200, true, "Agent runs fetched successfully", runs);
-});
+    const runs = await conversationService.getAgentRuns(orgId, conversationId);
+    sendResponse(res, 200, true, "Agent runs fetched successfully", runs);
+  },
+);
 
-export const aiCloseInactiveConversations = asyncHandler(async (req: Request, res: Response) => {
-  const { inactivityLimitMs } = req.body;
-  const result = await conversationService.closeInactiveConversations(inactivityLimitMs);
-  sendResponse(res, 200, true, "Inactive conversations scanned and closed", result);
-});
+export const aiCloseInactiveConversations = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { inactivityLimitMs } = req.body;
+    const result =
+      await conversationService.closeInactiveConversations(inactivityLimitMs);
+    sendResponse(
+      res,
+      200,
+      true,
+      "Inactive conversations scanned and closed",
+      result,
+    );
+  },
+);
 
-export const aiGetPendingAnalysisConversations = asyncHandler(async (req: Request, res: Response) => {
-  const result = await conversationService.getPendingAnalysisConversations();
-  sendResponse(res, 200, true, "Pending analysis conversations fetched successfully", result);
-});
+export const aiGetPendingAnalysisConversations = asyncHandler(
+  async (req: Request, res: Response) => {
+    const result = await conversationService.getPendingAnalysisConversations();
+    sendResponse(
+      res,
+      200,
+      true,
+      "Pending analysis conversations fetched successfully",
+      result,
+    );
+  },
+);
 
-export const updateContactAssociation = asyncHandler(async (req: Request, res: Response) => {
-  const conversationId = req.params.conversationId as string;
-  const organizationId = getOrgId(req);
-  const { name, email, phone, company, tags } = req.body;
+export const updateContactAssociation = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const organizationId = getOrgId(req);
+    const { name, email, phone, company, tags } = req.body;
 
-  const conversation = await Conversation.findOne({
-    _id: conversationId,
-    organizationId,
-  });
-
-  if (!conversation) {
-    return sendError(res, 404, "Conversation not found");
-  }
-
-  const sessionId = conversation.sessionId || `conv:${conversationId}`;
-  let contact = null;
-
-  // 1. If email is provided, check if a contact already exists with that email
-  if (email && email.trim() !== "") {
-    const trimmedEmail = email.trim().toLowerCase();
-    contact = await Contact.findOne({
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
       organizationId,
-      email: trimmedEmail,
     });
 
-    if (contact) {
-      // Attach/merge existing contact to this conversation by matching session ID
-      contact.sessionId = sessionId;
-      contact.conversationId = new Types.ObjectId(conversationId);
-      if (name) contact.name = name.trim();
-      if (phone) contact.phone = phone.trim();
-      if (company) contact.company = company.trim();
-      if (tags) contact.tags = tags;
-      await contact.save();
+    if (!conversation) {
+      return sendError(res, 404, "Conversation not found");
     }
-  }
 
-  // 2. If no contact was found by email, check if one already exists with the current sessionId
-  if (!contact) {
-    contact = await Contact.findOne({
-      organizationId,
-      sessionId,
-    });
+    const sessionId = conversation.sessionId || `conv:${conversationId}`;
+    let contact = null;
 
-    if (contact) {
-      // Update its fields
-      if (name) contact.name = name.trim();
-      if (email) contact.email = email.trim().toLowerCase();
-      if (phone) contact.phone = phone.trim();
-      if (company) contact.company = company.trim();
-      if (tags) contact.tags = tags;
-      await contact.save();
-    } else {
-      // 3. Create a brand new contact linked to this conversation session
-      contact = await Contact.create({
+    // 1. If email is provided, check if a contact already exists with that email
+    if (email && email.trim() !== "") {
+      const trimmedEmail = email.trim().toLowerCase();
+      contact = await Contact.findOne({
+        organizationId,
+        email: trimmedEmail,
+      });
+
+      if (contact) {
+        // Attach/merge existing contact to this conversation by matching session ID
+        contact.sessionId = sessionId;
+        contact.conversationId = new Types.ObjectId(conversationId);
+        if (name) contact.name = name.trim();
+        if (phone) contact.phone = phone.trim();
+        if (company) contact.company = company.trim();
+        if (tags) contact.tags = tags;
+        await contact.save();
+      }
+    }
+
+    // 2. If no contact was found by email, check if one already exists with the current sessionId
+    if (!contact) {
+      contact = await Contact.findOne({
         organizationId,
         sessionId,
-        conversationId: new Types.ObjectId(conversationId),
-        name: name ? name.trim() : "Anonymous User",
-        email: email ? email.trim().toLowerCase() : undefined,
-        phone: phone ? phone.trim() : undefined,
-        company: company ? company.trim() : undefined,
-        tags: tags || [],
-        source: "agent",
-        lastActivityAt: new Date(),
       });
+
+      if (contact) {
+        // Update its fields
+        if (name) contact.name = name.trim();
+        if (email) contact.email = email.trim().toLowerCase();
+        if (phone) contact.phone = phone.trim();
+        if (company) contact.company = company.trim();
+        if (tags) contact.tags = tags;
+        await contact.save();
+      } else {
+        // 3. Create a brand new contact linked to this conversation session
+        contact = await Contact.create({
+          organizationId,
+          sessionId,
+          conversationId: new Types.ObjectId(conversationId),
+          name: name ? name.trim() : "Anonymous User",
+          email: email ? email.trim().toLowerCase() : undefined,
+          phone: phone ? phone.trim() : undefined,
+          company: company ? company.trim() : undefined,
+          tags: tags || [],
+          source: "agent",
+          lastActivityAt: new Date(),
+        });
+      }
     }
-  }
 
-  // Also sync key conversation metadata
-  const conversationUpdate: Record<string, any> = {};
-  if (contact.name) conversationUpdate["metadata.senderName"] = contact.name;
-  if (contact.email) conversationUpdate["metadata.senderEmail"] = contact.email;
-  if (contact.phone) conversationUpdate["metadata.visitorPhone"] = contact.phone;
+    // Also sync key conversation metadata
+    const conversationUpdate: Record<string, any> = {};
+    if (contact.name) conversationUpdate["metadata.senderName"] = contact.name;
+    if (contact.email)
+      conversationUpdate["metadata.senderEmail"] = contact.email;
+    if (contact.phone)
+      conversationUpdate["metadata.visitorPhone"] = contact.phone;
 
-  if (Object.keys(conversationUpdate).length > 0) {
-    await Conversation.updateOne({ _id: conversationId }, { $set: conversationUpdate });
-  }
-
-  // Emit socket changes so the frontend UI re-fetches or updates
-  const sm = getSocketManager();
-  if (sm) {
-    try {
-      sm.emitToConversation(conversationId, "conversation_updated", {
-        conversationId,
-        contact: {
-          id: contact._id.toString(),
-          name: contact.name,
-          email: contact.email,
-          phone: contact.phone,
-          company: contact.company,
-        },
-      });
-    } catch (err: any) {
-      logger.error(`Failed to emit contact update socket: ${err?.message}`);
+    if (Object.keys(conversationUpdate).length > 0) {
+      await Conversation.updateOne(
+        { _id: conversationId },
+        { $set: conversationUpdate },
+      );
     }
-  }
 
-  sendResponse(res, 200, true, "Contact associated successfully", {
-    contact: {
-      id: contact._id.toString(),
-      name: contact.name,
-      email: contact.email,
-      phone: contact.phone,
-      company: contact.company,
-    },
-  });
-});
+    // Emit socket changes so the frontend UI re-fetches or updates
+    const sm = getSocketManager();
+    if (sm) {
+      try {
+        sm.emitToConversation(conversationId, "conversation_updated", {
+          conversationId,
+          contact: {
+            id: contact._id.toString(),
+            name: contact.name,
+            email: contact.email,
+            phone: contact.phone,
+            company: contact.company,
+          },
+        });
+      } catch (err: any) {
+        logger.error(`Failed to emit contact update socket: ${err?.message}`);
+      }
+    }
+
+    sendResponse(res, 200, true, "Contact associated successfully", {
+      contact: {
+        id: contact._id.toString(),
+        name: contact.name,
+        email: contact.email,
+        phone: contact.phone,
+        company: contact.company,
+      },
+    });
+  },
+);
 
 // ─── GET recent conversations ──────────────────────────────────────────────────
 
-export const getRecentConversations = asyncHandler(async (req: Request, res: Response) => {
-  const userId = (req as AuthenticatedRequest).user.userId;
-  const orgId = getOrgId(req);
-  const results = await conversationService.getRecentConversations(userId, orgId);
-  sendResponse(res, 200, true, "Recent conversations fetched successfully", results);
-});
+export const getRecentConversations = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = (req as AuthenticatedRequest).user.userId;
+    const orgId = getOrgId(req);
+    const results = await conversationService.getRecentConversations(
+      userId,
+      orgId,
+    );
+    sendResponse(
+      res,
+      200,
+      true,
+      "Recent conversations fetched successfully",
+      results,
+    );
+  },
+);
 
 // ─── CLEAR recent conversations ────────────────────────────────────────────────
 
-export const clearRecentConversations = asyncHandler(async (req: Request, res: Response) => {
-  const userId = (req as AuthenticatedRequest).user.userId;
-  const orgId = getOrgId(req);
-  await conversationService.clearRecentConversations(userId, orgId);
-  sendResponse(res, 200, true, "Recent conversations cleared successfully", null);
-});
+export const clearRecentConversations = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = (req as AuthenticatedRequest).user.userId;
+    const orgId = getOrgId(req);
+    await conversationService.clearRecentConversations(userId, orgId);
+    sendResponse(
+      res,
+      200,
+      true,
+      "Recent conversations cleared successfully",
+      null,
+    );
+  },
+);

@@ -11,7 +11,18 @@ export interface IWidget extends Document {
     // primaryColor removed, using theme only
     welcomeMessage: string;
     logoUrl?: string;
-    pattern?: "none" | "uiverse-alexruix" | "dots" | "grid" | "island" | "3d-cubes" | "checkerboard" | "hexagonal" | "polka" | "radial-stripes" | "plaid";
+    pattern?:
+      | "none"
+      | "uiverse-alexruix"
+      | "dots"
+      | "grid"
+      | "island"
+      | "3d-cubes"
+      | "checkerboard"
+      | "hexagonal"
+      | "polka"
+      | "radial-stripes"
+      | "plaid";
   };
   // backgroundColor removed, using theme only
   behavior: {
@@ -49,7 +60,12 @@ export interface IWidget extends Document {
 
 const WidgetSchema = new Schema<IWidget>(
   {
-    organizationId: { type: Schema.Types.ObjectId, ref: "Organization", required: true, unique: true },
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      unique: true,
+    },
     displayName: { type: String, required: true },
     logoUrl: { type: String, required: false, default: "" },
     appearance: {
@@ -62,7 +78,19 @@ const WidgetSchema = new Schema<IWidget>(
       logoUrl: { type: String, default: "" },
       pattern: {
         type: String,
-        enum: ["none", "uiverse-alexruix", "dots", "grid", "island", "3d-cubes", "checkerboard", "hexagonal", "polka", "radial-stripes", "plaid"],
+        enum: [
+          "none",
+          "uiverse-alexruix",
+          "dots",
+          "grid",
+          "island",
+          "3d-cubes",
+          "checkerboard",
+          "hexagonal",
+          "polka",
+          "radial-stripes",
+          "plaid",
+        ],
         default: "none",
       },
     },
@@ -93,7 +121,7 @@ const WidgetSchema = new Schema<IWidget>(
       type: [
         {
           text: { type: String, required: true },
-          showOutside: { type: Boolean, default: false },
+          showOutside: { type: Boolean, default: true },
           faqId: { type: String, default: null },
         },
       ],

@@ -1,21 +1,31 @@
 import pLimit from "p-limit";
-import { ProviderFactory, EmbeddingProvider } from "../../../infrastructure/providers";
+import {
+  ProviderFactory,
+  EmbeddingProvider,
+} from "../../../infrastructure/providers";
 import { vectorStore } from "../../../infrastructure/vector";
 import { chunkText } from "../utils/chunker";
 import { generateDeterministicChunkId } from "../utils/chunk-id";
-import { ContentStreamItem, ProcessIngestionInput, ProcessIngestionResult } from "../ingestion.types";
+import {
+  ContentStreamItem,
+  ProcessIngestionInput,
+  ProcessIngestionResult,
+} from "../ingestion.types";
 
 const DEFAULT_BATCH_SIZE = parseInt(process.env.INGEST_BATCH_SIZE || "25", 10);
+const DEFAULT_FLUSH_MS = parseInt(process.env.INGEST_FLUSH_MS || "5000", 10);
 const DEFAULT_EMBED_CONCURRENCY = parseInt(
   process.env.INGEST_EMBED_CONCURRENCY || "5",
   10,
 );
-const DEFAULT_EMBED_RETRIES = parseInt(process.env.INGEST_EMBED_RETRIES || "3", 10);
+const DEFAULT_EMBED_RETRIES = parseInt(
+  process.env.INGEST_EMBED_RETRIES || "3",
+  10,
+);
 const DEFAULT_RETRY_BASE_MS = parseInt(
   process.env.INGEST_RETRY_BASE_MS || "400",
   10,
 );
-
 
 interface PendingChunk {
   deterministicId: string;
@@ -57,7 +67,10 @@ async function embedWithRetry(params: {
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      const orgId = typeof trace.organizationId === "string" ? trace.organizationId : undefined;
+      const orgId =
+        typeof trace.organizationId === "string"
+          ? trace.organizationId
+          : undefined;
       return await provider.embed(text, { organizationId: orgId });
     } catch (error: any) {
       const lastAttempt = attempt >= maxRetries;
@@ -84,6 +97,7 @@ export async function processIngestion(
 ): Promise<ProcessIngestionResult> {
   const startedAt = Date.now();
   const batchSize = input.batchSize ?? DEFAULT_BATCH_SIZE;
+  const flushMs = input.flushMs ?? DEFAULT_FLUSH_MS;
   const embedRetries = input.embedRetries ?? DEFAULT_EMBED_RETRIES;
   const retryBaseMs = input.retryBaseMs ?? DEFAULT_RETRY_BASE_MS;
   const embeddingConcurrency =
@@ -98,6 +112,7 @@ export async function processIngestion(
     organizationId: input.organizationId,
     documentId: input.documentId,
     batchSize,
+    flushMs,
     embeddingConcurrency,
     embedRetries,
     provider: provider.name,
@@ -116,8 +131,18 @@ export async function processIngestion(
   let batchNumber = 0;
 
   let pending: PendingChunk[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  let flushInFlight: Promise<void> | null = null;
+  let asyncFlushError: unknown = null;
 
-  const flush = async () => {
+  const clearFlushTimer = () => {
+    if (!flushTimer) return;
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  };
+
+  const flush = async (reason: "batch-size" | "timeout" | "final") => {
+    clearFlushTimer();
     if (pending.length === 0) return;
 
     batchNumber += 1;
@@ -130,6 +155,7 @@ export async function processIngestion(
       documentId: input.documentId,
       batchNumber,
       batchSize: currentBatch.length,
+      reason,
     });
 
     const settled = await Promise.allSettled(
@@ -207,11 +233,48 @@ export async function processIngestion(
       batchNumber,
       upserted: upsertPoints.length,
       failed: currentBatch.length - upsertPoints.length,
+      reason,
       durationMs: Date.now() - batchStart,
     });
   };
 
+  const flushSequentially = async (
+    reason: "batch-size" | "timeout" | "final",
+  ) => {
+    if (flushInFlight) {
+      await flushInFlight;
+    }
+
+    const promise = flush(reason);
+    flushInFlight = promise;
+
+    try {
+      await promise;
+    } finally {
+      if (flushInFlight === promise) {
+        flushInFlight = null;
+      }
+    }
+  };
+
+  const scheduleFlush = () => {
+    if (flushMs <= 0 || pending.length === 0 || flushTimer) return;
+
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      flushSequentially("timeout").catch((error: any) => {
+        asyncFlushError = error;
+        logEvent("batch.flush.timeout.failed", {
+          organizationId: input.organizationId,
+          documentId: input.documentId,
+          error: error?.message || String(error),
+        });
+      });
+    }, flushMs);
+  };
+
   for await (const unit of input.contentStream) {
+    if (asyncFlushError) throw asyncFlushError;
     if (!unit.text.trim()) continue;
 
     unitsProcessed += 1;
@@ -248,7 +311,9 @@ export async function processIngestion(
       nextChunkIndex += 1;
 
       if (pending.length >= batchSize) {
-        await flush();
+        await flushSequentially("batch-size");
+      } else {
+        scheduleFlush();
       }
     }
 
@@ -264,7 +329,9 @@ export async function processIngestion(
     }
   }
 
-  await flush();
+  if (asyncFlushError) throw asyncFlushError;
+  await flushSequentially("final");
+  if (asyncFlushError) throw asyncFlushError;
 
   if (chunksTotal === 0) {
     throw new Error("No ingestible content was produced from source stream");

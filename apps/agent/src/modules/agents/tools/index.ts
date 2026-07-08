@@ -1,6 +1,5 @@
 import { Tool, ToolFilterOptions } from "../agent.types";
 
-
 const registry = new Map<string, Tool>();
 
 export function registerTool(tool: Tool): void {
@@ -17,7 +16,6 @@ export function getAllTools(): Tool[] {
   return [...registry.values()];
 }
 
-
 /** Returns dynamically filtered tools based on conversation context/configuration */
 export function getToolsForContext(options: ToolFilterOptions): Tool[] {
   let tools = [...registry.values()];
@@ -30,7 +28,7 @@ export function getToolsForContext(options: ToolFilterOptions): Tool[] {
   // If the channel is email, exclude tools not applicable/required for email flow
   if (options.channel === "email") {
     tools = tools.filter(
-      (tool) => tool.name !== "verify_email_otp" && tool.name !== "send_email"
+      (tool) => tool.name !== "verify_email_otp" && tool.name !== "send_email",
     );
   }
 
@@ -45,14 +43,17 @@ import { MarkQueryResolvedTool } from "./mark-query-resolved.tool";
 
 // New tools
 import { FaqRetrievalTool } from "./faq-retrieval.tool";
+import { KnowledgeRetrievalTool } from "./knowledge-retrieval.tool";
 import { ConversationMemoryTool } from "./conversation-memory.tool";
 import { SendEmailTool } from "./send-email.tool";
 import { VerifyEmailOtpTool } from "./verify-email-otp.tool";
 import { CreateTicketTool } from "./create-ticket.tool";
 import { UpdateTicketTool } from "./update-ticket.tool";
+import { GetTicketStatusTool } from "./get-ticket-status.tool";
 import { CloseTicketTool } from "./close-ticket.tool";
 import { EscalateToHumanTool } from "./escalate-to-human.tool";
 import { SeekContactTool } from "./seek-contact.tool";
+import { SaveUnansweredQuestionTool } from "./save-unanswered-question.tool";
 
 // Built-in
 registerTool(new RewriteAndThinkTool());
@@ -62,13 +63,20 @@ registerTool(new MarkQueryResolvedTool());
 
 // New AI tools
 registerTool(new FaqRetrievalTool());
+registerTool(new KnowledgeRetrievalTool());
 registerTool(new ConversationMemoryTool());
 registerTool(new SendEmailTool());
 registerTool(new VerifyEmailOtpTool());
 registerTool(new CreateTicketTool());
 registerTool(new UpdateTicketTool());
+registerTool(new GetTicketStatusTool());
 registerTool(new CloseTicketTool());
 registerTool(new EscalateToHumanTool());
 registerTool(new SeekContactTool());
+registerTool(new SaveUnansweredQuestionTool());
 
-export type { Tool, ToolParameterSchema, ToolFilterOptions } from "../agent.types";
+export type {
+  Tool,
+  ToolParameterSchema,
+  ToolFilterOptions,
+} from "../agent.types";

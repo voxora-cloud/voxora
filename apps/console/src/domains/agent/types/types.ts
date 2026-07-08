@@ -7,18 +7,18 @@ export interface Agent {
     email: string;
     avatar?: string;
     status?: string;
-    lastSeen?: Date;
+    lastSeen?: Date | string;
     isActive?: boolean;
   };
   role: "admin" | "agent";
 
   status: "online" | "offline" | "busy";
   avatar?: string;
-  lastSeen: Date;
+  lastSeen: Date | string;
   inviteStatus: "pending" | "active" | "inactive";
   permissions?: string[];
-  createdAt: Date;
-  updatedAt?: Date;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface InviteAgentData {
@@ -66,7 +66,11 @@ export interface AgentResponse {
 
 export interface InviteResponse {
   success: boolean;
-  data: Agent;
+  data: {
+    membershipId: string;
+    emailSent: boolean;
+    inviteLink?: string;
+  };
   inviteLink?: string;
 }
 

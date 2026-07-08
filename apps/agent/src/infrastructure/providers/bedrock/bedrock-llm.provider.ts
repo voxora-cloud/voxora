@@ -31,8 +31,7 @@ export class BedrockLLMProvider implements LLMProvider {
 
   constructor() {
     const bedrockConfig = config.llm.bedrock;
-    this.defaultModel =
-      bedrockConfig?.model || "openai.gpt-oss-20b-1:0";
+    this.defaultModel = bedrockConfig?.model || "openai.gpt-oss-20b-1:0";
   }
 
   private getClient(): BedrockRuntimeClient {
@@ -67,13 +66,24 @@ export class BedrockLLMProvider implements LLMProvider {
     latencyTracker.start();
     const tokenTracker = new TokenTracker();
     const model = options.model ?? this.defaultModel;
-    const maxTimeoutMs = parseInt(process.env.BEDROCK_MAX_TIMEOUT_MS || "30000", 10);
+    const maxTimeoutMs = parseInt(
+      process.env.BEDROCK_MAX_TIMEOUT_MS || "30000",
+      10,
+    );
 
     try {
       const result = await Promise.race([
         this.executeGenerate(messages, options, tokenTracker),
         new Promise<LLMGenerateResult>((_, reject) =>
-          setTimeout(() => reject(new Error(`Bedrock generation timed out after ${maxTimeoutMs}ms`)), maxTimeoutMs)
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `Bedrock generation timed out after ${maxTimeoutMs}ms`,
+                ),
+              ),
+            maxTimeoutMs,
+          ),
         ),
       ]);
 
@@ -192,33 +202,33 @@ export class BedrockLLMProvider implements LLMProvider {
     const toolConfig: any =
       tools.length > 0
         ? {
-          tools: tools.map((t) => {
-            const properties: Record<string, unknown> = {};
-            const required: string[] = [];
+            tools: tools.map((t) => {
+              const properties: Record<string, unknown> = {};
+              const required: string[] = [];
 
-            for (const [k, v] of Object.entries(t.parameters)) {
-              if (k === "organizationId" || k === "conversationId") continue;
-              const paramDef = v as unknown as Record<string, unknown>;
-              const { required: req, ...rest } = paramDef;
-              properties[k] = rest;
-              if (req) required.push(k);
-            }
+              for (const [k, v] of Object.entries(t.parameters)) {
+                if (k === "organizationId" || k === "conversationId") continue;
+                const paramDef = v as unknown as Record<string, unknown>;
+                const { required: req, ...rest } = paramDef;
+                properties[k] = rest;
+                if (req) required.push(k);
+              }
 
-            return {
-              toolSpec: {
-                name: t.name,
-                description: t.description,
-                inputSchema: {
-                  json: {
-                    type: "object",
-                    properties,
-                    ...(required.length > 0 ? { required } : {}),
+              return {
+                toolSpec: {
+                  name: t.name,
+                  description: t.description,
+                  inputSchema: {
+                    json: {
+                      type: "object",
+                      properties,
+                      ...(required.length > 0 ? { required } : {}),
+                    },
                   },
                 },
-              },
-            };
-          }),
-        }
+              };
+            }),
+          }
         : undefined;
 
     const MAX_TOOL_LOOPS = 5;
@@ -281,16 +291,18 @@ export class BedrockLLMProvider implements LLMProvider {
           for await (const chunk of resp.stream) {
             const delta = (
               chunk as {
-                contentBlockDelta?: { delta?: { text?: string; toolUse?: { input?: string } } };
+                contentBlockDelta?: {
+                  delta?: { text?: string; toolUse?: { input?: string } };
+                };
               }
             ).contentBlockDelta?.delta;
 
             if (delta?.text) {
               // Strip <thinking>/<thought> tags and their content before streaming
               let cleanText = delta.text
-                .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
-                .replace(/<thought>[\s\S]*?<\/thought>/gi, '')
-                .replace(/<\/?(?:thinking|thought)>/gi, '');
+                .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+                .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
+                .replace(/<\/?(?:thinking|thought)>/gi, "");
 
               // If this chunk is inside an unclosed thinking block, skip it entirely
               responseText += delta.text;
@@ -368,8 +380,7 @@ export class BedrockLLMProvider implements LLMProvider {
                 promptTokens: metaUsage.inputTokens,
                 completionTokens: metaUsage.outputTokens,
                 totalTokens:
-                  (metaUsage.inputTokens || 0) +
-                  (metaUsage.outputTokens || 0),
+                  (metaUsage.inputTokens || 0) + (metaUsage.outputTokens || 0),
               };
               tokenTracker.accumulate(u);
             }
@@ -442,7 +453,8 @@ export class BedrockLLMProvider implements LLMProvider {
         if (!tool) continue;
 
         const toolLabels: Record<string, { label: string; detail?: string }> = {
-          faq_retrieval: { label: "Searching knowledge base" },
+          faq_retrieval: { label: "Searching FAQs" },
+          knowledge_retrieval: { label: "Searching uploaded knowledge" },
           web_crawl: { label: "Searching web" },
           conversation_memory: { label: "Checking conversation history" },
           seek_contact: { label: "Looking up contact" },
@@ -471,7 +483,7 @@ export class BedrockLLMProvider implements LLMProvider {
         let stepError: string | undefined;
         const stepTimestamp = new Date();
         const sanitizedInput = {
-          ...(call.input as Record<string, unknown> || {}),
+          ...((call.input as Record<string, unknown>) || {}),
           ...(toolContext?.conversationId
             ? { conversationId: toolContext.conversationId }
             : {}),
@@ -512,14 +524,23 @@ export class BedrockLLMProvider implements LLMProvider {
           // Emit tool complete event
           if (onToolEvent) {
             let detail: string | undefined;
-            if (call.name === "faq_retrieval" && result && typeof result === "object") {
+            if (
+              (call.name === "faq_retrieval" ||
+                call.name === "knowledge_retrieval") &&
+              result &&
+              typeof result === "object"
+            ) {
               const r = result as any;
               if (r.results && Array.isArray(r.results)) {
                 detail = `Retrieved ${r.results.length} document${r.results.length !== 1 ? "s" : ""}`;
               } else if (r.status === "no_results") {
                 detail = "No relevant content found";
               }
-            } else if (call.name === "create_ticket" && result && typeof result === "object") {
+            } else if (
+              call.name === "create_ticket" &&
+              result &&
+              typeof result === "object"
+            ) {
               const r = result as any;
               if (r.ticketNumber) detail = `Ticket ${r.ticketNumber}`;
             } else if (call.name === "web_crawl") {
@@ -598,8 +619,7 @@ export class BedrockLLMProvider implements LLMProvider {
             tokenTracker.accumulate({
               promptTokens: usage.inputTokens,
               completionTokens: usage.outputTokens,
-              totalTokens:
-                (usage.inputTokens || 0) + (usage.outputTokens || 0),
+              totalTokens: (usage.inputTokens || 0) + (usage.outputTokens || 0),
             });
           }
         }
@@ -630,7 +650,9 @@ export class BedrockLLMProvider implements LLMProvider {
     const finalCleanText = cleanFinalResponse(responseText);
 
     return {
-      text: finalCleanText || "I’m sorry, but I could not produce a final response from the available information.",
+      text:
+        finalCleanText ||
+        "I’m sorry, but I could not produce a final response from the available information.",
       usage: tokenTracker.toUsage(),
       steps,
     };
