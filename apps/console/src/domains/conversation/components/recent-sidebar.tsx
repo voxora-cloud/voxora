@@ -117,7 +117,7 @@ export function RecentConversationsSidebar() {
 
   if (isCollapsed) {
     return (
-      <div className="h-full w-14 flex flex-col bg-card border-r border-border items-center pt-3 pb-3 transition-all duration-300">
+      <div className="h-full w-14 flex flex-col rounded-lg border border-border bg-card shadow-sm items-center pt-3 pb-3 transition-all duration-300 overflow-hidden">
         <button
           onClick={() => setIsCollapsed(false)}
           className="p-1.5 hover:bg-muted rounded-lg cursor-pointer mb-5 text-muted-foreground hover:text-foreground transition-all duration-200 shadow-sm border border-transparent hover:border-border"
@@ -170,7 +170,7 @@ export function RecentConversationsSidebar() {
   }
 
   return (
-    <div className="h-full w-[260px] flex flex-col bg-card border-r border-border transition-all duration-300">
+    <div className="h-full w-[260px] flex flex-col rounded-lg border border-border bg-card shadow-sm transition-all duration-300 overflow-hidden">
       {/* Header */}
       <div className="h-14 px-4 border-b border-border flex items-center justify-between shrink-0 bg-card">
         <h3 className="text-sm font-semibold text-foreground select-none">Recent Chats</h3>

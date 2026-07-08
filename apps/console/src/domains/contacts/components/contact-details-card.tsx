@@ -16,12 +16,18 @@ interface ContactDetailsCardProps {
   contact: Contact;
   onResolveConflictsClick?: () => void;
   conversationId?: string;
+  onGenerateNote?: () => Promise<string | undefined>;
+  isGeneratingNote?: boolean;
+  canGenerateNote?: boolean;
 }
 
 export function ContactDetailsCard({
   contact,
   onResolveConflictsClick,
   conversationId,
+  onGenerateNote,
+  isGeneratingNote = false,
+  canGenerateNote = true,
 }: ContactDetailsCardProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -59,6 +65,14 @@ export function ContactDetailsCard({
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
     } catch (err) {
       console.error("Failed to add note:", err);
+    }
+  };
+
+  const handleGenerateNote = async () => {
+    if (!onGenerateNote) return;
+    const generatedNote = await onGenerateNote();
+    if (generatedNote?.trim()) {
+      setNoteDraft(generatedNote);
     }
   };
 
@@ -199,9 +213,24 @@ export function ContactDetailsCard({
           onChange={(event) => setNoteDraft(event.target.value)}
           className="min-h-20 cursor-text"
         />
-        <Button size="sm" onClick={handleAddNote} className="cursor-pointer">
-          Add note
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={handleAddNote} className="cursor-pointer">
+            Add note
+          </Button>
+          {onGenerateNote && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleGenerateNote}
+              disabled={isGeneratingNote || !canGenerateNote}
+              className="cursor-pointer"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {isGeneratingNote ? "Generating" : "Generate note"}
+            </Button>
+          )}
+        </div>
         <div className="space-y-3">
           {contact.notes.map((note) => (
             <div key={note.id} className="rounded-lg border border-border p-3 text-sm">

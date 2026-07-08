@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Info,
   Sparkles,
-  NotebookPen,
   X,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
@@ -33,13 +32,11 @@ import type {
   Template,
 } from "../types/types";
 import { conversationsApi } from "../api/conversations.api";
-import { contactsApi } from "@/domains/contacts/api/contacts.api";
 import { useContacts } from "@/domains/contacts/hooks/use-contacts";
 import { toContactViewModel } from "@/domains/contacts/types/types";
 import { ContactDetailsCard } from "@/domains/contacts/components/contact-details-card";
 import { Loader } from "@/shared/ui/loader";
 import { toast } from "sonner";
-import { GenerateNotePreviewDialog } from "./generate-note-preview-dialog";
 import { TemplatePicker } from "./template-picker";
 
 import { playNotificationSound } from "@/shared/lib/audio";
@@ -228,15 +225,14 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isSuggestLoading, setIsSuggestLoading] = useState(false);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
-  const [isSavingNote, setIsSavingNote] = useState(false);
-  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
-  const [generatedNote, setGeneratedNote] = useState("");
   const [slashCommand, setSlashCommand] = useState<SlashCommandState | null>(
     null,
   );
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [activeSlashIndex, setActiveSlashIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const slashOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerTypingHideRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -352,7 +348,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     const query = slashCommand.query.trim().toLowerCase().replace(/^\//, "");
     const matches = templates.filter((template) => {
-      const shortcut = (template.shortcut || "").toLowerCase().replace(/^\//, "");
+      const shortcut = (template.shortcut || "")
+        .toLowerCase()
+        .replace(/^\//, "");
       const title = template.title.toLowerCase();
       return !query || shortcut.includes(query) || title.includes(query);
     });
@@ -363,6 +361,13 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   useEffect(() => {
     setActiveSlashIndex(0);
   }, [slashCommand?.query, slashTemplateMatches.length]);
+
+  useEffect(() => {
+    if (!slashCommand || slashTemplateMatches.length === 0) return;
+    slashOptionRefs.current[activeSlashIndex]?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [activeSlashIndex, slashCommand, slashTemplateMatches.length]);
 
   const basePath = "/dashboard/conversations/inbox";
 
@@ -524,7 +529,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     setIsSuggestLoading(true);
     try {
-      const result = await conversationsApi.suggestReply(conversationId, messages);
+      const result = await conversationsApi.suggestReply(
+        conversationId,
+        messages,
+      );
       setSuggestions(result.suggestions || []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to generate suggestions");
@@ -534,8 +542,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   };
 
   const handleGenerateNote = async () => {
-    setGeneratedNote("");
-    setNoteDialogOpen(true);
     setIsGeneratingNote(true);
 
     try {
@@ -544,31 +550,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         messages,
         contactDetails?.name,
       );
-      setGeneratedNote(result.note || "");
+      return result.note || "";
     } catch (error: any) {
-      setNoteDialogOpen(false);
       toast.error(error?.message || "Failed to generate note");
     } finally {
       setIsGeneratingNote(false);
-    }
-  };
-
-  const handleSaveGeneratedNote = async (note: string) => {
-    if (!contactDetails || contactDetails.id === "temp-contact") {
-      toast.error("Associate this visitor with a contact before saving notes");
-      return;
-    }
-
-    setIsSavingNote(true);
-    try {
-      await contactsApi.addNote(contactDetails.id, note.trim());
-      toast.success("Note saved");
-      setNoteDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["contacts"] });
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to save note");
-    } finally {
-      setIsSavingNote(false);
     }
   };
 
@@ -578,6 +564,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       customerName || "there",
     );
     setNewMessage(personalized);
+    setTemplatePickerOpen(false);
     setSlashCommand(null);
   };
 
@@ -592,6 +579,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     if (!command) {
       setNewMessage(personalized);
+      setTemplatePickerOpen(false);
       return;
     }
 
@@ -601,6 +589,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     const nextCaret = before.length + personalized.length;
 
     setNewMessage(nextValue);
+    setTemplatePickerOpen(false);
     setSlashCommand(null);
     setTimeout(() => {
       textareaRef.current?.focus();
@@ -610,11 +599,12 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
   const updateSlashCommand = (value: string, caret: number) => {
     const beforeCaret = value.slice(0, caret);
-    const tokenStart = Math.max(
-      beforeCaret.lastIndexOf(" "),
-      beforeCaret.lastIndexOf("\n"),
-      beforeCaret.lastIndexOf("\t"),
-    ) + 1;
+    const tokenStart =
+      Math.max(
+        beforeCaret.lastIndexOf(" "),
+        beforeCaret.lastIndexOf("\n"),
+        beforeCaret.lastIndexOf("\t"),
+      ) + 1;
     const token = beforeCaret.slice(tokenStart);
 
     if (token.startsWith("/") && !/\s/.test(token)) {
@@ -674,6 +664,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   ) => {
     const val = e.target.value;
     setNewMessage(val);
+    if (val.trim()) setTemplatePickerOpen(false);
     updateSlashCommand(val, e.target.selectionStart || val.length);
     if (!socket) return;
     if (conversationId && !isAgentTypingRef.current && val.trim().length > 0) {
@@ -843,11 +834,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   }
 
   return (
-    <div className="h-full flex bg-background overflow-hidden w-full">
+    <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden bg-transparent">
       {/* Left Chat / Runs Column */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden border-r border-border">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-transparent p-4">
           <div className="flex min-w-0 items-center space-x-3">
             <Button
               variant="ghost"
@@ -956,7 +947,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border bg-card/60 px-4 shrink-0">
+        <div className="flex border-b border-border/70 bg-transparent px-4 shrink-0">
           <button
             onClick={() => setActiveTab("chat")}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
@@ -981,7 +972,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
         {activeTab === "chat" ? (
           <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
+            <div className="flex-1 overflow-y-auto bg-transparent p-4 space-y-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
               {messages.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -1024,62 +1015,74 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               </div>
             )}
 
-            <div className="p-4 border-t border-border bg-card">
-              {suggestions.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      className="max-w-full rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs font-medium text-foreground shadow-xs hover:bg-muted"
-                      onClick={() => {
-                        setNewMessage(suggestion);
-                        setSuggestions([]);
-                        setSlashCommand(null);
-                      }}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => setSuggestions([])}
-                    aria-label="Clear suggestions"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <TemplatePicker onInsert={handleInsertTemplate} />
+            <div className="border-t border-border/70 bg-transparent px-4 py-3">
+              <div className="overflow-visible">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <TemplatePicker
+                      key={conversationId}
+                      open={templatePickerOpen}
+                      onOpenChange={setTemplatePickerOpen}
+                      onInsert={handleInsertTemplate}
+                      compact
+                    />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={handleSuggestReply}
                       disabled={isSuggestLoading || messages.length === 0}
+                      className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
                       {isSuggestLoading ? "Suggesting" : "Suggest"}
                     </Button>
                   </div>
-                  <Button
-                    onClick={sendMessage}
-                    disabled={!newMessage.trim() || isLoading}
-                    size="icon"
-                    className="cursor-pointer"
-                    aria-label="Send message"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
+                  {newMessage.trim() && (
+                    <span className="text-xs text-muted-foreground">
+                      {newMessage.length} chars
+                    </span>
+                  )}
                 </div>
+                {suggestions.length > 0 && (
+                  <div className="border-b border-border/70 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                        AI suggestions
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setSuggestions([])}
+                        aria-label="Clear suggestions"
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          className="min-h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm leading-5 text-foreground shadow-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                          onClick={() => {
+                            setNewMessage(suggestion);
+                            setTemplatePickerOpen(false);
+                            setSuggestions([]);
+                            setSlashCommand(null);
+                          }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {slashCommand && (
-                  <div className="mb-2 max-h-56 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+                  <div className="max-h-56 overflow-y-auto border-b border-border/70 bg-popover">
                     {slashTemplateMatches.length === 0 ? (
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         No matching templates
@@ -1088,6 +1091,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       slashTemplateMatches.map((template, index) => (
                         <button
                           key={template._id}
+                          ref={(element) => {
+                            slashOptionRefs.current[index] = element;
+                          }}
                           type="button"
                           className={`flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted ${
                             index === activeSlashIndex ? "bg-muted" : ""
@@ -1117,15 +1123,26 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     )}
                   </div>
                 )}
-                <Textarea
-                  ref={textareaRef}
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type your message..."
-                  className="min-h-[80px] resize-none cursor-text"
-                  disabled={isLoading}
-                />
+                <div className="flex items-end gap-2 pt-3">
+                  <Textarea
+                    ref={textareaRef}
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Write a reply..."
+                    className="min-h-[76px] flex-1 resize-none cursor-text rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim() || isLoading}
+                    size="icon"
+                    className="mb-0.5 cursor-pointer"
+                    aria-label="Send message"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </>
@@ -1136,21 +1153,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
       {/* Right User Contact Sidebar */}
       {contactDetails && isContactSidebarOpen && (
-        <div className="w-80 shrink-0 flex flex-col h-full bg-background border-l border-border select-none">
+        <div className="w-80 shrink-0 flex flex-col h-full overflow-hidden rounded-lg border border-border bg-card shadow-sm select-none">
           <div className="p-4 border-b border-border bg-card flex items-center justify-between">
             <h3 className="text-sm font-semibold">Contact details</h3>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
-                onClick={handleGenerateNote}
-                disabled={isGeneratingNote || messages.length === 0}
-                title="Generate contact note"
-                aria-label="Generate contact note"
-              >
-                <NotebookPen className="h-4 w-4" />
-              </Button>
               <UpdateContactDialog
                 conversationId={conversationId}
                 contactId={contactDetails?.id}
@@ -1178,19 +1184,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <ContactDetailsCard contact={contactDetails} conversationId={conversationId} />
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+            <ContactDetailsCard
+              contact={contactDetails}
+              conversationId={conversationId}
+              onGenerateNote={handleGenerateNote}
+              isGeneratingNote={isGeneratingNote}
+              canGenerateNote={messages.length > 0}
+            />
           </div>
         </div>
       )}
-      <GenerateNotePreviewDialog
-        open={noteDialogOpen}
-        note={generatedNote}
-        isLoading={isGeneratingNote}
-        isSaving={isSavingNote}
-        onOpenChange={setNoteDialogOpen}
-        onSave={handleSaveGeneratedNote}
-      />
     </div>
   );
 }
