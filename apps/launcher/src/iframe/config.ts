@@ -12,6 +12,13 @@ export interface StreamingMessage {
   element: HTMLElement;
   lastSequence: number;
   status: 'streaming' | 'completed';
+  textSegments?: Array<{ element: HTMLElement; content: string }>;
+  currentTextSegment?: { element: HTMLElement; content: string } | null;
+  dirtyTextSegments?: Array<{ element: HTMLElement; content: string }>;
+  renderFrameId?: number | null;
+  hasToolSteps?: boolean;
+  currentToolPanel?: HTMLElement | null;
+  hasTextAfterToolPanel?: boolean;
 }
 
 export function normalizeInteractionSource(value: unknown): InteractionSource {

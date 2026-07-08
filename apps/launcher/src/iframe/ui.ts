@@ -272,10 +272,42 @@ export function hideWelcomeScreen() {
   if (elements.messagesContainer) elements.messagesContainer.style.display = 'flex';
 }
 
+let _scrollFrameId: number | null = null;
+let _scrollSettleTimer: number | null = null;
+
+function setMessagesContainerToBottom() {
+  const container = elements.messagesContainer;
+  if (!container) return;
+
+  const previousScrollBehavior = container.style.scrollBehavior;
+  container.style.scrollBehavior = 'auto';
+  container.scrollTop = container.scrollHeight;
+  container.style.scrollBehavior = previousScrollBehavior;
+}
+
 export function scrollToBottom() {
   if (!elements.messagesContainer) return;
-  requestAnimationFrame(() => {
-    elements.messagesContainer!.scrollTop = elements.messagesContainer!.scrollHeight;
+
+  if (_scrollFrameId != null) {
+    cancelAnimationFrame(_scrollFrameId);
+  }
+  if (_scrollSettleTimer != null) {
+    window.clearTimeout(_scrollSettleTimer);
+    _scrollSettleTimer = null;
+  }
+
+  _scrollFrameId = requestAnimationFrame(() => {
+    _scrollFrameId = null;
+    setMessagesContainerToBottom();
+
+    requestAnimationFrame(() => {
+      setMessagesContainerToBottom();
+    });
+
+    _scrollSettleTimer = window.setTimeout(() => {
+      _scrollSettleTimer = null;
+      setMessagesContainerToBottom();
+    }, 80);
   });
 }
 

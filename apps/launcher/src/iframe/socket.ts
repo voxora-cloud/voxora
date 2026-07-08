@@ -1,5 +1,5 @@
 import { io } from "socket.io-client";
-import { state, API_BASE_URL } from './config';
+import { state, API_BASE_URL, type StreamingMessage } from './config';
 import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel } from './ui';
 import { parseMarkdown, parseStreamingMarkdown } from './utils/markdown';
 
@@ -40,29 +40,165 @@ function resetStreamState() {
 let _currentToolStepEl: HTMLElement | null = null;
 
 function releaseToolSteps() {
-  if (state._toolStepsEl) {
-    const title = state._toolStepsEl.querySelector('.tool-call-title');
+  const panels = elements.messagesContainer?.querySelectorAll<HTMLElement>('.tool-call-block');
+  const targets = panels && panels.length > 0
+    ? Array.from(panels)
+    : state._toolStepsEl
+      ? [state._toolStepsEl]
+      : [];
+
+  targets.forEach((panel) => {
+    const title = panel.querySelector('.tool-call-title');
     if (title) title.textContent = 'Steps completed';
     
     // Complete any step that might still be marked as loading
-    const activeSteps = state._toolStepsEl.querySelectorAll('.tool-step.is-loading');
+    const activeSteps = panel.querySelectorAll('.tool-step.is-loading');
     activeSteps.forEach(step => {
       step.classList.remove('is-loading');
       step.classList.add('is-done');
     });
-  }
+  });
+
   state._toolStepsEl = null;
   _currentToolStepEl = null;
 }
 
-function findToolStepsPanel(messageId: string): HTMLElement | null {
+function findLatestToolStepsPanel(messageId: string): HTMLElement | null {
   const panels = elements.messagesContainer?.querySelectorAll<HTMLElement>('.tool-call-block');
-  return Array.from(panels || []).find(
+  return Array.from(panels || []).reverse().find(
     (panel) => panel.dataset.streamMessageId === messageId,
   ) || null;
 }
 
-function placeToolStepsBeforeResponse(panel: HTMLElement, messageId: string) {
+function markToolPanelCompleted(panel: HTMLElement) {
+  if (panel.querySelector('.tool-step.is-loading')) return;
+
+  const title = panel.querySelector('.tool-call-title');
+  if (title) title.textContent = 'Steps completed';
+}
+
+function getResponseFlow(messageElement: HTMLElement): HTMLElement | null {
+  const bubble = messageElement.querySelector<HTMLElement>('.message-bubble');
+  if (!bubble) return null;
+
+  let flow = bubble.querySelector<HTMLElement>('.response-flow');
+  if (!flow) {
+    flow = document.createElement('div');
+    flow.className = 'response-flow';
+    const time = bubble.querySelector<HTMLElement>('.message-time');
+    if (time) {
+      bubble.insertBefore(flow, time);
+    } else {
+      bubble.appendChild(flow);
+    }
+  }
+
+  return flow;
+}
+
+type StreamTextSegment = NonNullable<StreamingMessage['textSegments']>[number];
+
+function addResponseTextSegment(stream: StreamingMessage): StreamTextSegment | null {
+  const flow = getResponseFlow(stream.element);
+  if (!flow) return null;
+
+  const element = document.createElement('div');
+  element.className = 'response-content md';
+  flow.appendChild(element);
+
+  const segment: StreamTextSegment = { element, content: '' };
+  stream.textSegments ||= [];
+  stream.textSegments.push(segment);
+  stream.currentTextSegment = segment;
+  return segment;
+}
+
+function scheduleStreamSegmentRender(stream: StreamingMessage, segment: StreamTextSegment) {
+  const dirtySegments = (stream.dirtyTextSegments ||= []);
+  if (!dirtySegments.includes(segment)) {
+    dirtySegments.push(segment);
+  }
+
+  if (stream.renderFrameId != null) return;
+
+  stream.renderFrameId = requestAnimationFrame(() => {
+    stream.renderFrameId = null;
+    const segmentsToRender = stream.dirtyTextSegments?.splice(0) || [];
+    segmentsToRender.forEach((dirtySegment) => {
+      if (!dirtySegment.element.isConnected) return;
+      dirtySegment.element.innerHTML = parseStreamingMarkdown(dirtySegment.content);
+    });
+    scrollToBottom();
+  });
+}
+
+function cancelScheduledStreamRender(stream: StreamingMessage) {
+  if (stream.renderFrameId != null) {
+    cancelAnimationFrame(stream.renderFrameId);
+    stream.renderFrameId = null;
+  }
+  if (stream.dirtyTextSegments) {
+    stream.dirtyTextSegments.length = 0;
+  }
+}
+
+function appendStreamChunk(stream: StreamingMessage, chunk: string, renderImmediately = false) {
+  let segment = stream.currentTextSegment;
+  if (!segment || !segment.element.isConnected) {
+    segment = addResponseTextSegment(stream);
+  }
+  if (!segment) return;
+
+  segment.content += chunk;
+  if (renderImmediately) {
+    segment.element.innerHTML = parseStreamingMarkdown(segment.content);
+  } else {
+    scheduleStreamSegmentRender(stream, segment);
+  }
+  if (stream.currentToolPanel && chunk.trim().length > 0) {
+    stream.hasTextAfterToolPanel = true;
+  }
+}
+
+function renderFinalStreamContent(stream: StreamingMessage, finalContent: string) {
+  cancelScheduledStreamRender(stream);
+  const segments = stream.textSegments || [];
+
+  if (!stream.hasToolSteps) {
+    let segment: StreamTextSegment | undefined = segments[0];
+    if (!segment) {
+      segment = addResponseTextSegment(stream) || undefined;
+    }
+    if (segment) {
+      segment.content = finalContent;
+      segment.element.innerHTML = parseMarkdown(finalContent);
+    }
+    return;
+  }
+
+  if (finalContent && finalContent !== stream.content) {
+    if (finalContent.startsWith(stream.content)) {
+      const suffix = finalContent.slice(stream.content.length);
+      if (suffix) appendStreamChunk(stream, suffix, true);
+    } else if (stream.content.endsWith(finalContent)) {
+      // The final saved message is the last streamed section; keep earlier
+      // streamed sections around their tool panels and only finalize parsing.
+    } else if (segments.length === 1) {
+      segments[0].content = finalContent;
+    } else {
+      const segment = segments.at(-1) || addResponseTextSegment(stream);
+      if (segment) {
+        segment.content = finalContent;
+      }
+    }
+  }
+
+  (stream.textSegments || []).forEach((segment) => {
+    segment.element.innerHTML = parseMarkdown(segment.content);
+  });
+}
+
+function placeToolStepsInResponse(panel: HTMLElement, messageId: string) {
   const container = elements.messagesContainer;
   if (!container) return;
 
@@ -73,21 +209,34 @@ function placeToolStepsBeforeResponse(panel: HTMLElement, messageId: string) {
     || agentMessages.find(
       (message) => message.dataset.messageId === messageId,
     )
-    || container.querySelector('.message.agent[data-status="streaming"]')
+    || container.querySelector<HTMLElement>('.message.agent[data-status="streaming"]')
     || (
       state._completedStreamMessageIds.has(messageId)
         ? agentMessages.at(-1) || null
         : null
     );
 
-  if (response?.parentElement === container) {
-    container.insertBefore(panel, response);
+  const flow = response ? getResponseFlow(response) : null;
+  if (flow) {
+    if (panel.parentElement !== flow) {
+      flow.appendChild(panel);
+    }
   } else if (panel.parentElement !== container) {
     container.appendChild(panel);
   }
 }
 
-function createStreamingMessage(messageId: string) {
+function createToolPanelForStream(stream: StreamingMessage, messageId: string) {
+  const panel = createToolStepsPanel();
+  panel.dataset.streamMessageId = messageId;
+  (panel as any)._activeSteps = [];
+  stream.currentToolPanel = panel;
+  stream.hasTextAfterToolPanel = false;
+  placeToolStepsInResponse(panel, messageId);
+  return panel;
+}
+
+function createStreamingMessage(messageId: string): StreamingMessage {
   const element = document.createElement('div');
   element.className = 'message agent';
   element.dataset.messageId = messageId;
@@ -95,15 +244,22 @@ function createStreamingMessage(messageId: string) {
   element.innerHTML = `
     ${renderAgentResponseIcon()}
     <div class="message-bubble" style="min-width: 250px;">
-      <div class="response-content md"></div>
+      <div class="response-flow"></div>
       <div class="message-time"></div>
     </div>`;
 
-  const stream = {
+  const stream: StreamingMessage = {
     content: '',
     element,
     lastSequence: 0,
     status: 'streaming' as const,
+    textSegments: [],
+    currentTextSegment: null,
+    dirtyTextSegments: [],
+    renderFrameId: null,
+    hasToolSteps: false,
+    currentToolPanel: null,
+    hasTextAfterToolPanel: false,
   };
   state._streamMessages.set(messageId, stream);
   state._streamMessageId = messageId;
@@ -338,8 +494,12 @@ function bindSocketEvents() {
       if (state._streamBubbleEl) {
         const streamId = finalStreamMessageId || state._streamMessageId;
         const stream = streamId ? state._streamMessages.get(streamId) : undefined;
-        const responseContent = state._streamBubbleEl.querySelector('.response-content');
-        if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
+        if (stream) {
+          renderFinalStreamContent(stream, data.message.content);
+        } else {
+          const responseContent = state._streamBubbleEl.querySelector('.response-content');
+          if (responseContent) responseContent.innerHTML = parseMarkdown(data.message.content);
+        }
         state._streamBubbleEl.dataset.status = 'completed';
         if (stream && streamId) {
           stream.content = data.message.content;
@@ -370,21 +530,39 @@ function bindSocketEvents() {
     // ── Handle tool events ────────────────────────────────────────────────
     if (data.toolEvent) {
       const ev = data.toolEvent;
-      let panel = findToolStepsPanel(streamMessageId);
+      let stream = state._streamMessages.get(streamMessageId);
 
-      if (!panel) {
+      if (!stream && !state._completedStreamMessageIds.has(streamMessageId)) {
         removeTypingDots();
         hideTyping();
-        if (!state._completedStreamMessageIds.has(streamMessageId)) {
-          setAiResponding(true);
-        }
-
-        panel = createToolStepsPanel();
-        panel.dataset.streamMessageId = streamMessageId;
+        setAiResponding(true);
+        stream = createStreamingMessage(streamMessageId);
       }
 
+      let panel = stream?.currentToolPanel || findLatestToolStepsPanel(streamMessageId);
+      const shouldStartNewToolPanel = (
+        ev.type === "start" &&
+        (!panel || !!stream?.hasTextAfterToolPanel)
+      );
+
+      if (stream && shouldStartNewToolPanel) {
+        panel = createToolPanelForStream(stream, streamMessageId);
+      } else if (!panel) {
+        panel = createToolStepsPanel();
+        panel.dataset.streamMessageId = streamMessageId;
+        (panel as any)._activeSteps = [];
+        placeToolStepsInResponse(panel, streamMessageId);
+      }
+
+      if (stream) {
+        stream.hasToolSteps = true;
+        stream.currentToolPanel = panel;
+        if (ev.type === "start") {
+          stream.currentTextSegment = null;
+          stream.hasTextAfterToolPanel = false;
+        }
+      }
       state._toolStepsEl = panel;
-      placeToolStepsBeforeResponse(panel, streamMessageId);
 
       const sequence = Number(data.seq);
       const lastToolSequence = Number(panel.dataset.lastSequence || 0);
@@ -394,17 +572,23 @@ function bindSocketEvents() {
       }
 
       if (ev.type === "start") {
-        _currentToolStepEl = addToolStep(panel, ev.label);
+        const step = addToolStep(panel, ev.label);
+        const activeSteps = ((panel as any)._activeSteps ||= []) as HTMLElement[];
+        activeSteps.push(step);
+        _currentToolStepEl = step;
         scrollToBottom();
         return;
       }
 
       if (ev.type === "complete") {
-        const step = _currentToolStepEl
+        const activeSteps = ((panel as any)._activeSteps ||= []) as HTMLElement[];
+        const step = activeSteps.shift()
+          || _currentToolStepEl
           || panel.querySelector<HTMLElement>('.tool-step.is-loading')
           || addToolStep(panel, ev.label);
         if (step) {
           completeToolStep(step, ev.detail);
+          markToolPanelCompleted(panel);
         }
         _currentToolStepEl = null;
         scrollToBottom();
@@ -437,15 +621,12 @@ function bindSocketEvents() {
     }
 
     stream.content += data.chunk;
-    const responseContent = stream.element.querySelector('.response-content');
-    if (responseContent) responseContent.innerHTML = parseStreamingMarkdown(stream.content);
+    appendStreamChunk(stream, data.chunk);
 
     const timeContainer = stream.element.querySelector('.message-time');
     if (timeContainer && !timeContainer.textContent) {
       timeContainer.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
-
-    scrollToBottom();
   });
 
   socket.off('agent_typing');
