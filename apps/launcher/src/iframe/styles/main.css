@@ -1230,6 +1230,12 @@ body {
   animation: fadeIn 0.2s ease-out;
 }
 
+.message.agent .message-bubble .tool-call-block {
+  margin: 8px 0;
+  max-width: 100%;
+  width: 100%;
+}
+
 .tool-call-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
