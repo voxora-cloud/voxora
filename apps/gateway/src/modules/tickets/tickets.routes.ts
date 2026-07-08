@@ -105,6 +105,12 @@ router.patch(
   TicketsController.aiUpdateTicket,
 );
 
+router.get(
+  "/ai/status",
+  validateAiSecret,
+  TicketsController.aiGetTicketStatus,
+);
+
 /**
  * @openapi
  * /tickets/ai/{ticketId}/close:

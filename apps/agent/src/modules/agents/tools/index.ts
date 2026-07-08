@@ -49,9 +49,11 @@ import { SendEmailTool } from "./send-email.tool";
 import { VerifyEmailOtpTool } from "./verify-email-otp.tool";
 import { CreateTicketTool } from "./create-ticket.tool";
 import { UpdateTicketTool } from "./update-ticket.tool";
+import { GetTicketStatusTool } from "./get-ticket-status.tool";
 import { CloseTicketTool } from "./close-ticket.tool";
 import { EscalateToHumanTool } from "./escalate-to-human.tool";
 import { SeekContactTool } from "./seek-contact.tool";
+import { SaveUnansweredQuestionTool } from "./save-unanswered-question.tool";
 
 // Built-in
 registerTool(new RewriteAndThinkTool());
@@ -67,9 +69,11 @@ registerTool(new SendEmailTool());
 registerTool(new VerifyEmailOtpTool());
 registerTool(new CreateTicketTool());
 registerTool(new UpdateTicketTool());
+registerTool(new GetTicketStatusTool());
 registerTool(new CloseTicketTool());
 registerTool(new EscalateToHumanTool());
 registerTool(new SeekContactTool());
+registerTool(new SaveUnansweredQuestionTool());
 
 export type {
   Tool,

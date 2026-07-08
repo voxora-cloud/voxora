@@ -12,6 +12,7 @@ import {
   updateKnowledge,
   aiUpdateDocStatus,
   aiGetSyncInfo,
+  aiSaveUnansweredQuestion,
 } from "./knowledge.controller";
 import { knowledgeSchema } from "./knowledge.schema";
 
@@ -66,6 +67,8 @@ router.patch("/ai/:documentId/status", validateAiSecret, aiUpdateDocStatus);
  *         description: Sync metadata retrieved successfully
  */
 router.get("/ai/:documentId/sync-info", validateAiSecret, aiGetSyncInfo);
+
+router.post("/ai/unanswered-questions", validateAiSecret, aiSaveUnansweredQuestion);
 
 // ─── Admin Dashboard Routes (JWT required) ───────────────────────────────────
 

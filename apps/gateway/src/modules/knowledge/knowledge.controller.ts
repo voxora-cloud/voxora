@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
+import { Types } from "mongoose";
 import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { AuthenticatedRequest } from "@shared/security/middleware/auth";
 import KnowledgeService from "./knowledge.service";
 import { tracker } from "@shared/utils/tracker";
-import { Knowledge } from "@shared/models";
+import { Knowledge, UnansweredQuestion } from "@shared/models";
 
 const getOrgId = (req: Request): string => (req as AuthenticatedRequest).user.activeOrganizationId;
 const getUserId = (req: Request): string => (req as AuthenticatedRequest).user.userId;
@@ -150,5 +151,57 @@ export const aiGetSyncInfo = asyncHandler(async (req: Request, res: Response) =>
     fetchMode: doc.fetchMode ?? null,
     crawlDepth: doc.crawlDepth ?? null,
     title: doc.title,
+  });
+});
+
+// POST /api/v1/knowledge/ai/unanswered-questions
+// Called by apps/agent when retrieval cannot answer a visitor question.
+export const aiSaveUnansweredQuestion = asyncHandler(async (req: Request, res: Response) => {
+  const { organizationId, conversationId, contactId, question, source } = req.body;
+
+  if (!organizationId || !conversationId || !question) {
+    return sendError(res, 400, "organizationId, conversationId, and question are required");
+  }
+
+  if (!Types.ObjectId.isValid(organizationId) || !Types.ObjectId.isValid(conversationId)) {
+    return sendError(res, 400, "Invalid organizationId or conversationId");
+  }
+
+  if (contactId && !Types.ObjectId.isValid(contactId)) {
+    return sendError(res, 400, "Invalid contactId");
+  }
+
+  if (source && source !== "knowledge_gap") {
+    return sendError(res, 400, "Invalid source");
+  }
+
+  const trimmedQuestion = String(question).trim();
+  if (!trimmedQuestion) {
+    return sendError(res, 400, "question is required");
+  }
+
+  const normalizedQuestion = trimmedQuestion.toLowerCase().replace(/\s+/g, " ");
+  const recentWindow = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const existing = await UnansweredQuestion.findOne({
+    organizationId,
+    conversationId,
+    normalizedQuestion,
+    createdAt: { $gte: recentWindow },
+  }).lean();
+
+  if (!existing) {
+    await UnansweredQuestion.create({
+      organizationId: new Types.ObjectId(organizationId),
+      conversationId: new Types.ObjectId(conversationId),
+      ...(contactId ? { contactId: new Types.ObjectId(contactId) } : {}),
+      question: trimmedQuestion,
+      normalizedQuestion,
+      source: "knowledge_gap",
+    });
+  }
+
+  sendResponse(res, 201, true, "Unanswered question saved", {
+    saved: !existing,
   });
 });
