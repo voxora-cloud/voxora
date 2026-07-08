@@ -90,6 +90,43 @@ export const markConversationRead = asyncHandler(
   },
 );
 
+export const suggestReply = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const organizationId = getOrgId(req);
+    const data = await conversationService.suggestReply(
+      organizationId,
+      conversationId,
+    );
+
+    if (!data) return sendError(res, 404, "Conversation not found");
+
+    sendResponse(
+      res,
+      200,
+      true,
+      "Reply suggestions generated successfully",
+      data,
+    );
+  },
+);
+
+export const generateNote = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const organizationId = getOrgId(req);
+    const data = await conversationService.generateNote(
+      organizationId,
+      conversationId,
+      req.body?.contactName,
+    );
+
+    if (!data) return sendError(res, 404, "Conversation not found");
+
+    sendResponse(res, 200, true, "CRM note generated successfully", data);
+  },
+);
+
 // ─── Route conversation ─────────────────────────────────────────────────────────
 
 export const routeConversation = asyncHandler(

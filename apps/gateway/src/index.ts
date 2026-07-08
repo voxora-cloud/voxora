@@ -28,6 +28,7 @@ import { ticketsRouter } from "@modules/tickets";
 import { emailRouter } from "@modules/email";
 import { channelsRouter } from "@modules/channels";
 import { observabilityRouter } from "@modules/observability/observability.routes";
+import { templatesRouter } from "@modules/templates";
 import { setupSwagger } from "@shared/infra/swagger";
 
 class Application {
@@ -134,6 +135,7 @@ class Application {
     router.use("/email", emailRouter);
     router.use("/channels", channelsRouter);
     router.use("/observability", observabilityRouter);
+    router.use("/templates", templatesRouter);
 
     // Public config endpoint
     router.get("/config", (req, res) => {

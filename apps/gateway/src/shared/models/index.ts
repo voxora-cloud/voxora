@@ -18,3 +18,4 @@ export { Channel, IChannel, ChannelType, ChannelVerificationStatus, IDnsRecord, 
 export { ContactConflict, IContactConflict } from "./ContactConflict";
 export { RecentConversation, IRecentConversation } from "./RecentConversation";
 export { UnansweredQuestion, IUnansweredQuestion } from "./UnansweredQuestion";
+export { Template, ITemplate } from "./Template";

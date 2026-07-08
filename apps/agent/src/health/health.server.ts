@@ -1,10 +1,15 @@
 import http from "http";
+import { handleAssistRoute } from "../modules/assist/assist.router";
 
 const HEALTH_PORT = parseInt(process.env.AI_HEALTH_PORT || "4010", 10);
 
 export function startHealthServer(): http.Server {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const url = req.url || "/";
+
+    if (await handleAssistRoute(req, res)) {
+      return;
+    }
 
     if (url.startsWith("/health") || url.startsWith("/ready")) {
       res.writeHead(200, { "Content-Type": "application/json" });

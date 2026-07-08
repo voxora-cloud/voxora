@@ -16,6 +16,9 @@ import {
   Bot,
   ChevronRight,
   Info,
+  Sparkles,
+  NotebookPen,
+  X,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import io, { Socket } from "socket.io-client";
@@ -23,13 +26,21 @@ import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
 import { UpdateContactDialog } from "./update-contact-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversationDetail, useAgentRuns } from "../hooks";
-import type { ConversationDetail, ConversationMessage } from "../types/types";
+import { useConversationDetail, useAgentRuns, useTemplates } from "../hooks";
+import type {
+  ConversationDetail,
+  ConversationMessage,
+  Template,
+} from "../types/types";
 import { conversationsApi } from "../api/conversations.api";
+import { contactsApi } from "@/domains/contacts/api/contacts.api";
 import { useContacts } from "@/domains/contacts/hooks/use-contacts";
 import { toContactViewModel } from "@/domains/contacts/types/types";
 import { ContactDetailsCard } from "@/domains/contacts/components/contact-details-card";
 import { Loader } from "@/shared/ui/loader";
+import { toast } from "sonner";
+import { GenerateNotePreviewDialog } from "./generate-note-preview-dialog";
+import { TemplatePicker } from "./template-picker";
 
 import { playNotificationSound } from "@/shared/lib/audio";
 
@@ -199,6 +210,12 @@ interface ConversationViewProps {
   conversationId: string;
 }
 
+interface SlashCommandState {
+  query: string;
+  start: number;
+  end: number;
+}
+
 export function ConversationView({ conversationId }: ConversationViewProps) {
   const [conversation, setConversation] = useState<ConversationDetail | null>(
     null,
@@ -208,6 +225,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "runs">("chat");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [generatedNote, setGeneratedNote] = useState("");
+  const [slashCommand, setSlashCommand] = useState<SlashCommandState | null>(
+    null,
+  );
+  const [activeSlashIndex, setActiveSlashIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerTypingHideRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -221,6 +249,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const { data: conversationResponse, isLoading } =
     useConversationDetail(conversationId);
   const { data: contacts = [] } = useContacts();
+  const { data: templates = [] } = useTemplates();
   const [isContactSidebarOpen, setIsContactSidebarOpen] = useState(true);
 
   const clearUnreadCount = useCallback(
@@ -307,6 +336,33 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       conversationCount: 1,
     };
   }, [matchedContact, conversation]);
+
+  const customerName = contactDetails?.name || "Anonymous User";
+  const customerEmail =
+    contactDetails?.email && contactDetails.email !== "anonymous@temp.local"
+      ? contactDetails.email
+      : "No email provided";
+  const isAnonymous =
+    !contactDetails ||
+    contactDetails.id === "temp-contact" ||
+    contactDetails.email === "";
+
+  const slashTemplateMatches = useMemo(() => {
+    if (!slashCommand) return [];
+
+    const query = slashCommand.query.trim().toLowerCase().replace(/^\//, "");
+    const matches = templates.filter((template) => {
+      const shortcut = (template.shortcut || "").toLowerCase().replace(/^\//, "");
+      const title = template.title.toLowerCase();
+      return !query || shortcut.includes(query) || title.includes(query);
+    });
+
+    return matches.slice(0, 6);
+  }, [slashCommand, templates]);
+
+  useEffect(() => {
+    setActiveSlashIndex(0);
+  }, [slashCommand?.query, slashTemplateMatches.length]);
 
   const basePath = "/dashboard/conversations/inbox";
 
@@ -459,9 +515,154 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     setMessages((prev) => [...prev, tempMessage]);
     setNewMessage("");
+    setSuggestions([]);
+    setSlashCommand(null);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleSuggestReply = async () => {
+    if (messages.length === 0) return;
+
+    setIsSuggestLoading(true);
+    try {
+      const result = await conversationsApi.suggestReply(conversationId, messages);
+      setSuggestions(result.suggestions || []);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate suggestions");
+    } finally {
+      setIsSuggestLoading(false);
+    }
+  };
+
+  const handleGenerateNote = async () => {
+    setGeneratedNote("");
+    setNoteDialogOpen(true);
+    setIsGeneratingNote(true);
+
+    try {
+      const result = await conversationsApi.generateNote(
+        conversationId,
+        messages,
+        contactDetails?.name,
+      );
+      setGeneratedNote(result.note || "");
+    } catch (error: any) {
+      setNoteDialogOpen(false);
+      toast.error(error?.message || "Failed to generate note");
+    } finally {
+      setIsGeneratingNote(false);
+    }
+  };
+
+  const handleSaveGeneratedNote = async (note: string) => {
+    if (!contactDetails || contactDetails.id === "temp-contact") {
+      toast.error("Associate this visitor with a contact before saving notes");
+      return;
+    }
+
+    setIsSavingNote(true);
+    try {
+      await contactsApi.addNote(contactDetails.id, note.trim());
+      toast.success("Note saved");
+      setNoteDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to save note");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleInsertTemplate = (content: string) => {
+    const personalized = content.replaceAll(
+      "{{customer_name}}",
+      customerName || "there",
+    );
+    setNewMessage(personalized);
+    setSlashCommand(null);
+  };
+
+  const replaceSlashCommandWithTemplate = (
+    template: Template,
+    command = slashCommand,
+  ) => {
+    const personalized = template.content.replaceAll(
+      "{{customer_name}}",
+      customerName || "there",
+    );
+
+    if (!command) {
+      setNewMessage(personalized);
+      return;
+    }
+
+    const before = newMessage.slice(0, command.start);
+    const after = newMessage.slice(command.end);
+    const nextValue = `${before}${personalized}${after}`;
+    const nextCaret = before.length + personalized.length;
+
+    setNewMessage(nextValue);
+    setSlashCommand(null);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCaret, nextCaret);
+    }, 0);
+  };
+
+  const updateSlashCommand = (value: string, caret: number) => {
+    const beforeCaret = value.slice(0, caret);
+    const tokenStart = Math.max(
+      beforeCaret.lastIndexOf(" "),
+      beforeCaret.lastIndexOf("\n"),
+      beforeCaret.lastIndexOf("\t"),
+    ) + 1;
+    const token = beforeCaret.slice(tokenStart);
+
+    if (token.startsWith("/") && !/\s/.test(token)) {
+      setSlashCommand({
+        query: token.slice(1),
+        start: tokenStart,
+        end: caret,
+      });
+      return;
+    }
+
+    setSlashCommand(null);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashCommand && slashTemplateMatches.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveSlashIndex((current) =>
+          current + 1 >= slashTemplateMatches.length ? 0 : current + 1,
+        );
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveSlashIndex((current) =>
+          current === 0 ? slashTemplateMatches.length - 1 : current - 1,
+        );
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const selectedTemplate =
+          slashTemplateMatches[activeSlashIndex] || slashTemplateMatches[0];
+        if (!selectedTemplate) return;
+        replaceSlashCommandWithTemplate(selectedTemplate);
+        return;
+      }
+    }
+
+    if (slashCommand && e.key === "Escape") {
+      e.preventDefault();
+      setSlashCommand(null);
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -473,6 +674,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   ) => {
     const val = e.target.value;
     setNewMessage(val);
+    updateSlashCommand(val, e.target.selectionStart || val.length);
     if (!socket) return;
     if (conversationId && !isAgentTypingRef.current && val.trim().length > 0) {
       socket.emit("typing_start", { conversationId });
@@ -639,16 +841,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       </div>
     );
   }
-
-  const customerName = contactDetails?.name || "Anonymous User";
-  const customerEmail =
-    contactDetails?.email && contactDetails.email !== "anonymous@temp.local"
-      ? contactDetails.email
-      : "No email provided";
-  const isAnonymous =
-    !contactDetails ||
-    contactDetails.id === "temp-contact" ||
-    contactDetails.email === "";
 
   return (
     <div className="h-full flex bg-background overflow-hidden w-full">
@@ -833,25 +1025,107 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             )}
 
             <div className="p-4 border-t border-border bg-card">
-              <div className="flex space-x-2">
-                <Textarea
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type your message..."
-                  className="flex-1 min-h-[80px] resize-none cursor-text"
-                  disabled={isLoading}
-                />
-                <div className="flex flex-col space-y-2">
+              {suggestions.length > 0 && (
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className="max-w-full rounded-full border border-border bg-background px-3 py-1.5 text-left text-xs font-medium text-foreground shadow-xs hover:bg-muted"
+                      onClick={() => {
+                        setNewMessage(suggestion);
+                        setSuggestions([]);
+                        setSlashCommand(null);
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setSuggestions([])}
+                    aria-label="Clear suggestions"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <TemplatePicker onInsert={handleInsertTemplate} />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSuggestReply}
+                      disabled={isSuggestLoading || messages.length === 0}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {isSuggestLoading ? "Suggesting" : "Suggest"}
+                    </Button>
+                  </div>
                   <Button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || isLoading}
                     size="icon"
                     className="cursor-pointer"
+                    aria-label="Send message"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
+                {slashCommand && (
+                  <div className="mb-2 max-h-56 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+                    {slashTemplateMatches.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        No matching templates
+                      </div>
+                    ) : (
+                      slashTemplateMatches.map((template, index) => (
+                        <button
+                          key={template._id}
+                          type="button"
+                          className={`flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted ${
+                            index === activeSlashIndex ? "bg-muted" : ""
+                          }`}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            replaceSlashCommandWithTemplate(template);
+                          }}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-medium">
+                                {template.title}
+                              </span>
+                              {template.shortcut && (
+                                <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                  {template.shortcut}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                              {template.content}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                <Textarea
+                  ref={textareaRef}
+                  value={newMessage}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type your message..."
+                  className="min-h-[80px] resize-none cursor-text"
+                  disabled={isLoading}
+                />
               </div>
             </div>
           </>
@@ -866,6 +1140,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           <div className="p-4 border-b border-border bg-card flex items-center justify-between">
             <h3 className="text-sm font-semibold">Contact details</h3>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                onClick={handleGenerateNote}
+                disabled={isGeneratingNote || messages.length === 0}
+                title="Generate contact note"
+                aria-label="Generate contact note"
+              >
+                <NotebookPen className="h-4 w-4" />
+              </Button>
               <UpdateContactDialog
                 conversationId={conversationId}
                 contactId={contactDetails?.id}
@@ -898,6 +1183,14 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           </div>
         </div>
       )}
+      <GenerateNotePreviewDialog
+        open={noteDialogOpen}
+        note={generatedNote}
+        isLoading={isGeneratingNote}
+        isSaving={isSavingNote}
+        onOpenChange={setNoteDialogOpen}
+        onSave={handleSaveGeneratedNote}
+      />
     </div>
   );
 }

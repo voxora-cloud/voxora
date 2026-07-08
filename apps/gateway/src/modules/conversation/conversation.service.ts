@@ -15,6 +15,57 @@ import {
   RouteConversationInput,
 } from "./conversation.types";
 
+const AGENT_INTERNAL_URL = (
+  process.env.AGENT_INTERNAL_URL ||
+  process.env.AI_SERVICE_URL ||
+  "http://localhost:4010"
+).replace(/\/$/, "");
+
+async function postAgentInternal<T>(
+  path: string,
+  payload: unknown,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const response = await fetch(`${AGENT_INTERNAL_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.AI_TOOL_SECRET
+          ? { "x-ai-tool-secret": process.env.AI_TOOL_SECRET }
+          : {}),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.message || "Agent internal request failed");
+    }
+
+    return (data?.data || data) as T;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function toAssistMessages(messages: any[]) {
+  return messages.map((message) => ({
+    role:
+      message.metadata?.source === "web" ||
+      message.metadata?.source === "ai" ||
+      message.senderId === "ai-bot"
+        ? "assistant"
+        : "user",
+    content: message.content,
+    senderName: message.metadata?.senderName,
+    source: message.metadata?.source,
+  }));
+}
+
 export class ConversationService {
   /**
    * Get all conversations for an organization (filtered by status/agent)
@@ -177,6 +228,49 @@ export class ConversationService {
       },
       { new: true },
     ).lean();
+  }
+
+  async suggestReply(organizationId: string, conversationId: string) {
+    const result = await this.getConversationById(
+      organizationId,
+      conversationId,
+    );
+    if (!result) return null;
+
+    const messages = (result.messages || []).slice(-10);
+    return postAgentInternal<{ suggestions: string[] }>(
+      "/internal/suggest-reply",
+      {
+        conversationId,
+        organizationId,
+        messages: toAssistMessages(messages),
+      },
+    );
+  }
+
+  async generateNote(
+    organizationId: string,
+    conversationId: string,
+    fallbackContactName?: string,
+  ) {
+    const result = await this.getConversationById(
+      organizationId,
+      conversationId,
+    );
+    if (!result) return null;
+
+    const contactName =
+      result.conversation.metadata?.customer?.name ||
+      result.conversation.metadata?.customerName ||
+      result.conversation.metadata?.senderName ||
+      fallbackContactName;
+
+    return postAgentInternal<{ note: string }>("/internal/generate-note", {
+      conversationId,
+      organizationId,
+      contactName,
+      messages: toAssistMessages(result.messages || []),
+    });
   }
 
   /**
