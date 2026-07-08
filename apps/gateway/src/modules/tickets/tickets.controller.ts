@@ -104,6 +104,18 @@ export const aiUpdateTicket = asyncHandler(async (req: Request, res: Response) =
   sendResponse(res, 200, true, "Ticket updated by AI", { ticket });
 });
 
+export const aiGetTicketStatus = asyncHandler(async (req: Request, res: Response) => {
+  const { organizationId, ticketIdentifier } = req.query as Record<string, string>;
+
+  if (!organizationId || !ticketIdentifier) {
+    return sendError(res, 400, "organizationId and ticketIdentifier are required");
+  }
+
+  const ticket = await service.getTicketStatus(organizationId, ticketIdentifier);
+  if (!ticket) return sendError(res, 404, "No ticket found for that identifier");
+  sendResponse(res, 200, true, "Ticket status fetched", { ticket });
+});
+
 export const aiCloseTicket = asyncHandler(async (req: Request, res: Response) => {
   const { organizationId, resolutionNote } = req.body;
   const ticket = await service.closeTicket(organizationId, param(req, "ticketId"), { resolutionNote });

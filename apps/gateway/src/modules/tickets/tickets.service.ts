@@ -270,6 +270,55 @@ export class TicketsService {
     });
   }
 
+  async getTicketStatus(organizationId: string, identifier: string) {
+    const normalized = identifier.trim().replace(/^#/, "");
+    if (!normalized) return null;
+
+    const filters: Record<string, unknown>[] = [
+      { ticketNumber: new RegExp(`^${this.escapeRegex(normalized)}$`, "i") },
+    ];
+
+    if (Types.ObjectId.isValid(normalized)) {
+      filters.push({ _id: new Types.ObjectId(normalized) });
+    }
+
+    if (/^\d+$/.test(normalized)) {
+      filters.push({ ticketNumber: normalized }, { ticketNumber: `#${normalized}` });
+    }
+
+    const ticket = await Ticket.findOne({
+      organizationId,
+      $or: filters,
+    })
+      .select("title status priority assignedTo createdAt updatedAt resolutionNote metadata")
+      .populate("assignedTo", "name email")
+      .lean();
+
+    if (!ticket) return null;
+
+    const metadata = (ticket.metadata || {}) as Record<string, unknown>;
+    const latestSummary =
+      this.normalizeContactValue(metadata.latestSummary) ||
+      this.normalizeContactValue(metadata.summary) ||
+      this.normalizeContactValue(ticket.resolutionNote);
+
+    return {
+      title: ticket.title,
+      subject: ticket.title,
+      status: ticket.status,
+      priority: ticket.priority,
+      assignee: ticket.assignedTo
+        ? {
+            name: (ticket.assignedTo as any).name || null,
+            email: (ticket.assignedTo as any).email || null,
+          }
+        : null,
+      createdAt: ticket.createdAt,
+      updatedAt: ticket.updatedAt,
+      latestSummary,
+    };
+  }
+
   // ─── Update ────────────────────────────────────────────────────────────────
 
   async updateTicket(organizationId: string, ticketId: string, input: UpdateTicketInput) {
@@ -538,6 +587,10 @@ export class TicketsService {
     const email = this.normalizeContactValue(value);
     if (!email || email.toLowerCase() === "anonymous@temp.local") return null;
     return email;
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   private buildUpdateSummary(input: UpdateTicketInput): string {
