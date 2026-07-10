@@ -264,7 +264,7 @@ export function TicketsPage() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between" data-tour-id="page-tickets-heading">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <TicketIcon className="h-6 w-6 text-primary" />
@@ -289,7 +289,7 @@ export function TicketsPage() {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card/60 backdrop-blur-sm sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-border bg-card/60 backdrop-blur-sm sm:grid-cols-2 lg:grid-cols-4" data-tour-id="page-tickets-metrics">
         {[
           {
             label: "Total Tickets",
@@ -342,8 +342,8 @@ export function TicketsPage() {
       </div>
 
       {/* Filters + Table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="overflow-hidden rounded-xl border border-border bg-card" data-tour-id="page-tickets-list">
+        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between" data-tour-id="page-tickets-filters">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-foreground">Ticket queue</h2>

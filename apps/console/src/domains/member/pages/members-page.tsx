@@ -134,9 +134,10 @@ export function MembersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center" data-tour-id="page-members-heading">
         <h1 className="text-2xl font-bold">Organization Members</h1>
         <Button
+          data-tour-id="page-members-primary-action"
           type="button"
           onClick={() => setShowInviteModal(true)}
           className="relative z-10 cursor-pointer"
@@ -147,6 +148,7 @@ export function MembersPage() {
       </div>
 
       {members.length > 0 ? (
+        <div data-tour-id="page-members-table">
         <FilterableMemberTable
           members={members}
           currentUserId={user?.id}
@@ -176,8 +178,9 @@ export function MembersPage() {
               : undefined
           }
         />
+        </div>
       ) : (
-        <div className="p-12 text-center border rounded-lg border-dashed">
+        <div className="p-12 text-center border rounded-lg border-dashed" data-tour-id="page-members-table">
           <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
             <User className="h-6 w-6 text-muted-foreground" />
           </div>

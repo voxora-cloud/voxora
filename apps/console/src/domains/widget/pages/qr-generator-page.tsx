@@ -270,14 +270,14 @@ export default function QRCodeGeneratorPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div data-tour-id="page-qr-heading">
         <h1 className="text-2xl font-semibold text-foreground">QR Code</h1>
         <p className="text-sm text-muted-foreground">
           Share this branded code in physical spaces so customers can open your chat in one scan.
         </p>
       </div>
 
-      <Card className="border-border bg-card/90 overflow-hidden">
+      <Card className="border-border bg-card/90 overflow-hidden" data-tour-id="page-qr-preview">
         <div className="mx-auto w-full max-w-3xl p-6 md:p-8">
           <CardHeader className="p-0 text-center">
             <CardTitle className="flex items-center justify-center gap-2">
@@ -340,7 +340,7 @@ export default function QRCodeGeneratorPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap justify-center gap-2" data-tour-id="page-qr-actions">
                   <Button
                     type="button"
                     variant="outline"
@@ -372,7 +372,7 @@ export default function QRCodeGeneratorPage() {
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-background/70 p-4 space-y-4">
+            <div className="rounded-xl border border-border bg-background/70 p-4 space-y-4" data-tour-id="page-qr-actions">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
                   <ImagePlus className="h-4 w-4 text-muted-foreground" />

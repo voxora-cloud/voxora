@@ -44,14 +44,14 @@ export function GeneralSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div data-tour-id="page-settings-general-heading">
         <h1 className="text-2xl font-bold text-foreground">General Settings</h1>
         <p className="text-muted-foreground mt-1">
           Manage your organization&apos;s basic information.
         </p>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-5">
+      <form onSubmit={handleSave} className="space-y-5" data-tour-id="page-settings-general-form">
         {/* Organization Name Card */}
         <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 space-y-4">
           <div className="flex items-center gap-3 pb-3 border-b border-border/60">

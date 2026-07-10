@@ -355,7 +355,7 @@ export function ContactsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4" data-tour-id="page-contacts-heading">
         <div>
           <h1 className="text-2xl font-bold">Contacts</h1>
           <p className="text-muted-foreground">
@@ -369,7 +369,7 @@ export function ContactsPage() {
                 : "Live contact data is synced from your organization database."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour-id="page-contacts-primary-action">
           <ContactDialog
             mode="create"
             onSubmit={handleAddContact}
@@ -385,7 +385,7 @@ export function ContactsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_360px] gap-6">
-        <Card className="h-full">
+        <Card className="h-full" data-tour-id="page-contacts-filters">
           <CardHeader className="border-b">
             <CardTitle className="flex items-center gap-2 text-base">
               <SlidersHorizontal className="h-4 w-4" />
@@ -473,7 +473,7 @@ export function ContactsPage() {
           </CardContent>
         </Card>
 
-        <Card className="h-full">
+        <Card className="h-full" data-tour-id="page-contacts-list">
           <CardHeader className="border-b space-y-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-base font-semibold">
@@ -493,7 +493,7 @@ export function ContactsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="relative">
+            <div className="relative" data-tour-id="page-contacts-search">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, email, phone, or company"

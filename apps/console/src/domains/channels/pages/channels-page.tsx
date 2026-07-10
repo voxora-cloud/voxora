@@ -442,7 +442,7 @@ export function ChannelsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       {/* Header */}
-      <div>
+      <div data-tour-id="page-channels-heading">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Channels</h1>
         <p className="text-muted-foreground mt-1">
           Connect your communication channels. Incoming messages create conversations in your inbox.
@@ -452,7 +452,7 @@ export function ChannelsPage() {
 
 
       {/* Email Channel */}
-      <section className="space-y-3">
+      <section className="space-y-3" data-tour-id="page-channels-email">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-1">
           Email
         </h2>
@@ -633,7 +633,7 @@ export function ChannelsPage() {
       </section>
 
       {/* WhatsApp Channel */}
-      <section className="space-y-3">
+      <section className="space-y-3" data-tour-id="page-channels-whatsapp">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-1">
           WhatsApp
         </h2>
@@ -751,7 +751,7 @@ export function ChannelsPage() {
       </section>
 
       {/* Telegram Channel */}
-      <section className="space-y-3">
+      <section className="space-y-3" data-tour-id="page-channels-telegram">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground px-1">
           Telegram
         </h2>

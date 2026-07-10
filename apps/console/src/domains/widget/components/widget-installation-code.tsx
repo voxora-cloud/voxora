@@ -19,7 +19,7 @@ export function WidgetInstallationCode({
   const snippet = `<script\n  src="${cdnUrl}"\n  data-InteraOne-public-key="${publicKey || "your-widget-key"}"\n  async>\n</script>`;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card">
+    <section className="overflow-hidden rounded-xl border border-border bg-card" data-tour-id="page-widget-installation">
       {/* Header */}
       <div className="border-b border-border/60 px-6 py-5">
         <div className="flex items-center gap-3">

@@ -6,6 +6,7 @@ import {
   BookOpen,
   Bot,
   ChevronRight,
+  CircleHelp,
   CreditCard,
   Inbox,
   Crown,
@@ -49,6 +50,7 @@ import { Input } from "@/shared/ui/input";
 import { Loader } from "@/shared/ui/loader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/shared/ui/dialog";
 import { apiClient } from "@/shared/lib/api-client";
+import { useDashboardTour } from "@/shared/tours/use-dashboard-tour";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -110,6 +112,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [ticketDetail]);
 
   const orgRole: OrgRole | null = isAuthenticated ? authApi.getOrgRole() : null;
+  const activeOrgId = isAuthenticated ? authApi.getActiveOrgId() : null;
   const canAccessContacts = true;
   const billingVisible =
     getInteraOneMode() === "cloud" && isEeEnabledByEnv();
@@ -426,11 +429,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const isConversationRoute = location.pathname.startsWith("/dashboard/conversations");
   const isTicketRoute = location.pathname.startsWith("/dashboard/tickets");
   const isTicketDetailRoute = /^\/dashboard\/tickets\/[^/]+\/?$/.test(location.pathname);
+  const tourIdentity = useMemo(() => ({
+    orgId: activeOrgId,
+    userId: user?.id,
+    userEmail: user?.email,
+  }), [activeOrgId, user?.email, user?.id]);
+  const { replayTour } = useDashboardTour({
+    pathname: location.pathname,
+    enabled: isAuthenticated && !isLoading && location.pathname.startsWith("/dashboard"),
+    identity: tourIdentity,
+  });
 
   const renderSidebar = () => {
     return (
       <>
-        <div className="p-4 relative z-50">
+        <div className="p-4 relative z-50" data-tour-id="dashboard-org-switcher">
           <OrgSwitcher isMinimized={false} />
         </div>
 
@@ -441,6 +454,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </p>
             <Link to="/dashboard">
               <Button
+                data-tour-id="sidebar-nav-dashboard"
                 variant="ghost"
                 className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard", true)
                   ? "bg-primary/10 text-primary border-r-2 border-primary"
@@ -462,6 +476,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             ].map((item) => (
               <Link key={item.to} to={item.to}>
                 <Button
+                  data-tour-id={item.label === "Inbox" ? "sidebar-nav-inbox" : "sidebar-nav-tickets"}
                   variant="ghost"
                   className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer rounded-lg justify-start ${isActive(item.to, true)
                     ? "text-primary bg-primary/5 font-medium"
@@ -485,6 +500,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               ].map((item) => (
                 <Link key={item.to} to={item.to}>
                   <Button
+                    data-tour-id="sidebar-nav-contacts"
                     variant="ghost"
                     className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer rounded-lg justify-start ${isActive(item.to, true)
                       ? "text-primary bg-primary/5 font-medium"
@@ -505,6 +521,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </p>
               <Link to="/dashboard/channels">
                 <Button
+                  data-tour-id="sidebar-nav-channels"
                   variant="ghost"
                   className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/channels")
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
@@ -527,6 +544,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <Link to="/dashboard/agents">
                 <Button
+                  data-tour-id="sidebar-nav-agents"
                   variant="ghost"
                   className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/agents")
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
@@ -539,6 +557,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <Link to="/dashboard/members">
                 <Button
+                  data-tour-id="sidebar-nav-members"
                   variant="ghost"
                   className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/members")
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
@@ -563,6 +582,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               ].map((item) => (
                 <Link key={item.to} to={item.to}>
                   <Button
+                    data-tour-id={item.label === "Knowledge Static" ? "sidebar-nav-knowledge-static" : "sidebar-nav-knowledge-realtime"}
                     variant="ghost"
                     className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer rounded-lg justify-start ${isActive(item.to, true)
                       ? "text-primary bg-primary/5 font-medium"
@@ -576,6 +596,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
               <Link to="/dashboard/widget">
                 <Button
+                  data-tour-id="sidebar-nav-widget"
                   variant="ghost"
                   className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/widget", true)
                     ? "bg-primary/10 text-primary border-r-2 border-primary"
@@ -589,6 +610,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               {orgRole === "owner" && (
                 <Link to="/dashboard/widget/qr">
                   <Button
+                    data-tour-id="sidebar-nav-qr-codes"
                     variant="ghost"
                     className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer font-medium rounded-lg transition-colors justify-start ${isActive("/dashboard/widget/qr", true)
                       ? "bg-primary/10 text-primary border-r-2 border-primary"
@@ -639,6 +661,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 .map((item) => (
                   <Link key={item.to} to={item.to}>
                     <Button
+                      data-tour-id={item.label === "General" ? "sidebar-nav-general" : "sidebar-nav-danger-zone"}
                       variant="ghost"
                       className={`w-full flex items-center px-3 py-2 text-sm cursor-pointer rounded-lg justify-start ${isActive(item.to, true)
                         ? "text-primary bg-primary/5 font-medium"
@@ -654,7 +677,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </nav>
 
         <div className="p-4 mt-auto">
-          <div className="flex items-center mb-4 mt-2 space-x-3">
+          <div className="flex items-center mb-4 mt-2 space-x-3" data-tour-id="dashboard-user-profile">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shrink-0">
               <span className="text-sm font-bold text-primary-foreground">
                 {user?.name?.charAt(0).toUpperCase() || "A"}
@@ -700,7 +723,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background">
       <div className="flex h-screen overflow-hidden">
         {!isContentFullscreen && (
-          <aside className="hidden lg:flex bg-background flex-col lg:fixed lg:top-4 lg:left-4 lg:h-[calc(100vh-2rem)] w-72">
+          <aside
+            className="hidden lg:flex bg-background flex-col lg:fixed lg:top-4 lg:left-4 lg:h-[calc(100vh-2rem)] w-72"
+            data-tour-id="dashboard-sidebar"
+          >
             {renderSidebar()}
           </aside>
         )}
@@ -712,7 +738,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               <div className="mb-4 rounded-2xl border border-border bg-card/90 p-3 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                  <div
+                    className="flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    data-tour-id="dashboard-breadcrumbs"
+                  >
                     {breadcrumbs.map((crumb, index) => (
                       <div key={`${crumb.to}-${index}`} className="flex items-center gap-1 shrink-0">
                         {index > 0 && <ChevronRight className="h-3.5 w-3.5" />}
@@ -736,6 +765,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       ref={searchContainerRef}
                       className="relative w-full max-w-xs"
                       onSubmit={handleSearchSubmit}
+                      data-tour-id="dashboard-search"
                     >
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
@@ -771,6 +801,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     <Dialog open={notificationsOpen} onOpenChange={setNotificationsOpen}>
                       <DialogTrigger asChild>
                         <Button
+                          data-tour-id="dashboard-notifications"
                           type="button"
                           variant="outline"
                           size="sm"
@@ -876,6 +907,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Dialog>
 
                     <Button
+                      data-tour-id="dashboard-tour-help"
+                      type="button"
+                      onClick={replayTour}
+                      variant="outline"
+                      size="sm"
+                      className="cursor-pointer"
+                      aria-label="Replay page tour"
+                      title="Replay page tour"
+                    >
+                      <CircleHelp className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      data-tour-id="dashboard-theme-toggle"
                       onClick={toggleTheme}
                       variant="outline"
                       size="sm"
@@ -890,6 +935,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Button>
 
                     <Button
+                      data-tour-id="dashboard-fullscreen-toggle"
                       type="button"
                       onClick={() => setIsContentFullscreen((prev) => !prev)}
                       variant="outline"

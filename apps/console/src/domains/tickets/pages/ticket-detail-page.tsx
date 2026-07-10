@@ -374,7 +374,7 @@ export function TicketDetailPage() {
         </aside>
 
         <main className="min-w-0 bg-card">
-          <header className="border-b border-border px-5 py-5 sm:px-7">
+          <header className="border-b border-border px-5 py-5 sm:px-7" data-tour-id="page-ticket-detail-heading">
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
                 <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -402,7 +402,7 @@ export function TicketDetailPage() {
             </div>
           </header>
 
-          <section className="border-b border-border px-5 py-5 sm:px-7">
+          <section className="border-b border-border px-5 py-5 sm:px-7" data-tour-id="page-ticket-detail-description">
             <div className="mb-3 flex items-center gap-2">
               <FileText className="h-3.5 w-3.5 text-muted-foreground" />
               <h2 className="text-xs font-bold text-foreground">Description</h2>
@@ -414,7 +414,7 @@ export function TicketDetailPage() {
             </div>
           </section>
 
-          <section>
+          <section data-tour-id="page-ticket-detail-timeline">
             <div className="flex items-center justify-between border-b border-border bg-muted/15 px-5 py-3 sm:px-7">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -508,6 +508,7 @@ export function TicketDetailPage() {
             </div>
           </div>
 
+          <div data-tour-id="page-ticket-detail-contact">
           <PaneSection title="Contact details">
             <div className="mb-3 flex items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -549,6 +550,7 @@ export function TicketDetailPage() {
               </div>
             )}
           </PaneSection>
+          </div>
 
           <PaneSection title="Ticket properties">
             <dl className="space-y-1.5">

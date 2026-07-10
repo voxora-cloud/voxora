@@ -19,7 +19,7 @@ export function WidgetAppearanceForm({
   onSubmit,
 }: WidgetAppearanceFormProps) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-3" data-tour-id="page-widget-appearance">
       <div>
         <h2 className="text-base font-semibold text-foreground">Display name</h2>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

@@ -171,14 +171,14 @@ export function KnowledgeRealtimePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center" data-tour-id="page-knowledge-realtime-heading">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Realtime Knowledge</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Auto-sync live URLs with your vector database
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="cursor-pointer">
+        <Button data-tour-id="page-knowledge-realtime-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
           Add Live Source
         </Button>
@@ -192,6 +192,7 @@ export function KnowledgeRealtimePage() {
           </div>
         </div>
       ) : sources.length > 0 ? (
+        <div data-tour-id="page-knowledge-realtime-list">
         <LiveSourceTable
           sources={sources}
           onViewSource={handleViewSource}
@@ -200,8 +201,9 @@ export function KnowledgeRealtimePage() {
           onRetrySource={handleRetrySource}
           onDeleteSource={openDeleteDialog}
         />
+        </div>
       ) : (
-        <div className="p-12 text-center border rounded-lg border-dashed">
+        <div className="p-12 text-center border rounded-lg border-dashed" data-tour-id="page-knowledge-realtime-list">
           <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
             <Radio className="h-6 w-6 text-muted-foreground" />
           </div>

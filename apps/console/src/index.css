@@ -306,3 +306,50 @@
     font-weight: var(--type-button-weight);
   }
 }
+
+.interaone-driver-popover {
+  max-width: min(360px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-xl);
+  font-family: var(--font-sans);
+}
+
+.interaone-driver-popover .driver-popover-title {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.interaone-driver-popover .driver-popover-description {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.interaone-driver-popover .driver-popover-progress-text {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.interaone-driver-popover .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+
+.interaone-driver-popover .driver-popover-prev-btn,
+.interaone-driver-popover .driver-popover-next-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  text-shadow: none;
+}
+
+.interaone-driver-popover .driver-popover-next-btn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}

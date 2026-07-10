@@ -101,11 +101,12 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{title}</h1>
+          <h1 className="text-3xl font-bold" data-tour-id="page-dashboard-heading">{title}</h1>
           <p className="mt-1 text-muted-foreground">
             Organization performance, message flow, and support outcomes.
           </p>
         </div>
+        <div data-tour-id="page-dashboard-actions">
         <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
           <SelectTrigger className="w-[150px] bg-card">
             <SelectValue />
@@ -116,9 +117,10 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
             <SelectItem value="30">Last 30 days</SelectItem>
           </SelectContent>
         </Select>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" data-tour-id="page-dashboard-metrics">
         <MetricCard
           title="Total Conversations"
           value={summary?.totalConversations || 0}
@@ -173,7 +175,7 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2" data-tour-id="page-dashboard-charts">
         <Card className="p-6">
           <h3 className="mb-4 text-lg font-semibold">Message Volume (Last {days} Days)</h3>
           <div className="h-80 w-full">
@@ -198,9 +200,11 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <MostAskedQuestionsCard questions={summary?.mostAskedQuestions} />
+        <div data-tour-id="page-dashboard-most-asked-questions">
+          <MostAskedQuestionsCard questions={summary?.mostAskedQuestions} />
+        </div>
 
-        <Card className="p-6">
+        <Card className="p-6" data-tour-id="page-dashboard-interaction-sources">
           <h3 className="mb-4 text-lg font-semibold">AI Interaction Sources</h3>
           <div className="h-80 w-full">
             {hasSourceData ? (
