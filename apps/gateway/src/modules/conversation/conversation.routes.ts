@@ -215,6 +215,21 @@ router.post(
   ConversationController.markConversationRead,
 );
 
+router.post(
+  "/:conversationId/ai/suggest-reply",
+  ConversationController.suggestReply,
+);
+
+router.post(
+  "/:conversationId/ai/generate-note",
+  ConversationController.generateNote,
+);
+
+router.post(
+  "/:conversationId/ai/draft-assist",
+  ConversationController.assistDraft,
+);
+
 /**
  * @openapi
  * /conversations/{conversationId}/status:

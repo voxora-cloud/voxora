@@ -145,4 +145,22 @@ export interface RouteResponse {
   };
 }
 
+export interface Template {
+  _id: string;
+  organizationId: string;
+  title: string;
+  content: string;
+  shortcut?: string;
+  category?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateInput {
+  title: string;
+  content: string;
+  shortcut?: string;
+  category?: string;
+}
 

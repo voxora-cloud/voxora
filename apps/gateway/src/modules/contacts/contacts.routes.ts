@@ -85,6 +85,7 @@ router.get(
  */
 router.post(
 	"/ai/upsert",
+	validateAiSecret,
 	validateRequest(contactsSchema.upsertFromAI),
 	ContactsController.upsertFromAI,
 );

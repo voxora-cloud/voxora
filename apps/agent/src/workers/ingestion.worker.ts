@@ -13,13 +13,15 @@ import { internalApi } from "../infrastructure/api/internal.client";
 import logger from "../utils/logger";
 
 export const INGESTION_QUEUE = "document-ingestion";
-const URL_LOCK_TTL_SECONDS = parseInt(process.env.URL_INGEST_LOCK_TTL_SECONDS || "3600", 10);
+const URL_LOCK_TTL_SECONDS = parseInt(
+  process.env.URL_INGEST_LOCK_TTL_SECONDS || "3600",
+  10,
+);
 const LOCK_RETRY_DELAY_MS = 60_000;
 
 export function startIngestionWorker() {
   const connection = getBullMQConnection();
 
-  
   const ingestionQueue = new Queue<DocumentJob>(INGESTION_QUEUE, {
     connection,
     defaultJobOptions: {
@@ -29,15 +31,17 @@ export function startIngestionWorker() {
       removeOnFail: 50,
     },
   });
-  
+
   const worker = new Worker<DocumentJob, void, string>(
     INGESTION_QUEUE,
     async (job) => {
       const { source, jobType } = job.data;
 
-      
       if (jobType === "delete-vectors") {
-        await vectorStore.deleteByDocumentId(job.data.documentId, job.data.organizationId);
+        await vectorStore.deleteByDocumentId(
+          job.data.documentId,
+          job.data.organizationId,
+        );
         logger.info("Deleted document vectors", {
           jobId: job.id,
           queue: INGESTION_QUEUE,
@@ -51,7 +55,13 @@ export function startIngestionWorker() {
         const lockKey = `ingestion:url:lock:${job.data.documentId}`;
         const lockValue = job.id ?? "1";
 
-        const lockAcquired = await cacheRedis.set(lockKey, lockValue, "EX", URL_LOCK_TTL_SECONDS, "NX");
+        const lockAcquired = await cacheRedis.set(
+          lockKey,
+          lockValue,
+          "EX",
+          URL_LOCK_TTL_SECONDS,
+          "NX",
+        );
         if (!lockAcquired) {
           const retryJobId = `ingest-lock-retry:${job.data.documentId}`;
           try {
@@ -145,7 +155,7 @@ export function startIngestionWorker() {
       } catch (err: any) {
         if (err?.response?.status === 404) {
           logger.info("Skipping re-crawl because document was deleted", {
-          jobId: job.id,
+            jobId: job.id,
             queue: INGESTION_QUEUE,
             documentId: job.data.documentId,
             organizationId: job.data.organizationId,
@@ -208,7 +218,10 @@ export function startIngestionWorker() {
         await existing.remove();
       }
 
-      await ingestionQueue.add("ingest", nextJob, { delay, jobId: recrawlJobId });
+      await ingestionQueue.add("ingest", nextJob, {
+        delay,
+        jobId: recrawlJobId,
+      });
       logger.info("Re-crawl scheduled", {
         jobId: job.id,
         queue: INGESTION_QUEUE,
@@ -249,7 +262,10 @@ export function startIngestionWorker() {
     }
   });
   worker.on("error", (err) =>
-    logger.error("Ingestion worker error", { queue: INGESTION_QUEUE, error: err }),
+    logger.error("Ingestion worker error", {
+      queue: INGESTION_QUEUE,
+      error: err,
+    }),
   );
 
   logger.info("Ingestion worker started", {

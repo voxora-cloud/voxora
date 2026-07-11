@@ -8,9 +8,14 @@ import config from "@shared/infra/config";
 import { connectDatabase } from "@shared/infra/database";
 import { connectRedis } from "@shared/infra/redis";
 import { initializeMinIO } from "@shared/infra/minio";
-import { globalRateLimit, errorHandler, notFound } from "@shared/security/middleware";
+import {
+  globalRateLimit,
+  errorHandler,
+  notFound,
+} from "@shared/security/middleware";
 import SocketManager from "@sockets/index";
 import { startAIResponseConsumer } from "@sockets/consumer";
+import { startAssistResponseConsumer } from "@sockets/assist.consumer";
 import logger from "@shared/core/logger";
 import { seedEmailTemplates } from "@shared/seeds/emailTemplates.seed";
 import { authRouter } from "@modules/auth";
@@ -28,6 +33,7 @@ import { ticketsRouter } from "@modules/tickets";
 import { emailRouter } from "@modules/email";
 import { channelsRouter } from "@modules/channels";
 import { observabilityRouter } from "@modules/observability/observability.routes";
+import { templatesRouter } from "@modules/templates";
 import { setupSwagger } from "@shared/infra/swagger";
 
 class Application {
@@ -47,19 +53,16 @@ class Application {
 
   private setupMiddleware(): void {
     // Security middleware
-    this.app.use(
-      helmet()
-    );
-
+    this.app.use(helmet());
 
     this.app.use(
       cors({
         origin: true, // Reflect request origin — allows requests from any origin
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-        exposedHeaders: ['Content-Range', 'X-Content-Range'],
-        maxAge: 86400 // 24 hours
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        exposedHeaders: ["Content-Range", "X-Content-Range"],
+        maxAge: 86400, // 24 hours
       }),
     );
 
@@ -71,8 +74,6 @@ class Application {
     this.app.use(express.json({ limit: "10mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-
-
     // Request logging
     this.app.use((req, res, next) => {
       const requestId = req.get("x-request-id") || randomUUID();
@@ -82,12 +83,14 @@ class Application {
       res.setHeader("x-request-id", requestId);
 
       res.on("finish", () => {
-        const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
-        const level = res.statusCode >= 500
-          ? "error"
-          : res.statusCode >= 400
-            ? "warn"
-            : "info";
+        const durationMs =
+          Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+        const level =
+          res.statusCode >= 500
+            ? "error"
+            : res.statusCode >= 400
+              ? "warn"
+              : "info";
 
         logger.log(level, "HTTP request completed", {
           requestId,
@@ -134,6 +137,7 @@ class Application {
     router.use("/email", emailRouter);
     router.use("/channels", channelsRouter);
     router.use("/observability", observabilityRouter);
+    router.use("/templates", templatesRouter);
 
     // Public config endpoint
     router.get("/config", (req, res) => {
@@ -201,9 +205,14 @@ class Application {
       // Start AI response stream consumer (background loop)
       startAIResponseConsumer(this.socketManager);
 
+      // Start Assist response consumer
+      startAssistResponseConsumer(this.socketManager);
+
       // Initialize MinIO (non-blocking - log error but don't crash)
       initializeMinIO().catch((error) => {
-        logger.error("MinIO initialization failed; will retry on first use", { error });
+        logger.error("MinIO initialization failed; will retry on first use", {
+          error,
+        });
       });
 
       // Start server
@@ -250,13 +259,14 @@ class Application {
     process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
     process.on("unhandledRejection", (reason, promise) => {
-      const details = reason instanceof Error
-        ? {
-          errorName: reason.name,
-          message: reason.message,
-          stack: reason.stack,
-        }
-        : { message: String(reason) };
+      const details =
+        reason instanceof Error
+          ? {
+              errorName: reason.name,
+              message: reason.message,
+              stack: reason.stack,
+            }
+          : { message: String(reason) };
       logger.error("Unhandled promise rejection", details);
       process.exit(1);
     });

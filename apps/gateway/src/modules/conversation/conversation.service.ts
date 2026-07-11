@@ -14,6 +14,21 @@ import {
   ListConversationsOptions,
   RouteConversationInput,
 } from "./conversation.types";
+import { assistQueue } from "@shared/infra/queue";
+
+function toAssistMessages(messages: any[]) {
+  return messages.map((message) => ({
+    role:
+      message.metadata?.source === "web" ||
+      message.metadata?.source === "ai" ||
+      message.senderId === "ai-bot"
+        ? "assistant"
+        : "user",
+    content: message.content,
+    senderName: message.metadata?.senderName,
+    source: message.metadata?.source,
+  }));
+}
 
 export class ConversationService {
   /**
@@ -177,6 +192,100 @@ export class ConversationService {
       },
       { new: true },
     ).lean();
+  }
+
+  async suggestReply(
+    organizationId: string,
+    conversationId: string,
+    userId: string,
+  ) {
+    const result = await this.getConversationById(
+      organizationId,
+      conversationId,
+    );
+    if (!result) return null;
+
+    const messages = (result.messages || []).slice(-10);
+    const requestId = new Types.ObjectId().toString();
+
+    await assistQueue.add("suggest-reply", {
+      action: "suggest-reply",
+      requestId,
+      userId,
+      organizationId,
+      conversationId,
+      payload: {
+        messages: toAssistMessages(messages),
+      },
+    });
+
+    return { requestId };
+  }
+
+  async generateNote(
+    organizationId: string,
+    conversationId: string,
+    userId: string,
+    fallbackContactName?: string,
+  ) {
+    const result = await this.getConversationById(
+      organizationId,
+      conversationId,
+    );
+    if (!result) return null;
+
+    const contactName =
+      result.conversation.metadata?.customer?.name ||
+      result.conversation.metadata?.customerName ||
+      result.conversation.metadata?.senderName ||
+      fallbackContactName;
+
+    const requestId = new Types.ObjectId().toString();
+
+    await assistQueue.add("generate-note", {
+      action: "generate-note",
+      requestId,
+      userId,
+      organizationId,
+      conversationId,
+      payload: {
+        contactName,
+        messages: toAssistMessages(result.messages || []),
+      },
+    });
+
+    return { requestId };
+  }
+
+  async assistDraft(
+    organizationId: string,
+    conversationId: string,
+    userId: string,
+    input: { draft?: string; mode?: "variations" | "reframe" },
+  ) {
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      organizationId,
+    })
+      .select("_id organizationId")
+      .lean();
+    if (!conversation) return null;
+
+    const requestId = new Types.ObjectId().toString();
+
+    await assistQueue.add("draft-assist", {
+      action: "draft-assist",
+      requestId,
+      userId,
+      organizationId,
+      conversationId,
+      payload: {
+        draft: input.draft,
+        mode: input.mode,
+      },
+    });
+
+    return { requestId };
   }
 
   /**

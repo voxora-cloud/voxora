@@ -1,6 +1,7 @@
 import { apiClient } from "@/shared/lib/api-client";
 import type {
   ConversationDetailResponse,
+  ConversationMessage,
   ConversationsResponse,
   RouteResponse,
   StatusResponse,
@@ -62,6 +63,43 @@ class ConversationsApi {
 
   async getAgentRuns(conversationId: string): Promise<any> {
     return apiClient.get<any>(`/conversations/${conversationId}/agent-runs`);
+  }
+
+  async suggestReply(
+    conversationId: string,
+    messages?: ConversationMessage[],
+  ): Promise<{ requestId: string }> {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { requestId: string };
+    }>(`/conversations/${conversationId}/ai/suggest-reply`, { messages });
+    return response.data;
+  }
+
+  async generateNote(
+    conversationId: string,
+    messages?: ConversationMessage[],
+    contactName?: string,
+  ): Promise<{ requestId: string }> {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { requestId: string };
+    }>(`/conversations/${conversationId}/ai/generate-note`, {
+      messages,
+      contactName,
+    });
+    return response.data;
+  }
+
+  async assistDraft(
+    conversationId: string,
+    payload: { draft: string; mode: "variations" | "reframe" },
+  ): Promise<{ requestId: string }> {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: { requestId: string };
+    }>(`/conversations/${conversationId}/ai/draft-assist`, payload);
+    return response.data;
   }
 
   async updateContactAssociation(

@@ -3,7 +3,7 @@ import http from "http";
 const HEALTH_PORT = parseInt(process.env.AI_HEALTH_PORT || "4010", 10);
 
 export function startHealthServer(): http.Server {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const url = req.url || "/";
 
     if (url.startsWith("/health") || url.startsWith("/ready")) {

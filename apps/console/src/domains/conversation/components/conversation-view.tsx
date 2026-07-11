@@ -16,6 +16,10 @@ import {
   Bot,
   ChevronRight,
   Info,
+  Sparkles,
+  Shuffle,
+  Wand2,
+  X,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import io, { Socket } from "socket.io-client";
@@ -23,13 +27,19 @@ import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
 import { UpdateContactDialog } from "./update-contact-dialog";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversationDetail, useAgentRuns } from "../hooks";
-import type { ConversationDetail, ConversationMessage } from "../types/types";
+import { useConversationDetail, useAgentRuns, useTemplates } from "../hooks";
+import type {
+  ConversationDetail,
+  ConversationMessage,
+  Template,
+} from "../types/types";
 import { conversationsApi } from "../api/conversations.api";
 import { useContacts } from "@/domains/contacts/hooks/use-contacts";
 import { toContactViewModel } from "@/domains/contacts/types/types";
 import { ContactDetailsCard } from "@/domains/contacts/components/contact-details-card";
 import { Loader } from "@/shared/ui/loader";
+import { toast } from "sonner";
+import { TemplatePicker } from "./template-picker";
 
 import { playNotificationSound } from "@/shared/lib/audio";
 
@@ -199,6 +209,12 @@ interface ConversationViewProps {
   conversationId: string;
 }
 
+interface SlashCommandState {
+  query: string;
+  start: number;
+  end: number;
+}
+
 export function ConversationView({ conversationId }: ConversationViewProps) {
   const [conversation, setConversation] = useState<ConversationDetail | null>(
     null,
@@ -208,12 +224,36 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "runs">("chat");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isSuggestLoading, setIsSuggestLoading] = useState(false);
+  const [draftAssistOptions, setDraftAssistOptions] = useState<string[]>([]);
+  const [draftAssistMode, setDraftAssistMode] = useState<
+    "variations" | "reframe" | null
+  >(null);
+  const [isDraftAssistLoading, setIsDraftAssistLoading] = useState(false);
+  const [isGeneratingNote, setIsGeneratingNote] = useState(false);
+  const [slashCommand, setSlashCommand] = useState<SlashCommandState | null>(
+    null,
+  );
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [activeSlashIndex, setActiveSlashIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const slashOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerTypingHideRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
   const isAgentTypingRef = useRef(false);
+  const pendingRequests = useRef<
+    Map<
+      string,
+      {
+        resolve: (val: any) => void;
+        reject: (err: any) => void;
+      }
+    >
+  >(new Map());
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -221,6 +261,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const { data: conversationResponse, isLoading } =
     useConversationDetail(conversationId);
   const { data: contacts = [] } = useContacts();
+  const { data: templates = [] } = useTemplates();
   const [isContactSidebarOpen, setIsContactSidebarOpen] = useState(true);
 
   const clearUnreadCount = useCallback(
@@ -280,8 +321,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     const displayEmail =
       email &&
-      email !== "anonymous@temp.local" &&
-      !email.endsWith("@anonymous.interaone")
+        email !== "anonymous@temp.local" &&
+        !email.endsWith("@anonymous.interaone")
         ? email
         : "";
 
@@ -307,6 +348,42 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       conversationCount: 1,
     };
   }, [matchedContact, conversation]);
+
+  const customerName = contactDetails?.name || "Anonymous User";
+  const customerEmail =
+    contactDetails?.email && contactDetails.email !== "anonymous@temp.local"
+      ? contactDetails.email
+      : "No email provided";
+  const isAnonymous =
+    !contactDetails ||
+    contactDetails.id === "temp-contact" ||
+    contactDetails.email === "";
+
+  const slashTemplateMatches = useMemo(() => {
+    if (!slashCommand) return [];
+
+    const query = slashCommand.query.trim().toLowerCase().replace(/^\//, "");
+    const matches = templates.filter((template) => {
+      const shortcut = (template.shortcut || "")
+        .toLowerCase()
+        .replace(/^\//, "");
+      const title = template.title.toLowerCase();
+      return !query || shortcut.includes(query) || title.includes(query);
+    });
+
+    return matches.slice(0, 6);
+  }, [slashCommand, templates]);
+
+  useEffect(() => {
+    setActiveSlashIndex(0);
+  }, [slashCommand?.query, slashTemplateMatches.length]);
+
+  useEffect(() => {
+    if (!slashCommand || slashTemplateMatches.length === 0) return;
+    slashOptionRefs.current[activeSlashIndex]?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [activeSlashIndex, slashCommand, slashTemplateMatches.length]);
 
   const basePath = "/dashboard/conversations/inbox";
 
@@ -375,6 +452,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       },
     );
 
+    socketInstance.on(
+      "assist:result",
+      (data: { requestId: string; action: string; data: any }) => {
+        const pending = pendingRequests.current.get(data.requestId);
+        if (pending) {
+          pendingRequests.current.delete(data.requestId);
+          pending.resolve(data.data);
+        }
+      },
+    );
+
     setSocket(socketInstance);
 
     return () => {
@@ -384,8 +472,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           sock.off("new_message");
           sock.off("customer_typing");
           sock.off("customer_stopped_typing");
+          sock.off("assist:result");
           sock.disconnect();
         }
+        pendingRequests.current.forEach((req) => req.reject(new Error("Conversation changed")));
+        pendingRequests.current.clear();
         if (isAgentTypingRef.current && sock) {
           try {
             sock.emit("typing_stop", { conversationId });
@@ -459,9 +550,209 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     setMessages((prev) => [...prev, tempMessage]);
     setNewMessage("");
+    setSuggestions([]);
+    setDraftAssistOptions([]);
+    setDraftAssistMode(null);
+    setSlashCommand(null);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleSuggestReply = async () => {
+    if (messages.length === 0) return;
+
+    setIsSuggestLoading(true);
+    try {
+      const response = await conversationsApi.suggestReply(
+        conversationId,
+        messages,
+      );
+
+      const result = await new Promise<{ suggestions: string[] }>(
+        (resolve, reject) => {
+          pendingRequests.current.set(response.requestId, { resolve, reject });
+          setTimeout(() => {
+            if (pendingRequests.current.has(response.requestId)) {
+              pendingRequests.current.delete(response.requestId);
+              reject(new Error("Request timed out"));
+            }
+          }, 20000);
+        },
+      );
+
+      setSuggestions(result.suggestions || []);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate suggestions");
+    } finally {
+      setIsSuggestLoading(false);
+    }
+  };
+
+  const handleDraftAssist = async (mode: "variations" | "reframe") => {
+    const draft = newMessage.trim();
+    if (!draft) {
+      toast.message("Type a message first");
+      return;
+    }
+
+    setIsDraftAssistLoading(true);
+    setDraftAssistMode(mode);
+    try {
+      const response = await conversationsApi.assistDraft(conversationId, {
+        draft,
+        mode,
+      });
+
+      const result = await new Promise<{ options: string[] }>(
+        (resolve, reject) => {
+          pendingRequests.current.set(response.requestId, { resolve, reject });
+          setTimeout(() => {
+            if (pendingRequests.current.has(response.requestId)) {
+              pendingRequests.current.delete(response.requestId);
+              reject(new Error("Request timed out"));
+            }
+          }, 20000);
+        },
+      );
+
+      const options = result.options || [];
+      if (options.length === 0) {
+        toast.error("No rewrite options generated");
+        setDraftAssistOptions([]);
+        setDraftAssistMode(null);
+        return;
+      }
+      setDraftAssistOptions(options);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to rewrite draft");
+      setDraftAssistOptions([]);
+      setDraftAssistMode(null);
+    } finally {
+      setIsDraftAssistLoading(false);
+    }
+  };
+
+  const handleGenerateNote = async () => {
+    setIsGeneratingNote(true);
+
+    try {
+      const response = await conversationsApi.generateNote(
+        conversationId,
+        messages,
+        contactDetails?.name,
+      );
+
+      const result = await new Promise<{ note: string }>((resolve, reject) => {
+        pendingRequests.current.set(response.requestId, { resolve, reject });
+        setTimeout(() => {
+          if (pendingRequests.current.has(response.requestId)) {
+            pendingRequests.current.delete(response.requestId);
+            reject(new Error("Request timed out"));
+          }
+        }, 20000);
+      });
+
+      return result.note || "";
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate note");
+    } finally {
+      setIsGeneratingNote(false);
+    }
+  };
+
+  const handleInsertTemplate = (content: string) => {
+    const personalized = content.replaceAll(
+      "{{customer_name}}",
+      customerName || "there",
+    );
+    setNewMessage(personalized);
+    setTemplatePickerOpen(false);
+    setSlashCommand(null);
+  };
+
+  const replaceSlashCommandWithTemplate = (
+    template: Template,
+    command = slashCommand,
+  ) => {
+    const personalized = template.content.replaceAll(
+      "{{customer_name}}",
+      customerName || "there",
+    );
+
+    if (!command) {
+      setNewMessage(personalized);
+      setTemplatePickerOpen(false);
+      return;
+    }
+
+    const before = newMessage.slice(0, command.start);
+    const after = newMessage.slice(command.end);
+    const nextValue = `${before}${personalized}${after}`;
+    const nextCaret = before.length + personalized.length;
+
+    setNewMessage(nextValue);
+    setTemplatePickerOpen(false);
+    setSlashCommand(null);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextCaret, nextCaret);
+    }, 0);
+  };
+
+  const updateSlashCommand = (value: string, caret: number) => {
+    const beforeCaret = value.slice(0, caret);
+    const tokenStart =
+      Math.max(
+        beforeCaret.lastIndexOf(" "),
+        beforeCaret.lastIndexOf("\n"),
+        beforeCaret.lastIndexOf("\t"),
+      ) + 1;
+    const token = beforeCaret.slice(tokenStart);
+
+    if (token.startsWith("/") && !/\s/.test(token)) {
+      setSlashCommand({
+        query: token.slice(1),
+        start: tokenStart,
+        end: caret,
+      });
+      return;
+    }
+
+    setSlashCommand(null);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashCommand && slashTemplateMatches.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveSlashIndex((current) =>
+          current + 1 >= slashTemplateMatches.length ? 0 : current + 1,
+        );
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveSlashIndex((current) =>
+          current === 0 ? slashTemplateMatches.length - 1 : current - 1,
+        );
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const selectedTemplate =
+          slashTemplateMatches[activeSlashIndex] || slashTemplateMatches[0];
+        if (!selectedTemplate) return;
+        replaceSlashCommandWithTemplate(selectedTemplate);
+        return;
+      }
+    }
+
+    if (slashCommand && e.key === "Escape") {
+      e.preventDefault();
+      setSlashCommand(null);
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -473,6 +764,12 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   ) => {
     const val = e.target.value;
     setNewMessage(val);
+    if (!val.trim()) {
+      setDraftAssistOptions([]);
+      setDraftAssistMode(null);
+    }
+    if (val.trim()) setTemplatePickerOpen(false);
+    updateSlashCommand(val, e.target.selectionStart || val.length);
     if (!socket) return;
     if (conversationId && !isAgentTypingRef.current && val.trim().length > 0) {
       socket.emit("typing_start", { conversationId });
@@ -640,22 +937,12 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     );
   }
 
-  const customerName = contactDetails?.name || "Anonymous User";
-  const customerEmail =
-    contactDetails?.email && contactDetails.email !== "anonymous@temp.local"
-      ? contactDetails.email
-      : "No email provided";
-  const isAnonymous =
-    !contactDetails ||
-    contactDetails.id === "temp-contact" ||
-    contactDetails.email === "";
-
   return (
-    <div className="h-full flex bg-background overflow-hidden w-full">
+    <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden bg-transparent">
       {/* Left Chat / Runs Column */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden border-r border-border">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-transparent p-4">
           <div className="flex min-w-0 items-center space-x-3">
             <Button
               variant="ghost"
@@ -740,11 +1027,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              className={`h-8 w-8 cursor-pointer rounded-md ${
-                isContactSidebarOpen
+              className={`h-8 w-8 cursor-pointer rounded-md ${isContactSidebarOpen
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground"
-              }`}
+                }`}
               onClick={() => setIsContactSidebarOpen(!isContactSidebarOpen)}
               aria-label={
                 isContactSidebarOpen
@@ -764,24 +1050,22 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border bg-card/60 px-4 shrink-0">
+        <div className="flex border-b border-border/70 bg-transparent px-4 shrink-0">
           <button
             onClick={() => setActiveTab("chat")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-              activeTab === "chat"
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === "chat"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             Chat
           </button>
           <button
             onClick={() => setActiveTab("runs")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-              activeTab === "runs"
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === "runs"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             Agent Execution Logs
           </button>
@@ -789,7 +1073,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
         {activeTab === "chat" ? (
           <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-400/70 [&::-webkit-scrollbar-track]:bg-transparent">
+            <div className="flex-1 overflow-y-auto bg-transparent p-4 space-y-4 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
               {messages.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
@@ -800,11 +1084,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                   {messages.map((message) => (
                     <div
                       key={message._id}
-                      className={`flex ${
-                        isAgentMessage(message)
+                      className={`flex ${isAgentMessage(message)
                           ? "justify-end"
                           : "justify-start"
-                      }`}
+                        }`}
                     >
                       <div
                         className={`max-w-[70%] px-4 py-3 rounded-lg ${getBubbleClass(message)}`}
@@ -832,22 +1115,209 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               </div>
             )}
 
-            <div className="p-4 border-t border-border bg-card">
-              <div className="flex space-x-2">
-                <Textarea
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Type your message..."
-                  className="flex-1 min-h-[80px] resize-none cursor-text"
-                  disabled={isLoading}
-                />
-                <div className="flex flex-col space-y-2">
+            <div className="border-t border-border/70 bg-transparent px-4 py-3">
+              <div className="overflow-visible">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <TemplatePicker
+                      key={conversationId}
+                      open={templatePickerOpen}
+                      onOpenChange={setTemplatePickerOpen}
+                      onInsert={handleInsertTemplate}
+                      compact
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSuggestReply}
+                      disabled={isSuggestLoading || messages.length === 0}
+                      className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      {isSuggestLoading ? "Suggesting" : "Suggest"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDraftAssist("variations")}
+                      disabled={isDraftAssistLoading || !newMessage.trim()}
+                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 focus-visible:ring-blue-300 disabled:bg-blue-50 disabled:text-blue-700"
+                      title={
+                        newMessage.trim()
+                          ? "Generate draft variations"
+                          : "Type a message first"
+                      }
+                    >
+                      <Shuffle className="h-3.5 w-3.5" />
+                      Variations
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDraftAssist("reframe")}
+                      disabled={isDraftAssistLoading || !newMessage.trim()}
+                      className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-300 disabled:bg-emerald-50 disabled:text-emerald-700"
+                      title={
+                        newMessage.trim()
+                          ? "Reframe this draft"
+                          : "Type a message first"
+                      }
+                    >
+                      <Wand2 className="h-3.5 w-3.5" />
+                      {isDraftAssistLoading && draftAssistMode === "reframe"
+                        ? "Reframing"
+                        : "Reframe"}
+                    </Button>
+                  </div>
+                  {newMessage.trim() && (
+                    <span className="text-xs text-muted-foreground">
+                      {newMessage.length} chars
+                    </span>
+                  )}
+                </div>
+                {draftAssistOptions.length > 0 && (
+                  <div className="border-b border-border/70 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        {draftAssistMode === "reframe" ? (
+                          <Wand2 className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Shuffle className="h-3.5 w-3.5 text-blue-600" />
+                        )}
+                        {draftAssistMode === "reframe"
+                          ? "Reframed draft"
+                          : "Variations"}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => {
+                          setDraftAssistOptions([]);
+                          setDraftAssistMode(null);
+                        }}
+                        aria-label="Clear draft options"
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      {draftAssistOptions.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm leading-5 text-foreground shadow-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                          onClick={() => {
+                            setNewMessage(option);
+                            setDraftAssistOptions([]);
+                            setDraftAssistMode(null);
+                            setTimeout(() => textareaRef.current?.focus(), 0);
+                          }}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {suggestions.length > 0 && (
+                  <div className="border-b border-border/70 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-violet-600" />
+                        AI suggestions
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setSuggestions([])}
+                        aria-label="Clear suggestions"
+                        className="text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="grid gap-2 md:grid-cols-2">
+                      {suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          className="min-h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm leading-5 text-foreground shadow-xs transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                          onClick={() => {
+                            setNewMessage(suggestion);
+                            setTemplatePickerOpen(false);
+                            setSuggestions([]);
+                            setSlashCommand(null);
+                          }}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {slashCommand && (
+                  <div className="max-h-56 overflow-y-auto border-b border-border/70 bg-popover">
+                    {slashTemplateMatches.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        No matching templates
+                      </div>
+                    ) : (
+                      slashTemplateMatches.map((template, index) => (
+                        <button
+                          key={template._id}
+                          ref={(element) => {
+                            slashOptionRefs.current[index] = element;
+                          }}
+                          type="button"
+                          className={`flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted ${index === activeSlashIndex ? "bg-muted" : ""
+                            }`}
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            replaceSlashCommandWithTemplate(template);
+                          }}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-sm font-medium">
+                                {template.title}
+                              </span>
+                              {template.shortcut && (
+                                <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                  {template.shortcut}
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                              {template.content}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                <div className="flex items-end gap-2 pt-3">
+                  <Textarea
+                    ref={textareaRef}
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    placeholder="Write a reply..."
+                    className="min-h-[76px] flex-1 resize-none cursor-text rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
+                    disabled={isLoading}
+                  />
                   <Button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || isLoading}
                     size="icon"
-                    className="cursor-pointer"
+                    className="mb-0.5 cursor-pointer"
+                    aria-label="Send message"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
@@ -862,7 +1332,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
       {/* Right User Contact Sidebar */}
       {contactDetails && isContactSidebarOpen && (
-        <div className="w-80 shrink-0 flex flex-col h-full bg-background border-l border-border select-none">
+        <div className="w-80 shrink-0 flex flex-col h-full overflow-hidden rounded-lg border border-border bg-card shadow-sm select-none">
           <div className="p-4 border-b border-border bg-card flex items-center justify-between">
             <h3 className="text-sm font-semibold">Contact details</h3>
             <div className="flex items-center gap-1">
@@ -893,8 +1363,14 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <ContactDetailsCard contact={contactDetails} conversationId={conversationId} />
+          <div className="flex-1 overflow-y-auto p-4 space-y-6 [scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-track]:bg-transparent">
+            <ContactDetailsCard
+              contact={contactDetails}
+              conversationId={conversationId}
+              onGenerateNote={handleGenerateNote}
+              isGeneratingNote={isGeneratingNote}
+              canGenerateNote={messages.length > 0}
+            />
           </div>
         </div>
       )}

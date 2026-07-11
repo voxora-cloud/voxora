@@ -16,6 +16,7 @@ import {
   UpdateOrganizationInput,
 } from "./organization.types";
 import { ingestionQueue } from "@shared/infra/queue";
+import { TemplatesService } from "@modules/templates/templates.service";
 
 export class OrganizationService {
   /**
@@ -39,6 +40,12 @@ export class OrganizationService {
     if (!organization) {
       throw new Error("Failed to create organization");
     }
+
+    await TemplatesService.seedDefaultTemplates(
+      organization._id.toString(),
+      userId,
+      { session },
+    );
 
     // Create 3 default FAQs that apply to any organization.
     const defaultFaqs = [

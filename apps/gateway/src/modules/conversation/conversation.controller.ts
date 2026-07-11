@@ -90,6 +90,78 @@ export const markConversationRead = asyncHandler(
   },
 );
 
+export const suggestReply = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const organizationId = getOrgId(req);
+    const userId = (req as AuthenticatedRequest).user.userId;
+    const data = await conversationService.suggestReply(
+      organizationId,
+      conversationId,
+      userId,
+    );
+
+    if (!data) return sendError(res, 404, "Conversation not found");
+
+    sendResponse(
+      res,
+      200,
+      true,
+      "Reply suggestions generation initiated successfully",
+      data,
+    );
+  },
+);
+
+export const generateNote = asyncHandler(
+  async (req: Request, res: Response) => {
+    const conversationId = req.params.conversationId as string;
+    const organizationId = getOrgId(req);
+    const userId = (req as AuthenticatedRequest).user.userId;
+    const data = await conversationService.generateNote(
+      organizationId,
+      conversationId,
+      userId,
+      req.body?.contactName,
+    );
+
+    if (!data) return sendError(res, 404, "Conversation not found");
+
+    sendResponse(
+      res,
+      200,
+      true,
+      "CRM note generation initiated successfully",
+      data,
+    );
+  },
+);
+
+export const assistDraft = asyncHandler(async (req: Request, res: Response) => {
+  const conversationId = req.params.conversationId as string;
+  const organizationId = getOrgId(req);
+  const userId = (req as AuthenticatedRequest).user.userId;
+  const data = await conversationService.assistDraft(
+    organizationId,
+    conversationId,
+    userId,
+    {
+      draft: req.body?.draft,
+      mode: req.body?.mode,
+    },
+  );
+
+  if (!data) return sendError(res, 404, "Conversation not found");
+
+  sendResponse(
+    res,
+    200,
+    true,
+    "Draft assistance generation initiated successfully",
+    data,
+  );
+});
+
 // ─── Route conversation ─────────────────────────────────────────────────────────
 
 export const routeConversation = asyncHandler(

@@ -10,14 +10,18 @@ const PUBSUB_CHANNEL = "ai:response";
 
 // ── Consumer startup ───────────────────────────────────────────────────────────
 
-export async function startAIResponseConsumer(socketManager: SocketManager): Promise<void> {
+export async function startAIResponseConsumer(
+  socketManager: SocketManager,
+): Promise<void> {
   const subscriber = redisClient.duplicate();
   await subscriber.connect();
 
   // ── AI response channel ──────────────────────────────────────────────────────
   await subscriber.subscribe(PUBSUB_CHANNEL, async (message) => {
     try {
-      const { conversationId, messageId, content, usage, nonce } = JSON.parse(message) as {
+      const { conversationId, messageId, content, usage, nonce } = JSON.parse(
+        message,
+      ) as {
         conversationId: string;
         messageId?: string;
         content: string;
@@ -31,13 +35,18 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       };
 
       if (nonce) {
-        const claimed = await redisClient.set(`dedup:${nonce}`, "1", { NX: true, EX: 30 });
+        const claimed = await redisClient.set(`dedup:${nonce}`, "1", {
+          NX: true,
+          EX: 30,
+        });
         if (!claimed) return;
       }
 
       // Resolve org and channel details from conversation record
       const conv = await Conversation.findById(conversationId)
-        .select("organizationId status channel channelId metadata assignedTo sessionId subject")
+        .select(
+          "organizationId status channel channelId metadata assignedTo sessionId subject",
+        )
         .lean();
 
       if (!conv) return;
@@ -52,12 +61,14 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       }
 
       if (
-        (conv as any).metadata?.escalatedAt
-        || (conv as any).metadata?.humanJoinedAt
-        || (conv as any).assignedTo
-        || ["resolved", "closed"].includes((conv as any).status)
+        (conv as any).metadata?.escalatedAt ||
+        (conv as any).metadata?.humanJoinedAt ||
+        (conv as any).assignedTo ||
+        ["resolved", "closed"].includes((conv as any).status)
       ) {
-        logger.info(`[AI Response] Skipping ${conversationId} because conversation is escalated or closed`);
+        logger.info(
+          `[AI Response] Skipping ${conversationId} because conversation is escalated or closed`,
+        );
         return;
       }
 
@@ -66,7 +77,9 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       // ── Message usage tracking ──────────────────────────────────────────────
       const usageResult = await incrementMessageUsage(organizationId);
       if (usageResult.blocked) {
-        logger.warn(`[AI Response] Message limit reached for org=${organizationId} (used=${usageResult.used} limit=${usageResult.limit}) — dropping AI response`);
+        logger.warn(
+          `[AI Response] Message limit reached for org=${organizationId} (used=${usageResult.used} limit=${usageResult.limit}) — dropping AI response`,
+        );
         socketManager.emitToConversation(conversationId, "limit_reached", {
           limitType: "messages",
           currentUsage: usageResult.used,
@@ -82,18 +95,24 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         senderId: "ai-bot",
         content,
         type: "text",
-        metadata: { senderName: "AI Assistant", senderEmail: "ai@interaone.internal", source: "ai" },
+        metadata: {
+          senderName: "AI Assistant",
+          senderEmail: "ai@interaone.internal",
+          source: "ai",
+        },
       });
       await msg.save();
 
       // Forward AI response to external channels if applicable
-      const channelType = (conv as any).channel || (conv as any).metadata?.channel;
-      const channelId = (conv as any).channelId || (conv as any).metadata?.channelId;
+      const channelType =
+        (conv as any).channel || (conv as any).metadata?.channel;
+      const channelId =
+        (conv as any).channelId || (conv as any).metadata?.channelId;
 
       if (channelType && channelId) {
         const channelIdStr = channelId.toString();
         let to: string | undefined;
-        const convMeta = conv.metadata as any || {};
+        const convMeta = (conv.metadata as any) || {};
 
         if (channelType === "email_channel") {
           to = contact?.email;
@@ -104,17 +123,16 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
         }
 
         if (to) {
-          ChannelService.sendViaChannel(
-            organizationId,
-            channelIdStr,
-            {
-              to,
-              subject: (conv as any).subject || "Reply from Support",
-              body: content,
-              from: (conv as any).metadata?.supportEmail,
-            }
-          ).catch((err: any) => {
-            logger.error(`[AI Response Consumer] Failed to forward AI response to channel ${channelType}:`, err);
+          ChannelService.sendViaChannel(organizationId, channelIdStr, {
+            to,
+            subject: (conv as any).subject || "Reply from Support",
+            body: content,
+            from: (conv as any).metadata?.supportEmail,
+          }).catch((err: any) => {
+            logger.error(
+              `[AI Response Consumer] Failed to forward AI response to channel ${channelType}:`,
+              err,
+            );
           });
         }
       }
@@ -134,11 +152,10 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       );
 
       const hasTokenUsage = Boolean(
-        usage && (
-          (usage.totalTokens && usage.totalTokens > 0)
-          || (usage.promptTokens && usage.promptTokens > 0)
-          || (usage.completionTokens && usage.completionTokens > 0)
-        ),
+        usage &&
+        ((usage.totalTokens && usage.totalTokens > 0) ||
+          (usage.promptTokens && usage.promptTokens > 0) ||
+          (usage.completionTokens && usage.completionTokens > 0)),
       );
 
       if (hasTokenUsage) {
@@ -159,7 +176,14 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
       socketManager.emitToConversation(conversationId, "new_message", {
         conversationId,
         streamMessageId: messageId,
-        message: { _id: msg._id, senderId: msg.senderId, content: msg.content, type: msg.type, metadata: msg.metadata, createdAt: msg.createdAt },
+        message: {
+          _id: msg._id,
+          senderId: msg.senderId,
+          content: msg.content,
+          type: msg.type,
+          metadata: msg.metadata,
+          createdAt: msg.createdAt,
+        },
       });
 
       logger.info(`AI response delivered to conversation ${conversationId}`);
@@ -171,14 +195,20 @@ export async function startAIResponseConsumer(socketManager: SocketManager): Pro
   // ── AI stream channel ──────────────────────────────────────────────────────
   await subscriber.subscribe("ai:stream", async (raw) => {
     try {
-      const { conversationId, chunk, isThought, seq, messageId, toolEvent } = JSON.parse(raw) as {
-        conversationId: string;
-        chunk: string;
-        isThought: boolean;
-        seq?: number;
-        messageId?: string;
-        toolEvent?: { type: "start" | "complete"; toolName: string; label: string; detail?: string };
-      };
+      const { conversationId, chunk, isThought, seq, messageId, toolEvent } =
+        JSON.parse(raw) as {
+          conversationId: string;
+          chunk: string;
+          isThought: boolean;
+          seq?: number;
+          messageId?: string;
+          toolEvent?: {
+            type: "start" | "complete";
+            toolName: string;
+            label: string;
+            detail?: string;
+          };
+        };
 
       // Do not forward stream chunks once a human has taken over
       const conv = await Conversation.findById(conversationId)

@@ -1,4 +1,12 @@
-import { Message, Conversation, Widget, Organization, Ticket, Channel, Contact } from "@shared/models";
+import {
+  Message,
+  Conversation,
+  Widget,
+  Organization,
+  Ticket,
+  Channel,
+  Contact,
+} from "@shared/models";
 import logger from "@shared/core/logger";
 import config from "@shared/infra/config";
 import { aiQueue } from "@shared/infra/queue";
@@ -28,7 +36,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       try {
         // Fetch conversation to get sessionId and widget config
         const conversation = await Conversation.findById(conversationId)
-          .select("organizationId sessionId channel channelId metadata assignedTo status subject")
+          .select(
+            "organizationId sessionId channel channelId metadata assignedTo status subject",
+          )
           .lean();
 
         if (!conversation) {
@@ -50,8 +60,10 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
         if (metadata?.source === "widget") {
           messageMetadata = {
-            senderName: metadata?.senderName || contact?.name || "Anonymous User",
-            senderEmail: metadata?.senderEmail || contact?.email || "anonymous@temp.local",
+            senderName:
+              metadata?.senderName || contact?.name || "Anonymous User",
+            senderEmail:
+              metadata?.senderEmail || contact?.email || "anonymous@temp.local",
             source: "widget",
             interactionSource:
               metadata?.interactionSource ||
@@ -110,13 +122,15 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               {
                 $set: {
                   assignedTo: agentId,
-                  "metadata.humanJoinedAt": (conversation as any).metadata?.humanJoinedAt || new Date(),
-                  "metadata.escalatedAt": (conversation as any).metadata?.escalatedAt || new Date(),
+                  "metadata.humanJoinedAt":
+                    (conversation as any).metadata?.humanJoinedAt || new Date(),
+                  "metadata.escalatedAt":
+                    (conversation as any).metadata?.escalatedAt || new Date(),
                   "metadata.pendingEscalation": false,
                   "metadata.pendingOfflineEscalation": false,
                 },
-                $addToSet: { participants: agentId }
-              }
+                $addToSet: { participants: agentId },
+              },
             );
 
             const sm = getSocketManager();
@@ -130,8 +144,12 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           }
 
           // Forward agent reply to channels if applicable
-          let channelType = (conversation as any).channel || (conversation as any).metadata?.channel;
-          let channelId = (conversation as any).channelId || (conversation as any).metadata?.channelId;
+          let channelType =
+            (conversation as any).channel ||
+            (conversation as any).metadata?.channel;
+          let channelId =
+            (conversation as any).channelId ||
+            (conversation as any).metadata?.channelId;
 
           // Check if there is an associated ticket for this conversation
           const ticket = await Ticket.findOne({
@@ -161,12 +179,19 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               isActive: true,
             }).lean();
 
-            if (!activeChannel && ticketChannelType === "email" && config.email.provider === "mailhog") {
+            if (
+              !activeChannel &&
+              ticketChannelType === "email" &&
+              config.email.provider === "mailhog"
+            ) {
               // Auto-create a mock email channel for this organization in dev/mailhog mode
-              logger.info("[handleMessage] No active email channel found for organization in Mailhog mode. Auto-creating a mock email channel.", {
-                organizationId: conversation.organizationId,
-              });
-              activeChannel = await Channel.create({
+              logger.info(
+                "[handleMessage] No active email channel found for organization in Mailhog mode. Auto-creating a mock email channel.",
+                {
+                  organizationId: conversation.organizationId,
+                },
+              );
+              activeChannel = (await Channel.create({
                 organizationId: conversation.organizationId,
                 type: "email",
                 name: "Local Dev Email Channel",
@@ -180,11 +205,14 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                     dnsRecords: [],
                   },
                 },
-              }) as any;
+              })) as any;
             }
 
             if (activeChannel) {
-              channelType = ticketChannelType === "email" ? "email_channel" : `${ticketChannelType}_channel`;
+              channelType =
+                ticketChannelType === "email"
+                  ? "email_channel"
+                  : `${ticketChannelType}_channel`;
               channelId = activeChannel._id;
             }
           }
@@ -199,9 +227,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           if (channelType && channelId) {
             const channelIdStr = channelId.toString();
             let to: string | undefined;
-            const convMeta = conversation.metadata as any || {};
+            const convMeta = (conversation.metadata as any) || {};
 
-             if (channelType === "email_channel") {
+            if (channelType === "email_channel") {
               to = contact?.email || convMeta.senderEmail;
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
@@ -218,7 +246,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 }
               }
             } else if (channelType === "telegram_channel") {
-              to = convMeta.chatId || conversation.sessionId?.replace("telegram-", "");
+              to =
+                convMeta.chatId ||
+                conversation.sessionId?.replace("telegram-", "");
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.sessionId?.startsWith("telegram-")) {
@@ -228,26 +258,27 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             }
 
             if (to) {
-              ChannelService.sendViaChannel(
-                organizationId,
-                channelIdStr,
-                {
-                  to,
-                  subject: conversation.subject || "Reply from Support",
-                  body: content,
-                  from: conversation.metadata?.supportEmail,
-                }
-              ).catch((err: any) => {
-                logger.error(`[handleMessage] Failed to forward agent reply to channel ${channelType}:`, err);
+              ChannelService.sendViaChannel(organizationId, channelIdStr, {
+                to,
+                subject: conversation.subject || "Reply from Support",
+                body: content,
+                from: conversation.metadata?.supportEmail,
+              }).catch((err: any) => {
+                logger.error(
+                  `[handleMessage] Failed to forward agent reply to channel ${channelType}:`,
+                  err,
+                );
               });
             }
           }
 
-
           if (startedAt) {
             const responseTimeMs = Date.now() - new Date(startedAt).getTime();
             const updateResult = await Conversation.updateOne(
-              { _id: conversationId, "metadata.firstAgentReplyAt": { $exists: false } },
+              {
+                _id: conversationId,
+                "metadata.firstAgentReplyAt": { $exists: false },
+              },
               {
                 $set: {
                   "metadata.firstAgentReplyAt": new Date(),
@@ -281,12 +312,17 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         }
 
         // â”€â”€ Resolve widget config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        const widgetKey: string | undefined = (conversation.metadata as any)?.widgetKey ?? undefined;
+        const widgetKey: string | undefined =
+          (conversation.metadata as any)?.widgetKey ?? undefined;
 
         let companyName: string | undefined;
         let aiEnabled = true;
         let fallbackToAgent = true;
-        let collectUserInfo: { name?: boolean; email?: boolean; phone?: boolean } = {};
+        let collectUserInfo: {
+          name?: boolean;
+          email?: boolean;
+          phone?: boolean;
+        } = {};
 
         if (widgetKey) {
           try {
@@ -298,16 +334,25 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
               companyName = (widget as any).displayName || undefined;
               aiEnabled = (widget as any).ai?.enabled !== false; // default true
               fallbackToAgent = (widget as any).ai?.fallbackToAgent !== false; // default true
-              collectUserInfo = (widget as any).conversation?.collectUserInfo || {};
+              collectUserInfo =
+                (widget as any).conversation?.collectUserInfo || {};
             }
           } catch {
             // Non-fatal — fall back to defaults
-            logger.warn(`[handleMessage] Could not fetch widget config for key ${widgetKey}`);
+            logger.warn(
+              `[handleMessage] Could not fetch widget config for key ${widgetKey}`,
+            );
           }
         }
 
-        const org = await Organization.findById(conversation.organizationId).select("subscriptionStatus").lean();
-        const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
+        const org = await Organization.findById(conversation.organizationId)
+          .select("subscriptionStatus")
+          .lean();
+        const subscriptionExpired = org
+          ? org.subscriptionStatus !== null &&
+            org.subscriptionStatus !== undefined &&
+            org.subscriptionStatus !== "active"
+          : false;
 
         // ── Route: enqueue AI job with full config ─────────────────
         aiQueue
@@ -323,9 +368,7 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             aiEnabled,
             subscriptionExpired,
           })
-          .catch((err) =>
-            logger.error("Failed to enqueue AI job:", err),
-          );
+          .catch((err) => logger.error("Failed to enqueue AI job:", err));
       } catch (error) {
         logger.error("Error handling send_message:", error);
       }
@@ -340,15 +383,19 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       const userId = socket.data?.user?.userId;
 
       if (!orgId) {
-        logger.error(`Unauthorized join_conversation attempt by socket ${socket.id}: No organization ID`);
+        logger.error(
+          `Unauthorized join_conversation attempt by socket ${socket.id}: No organization ID`,
+        );
         return;
       }
 
       // Fetch the conversation to verify organization/tenant ownership
-      const conversation = await Conversation.findById(conversationId).select("organizationId").lean();
+      const conversation = await Conversation.findById(conversationId)
+        .select("organizationId")
+        .lean();
       if (!conversation || conversation.organizationId.toString() !== orgId) {
         logger.warn(
-          `Unauthorized join_conversation attempt by ${isWidget ? 'Widget' : 'User'} ${userId} (org: ${orgId}) for conversation ${conversationId}`
+          `Unauthorized join_conversation attempt by ${isWidget ? "Widget" : "User"} ${userId} (org: ${orgId}) for conversation ${conversationId}`,
         );
         return;
       }
@@ -359,7 +406,9 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
       socket.join(roomName);
       socket.join(orgScopedRoom);
 
-      logger.debug(`${isWidget ? 'Widget' : 'User'} ${userId} joined org:${orgId}:conv:${conversationId}`);
+      logger.debug(
+        `${isWidget ? "Widget" : "User"} ${userId} joined org:${orgId}:conv:${conversationId}`,
+      );
 
       if (
         socket.data?.user?.orgRole === "agent" ||
@@ -367,11 +416,11 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
         socket.data?.user?.orgRole === "owner"
       ) {
         logger.info(
-          `Agent ${socket.data.user.name} (${socket.data.user.userId}) joined conversation room ${conversationId}`
+          `Agent ${socket.data.user.name} (${socket.data.user.userId}) joined conversation room ${conversationId}`,
         );
       } else {
         logger.info(
-          `Widget user ${socket.id} joined conversation room ${conversationId}`
+          `Widget user ${socket.id} joined conversation room ${conversationId}`,
         );
       }
     } catch (error) {
