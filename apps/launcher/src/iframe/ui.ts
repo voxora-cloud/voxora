@@ -263,8 +263,8 @@ export function showAgentConnectedCard(name: string) {
 
 export function adjustTextareaHeight() {
   if (!elements.messageInput) return;
-  elements.messageInput.style.height = "auto";
-  elements.messageInput.style.height = Math.min(elements.messageInput.scrollHeight, 140) + "px";
+  elements.messageInput.style.height = "20px";
+  elements.messageInput.style.maxHeight = "20px";
 }
 
 export function hideWelcomeScreen() {

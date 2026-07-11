@@ -35,6 +35,7 @@ export interface WidgetServerAppearanceConfig {
   position?: "bottom-right" | "bottom-left";
   launcherText?: string;
   welcomeMessage?: string;
+  pattern?: string;
 }
 
 export interface WidgetServerBehaviorConfig {

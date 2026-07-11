@@ -22,7 +22,15 @@ export interface IWidget extends Document {
       | "hexagonal"
       | "polka"
       | "radial-stripes"
-      | "plaid";
+      | "plaid"
+      | "diagonal-lines"
+      | "waves"
+      | "circuit"
+      | "blueprint"
+      | "carbon"
+      | "aurora"
+      | "confetti"
+      | "topography";
   };
   // backgroundColor removed, using theme only
   behavior: {
@@ -90,6 +98,14 @@ const WidgetSchema = new Schema<IWidget>(
           "polka",
           "radial-stripes",
           "plaid",
+          "diagonal-lines",
+          "waves",
+          "circuit",
+          "blueprint",
+          "carbon",
+          "aurora",
+          "confetti",
+          "topography",
         ],
         default: "none",
       },

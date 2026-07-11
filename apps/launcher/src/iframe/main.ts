@@ -63,7 +63,27 @@ function applyWidgetAppearance(cfg: any) {
   // Apply Background Pattern
   const welcomeScreen = document.getElementById('welcomeScreen');
   if (welcomeScreen) {
-    welcomeScreen.classList.remove('pattern-none', 'pattern-uiverse-alexruix', 'pattern-dots', 'pattern-grid', 'pattern-island', 'pattern-3d-cubes', 'pattern-checkerboard', 'pattern-hexagonal', 'pattern-polka', 'pattern-radial-stripes', 'pattern-plaid');
+    welcomeScreen.classList.remove(
+      'pattern-none',
+      'pattern-uiverse-alexruix',
+      'pattern-dots',
+      'pattern-grid',
+      'pattern-island',
+      'pattern-3d-cubes',
+      'pattern-checkerboard',
+      'pattern-hexagonal',
+      'pattern-polka',
+      'pattern-radial-stripes',
+      'pattern-plaid',
+      'pattern-diagonal-lines',
+      'pattern-waves',
+      'pattern-circuit',
+      'pattern-blueprint',
+      'pattern-carbon',
+      'pattern-aurora',
+      'pattern-confetti',
+      'pattern-topography',
+    );
     const selectedPattern = appearance.pattern || 'none';
     if (selectedPattern !== 'none') {
       welcomeScreen.classList.add(`pattern-${selectedPattern}`);
@@ -158,6 +178,8 @@ function setActiveTab(tab: WidgetTab) {
   const historyOverlay = elements.historyOverlay as HTMLElement | null;
 
   if (tab === 'history') {
+    document.documentElement.classList.add('is-history-open');
+    document.body.classList.add('is-history-open');
     if (elements.historyBtn) elements.historyBtn.click();
     if (inputArea) inputArea.style.display = 'none';
     if (messagesContainer) messagesContainer.style.display = 'none';
@@ -165,6 +187,8 @@ function setActiveTab(tab: WidgetTab) {
     return;
   }
 
+  document.documentElement.classList.remove('is-history-open');
+  document.body.classList.remove('is-history-open');
   if (historyOverlay) historyOverlay.style.display = 'none';
   if (elements.historySearch) elements.historySearch.value = '';
 

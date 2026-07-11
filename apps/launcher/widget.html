@@ -65,10 +65,11 @@
       <!-- Header -->
       <div class="history-header">
         <div class="history-header-left">
-          <button id="closeHistoryBtn" class="history-back-btn" title="Back to chat">
+          <button id="closeHistoryBtn" class="history-back-btn" title="Close history">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
           <div>
@@ -130,8 +131,8 @@
 
             <button id="sendBtn" class="send-btn" disabled type="button">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                <path d="M12 19V5"></path>
+                <path d="M5 12l7-7 7 7"></path>
               </svg>
             </button>
           </div>
