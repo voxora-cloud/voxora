@@ -66,7 +66,7 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={copy}
-      className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+      className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground cursor-pointer"
       title="Copy"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -110,7 +110,7 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
           <button
             type="button"
             onClick={() => setExpanded(!expanded)}
-            className="text-xs font-semibold text-primary hover:underline transition-colors"
+            className="text-xs font-semibold text-primary hover:underline transition-colors cursor-pointer"
           >
             {expanded ? "Show Less" : "Show Full"}
           </button>
@@ -130,7 +130,7 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
             <button
               type="button"
               onClick={copyName}
-              className="p-1.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground shrink-0"
+              className="p-1.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
               title="Copy Host/Name"
             >
               {copiedName ? (
@@ -154,7 +154,7 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
             <button
               type="button"
               onClick={copyValue}
-              className="p-1.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground shrink-0 mt-0.5"
+              className="p-1.5 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-foreground shrink-0 mt-0.5 cursor-pointer"
               title="Copy Value/Content"
             >
               {copiedValue ? (
@@ -507,7 +507,7 @@ export function ChannelsPage() {
                     variant="outline"
                     onClick={handleVerify}
                     disabled={verifyMutation.isPending}
-                    className="gap-1.5"
+                    className="gap-1.5 cursor-pointer"
                     id="btn-verify-domain"
                   >
                     <RefreshCw
@@ -523,7 +523,7 @@ export function ChannelsPage() {
                     setShowEmailsSection((p) => !p);
                     setShowDns(false);
                   }}
-                  className="gap-1.5"
+                  className="gap-1.5 cursor-pointer"
                   id="btn-manage-emails"
                 >
                   <Mail className="h-3.5 w-3.5" />
@@ -536,7 +536,7 @@ export function ChannelsPage() {
                     setShowDns((p) => !p);
                     setShowEmailsSection(false);
                   }}
-                  className="gap-1.5"
+                  className="gap-1.5 cursor-pointer"
                   id="btn-toggle-dns"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -548,6 +548,7 @@ export function ChannelsPage() {
                     variant="destructive"
                     onClick={handleDelete}
                     disabled={deleteMutation.isPending}
+                    className="cursor-pointer"
                     id="btn-confirm-delete-channel"
                   >
                     {deleteMutation.isPending ? "Deleting…" : "Confirm Delete"}
@@ -557,7 +558,7 @@ export function ChannelsPage() {
                     size="sm"
                     variant="ghost"
                     onClick={handleDelete}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                     id="btn-delete-channel"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -614,7 +615,7 @@ export function ChannelsPage() {
           <button
             type="button"
             onClick={() => navigate("/dashboard/channels/email")}
-            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 p-8 group"
+            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 p-8 group cursor-pointer"
             id="btn-add-email-channel"
           >
             <div className="flex flex-col items-center gap-3">
@@ -668,7 +669,7 @@ export function ChannelsPage() {
                   size="sm"
                   variant="ghost"
                   onClick={() => setShowWhatsAppInfo((p) => !p)}
-                  className="gap-1.5"
+                  className="gap-1.5 cursor-pointer"
                   id="btn-toggle-whatsapp-info"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -680,6 +681,7 @@ export function ChannelsPage() {
                     variant="destructive"
                     onClick={handleDeleteWhatsApp}
                     disabled={deleteMutation.isPending}
+                    className="cursor-pointer"
                     id="btn-confirm-delete-whatsapp"
                   >
                     {deleteMutation.isPending ? "Deleting…" : "Confirm Delete"}
@@ -689,7 +691,7 @@ export function ChannelsPage() {
                     size="sm"
                     variant="ghost"
                     onClick={handleDeleteWhatsApp}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                     id="btn-delete-whatsapp"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -732,7 +734,7 @@ export function ChannelsPage() {
           <button
             type="button"
             onClick={() => navigate("/dashboard/channels/whatsapp")}
-            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-200 p-8 group"
+            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all duration-200 p-8 group cursor-pointer"
             id="btn-add-whatsapp-channel"
           >
             <div className="flex flex-col items-center gap-3">
@@ -786,7 +788,7 @@ export function ChannelsPage() {
                   size="sm"
                   variant="ghost"
                   onClick={() => setShowTelegramInfo((p) => !p)}
-                  className="gap-1.5"
+                  className="gap-1.5 cursor-pointer"
                   id="btn-toggle-telegram-info"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
@@ -798,6 +800,7 @@ export function ChannelsPage() {
                     variant="destructive"
                     onClick={handleDeleteTelegram}
                     disabled={deleteMutation.isPending}
+                    className="cursor-pointer"
                     id="btn-confirm-delete-telegram"
                   >
                     {deleteMutation.isPending ? "Deleting…" : "Confirm Delete"}
@@ -807,7 +810,7 @@ export function ChannelsPage() {
                     size="sm"
                     variant="ghost"
                     onClick={handleDeleteTelegram}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                     id="btn-delete-telegram"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -849,7 +852,7 @@ export function ChannelsPage() {
           <button
             type="button"
             onClick={() => navigate("/dashboard/channels/telegram")}
-            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-sky-500/40 hover:bg-sky-500/5 transition-all duration-200 p-8 group"
+            className="w-full rounded-2xl border-2 border-dashed border-border bg-card hover:border-sky-500/40 hover:bg-sky-500/5 transition-all duration-200 p-8 group cursor-pointer"
             id="btn-add-telegram-channel"
           >
             <div className="flex flex-col items-center gap-3">
