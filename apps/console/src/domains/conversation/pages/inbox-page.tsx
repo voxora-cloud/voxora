@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/domains/auth/hooks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,15 +6,45 @@ import io from "socket.io-client";
 import { useConversations, useMyConversations } from "../hooks";
 import { Input } from "@/shared/ui/input";
 import { Loader } from "@/shared/ui/loader";
-import {
-  MessageCircle,
-  Search,
-  Inbox,
-  User2,
-  Mail,
-  Send,
-  Globe,
-} from "lucide-react";
+import { MessageCircle, Search, Inbox, User2 } from "lucide-react";
+
+// ── Brand SVG Icons ──────────────────────────────────────────────────────────
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#25D366" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+    <path fill="#25D366" d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.858L.057 23.428a.75.75 0 0 0 .916.916l5.57-1.476A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.896 0-3.67-.523-5.184-1.433l-.37-.22-3.307.876.876-3.308-.22-.37A9.953 9.953 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/>
+  </svg>
+);
+
+const TelegramIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#229ED9" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+  </svg>
+);
+
+const GmailIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.910 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/>
+    <path d="M0 5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.147C21.69 2.279 24 3.434 24 5.456v.48L12 13.913 0 5.936v-.479z" fill="#FBBC04"/>
+  </svg>
+);
+
+const WebIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="10" stroke="#6366f1"/>
+    <path d="M12 2a14.5 14.5 0 0 1 0 20A14.5 14.5 0 0 1 12 2" stroke="#6366f1"/>
+    <path d="M2 12h20" stroke="#6366f1"/>
+  </svg>
+);
+
+const AllChannelsIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="3" width="7" height="7" rx="1" stroke="#8b5cf6"/>
+    <rect x="15" y="3" width="7" height="7" rx="1" stroke="#06b6d4"/>
+    <rect x="2" y="14" width="7" height="7" rx="1" stroke="#10b981"/>
+    <rect x="15" y="14" width="7" height="7" rx="1" stroke="#f59e0b"/>
+  </svg>
+);
 import type { ConversationListItem } from "../types/types";
 
 const BASE_PATH = "/dashboard/conversations/inbox";
@@ -27,12 +57,48 @@ const TABS: { id: Tab; label: string; icon: typeof Inbox }[] = [
   { id: "mine", label: "Assigned to Me", icon: User2 },
 ];
 
-const CHANNEL_FILTERS = [
-  { id: "all", label: "All", icon: Inbox },
-  { id: "web", label: "Web", icon: Globe },
-  { id: "email", label: "Email", icon: Mail },
-  { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
-  { id: "telegram", label: "Telegram", icon: Send },
+const CHANNEL_FILTERS: {
+  id: string;
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  activeClass: string;
+  inactiveClass: string;
+}[] = [
+  {
+    id: "all",
+    label: "All",
+    icon: AllChannelsIcon,
+    activeClass: "bg-primary/10 ring-1 ring-primary/30",
+    inactiveClass: "hover:bg-muted/60",
+  },
+  {
+    id: "web",
+    label: "Web",
+    icon: WebIcon,
+    activeClass: "bg-indigo-100 dark:bg-indigo-900/40 ring-1 ring-indigo-300 dark:ring-indigo-700",
+    inactiveClass: "hover:bg-indigo-50 dark:hover:bg-indigo-900/20",
+  },
+  {
+    id: "email",
+    label: "Email",
+    icon: GmailIcon,
+    activeClass: "bg-red-100 dark:bg-red-900/40 ring-1 ring-red-300 dark:ring-red-700",
+    inactiveClass: "hover:bg-red-50 dark:hover:bg-red-900/20",
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    icon: WhatsAppIcon,
+    activeClass: "bg-emerald-100 dark:bg-emerald-900/40 ring-1 ring-emerald-300 dark:ring-emerald-700",
+    inactiveClass: "hover:bg-emerald-50 dark:hover:bg-emerald-900/20",
+  },
+  {
+    id: "telegram",
+    label: "Telegram",
+    icon: TelegramIcon,
+    activeClass: "bg-sky-100 dark:bg-sky-900/40 ring-1 ring-sky-300 dark:ring-sky-700",
+    inactiveClass: "hover:bg-sky-50 dark:hover:bg-sky-900/20",
+  },
 ];
 
 const getChannelValue = (conv: ConversationListItem) =>
@@ -51,29 +117,29 @@ const getChannelDisplay = (channel: string) => {
   if (channel.includes("email")) {
     return {
       label: "Email",
-      Icon: Mail,
-      className: "text-sky-600 dark:text-sky-400",
+      Icon: GmailIcon,
+      className: "text-red-500 dark:text-red-400",
     };
   }
   if (channel.includes("whatsapp")) {
     return {
       label: "WhatsApp",
-      Icon: MessageCircle,
-      className: "text-emerald-600 dark:text-emerald-400",
+      Icon: WhatsAppIcon,
+      className: "text-emerald-500 dark:text-emerald-400",
     };
   }
   if (channel.includes("telegram")) {
     return {
       label: "Telegram",
-      Icon: Send,
-      className: "text-blue-500 dark:text-blue-400",
+      Icon: TelegramIcon,
+      className: "text-sky-500 dark:text-sky-400",
     };
   }
 
   return {
     label: "Web",
-    Icon: Globe,
-    className: "text-indigo-600 dark:text-indigo-400",
+    Icon: WebIcon,
+    className: "text-indigo-500 dark:text-indigo-400",
   };
 };
 
@@ -243,20 +309,18 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
           </select>
 
           {/* Channel Filter */}
-          <div className="flex h-9 items-center rounded-md border border-input bg-background p-0.5 shadow-sm">
-            {CHANNEL_FILTERS.map(({ id, label, icon: Icon }) => (
+          <div className="flex h-9 items-center rounded-md border border-input bg-background p-0.5 shadow-sm gap-0.5">
+            {CHANNEL_FILTERS.map(({ id, label, icon: Icon, activeClass, inactiveClass }) => (
               <button
                 key={id}
                 type="button"
                 title={label}
                 onClick={() => setChannelFilter(id)}
-                className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium transition-colors cursor-pointer ${
-                  channelFilter === id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                className={`inline-flex h-7 items-center gap-1.5 rounded px-2 text-xs font-medium transition-all duration-150 cursor-pointer ${
+                  channelFilter === id ? activeClass : inactiveClass
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden lg:inline">{label}</span>
               </button>
             ))}
