@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authApi } from "@/domains/auth/api/auth.api";
 import { apiClient } from "@/shared/lib/api-client";
+import { Loader } from "@/shared/ui/loader";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader, CardDescription } from "@/shared/ui/card";
@@ -319,10 +320,14 @@ export function PlansPage() {
   const [loading, setLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidPlan>("pro");
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingEntitlements, setIsLoadingEntitlements] = useState(true);
 
   useEffect(() => {
     const orgId = authApi.getActiveOrgId();
-    if (!orgId) return;
+    if (!orgId) {
+      setIsLoadingEntitlements(false);
+      return;
+    }
 
     const loadEntitlements = async () => {
       try {
@@ -337,6 +342,8 @@ export function PlansPage() {
         setEeAvailable(Boolean(data.entitlements?.ee?.isAvailable));
       } catch {
         // Keep fallback values when entitlements endpoint is unavailable.
+      } finally {
+        setIsLoadingEntitlements(false);
       }
     };
 
@@ -376,6 +383,14 @@ export function PlansPage() {
   const plansForGrid = isSelfHost
     ? []
     : allSortedPlans.filter((p) => p.plan !== currentPlan);
+
+  if (isLoadingEntitlements) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px] w-full">
+        <Loader size="md" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center w-full pb-10">
