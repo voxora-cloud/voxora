@@ -13,17 +13,3 @@ export interface AssistRequestBody {
   draft?: string;
   mode?: "variations" | "reframe";
 }
-
-export interface AssistHttpRequest {
-  method?: string;
-  url?: string;
-  headers: Record<string, string | string[] | undefined>;
-  on(event: "data", callback: (chunk: Buffer) => void): void;
-  on(event: "end", callback: () => void): void;
-  on(event: "error", callback: (error: Error) => void): void;
-}
-
-export interface AssistHttpResponse {
-  writeHead(statusCode: number, headers?: Record<string, string>): void;
-  end(data?: string): void;
-}

@@ -14,43 +14,7 @@ import {
   ListConversationsOptions,
   RouteConversationInput,
 } from "./conversation.types";
-
-const AGENT_INTERNAL_URL = (
-  process.env.AGENT_INTERNAL_URL ||
-  process.env.AI_SERVICE_URL ||
-  "http://localhost:4010"
-).replace(/\/$/, "");
-
-async function postAgentInternal<T>(
-  path: string,
-  payload: unknown,
-): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-
-  try {
-    const response = await fetch(`${AGENT_INTERNAL_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(process.env.AI_TOOL_SECRET
-          ? { "x-ai-tool-secret": process.env.AI_TOOL_SECRET }
-          : {}),
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new Error(data?.message || "Agent internal request failed");
-    }
-
-    return (data?.data || data) as T;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+import { assistQueue } from "@shared/infra/queue";
 
 function toAssistMessages(messages: any[]) {
   return messages.map((message) => ({
@@ -230,7 +194,11 @@ export class ConversationService {
     ).lean();
   }
 
-  async suggestReply(organizationId: string, conversationId: string) {
+  async suggestReply(
+    organizationId: string,
+    conversationId: string,
+    userId: string,
+  ) {
     const result = await this.getConversationById(
       organizationId,
       conversationId,
@@ -238,19 +206,26 @@ export class ConversationService {
     if (!result) return null;
 
     const messages = (result.messages || []).slice(-10);
-    return postAgentInternal<{ suggestions: string[] }>(
-      "/internal/suggest-reply",
-      {
-        conversationId,
-        organizationId,
+    const requestId = new Types.ObjectId().toString();
+
+    await assistQueue.add("suggest-reply", {
+      action: "suggest-reply",
+      requestId,
+      userId,
+      organizationId,
+      conversationId,
+      payload: {
         messages: toAssistMessages(messages),
       },
-    );
+    });
+
+    return { requestId };
   }
 
   async generateNote(
     organizationId: string,
     conversationId: string,
+    userId: string,
     fallbackContactName?: string,
   ) {
     const result = await this.getConversationById(
@@ -265,17 +240,27 @@ export class ConversationService {
       result.conversation.metadata?.senderName ||
       fallbackContactName;
 
-    return postAgentInternal<{ note: string }>("/internal/generate-note", {
-      conversationId,
+    const requestId = new Types.ObjectId().toString();
+
+    await assistQueue.add("generate-note", {
+      action: "generate-note",
+      requestId,
+      userId,
       organizationId,
-      contactName,
-      messages: toAssistMessages(result.messages || []),
+      conversationId,
+      payload: {
+        contactName,
+        messages: toAssistMessages(result.messages || []),
+      },
     });
+
+    return { requestId };
   }
 
   async assistDraft(
     organizationId: string,
     conversationId: string,
+    userId: string,
     input: { draft?: string; mode?: "variations" | "reframe" },
   ) {
     const conversation = await Conversation.findOne({
@@ -286,12 +271,21 @@ export class ConversationService {
       .lean();
     if (!conversation) return null;
 
-    return postAgentInternal<{ options: string[] }>("/internal/draft-assist", {
-      conversationId,
+    const requestId = new Types.ObjectId().toString();
+
+    await assistQueue.add("draft-assist", {
+      action: "draft-assist",
+      requestId,
+      userId,
       organizationId,
-      draft: input.draft,
-      mode: input.mode,
+      conversationId,
+      payload: {
+        draft: input.draft,
+        mode: input.mode,
+      },
     });
+
+    return { requestId };
   }
 
   /**

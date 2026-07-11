@@ -245,6 +245,15 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     null,
   );
   const isAgentTypingRef = useRef(false);
+  const pendingRequests = useRef<
+    Map<
+      string,
+      {
+        resolve: (val: any) => void;
+        reject: (err: any) => void;
+      }
+    >
+  >(new Map());
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -312,8 +321,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     const displayEmail =
       email &&
-      email !== "anonymous@temp.local" &&
-      !email.endsWith("@anonymous.interaone")
+        email !== "anonymous@temp.local" &&
+        !email.endsWith("@anonymous.interaone")
         ? email
         : "";
 
@@ -443,6 +452,17 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       },
     );
 
+    socketInstance.on(
+      "assist:result",
+      (data: { requestId: string; action: string; data: any }) => {
+        const pending = pendingRequests.current.get(data.requestId);
+        if (pending) {
+          pendingRequests.current.delete(data.requestId);
+          pending.resolve(data.data);
+        }
+      },
+    );
+
     setSocket(socketInstance);
 
     return () => {
@@ -452,8 +472,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           sock.off("new_message");
           sock.off("customer_typing");
           sock.off("customer_stopped_typing");
+          sock.off("assist:result");
           sock.disconnect();
         }
+        pendingRequests.current.forEach((req) => req.reject(new Error("Conversation changed")));
+        pendingRequests.current.clear();
         if (isAgentTypingRef.current && sock) {
           try {
             sock.emit("typing_stop", { conversationId });
@@ -538,10 +561,23 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
     setIsSuggestLoading(true);
     try {
-      const result = await conversationsApi.suggestReply(
+      const response = await conversationsApi.suggestReply(
         conversationId,
         messages,
       );
+
+      const result = await new Promise<{ suggestions: string[] }>(
+        (resolve, reject) => {
+          pendingRequests.current.set(response.requestId, { resolve, reject });
+          setTimeout(() => {
+            if (pendingRequests.current.has(response.requestId)) {
+              pendingRequests.current.delete(response.requestId);
+              reject(new Error("Request timed out"));
+            }
+          }, 20000);
+        },
+      );
+
       setSuggestions(result.suggestions || []);
     } catch (error: any) {
       toast.error(error?.message || "Failed to generate suggestions");
@@ -560,10 +596,23 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     setIsDraftAssistLoading(true);
     setDraftAssistMode(mode);
     try {
-      const result = await conversationsApi.assistDraft(conversationId, {
+      const response = await conversationsApi.assistDraft(conversationId, {
         draft,
         mode,
       });
+
+      const result = await new Promise<{ options: string[] }>(
+        (resolve, reject) => {
+          pendingRequests.current.set(response.requestId, { resolve, reject });
+          setTimeout(() => {
+            if (pendingRequests.current.has(response.requestId)) {
+              pendingRequests.current.delete(response.requestId);
+              reject(new Error("Request timed out"));
+            }
+          }, 20000);
+        },
+      );
+
       const options = result.options || [];
       if (options.length === 0) {
         toast.error("No rewrite options generated");
@@ -585,11 +634,22 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     setIsGeneratingNote(true);
 
     try {
-      const result = await conversationsApi.generateNote(
+      const response = await conversationsApi.generateNote(
         conversationId,
         messages,
         contactDetails?.name,
       );
+
+      const result = await new Promise<{ note: string }>((resolve, reject) => {
+        pendingRequests.current.set(response.requestId, { resolve, reject });
+        setTimeout(() => {
+          if (pendingRequests.current.has(response.requestId)) {
+            pendingRequests.current.delete(response.requestId);
+            reject(new Error("Request timed out"));
+          }
+        }, 20000);
+      });
+
       return result.note || "";
     } catch (error: any) {
       toast.error(error?.message || "Failed to generate note");
@@ -967,11 +1027,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              className={`h-8 w-8 cursor-pointer rounded-md ${
-                isContactSidebarOpen
+              className={`h-8 w-8 cursor-pointer rounded-md ${isContactSidebarOpen
                   ? "bg-muted text-foreground"
                   : "text-muted-foreground"
-              }`}
+                }`}
               onClick={() => setIsContactSidebarOpen(!isContactSidebarOpen)}
               aria-label={
                 isContactSidebarOpen
@@ -994,21 +1053,19 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
         <div className="flex border-b border-border/70 bg-transparent px-4 shrink-0">
           <button
             onClick={() => setActiveTab("chat")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-              activeTab === "chat"
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === "chat"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             Chat
           </button>
           <button
             onClick={() => setActiveTab("runs")}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
-              activeTab === "runs"
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors cursor-pointer ${activeTab === "runs"
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             Agent Execution Logs
           </button>
@@ -1027,11 +1084,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                   {messages.map((message) => (
                     <div
                       key={message._id}
-                      className={`flex ${
-                        isAgentMessage(message)
+                      className={`flex ${isAgentMessage(message)
                           ? "justify-end"
                           : "justify-start"
-                      }`}
+                        }`}
                     >
                       <div
                         className={`max-w-[70%] px-4 py-3 rounded-lg ${getBubbleClass(message)}`}
@@ -1219,9 +1275,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                             slashOptionRefs.current[index] = element;
                           }}
                           type="button"
-                          className={`flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted ${
-                            index === activeSlashIndex ? "bg-muted" : ""
-                          }`}
+                          className={`flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-muted ${index === activeSlashIndex ? "bg-muted" : ""
+                            }`}
                           onMouseDown={(event) => {
                             event.preventDefault();
                             replaceSlashCommandWithTemplate(template);

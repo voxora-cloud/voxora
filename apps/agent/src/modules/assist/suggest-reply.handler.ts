@@ -1,17 +1,25 @@
 import { FallbackRouter } from "../../infrastructure/providers/routing/fallback-router";
 import { LLMMessage } from "../../infrastructure/providers/types/ai.types";
-import { AssistRequestBody } from "./types";
+import { AssistMessage, AssistRequestBody } from "./types";
 
-function normalizeMessages(messages: AssistRequestBody["messages"]): LLMMessage[] {
+function normalizeMessages(
+  messages: AssistRequestBody["messages"],
+): LLMMessage[] {
   return (messages || [])
-    .filter((message) => typeof message?.content === "string" && message.content.trim())
+    .filter(
+      (message): message is AssistMessage & { content: string } =>
+        typeof message?.content === "string" &&
+        message.content.trim().length > 0,
+    )
     .slice(-12)
     .map((message) => ({
       role:
-        message.role === "assistant" || message.role === "ai" || message.role === "agent"
-          ? "assistant"
-          : "user",
-      content: message.content!.trim(),
+        message.role === "assistant" ||
+          message.role === "ai" ||
+          message.role === "agent"
+          ? ("assistant" as const)
+          : ("user" as const),
+      content: message.content.trim(),
     }));
 }
 
@@ -38,7 +46,9 @@ function parseSuggestions(text: string): string[] {
     .slice(0, 3);
 }
 
-export async function suggestReply(body: AssistRequestBody): Promise<{ suggestions: string[] }> {
+export async function suggestReply(
+  body: AssistRequestBody,
+): Promise<{ suggestions: string[] }> {
   if (!body.conversationId || !body.organizationId) {
     throw new Error("conversationId and organizationId are required");
   }
@@ -50,7 +60,7 @@ export async function suggestReply(body: AssistRequestBody): Promise<{ suggestio
 
   const messages: LLMMessage[] = [
     {
-      role: "system",
+      role: "system" as const,
       content:
         "You are a support agent assistant. Based on the conversation below, suggest 3 short reply options, each no more than 2 sentences. Return only a JSON array of 3 strings.",
     },

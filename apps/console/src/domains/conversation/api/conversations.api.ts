@@ -68,10 +68,10 @@ class ConversationsApi {
   async suggestReply(
     conversationId: string,
     messages?: ConversationMessage[],
-  ): Promise<{ suggestions: string[] }> {
+  ): Promise<{ requestId: string }> {
     const response = await apiClient.post<{
       success: boolean;
-      data: { suggestions: string[] };
+      data: { requestId: string };
     }>(`/conversations/${conversationId}/ai/suggest-reply`, { messages });
     return response.data;
   }
@@ -80,10 +80,10 @@ class ConversationsApi {
     conversationId: string,
     messages?: ConversationMessage[],
     contactName?: string,
-  ): Promise<{ note: string }> {
+  ): Promise<{ requestId: string }> {
     const response = await apiClient.post<{
       success: boolean;
-      data: { note: string };
+      data: { requestId: string };
     }>(`/conversations/${conversationId}/ai/generate-note`, {
       messages,
       contactName,
@@ -94,10 +94,10 @@ class ConversationsApi {
   async assistDraft(
     conversationId: string,
     payload: { draft: string; mode: "variations" | "reframe" },
-  ): Promise<{ options: string[] }> {
+  ): Promise<{ requestId: string }> {
     const response = await apiClient.post<{
       success: boolean;
-      data: { options: string[] };
+      data: { requestId: string };
     }>(`/conversations/${conversationId}/ai/draft-assist`, payload);
     return response.data;
   }

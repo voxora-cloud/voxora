@@ -1,21 +1,31 @@
 import { FallbackRouter } from "../../infrastructure/providers/routing/fallback-router";
 import { LLMMessage } from "../../infrastructure/providers/types/ai.types";
-import { AssistRequestBody } from "./types";
+import { AssistMessage, AssistRequestBody } from "./types";
 
-function normalizeMessages(messages: AssistRequestBody["messages"]): LLMMessage[] {
+function normalizeMessages(
+  messages: AssistRequestBody["messages"],
+): LLMMessage[] {
   return (messages || [])
-    .filter((message) => typeof message?.content === "string" && message.content.trim())
+    .filter(
+      (message): message is AssistMessage & { content: string } =>
+        typeof message?.content === "string" &&
+        message.content.trim().length > 0,
+    )
     .slice(-30)
     .map((message) => ({
       role:
-        message.role === "assistant" || message.role === "ai" || message.role === "agent"
-          ? "assistant"
-          : "user",
-      content: message.content!.trim(),
+        message.role === "assistant" ||
+        message.role === "ai" ||
+        message.role === "agent"
+          ? ("assistant" as const)
+          : ("user" as const),
+      content: message.content.trim(),
     }));
 }
 
-export async function generateNote(body: AssistRequestBody): Promise<{ note: string }> {
+export async function generateNote(
+  body: AssistRequestBody,
+): Promise<{ note: string }> {
   if (!body.conversationId || !body.organizationId) {
     throw new Error("conversationId and organizationId are required");
   }
@@ -31,9 +41,8 @@ export async function generateNote(body: AssistRequestBody): Promise<{ note: str
 
   const messages: LLMMessage[] = [
     {
-      role: "system",
-      content:
-        `You are a CRM assistant. ${contactLine} Summarize the following customer conversation as a concise internal contact note in 2-4 sentences. Focus on what the customer wanted, the outcome, sentiment, and any follow-up action needed. Return only the note text.`,
+      role: "system" as const,
+      content: `You are a CRM assistant. ${contactLine} Summarize the following customer conversation as a concise internal contact note in 2-4 sentences. Focus on what the customer wanted, the outcome, sentiment, and any follow-up action needed. Return only the note text.`,
     },
     ...conversationMessages,
   ];

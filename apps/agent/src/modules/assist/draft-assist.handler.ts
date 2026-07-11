@@ -44,8 +44,8 @@ export async function assistDraft(
       : "You create alternative support-agent draft messages. Keep the same meaning, make each option clear and professional, and vary wording naturally. Return only a JSON array of 3 strings.";
 
   const messages: LLMMessage[] = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: draft },
+    { role: "system" as const, content: systemPrompt },
+    { role: "user" as const, content: draft },
   ];
 
   const result = await FallbackRouter.generate(messages, {
@@ -53,5 +53,7 @@ export async function assistDraft(
     maxTokens: mode === "reframe" ? 220 : 420,
   });
 
-  return { options: parseDraftOptions(result.text, mode === "reframe" ? 1 : 3) };
+  return {
+    options: parseDraftOptions(result.text, mode === "reframe" ? 1 : 3),
+  };
 }
