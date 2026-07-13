@@ -258,6 +258,7 @@ export function WidgetPage() {
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem]">
         {/* Main content column */}
         <main className="min-w-0 space-y-5">
+          <div data-tour-id="page-widget-features">
           <WidgetAdvancedConfigForm
             formData={formData}
             onChange={setFormData}
@@ -272,8 +273,9 @@ export function WidgetPage() {
               />
             }
           />
+          </div>
 
-          <section className="space-y-3">
+          <section className="space-y-3" data-tour-id="page-widget-features">
             <h2 className="text-base font-semibold text-foreground">Features</h2>
             <WidgetSuggestionsForm
               suggestions={formData.suggestions}
@@ -283,7 +285,7 @@ export function WidgetPage() {
         </main>
 
         {/* Sticky sidebar column */}
-        <aside className="xl:sticky xl:top-6">
+        <aside className="xl:sticky xl:top-6" data-tour-id="page-widget-actions">
           <WidgetActionsPanel
             formData={formData}
             isSaving={saveWidget.isPending}

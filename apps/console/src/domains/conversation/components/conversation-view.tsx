@@ -938,7 +938,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden bg-transparent">
+    <div
+      className="flex h-full min-h-0 w-full gap-3 overflow-hidden bg-transparent"
+      data-tour-id="page-conversation-detail"
+    >
       {/* Left Chat / Runs Column */}
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         {/* Header */}

@@ -90,7 +90,7 @@ export function AgentDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div data-tour-id="page-dashboard-heading">
         <h1 className="text-3xl font-bold">Agent Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Your personal workload and performance
@@ -98,7 +98,7 @@ export function AgentDashboard() {
       </div>
 
       {/* Personal Workload */}
-      <div>
+      <div data-tour-id="page-dashboard-metrics">
         <h2 className="text-xl font-semibold mb-4">My Workload</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
@@ -133,7 +133,7 @@ export function AgentDashboard() {
       </div>
 
       {/* My Activity */}
-      <div>
+      <div data-tour-id="page-dashboard-charts">
         <h2 className="text-xl font-semibold mb-4">My Activity</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="p-6">

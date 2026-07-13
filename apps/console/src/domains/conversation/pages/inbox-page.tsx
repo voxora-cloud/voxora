@@ -260,7 +260,7 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-6 border-b border-border bg-card/50">
+      <div className="p-6 border-b border-border bg-card/50" data-tour-id="page-inbox-heading">
         <div className="flex items-center gap-3 mb-1">
           <Inbox className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold text-foreground">Inbox</h1>
@@ -272,7 +272,7 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
 
       {/* Tab + Search bar */}
       <div className="flex items-center gap-2.5 px-4 pt-4 pb-2 border-b border-border flex-wrap">
-        <div className="flex rounded-md border border-input bg-background p-0.5 gap-0.5 shrink-0">
+        <div className="flex rounded-md border border-input bg-background p-0.5 gap-0.5 shrink-0" data-tour-id="page-inbox-tabs">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -295,7 +295,7 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 ml-auto flex-wrap w-full md:w-auto">
+        <div className="flex items-center gap-2 ml-auto flex-wrap w-full md:w-auto" data-tour-id="page-inbox-search">
           {/* Status Filter */}
           <select
             value={statusFilter}
@@ -351,7 +351,7 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto divide-y divide-border bg-background">
+      <div className="flex-1 overflow-y-auto divide-y divide-border bg-background" data-tour-id="page-inbox-list">
         {isLoading ? (
           <div className="flex items-center justify-center h-48">
             <Loader size="sm" />

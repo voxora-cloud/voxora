@@ -179,21 +179,21 @@ export function KnowledgeStaticPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center" data-tour-id="page-knowledge-static-heading">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Knowledge Base</h1>
           <p className="text-sm text-muted-foreground mt-1">
             PDFs, DOCX files, plain text, and curated FAQs indexed into your vector database
           </p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="cursor-pointer">
+        <Button data-tour-id="page-knowledge-static-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
           <Plus className="h-4 w-4 mr-2" />
           Add Knowledge
         </Button>
       </div>
 
       <Tabs defaultValue="documents" className="w-full">
-        <TabsList className="grid w-80 grid-cols-2 mb-6">
+        <TabsList className="grid w-80 grid-cols-2 mb-6" data-tour-id="page-knowledge-static-tabs">
           <TabsTrigger value="documents" className="cursor-pointer">
             Documents
           </TabsTrigger>
@@ -202,7 +202,7 @@ export function KnowledgeStaticPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="documents" className="space-y-4">
+        <TabsContent value="documents" className="space-y-4" data-tour-id="page-knowledge-static-list">
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[300px]">
               <div className="text-center">
@@ -238,7 +238,7 @@ export function KnowledgeStaticPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="faqs" className="space-y-4">
+        <TabsContent value="faqs" className="space-y-4" data-tour-id="page-knowledge-static-list">
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[300px]">
               <div className="text-center">

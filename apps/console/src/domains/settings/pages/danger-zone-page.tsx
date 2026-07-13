@@ -42,14 +42,14 @@ export function DangerZonePage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div data-tour-id="page-danger-zone-heading">
         <h1 className="text-2xl font-bold text-foreground">Danger Zone</h1>
         <p className="text-muted-foreground mt-1">
           Sensitive operations that can permanently affect your organization.
         </p>
       </div>
 
-      <div className="bg-card rounded-xl border border-red-500/20 overflow-hidden shadow-sm">
+      <div className="bg-card rounded-xl border border-red-500/20 overflow-hidden shadow-sm" data-tour-id="page-danger-zone-action">
           <div className="p-6">
             <div className="flex items-center gap-3 text-red-500 mb-4">
               <AlertTriangle className="h-5 w-5" />

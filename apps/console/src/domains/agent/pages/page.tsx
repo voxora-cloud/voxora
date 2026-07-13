@@ -37,7 +37,7 @@ export function AgentsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="space-y-2">
+      <div className="space-y-2" data-tour-id="page-agents-heading">
         <h1 className="text-2xl font-bold">Agents</h1>
         <p className="text-muted-foreground">
           View and manage agent details. To invite new members, go to the{" "}
@@ -50,6 +50,7 @@ export function AgentsPage() {
 
       {/* Agent Table or Empty State */}
       {agents.length > 0 ? (
+        <div data-tour-id="page-agents-table">
         <FilterableAgentTable
           agents={agents}
           onViewDetails={(agent) => {
@@ -58,8 +59,9 @@ export function AgentsPage() {
           }}
           onResendInvite={handleResendInvite}
         />
+        </div>
       ) : (
-        <div className="p-12 text-center border rounded-lg border-dashed">
+        <div className="p-12 text-center border rounded-lg border-dashed" data-tour-id="page-agents-table">
           <div className="mx-auto w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
             <User className="h-6 w-6 text-muted-foreground" />
           </div>
