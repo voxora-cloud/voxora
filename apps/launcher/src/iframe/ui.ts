@@ -1,5 +1,5 @@
 import { parseMarkdown } from './utils/markdown';
-import { state } from './config';
+import { PROTO_VERSION, state } from './config';
 import { INTERAONE_LOGO_SVG } from '../shared/assets';
 export { INTERAONE_LOGO_SVG };
 
@@ -267,9 +267,26 @@ export function adjustTextareaHeight() {
   elements.messageInput.style.maxHeight = "20px";
 }
 
+function reportConversationState(started: boolean) {
+  if (!window.parent) return;
+  window.parent.postMessage(
+    { type: 'CONVERSATION_STATE', version: PROTO_VERSION, payload: { started } },
+    state.parentOrigin || '*',
+  );
+}
+
+export function showWelcomeScreen() {
+  if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'flex';
+  if (elements.suggestionsContainer) elements.suggestionsContainer.style.display = '';
+  if (elements.messagesContainer) elements.messagesContainer.style.display = 'none';
+  reportConversationState(false);
+}
+
 export function hideWelcomeScreen() {
   if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'none';
+  if (elements.suggestionsContainer) elements.suggestionsContainer.style.display = 'none';
   if (elements.messagesContainer) elements.messagesContainer.style.display = 'flex';
+  reportConversationState(true);
 }
 
 let _scrollFrameId: number | null = null;

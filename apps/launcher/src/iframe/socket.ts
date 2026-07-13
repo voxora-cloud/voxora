@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 import { state, API_BASE_URL, type StreamingMessage } from './config';
-import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel } from './ui';
+import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel, showWelcomeScreen } from './ui';
 import { parseMarkdown, parseStreamingMarkdown } from './utils/markdown';
 import { showOutcomeOverlay } from './events';
 
@@ -359,6 +359,7 @@ function resetConversationToNew() {
   if (elements.messagesContainer) {
     elements.messagesContainer.innerHTML = '';
   }
+  showWelcomeScreen();
 
   setComposerEnabled(true, 'Type your message...');
   if (elements.messageInput) {
@@ -366,7 +367,6 @@ function resetConversationToNew() {
     elements.messageInput.focus();
   }
 
-  addSystemNotice('Started a new conversation. Ask anything and we will help you.');
 }
 
 function showOutcomePanel() {

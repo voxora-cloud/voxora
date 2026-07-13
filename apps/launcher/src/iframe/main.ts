@@ -1,5 +1,5 @@
 import { state, PROTO_VERSION, API_BASE_URL, normalizeInteractionSource } from './config';
-import { elements, adjustTextareaHeight, renderMaximizeIcon, addMessage, showTyping, hideTyping, showOpenSkeleton, INTERAONE_LOGO_SVG } from './ui';
+import { elements, adjustTextareaHeight, renderMaximizeIcon, addMessage, showTyping, hideTyping, showOpenSkeleton, showWelcomeScreen, hideWelcomeScreen, INTERAONE_LOGO_SVG } from './ui';
 import { bootstrapSession } from './api';
 import { initializeSocket } from './socket';
 import { setupEventListeners } from './events';
@@ -174,7 +174,6 @@ function setActiveTab(tab: WidgetTab) {
 
   const inputArea = document.querySelector('.input-area') as HTMLElement | null;
   const messagesContainer = elements.messagesContainer as HTMLElement | null;
-  const welcomeScreen = elements.welcomeScreen as HTMLElement | null;
   const historyOverlay = elements.historyOverlay as HTMLElement | null;
 
   if (tab === 'history') {
@@ -183,7 +182,7 @@ function setActiveTab(tab: WidgetTab) {
     if (elements.historyBtn) elements.historyBtn.click();
     if (inputArea) inputArea.style.display = 'none';
     if (messagesContainer) messagesContainer.style.display = 'none';
-    if (welcomeScreen) welcomeScreen.style.display = 'none';
+    if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'none';
     return;
   }
 
@@ -193,9 +192,12 @@ function setActiveTab(tab: WidgetTab) {
   if (elements.historySearch) elements.historySearch.value = '';
 
   if (inputArea) inputArea.style.display = '';
-  const hasMessages = !!(messagesContainer && messagesContainer.childElementCount > 0);
-  if (messagesContainer) messagesContainer.style.display = hasMessages ? 'flex' : 'none';
-  if (welcomeScreen) welcomeScreen.style.display = hasMessages ? 'none' : 'flex';
+  const hasConversation = !!state.chatId || !!messagesContainer?.querySelector('.message');
+  if (hasConversation) {
+    hideWelcomeScreen();
+  } else {
+    showWelcomeScreen();
+  }
 }
 
 async function handleInitWidget(payload: any) {
@@ -234,6 +236,7 @@ async function handleInitWidget(payload: any) {
 
 document.addEventListener("DOMContentLoaded", function () {
   setupEventListeners();
+  showWelcomeScreen();
 
   if (elements.minimizeBtn) elements.minimizeBtn.addEventListener('click', minimizeWidget);
   if (elements.maximizeBtn) {

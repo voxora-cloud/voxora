@@ -144,12 +144,25 @@ export interface RequestPageHtmlMessage {
   version: typeof PROTOCOL_VERSION;
 }
 
+/**
+ * CONVERSATION_STATE — keeps launcher-level quick suggestions in sync with
+ * the conversation rendered inside the iframe.
+ */
+export interface ConversationStateMessage {
+  type: 'CONVERSATION_STATE';
+  version: typeof PROTOCOL_VERSION;
+  payload: {
+    started: boolean;
+  };
+}
+
 export type IframeToParentMessage =
   | WidgetReadyMessage
   | CloseWidgetMessage
   | OpenWidgetMessage
   | ResizeWidgetMessage
-  | RequestPageHtmlMessage;
+  | RequestPageHtmlMessage
+  | ConversationStateMessage;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
