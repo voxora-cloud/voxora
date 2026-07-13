@@ -8,8 +8,23 @@ function clearWidgetStateChrome() {
   document.getElementById('conversationStateBanner')?.remove();
   document.getElementById('conv-closed-banner')?.remove();
   document.getElementById('vx-outcome-overlay')?.remove();
+  document.documentElement.classList.remove('is-history-open');
+  document.body.classList.remove('is-history-open');
+  const inputArea = document.querySelector('.input-area') as HTMLElement | null;
+  if (inputArea) inputArea.style.display = '';
   const chatInputBox = document.getElementById('chatInputBox');
-  if (chatInputBox) chatInputBox.style.display = 'block';
+  if (chatInputBox) chatInputBox.style.display = '';
+}
+
+function setHistoryMode(active: boolean) {
+  if (elements.historyOverlay) elements.historyOverlay.style.display = active ? 'flex' : 'none';
+  document.documentElement.classList.toggle('is-history-open', active);
+  document.body.classList.toggle('is-history-open', active);
+
+  const inputArea = document.querySelector('.input-area') as HTMLElement | null;
+  if (inputArea) inputArea.style.display = active ? 'none' : '';
+
+  if (!active && elements.historySearch) elements.historySearch.value = '';
 }
 
 function setComposerEnabled(enabled: boolean, placeholder?: string) {
@@ -22,6 +37,8 @@ function setComposerEnabled(enabled: boolean, placeholder?: string) {
   }
 
   if (elements.sendBtn) {
+    elements.sendBtn.classList.remove('is-processing');
+    elements.sendBtn.setAttribute('aria-busy', 'false');
     if (!enabled) {
       elements.sendBtn.disabled = true;
     } else {
@@ -251,7 +268,7 @@ export function setupEventListeners() {
   if (elements.historyBtn && elements.historyOverlay && elements.closeHistoryBtn) {
     // Open history
     elements.historyBtn.addEventListener('click', async () => {
-      elements.historyOverlay!.style.display = 'flex';
+      setHistoryMode(true);
       renderHistoryList([]);
       renderHistoryLoading();
       try {
@@ -271,8 +288,7 @@ export function setupEventListeners() {
 
     // Close / back
     elements.closeHistoryBtn.addEventListener('click', () => {
-      elements.historyOverlay!.style.display = 'none';
-      if (elements.historySearch) elements.historySearch.value = '';
+      setHistoryMode(false);
     });
 
     // Search filter
@@ -599,21 +615,23 @@ function renderHistoryList(convs: any[]) {
 
   elements.historyList.innerHTML = '';
 
-  convs.forEach((c: any, idx: number) => {
+  convs.forEach((c: any) => {
     const msgRaw: string = (c.lastMessage?.content || c.lastMessage || 'No messages').trim();
     const msg = stripMarkdown(msgRaw) || msgRaw;
     const preview = msg.length > 100 ? msg.substring(0, 100) + '…' : msg;
     // Use first meaningful text as "title"
-    const titleRaw = c.subject || msgRaw;
+    const genericSubjects = ['new conversation from widget', 'new conversation', 'untitled conversation'];
+    const subject = String(c.subject || '').trim();
+    const titleRaw = subject && !genericSubjects.includes(subject.toLowerCase()) ? subject : msgRaw;
     const title = titleRaw.length > 48 ? titleRaw.substring(0, 48) + '…' : titleRaw;
     const status = (c.status || 'open').toLowerCase();
     const statusClass = status === 'closed' ? 'status-closed' : status === 'resolved' ? 'status-resolved' : 'status-open';
     const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
     const lastUpdated = formatHistoryDateTime(c.updatedAt || c.createdAt);
 
-    const el = document.createElement('div');
+    const el = document.createElement('button');
+    el.type = 'button';
     el.className = 'history-item';
-    el.style.animationDelay = `${idx * 40}ms`;
     el.innerHTML = `
       <div class="history-item-top">
         <div class="history-item-title">${escapeHtmlInline(title)}</div>
@@ -637,8 +655,7 @@ function renderHistoryList(convs: any[]) {
       state._streamMessages.clear();
       state._completedStreamMessageIds.clear();
       clearWidgetStateChrome();
-      elements.historyOverlay!.style.display = 'none';
-      if (elements.historySearch) (elements.historySearch as any).value = '';
+      setHistoryMode(false);
       elements.messagesContainer!.innerHTML = `
         <div class="history-state">
           <div class="history-state-icon">
@@ -686,9 +703,7 @@ function renderHistoryList(convs: any[]) {
 
 export function startNewConversation() {
   // Close history overlay
-  if (elements.historyOverlay) elements.historyOverlay.style.display = 'none';
-  const searchEl = document.getElementById('historySearch') as HTMLInputElement | null;
-  if (searchEl) searchEl.value = '';
+  setHistoryMode(false);
 
   clearWidgetStateChrome();
 
@@ -761,7 +776,7 @@ export function showOutcomeOverlay(status: 'closed' | 'resolved') {
   // Bind the New Chat button handler
   document.getElementById('overlayNewChatBtn')?.addEventListener('click', () => {
     // 4. Restore composer/input box display when a new chat starts
-    if (chatInputBox) chatInputBox.style.display = 'block';
+    if (chatInputBox) chatInputBox.style.display = '';
     overlay.remove();
     startNewConversation();
   }, { once: true });

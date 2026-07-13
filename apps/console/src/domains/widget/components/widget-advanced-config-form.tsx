@@ -379,6 +379,14 @@ export function WidgetAdvancedConfigForm({
               <SelectItem value="polka">Purple Polka Dots</SelectItem>
               <SelectItem value="radial-stripes">Radial Stripes</SelectItem>
               <SelectItem value="plaid">Plaid Grid</SelectItem>
+              <SelectItem value="diagonal-lines">Diagonal Lines</SelectItem>
+              <SelectItem value="waves">Waves</SelectItem>
+              <SelectItem value="circuit">Circuit Board</SelectItem>
+              <SelectItem value="blueprint">Blueprint Grid</SelectItem>
+              <SelectItem value="carbon">Carbon Weave</SelectItem>
+              <SelectItem value="aurora">Aurora Glow</SelectItem>
+              <SelectItem value="confetti">Confetti Dots</SelectItem>
+              <SelectItem value="topography">Topography Lines</SelectItem>
             </SelectContent>
           </Select>
         </FieldRow>

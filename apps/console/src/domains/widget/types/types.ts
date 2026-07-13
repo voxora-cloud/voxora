@@ -1,7 +1,26 @@
 export interface WidgetAppearanceSettings {
   theme: "dark" | "light";
   welcomeMessage: string;
-  pattern?: "none" | "uiverse-alexruix" | "dots" | "grid" | "island" | "3d-cubes" | "checkerboard" | "hexagonal" | "polka" | "radial-stripes" | "plaid";
+  pattern?:
+    | "none"
+    | "uiverse-alexruix"
+    | "dots"
+    | "grid"
+    | "island"
+    | "3d-cubes"
+    | "checkerboard"
+    | "hexagonal"
+    | "polka"
+    | "radial-stripes"
+    | "plaid"
+    | "diagonal-lines"
+    | "waves"
+    | "circuit"
+    | "blueprint"
+    | "carbon"
+    | "aurora"
+    | "confetti"
+    | "topography";
 }
 
 export interface WidgetBehaviorSettings {

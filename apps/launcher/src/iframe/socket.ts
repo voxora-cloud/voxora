@@ -22,6 +22,8 @@ export function setAiResponding(responding: boolean) {
     }
   }
   if (elements.sendBtn) {
+    elements.sendBtn.classList.toggle('is-processing', responding);
+    elements.sendBtn.setAttribute('aria-busy', responding ? 'true' : 'false');
     elements.sendBtn.disabled = responding || !elements.messageInput?.value.trim();
   }
 }
@@ -328,6 +330,8 @@ function setComposerEnabled(enabled: boolean, placeholder?: string) {
   }
 
   if (elements.sendBtn) {
+    elements.sendBtn.classList.remove('is-processing');
+    elements.sendBtn.setAttribute('aria-busy', 'false');
     if (!enabled) {
       elements.sendBtn.disabled = true;
     } else {
@@ -696,7 +700,7 @@ function bindSocketEvents() {
       // Remove overlay if present
       document.getElementById('vx-outcome-overlay')?.remove();
       const chatInputBox = document.getElementById('chatInputBox');
-      if (chatInputBox) chatInputBox.style.display = 'block';
+      if (chatInputBox) chatInputBox.style.display = '';
 
       showStateBanner('human', 'Connecting with support', 'Our team will be with you shortly...');
       setComposerEnabled(true, 'Reply to support...');

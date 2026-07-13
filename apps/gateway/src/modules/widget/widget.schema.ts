@@ -1,5 +1,27 @@
 import Joi from "joi";
 
+const widgetPatternValues = [
+  "none",
+  "uiverse-alexruix",
+  "dots",
+  "grid",
+  "island",
+  "3d-cubes",
+  "checkerboard",
+  "hexagonal",
+  "polka",
+  "radial-stripes",
+  "plaid",
+  "diagonal-lines",
+  "waves",
+  "circuit",
+  "blueprint",
+  "carbon",
+  "aurora",
+  "confetti",
+  "topography",
+] as const;
+
 const pageRuleSchema = Joi.string()
   .trim()
   .min(1)
@@ -35,7 +57,7 @@ const pageRuleSchema = Joi.string()
 const appearanceSchema = Joi.object({
   theme: Joi.string().valid("dark", "light").required(),
   welcomeMessage: Joi.string().min(1).max(500).required(),
-  pattern: Joi.string().valid("none", "uiverse-alexruix", "dots", "grid", "island", "3d-cubes", "checkerboard", "hexagonal", "polka", "radial-stripes", "plaid").optional().default("none"),
+  pattern: Joi.string().valid(...widgetPatternValues).optional().default("none"),
 }).options({ stripUnknown: true });
 
 const behaviorSchema = Joi.object({
