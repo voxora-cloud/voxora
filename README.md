@@ -31,7 +31,7 @@
 <br/>
 
 <p align="center">
-  <img width="1536" height="1024" alt="InteraOne Dashboard" src="https://github.com/user-attachments/assets/671150cc-bb07-4e53-8d8b-12fced32559b" />
+  <img width="1536" height="1024" alt="InteraOne Dashboard" src="https://github.com/user-attachments/assets/1a086652-f7ba-457f-aba1-b4d59c873ebc" />
 </p>
 
 <hr/>
