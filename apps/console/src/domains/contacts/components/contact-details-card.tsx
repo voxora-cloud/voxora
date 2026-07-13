@@ -217,7 +217,7 @@ export function ContactDetailsCard({
               <button
                 key={tag}
                 onClick={() => handleRemoveTag(tag)}
-                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
               >
                 {tag}
               </button>
@@ -339,7 +339,7 @@ export function ContactDetailsCard({
                 onClick={() =>
                   navigate(`/dashboard/conversations/inbox/chat/${conversation.id}`)
                 }
-                className="w-full rounded-md border border-border bg-background/60 p-2.5 text-left text-sm transition-colors hover:bg-muted/40"
+                className="w-full rounded-md border border-border bg-background/60 p-2.5 text-left text-sm transition-colors hover:bg-muted/40 cursor-pointer"
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-1.5">

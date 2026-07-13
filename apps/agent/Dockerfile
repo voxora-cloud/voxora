@@ -28,11 +28,11 @@ WORKDIR /app
 COPY package.json ./
 RUN pnpm install --prod
 
-COPY --from=builder /app/dist ./dist
-
 # Install Playwright browser and system dependencies
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/ms-playwright
 RUN npx playwright install --with-deps chromium
+
+COPY --from=builder /app/dist ./dist
 
 # Create non-root user
 RUN groupadd -g 1001 nodejs && \

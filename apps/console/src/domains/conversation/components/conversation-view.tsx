@@ -1135,7 +1135,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       size="sm"
                       onClick={handleSuggestReply}
                       disabled={isSuggestLoading || messages.length === 0}
-                      className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300"
+                      className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300 cursor-pointer"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
                       {isSuggestLoading ? "Suggesting" : "Suggest"}
@@ -1146,7 +1146,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       size="sm"
                       onClick={() => handleDraftAssist("variations")}
                       disabled={isDraftAssistLoading || !newMessage.trim()}
-                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 focus-visible:ring-blue-300 disabled:bg-blue-50 disabled:text-blue-700"
+                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 focus-visible:ring-blue-300 disabled:bg-blue-50 disabled:text-blue-700 cursor-pointer"
                       title={
                         newMessage.trim()
                           ? "Generate draft variations"
@@ -1162,7 +1162,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       size="sm"
                       onClick={() => handleDraftAssist("reframe")}
                       disabled={isDraftAssistLoading || !newMessage.trim()}
-                      className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-300 disabled:bg-emerald-50 disabled:text-emerald-700"
+                      className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-300 disabled:bg-emerald-50 disabled:text-emerald-700 cursor-pointer"
                       title={
                         newMessage.trim()
                           ? "Reframe this draft"

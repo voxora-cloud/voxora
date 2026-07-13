@@ -370,7 +370,7 @@ export function TicketsPage() {
             <select
               value={priorityFilter}
               onChange={(e) => { setPriorityFilter(e.target.value); setCurrentPage(1); }}
-              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="">All Priorities</option>
               <option value="low">Low</option>
@@ -381,7 +381,7 @@ export function TicketsPage() {
             <select
               value={assignedToFilter}
               onChange={(e) => { setAssignedToFilter(e.target.value); setCurrentPage(1); }}
-              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="h-8 rounded-md border border-input bg-background px-3 py-1 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
             >
               <option value="">All Assignments</option>
               <option value="unassigned">Unassigned</option>

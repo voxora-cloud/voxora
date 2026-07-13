@@ -303,7 +303,7 @@ export function WidgetAdvancedConfigForm({
             <button
               type="button"
               onClick={() => updateAppearance("theme", "light")}
-              className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all ${
+              className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all cursor-pointer ${
                 formData.appearance.theme === "light"
                   ? "border-primary/40 bg-primary/5 ring-1 ring-primary/15"
                   : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
@@ -322,7 +322,7 @@ export function WidgetAdvancedConfigForm({
             <button
               type="button"
               onClick={() => updateAppearance("theme", "dark")}
-              className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all ${
+              className={`flex items-center gap-3 rounded-xl border p-4 text-left transition-all cursor-pointer ${
                 formData.appearance.theme === "dark"
                   ? "border-primary/40 bg-primary/5 ring-1 ring-primary/15"
                   : "border-border/60 bg-muted/20 hover:border-border hover:bg-muted/40"
@@ -357,7 +357,7 @@ export function WidgetAdvancedConfigForm({
           >
             <SelectTrigger
               id="backgroundPattern"
-              className="h-10 rounded-lg border-border bg-background shadow-none focus:ring-2 focus:ring-primary/20"
+              className="h-10 rounded-lg border-border bg-background shadow-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
             >
               <SelectValue placeholder="Select a background pattern" />
             </SelectTrigger>
