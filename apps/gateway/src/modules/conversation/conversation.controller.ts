@@ -195,11 +195,7 @@ export const routeConversation = asyncHandler(
           reason: reason || "Manual routing",
           timestamp: new Date(),
         };
-        sm.emitToUser?.(
-          result.selectedAgentId.toString(),
-          "new_widget_conversation",
-          payload,
-        );
+
         sm.emitToConversation(conversationId, "conversation_escalated", {
           conversationId,
           reason: reason || "Transferred to another agent",
@@ -437,18 +433,7 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     // Fire real-time events for assigned agent & conversation room
     if (sm && result.selectedAgentId) {
       try {
-        sm.emitToUser?.(
-          result.selectedAgentId.toString(),
-          "new_widget_conversation",
-          {
-            conversationId,
-            subject: result.originalConversation?.subject,
-            routedTo: result.selectedAgentId,
-            agentName: result.agentName,
-            reason: reason || "AI escalation",
-            timestamp: new Date(),
-          },
-        );
+
         sm.emitToConversation(conversationId, "conversation_escalated", {
           conversationId,
           reason: reason || "AI escalated this conversation to a human agent",

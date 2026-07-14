@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { Widget, Conversation, Membership } from "@shared/models";
+import { Widget, Conversation, Membership, Message } from "@shared/models";
 import logger from "@shared/core/logger";
 import {
   enqueueDomainVerificationPendingEmail,
@@ -655,8 +655,6 @@ export class WidgetService {
         widgetKey: InteraOnePublicKey || null,
         source: "widget",
         interactionSource,
-        department: null,
-        routingStrategy: "auto",
       },
     });
 
@@ -668,7 +666,6 @@ export class WidgetService {
       "system",
       {
         isAnonymous: true,
-        department: null,
         initialMessageLength: message.length,
         source: interactionSource,
       },
@@ -679,47 +676,106 @@ export class WidgetService {
       },
     );
 
-    const sm = getSocketManager();
-    if (sm) {
-      const payload = {
-        conversationId: conversation._id,
-        subject: conversation.subject,
-        message,
-        timestamp: new Date(),
-        priority: conversation.priority,
-        status: conversation.status,
-      };
-
-      try {
-        sm.emitToOrg(
-          organizationId.toString(),
-          "new_widget_conversation",
-          payload,
-        );
-        logger.info(
-          `Emitted 'new_widget_conversation' for ${conversation._id} to org ${organizationId}`,
-        );
-      } catch (emitErr: any) {
-        logger.error(
-          `Failed to emit 'new_widget_conversation': ${emitErr?.message || emitErr}`,
-        );
-      }
-    } else {
-      logger.warn(
-        "Socket manager instance not available; cannot emit new_widget_conversation",
-      );
-    }
-
     return {
       conversationId: conversation.id,
       sessionId,
       isAnonymous: true,
       assignedTo: assignedAgentId,
       assignedAgent: assignedAgentId,
-      metadata: {
-        department: null,
-        routingStrategy: "auto",
-      },
+      metadata: {},
     };
+  }
+
+  async getWidgetConversations(organizationId: string, sessionId: string): Promise<any[]> {
+    const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
+    const conversations = await Conversation.find({
+      organizationId,
+      sessionId,
+      "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
+      status: { $ne: "closed" },
+    })
+      .select("_id subject status createdAt updatedAt sessionId assignedTo metadata")
+      .populate("assignedTo", "name email")
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .lean();
+
+    return Promise.all(
+      conversations.map(async (conv) => {
+        const lastMessage = await Message.findOne({
+          conversationId: conv._id,
+        })
+          .sort({ createdAt: -1 })
+          .select("content createdAt")
+          .lean();
+
+        const agentName =
+          conv.assignedTo && typeof conv.assignedTo === "object"
+            ? (conv.assignedTo as any).name
+            : null;
+
+        return {
+          _id: conv._id,
+          id: conv._id,
+          subject: conv.subject,
+          status: conv.status,
+          createdAt: conv.createdAt,
+          updatedAt: conv.updatedAt,
+          assignedTo:
+            conv.assignedTo && typeof conv.assignedTo === "object"
+              ? (conv.assignedTo as any)._id
+              : conv.assignedTo,
+          assignedAgent: agentName,
+          lastMessage: lastMessage
+            ? {
+                content: lastMessage.content,
+                createdAt: lastMessage.createdAt,
+              }
+            : null,
+          lastMessageAt: lastMessage?.createdAt || conv.createdAt,
+        };
+      })
+    );
+  }
+
+  async getConversationMessages(
+    organizationId: string,
+    conversationId: string,
+    sessionId: string
+  ): Promise<any[]> {
+    const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      organizationId,
+      sessionId,
+      "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
+    });
+
+    if (!conversation) {
+      throw createServiceError("Conversation not found", 404);
+    }
+
+    const messages = await Message.find({
+      conversationId,
+    })
+      .sort({ createdAt: 1 })
+      .select("senderId content type metadata createdAt")
+      .lean();
+
+    return messages.map((msg) => ({
+      content: msg.content,
+      type: msg.type,
+      sender: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(
+        msg.metadata?.source
+      )
+        ? "visitor"
+        : "agent",
+      senderId: msg.senderId,
+      senderName: msg.metadata?.senderName || "Unknown",
+      senderEmail: msg.metadata?.senderEmail,
+      timestamp: msg.createdAt,
+      createdAt: msg.createdAt,
+      metadata: msg.metadata || {},
+    }));
   }
 }

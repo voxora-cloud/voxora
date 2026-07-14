@@ -237,73 +237,9 @@ export const getWidgetConversations = asyncHandler(
         return sendError(res, 401, "Invalid widget session");
       }
 
-      const conversations = await Conversation.find({
-        organizationId: widgetSession.organizationId,
+      const conversationsWithMessages = await widgetService.getWidgetConversations(
+        widgetSession.organizationId,
         sessionId,
-        "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
-        status: { $ne: "closed" },   // hide conversations the visitor deleted
-      })
-        .select(
-          "_id subject status createdAt updatedAt sessionId assignedTo metadata",
-        )
-        .populate("assignedTo", "name email")
-        .sort({ updatedAt: -1 })
-        .limit(50)
-        .lean();
-
-      const contact = await Contact.findOne({
-        organizationId: widgetSession.organizationId,
-        sessionId,
-      }).lean();
-
-      const conversationsWithMessages = await Promise.all(
-        conversations.map(async (conv) => {
-          const lastMessage = await Message.findOne({
-            conversationId: conv._id,
-          })
-            .sort({ createdAt: -1 })
-            .select("content createdAt")
-            .lean();
-
-          const agentName =
-            conv.assignedTo && typeof conv.assignedTo === "object"
-              ? (conv.assignedTo as any).name
-              : null;
-
-          return {
-            _id: conv._id,
-            id: conv._id,
-            subject: conv.subject,
-            status: conv.status,
-            createdAt: conv.createdAt,
-            updatedAt: conv.updatedAt,
-            visitor: contact ? {
-              sessionId: contact.sessionId,
-              name: contact.name,
-              email: contact.email,
-              phone: contact.phone,
-              company: contact.company,
-              isAnonymous: !contact.email || contact.email === "anonymous@temp.local",
-            } : {
-              sessionId,
-              name: "Anonymous User",
-              email: "anonymous@temp.local",
-              isAnonymous: true,
-            },
-            assignedTo:
-              conv.assignedTo && typeof conv.assignedTo === "object"
-                ? (conv.assignedTo as any)._id
-                : conv.assignedTo,
-            assignedAgent: agentName,
-            lastMessage: lastMessage
-              ? {
-                content: lastMessage.content,
-                createdAt: lastMessage.createdAt,
-              }
-              : null,
-            lastMessageAt: lastMessage?.createdAt || conv.createdAt,
-          };
-        }),
       );
 
       logger.info(
@@ -316,7 +252,11 @@ export const getWidgetConversations = asyncHandler(
       });
     } catch (error: any) {
       logger.error(`Error fetching widget conversations: ${error.message}`);
-      sendError(res, 500, "Failed to fetch conversations");
+      sendError(
+        res,
+        error.statusCode || 500,
+        error.message || "Failed to fetch conversations",
+      );
     }
   },
 );
@@ -336,41 +276,23 @@ export const getConversationMessages = asyncHandler(
         return sendError(res, 401, "Invalid widget session");
       }
 
-      const conversation = await Conversation.findOne({
-        _id: conversationId,
-        organizationId: widgetSession.organizationId,
+      const messages = await widgetService.getConversationMessages(
+        widgetSession.organizationId,
+        conversationId,
         sessionId,
-        "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
-      });
-
-      if (!conversation) {
-        return sendError(res, 404, "Conversation not found");
-      }
-
-      const messages = await Message.find({
-        conversationId: conversationId,
-      })
-        .sort({ createdAt: 1 })
-        .select("senderId content type metadata createdAt")
-        .lean();
+      );
 
       sendResponse(res, 200, true, "Messages retrieved successfully", {
-        messages: messages.map((msg) => ({
-          content: msg.content,
-          type: msg.type,
-          sender: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(msg.metadata?.source) ? "visitor" : "agent",
-          senderId: msg.senderId,
-          senderName: msg.metadata?.senderName || "Unknown",
-          senderEmail: msg.metadata?.senderEmail,
-          timestamp: msg.createdAt,
-          createdAt: msg.createdAt,
-          metadata: msg.metadata || {},
-        })),
+        messages,
         total: messages.length,
       });
     } catch (error: any) {
       logger.error(`Error fetching conversation messages: ${error.message}`);
-      sendError(res, 500, "Failed to fetch messages");
+      sendError(
+        res,
+        error.statusCode || 500,
+        error.message || "Failed to fetch messages",
+      );
     }
   },
 );

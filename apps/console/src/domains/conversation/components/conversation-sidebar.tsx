@@ -46,10 +46,6 @@ export function ConversationSidebar() {
       console.log("Agent socket connected");
     });
 
-    socketInstance.on("new_widget_conversation", () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    });
-
     socketInstance.on(
       "conversation_removed",
       (data: { conversationId: string }) => {
