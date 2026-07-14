@@ -1,10 +1,12 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
-import { Conversation, Message, Organization } from "@shared/models";
+import { Conversation, Message, Organization, Ticket, Contact } from "@shared/models";
 import { aiQueue } from "@shared/infra/queue";
-import { getSocketManager } from "@sockets/index";
+import { socketService } from "@sockets/services/socket.service";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
+import config from "@shared/infra/config";
+import { buildTicketLifecycleEmail } from "@shared/utils/email";
 import {
   CreateEmailChannelInput,
   CreateWhatsAppChannelInput,
@@ -351,24 +353,21 @@ export class ChannelService {
       try {
         const message = await Message.findById(result.messageId);
         if (message) {
-          const sm = getSocketManager();
-          if (sm) {
-            sm.emitToConversation(result.conversationId, "new_message", {
-              conversationId: result.conversationId,
-              message: {
-                _id: message._id,
-                senderId: message.senderId,
-                content: message.content,
-                type: message.type,
-                metadata: message.metadata,
-                createdAt: message.createdAt,
-              },
-            });
-            sm.ioInstance?.to(`org:${channel.organizationId}`).emit("new_message_alert", {
-              conversationId: result.conversationId,
-              channel: channel.type,
-            });
-          }
+          socketService.emitToConversation(result.conversationId, "new_message", {
+            conversationId: result.conversationId,
+            message: {
+              _id: message._id,
+              senderId: message.senderId,
+              content: message.content,
+              type: message.type,
+              metadata: message.metadata,
+              createdAt: message.createdAt,
+            },
+          });
+          socketService.getIO().to(`org:${channel.organizationId}`).emit("new_message_alert", {
+            conversationId: result.conversationId,
+            channel: channel.type,
+          });
 
           const conversation = await Conversation.findById(result.conversationId);
           if (
@@ -412,5 +411,147 @@ export class ChannelService {
       conversationId: result.conversationId,
       messageId: result.messageId,
     };
+  }
+
+  static async sendOutboundMessage(
+    organizationId: string,
+    conversationId: string,
+    content: string,
+  ): Promise<void> {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      logger.error(`[ChannelService] Conversation ${conversationId} not found`);
+      return;
+    }
+
+    let channelType = conversation.channel || conversation.metadata?.channel;
+    let channelId = conversation.channelId || conversation.metadata?.channelId;
+
+    if (!channelType || !channelId) {
+      return; // Not an external channel conversation
+    }
+
+    // Check if there is an associated ticket for this conversation
+    const ticket = await Ticket.findOne({
+      organizationId,
+      conversationId: conversation._id,
+    }).lean();
+
+    if (ticket) {
+      let ticketChannelType: string;
+      if (ticket.source === "whatsapp") {
+        ticketChannelType = "whatsapp";
+      } else if (ticket.source === "telegram") {
+        ticketChannelType = "telegram";
+      } else {
+        ticketChannelType = "email";
+      }
+
+      let activeChannel = await Channel.findOne({
+        organizationId,
+        type: ticketChannelType,
+        isActive: true,
+      }).lean();
+
+      if (!activeChannel && ticketChannelType === "email" && config.email.provider === "mailhog") {
+        activeChannel = (await Channel.create({
+          organizationId,
+          type: "email",
+          name: "Local Dev Email Channel",
+          isActive: true,
+          config: {
+            email: {
+              address: "support@localhost.local",
+              addresses: ["support@localhost.local"],
+              domain: "localhost.local",
+              verificationStatus: "verified",
+              dnsRecords: [],
+            },
+          },
+        })) as any;
+      }
+
+      if (activeChannel) {
+        channelType =
+          ticketChannelType === "email"
+            ? "email_channel"
+            : `${ticketChannelType}_channel`;
+        channelId = activeChannel._id;
+      }
+    }
+
+    let to: string | undefined;
+    const convMeta = (conversation.metadata as any) || {};
+
+    if (channelType === "email_channel") {
+      if (conversation.sessionId?.startsWith("email-")) {
+        to = conversation.sessionId.replace("email-", "");
+      }
+      if (!to && convMeta.senderEmail) {
+        to = convMeta.senderEmail;
+      }
+      if (!to && ticket?.contactId) {
+        const ticketContact = await Contact.findById(ticket.contactId).lean();
+        if (ticketContact?.email) {
+          to = ticketContact.email;
+        }
+      }
+    } else if (channelType === "whatsapp_channel") {
+      if (conversation.sessionId?.startsWith("whatsapp-")) {
+        to = conversation.sessionId.replace("whatsapp-", "");
+      }
+      if (!to && convMeta.phone) {
+        to = convMeta.phone;
+      }
+      if (!to && ticket?.contactId) {
+        const ticketContact = await Contact.findById(ticket.contactId).lean();
+        if (ticketContact?.phone) {
+          to = ticketContact.phone;
+        }
+      }
+    } else if (channelType === "telegram_channel") {
+      if (conversation.sessionId?.startsWith("telegram-")) {
+        to = conversation.sessionId.replace("telegram-", "");
+      }
+      if (!to && convMeta.chatId) {
+        to = convMeta.chatId;
+      }
+      if (!to && ticket?.contactId) {
+        const ticketContact = await Contact.findById(ticket.contactId).lean();
+        if (ticketContact?.sessionId?.startsWith("telegram-")) {
+          to = ticketContact.sessionId.replace("telegram-", "");
+        }
+      }
+    }
+
+    if (to) {
+      let emailHtml: string | undefined;
+      let emailSubject: string | undefined;
+
+      if (channelType === "email_channel" && ticket) {
+        try {
+          const emailObj = await buildTicketLifecycleEmail("updated", {
+            name: convMeta.senderName || "there",
+            ticketNumber: ticket.ticketNumber,
+            title: ticket.title,
+            status: String(ticket.status).replace(/_/g, " "),
+            priority: ticket.priority,
+            updateSummary: content,
+          });
+          emailHtml = emailObj.html;
+          emailSubject = emailObj.subject;
+        } catch (err: any) {
+          logger.error("[ChannelService] Failed to build ticket lifecycle email template:", err.message);
+        }
+      }
+
+      await this.sendViaChannel(organizationId, channelId.toString(), {
+        to,
+        subject: emailSubject || conversation.subject || "Reply from Support",
+        body: content,
+        html: emailHtml,
+        from: convMeta.supportEmail,
+      });
+    }
   }
 }

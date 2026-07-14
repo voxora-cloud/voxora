@@ -1,12 +1,10 @@
 import { redisClient } from "@shared/infra/redis";
-import type SocketManager from "@sockets/index";
 import logger from "@shared/core/logger";
+import { socketService } from "../services/socket.service";
 
 const ASSIST_PUBSUB_CHANNEL = "assist:response";
 
-export async function startAssistResponseConsumer(
-  socketManager: SocketManager,
-): Promise<void> {
+export async function startAssistResponseConsumer(): Promise<void> {
   const subscriber = redisClient.duplicate();
   await subscriber.connect();
 
@@ -36,7 +34,7 @@ export async function startAssistResponseConsumer(
       });
 
       // Send the result to the specific operator via their socket session
-      await socketManager.emitToUser(userId, "assist:result", {
+      await socketService.emitToUser(userId, "assist:result", {
         requestId,
         action,
         data,

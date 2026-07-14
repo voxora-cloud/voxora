@@ -8,11 +8,7 @@ export interface IMessage extends Document {
   senderId: string;
   content: string;
   type: "text" | "file" | "image" | "system";
-  metadata: {
-    senderName: string;
-    senderEmail: string;
-    source: string;
-  };
+  metadata: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,11 +20,7 @@ const messageSchema = new Schema<IMessage>(
     senderId: { type: String },
     content: { type: String, required: true, maxlength: 50000 },
     type: { type: String, enum: ["text", "file", "image", "system"], default: "text" },
-    metadata: {
-      senderName: String,
-      senderEmail: String,
-      source: String,
-    },
+    metadata: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },
 );

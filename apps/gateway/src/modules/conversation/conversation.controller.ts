@@ -4,7 +4,7 @@ import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { ConversationService } from "./conversation.service";
 import { AuthenticatedRequest } from "@shared/security/middleware/auth";
 import { Contact, Message, Conversation } from "@shared/models";
-import { getSocketManager } from "@sockets/index";
+import { socketService } from "@sockets/services/socket.service";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
 import { ChannelService } from "../channels/channels.service";
@@ -184,8 +184,7 @@ export const routeConversation = asyncHandler(
     if (result.noAgent) return sendError(res, 404, "No available agents");
     if (result.agentNotFound) return sendError(res, 404, "Agent not found");
 
-    const sm = getSocketManager();
-    if (sm && result.selectedAgentId) {
+    if (result.selectedAgentId) {
       try {
         const payload = {
           conversationId: result.originalConversation!._id,
@@ -196,7 +195,7 @@ export const routeConversation = asyncHandler(
           timestamp: new Date(),
         };
 
-        sm.emitToConversation(conversationId, "conversation_escalated", {
+        socketService.emitToConversation(conversationId, "conversation_escalated", {
           conversationId,
           reason: reason || "Transferred to another agent",
           agent: {
@@ -210,7 +209,7 @@ export const routeConversation = asyncHandler(
           oldAgentId &&
           oldAgentId.toString() !== result.selectedAgentId.toString()
         ) {
-          sm.emitToUser?.(oldAgentId.toString(), "conversation_removed", {
+          socketService.emitToUser(oldAgentId.toString(), "conversation_removed", {
             conversationId,
           });
         }
@@ -264,17 +263,14 @@ export const updateConversationStatus = asyncHandler(
       );
     if (!result.found) return sendError(res, 404, "Conversation not found");
 
-    const sm = getSocketManager();
-    if (sm?.ioInstance) {
-      sm.ioInstance
-        .to(`org:${orgId}:conv:${conversationId}`)
-        .emit("status_updated", {
-          conversationId: result.conversation!._id,
-          status,
-          updatedBy: (req as any).user?.name || "Agent",
-          timestamp: new Date(),
-        });
-    }
+    socketService.getIO()
+      .to(`org:${orgId}:conv:${conversationId}`)
+      .emit("status_updated", {
+        conversationId: result.conversation!._id,
+        status,
+        updatedBy: (req as any).user?.name || "Agent",
+        timestamp: new Date(),
+      });
 
     sendResponse(res, 200, true, "Status updated successfully", {
       conversationId: result.conversation!._id,
@@ -409,8 +405,6 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     resolvedAgentId = autoAssign.agentId || undefined;
   }
 
-  const sm = getSocketManager();
-
   // PATH A: Route to an online agent
   if (resolvedAgentId) {
     const result = await conversationService.routeConversation(
@@ -431,10 +425,9 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     );
 
     // Fire real-time events for assigned agent & conversation room
-    if (sm && result.selectedAgentId) {
+    if (result.selectedAgentId) {
       try {
-
-        sm.emitToConversation(conversationId, "conversation_escalated", {
+        socketService.emitToConversation(conversationId, "conversation_escalated", {
           conversationId,
           reason: reason || "AI escalated this conversation to a human agent",
           agent: {
@@ -489,28 +482,26 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
   // Send Telegram/WhatsApp/Email notification to user
   await notifyChannel("Our team will get back to you shortly.");
 
-  if (sm) {
-    // Notify organization room so lists refresh in real-time
-    sm.ioInstance?.to(`org:${organizationId}`).emit("conversation_pending", {
-      conversationId,
-      reason: reason || "AI escalated — awaiting agent",
-    });
-    sm.emitToConversation(conversationId, "status_updated", {
-      conversationId,
-      status: "open",
-    });
-    sm.emitToConversation(conversationId, "new_message", {
-      conversationId,
-      message: {
-        _id: supportMsg._id,
-        senderId: supportMsg.senderId,
-        content: supportMsg.content,
-        type: supportMsg.type,
-        metadata: supportMsg.metadata,
-        createdAt: supportMsg.createdAt,
-      },
-    });
-  }
+  // Notify organization room so lists refresh in real-time
+  socketService.getIO().to(`org:${organizationId}`).emit("conversation_pending", {
+    conversationId,
+    reason: reason || "AI escalated — awaiting agent",
+  });
+  socketService.emitToConversation(conversationId, "status_updated", {
+    conversationId,
+    status: "open",
+  });
+  socketService.emitToConversation(conversationId, "new_message", {
+    conversationId,
+    message: {
+      _id: supportMsg._id,
+      senderId: supportMsg.senderId,
+      content: supportMsg.content,
+      type: supportMsg.type,
+      metadata: supportMsg.metadata,
+      createdAt: supportMsg.createdAt,
+    },
+  });
 
   return sendResponse(
     res,
@@ -679,22 +670,19 @@ export const updateContactAssociation = asyncHandler(
     }
 
     // Emit socket changes so the frontend UI re-fetches or updates
-    const sm = getSocketManager();
-    if (sm) {
-      try {
-        sm.emitToConversation(conversationId, "conversation_updated", {
-          conversationId,
-          contact: {
-            id: contact._id.toString(),
-            name: contact.name,
-            email: contact.email,
-            phone: contact.phone,
-            company: contact.company,
-          },
-        });
-      } catch (err: any) {
-        logger.error(`Failed to emit contact update socket: ${err?.message}`);
-      }
+    try {
+      socketService.emitToConversation(conversationId, "conversation_updated", {
+        conversationId,
+        contact: {
+          id: contact._id.toString(),
+          name: contact.name,
+          email: contact.email,
+          phone: contact.phone,
+          company: contact.company,
+        },
+      });
+    } catch (err: any) {
+      logger.error(`Failed to emit contact update socket: ${err?.message}`);
     }
 
     sendResponse(res, 200, true, "Contact associated successfully", {

@@ -14,6 +14,7 @@ import {
   normalizeDomain,
   requiresDomainVerification,
 } from "@shared/utils/domain";
+import { redisClient } from "@shared/infra/redis";
 import {
   ServiceError,
   AIInteractionSource,
@@ -21,7 +22,6 @@ import {
   InitConversationResult,
 } from "./widget.types";
 import { tracker } from "@shared/utils/tracker";
-import { getSocketManager } from "@sockets/index";
 
 const AI_INTERACTION_SOURCES = new Set<AIInteractionSource>([
   "widget",
@@ -506,12 +506,11 @@ export class WidgetService {
         "pending",
         widget.verifiedDomain,
         widget.domainVerificationToken,
-      ).catch((err) => {
-        logger.error(
-          `Failed to send domain pending email for org ${organizationId}:`,
-          err,
-        );
-      });
+      );
+    }
+
+    if (widget?.publicKey) {
+      redisClient.del(`widget:${widget.publicKey}:config`).catch(() => {});
     }
 
     return widget;
@@ -586,6 +585,10 @@ export class WidgetService {
           err,
         );
       });
+    }
+
+    if (widget?.publicKey) {
+      redisClient.del(`widget:${widget.publicKey}:config`).catch(() => {});
     }
 
     return {
@@ -728,9 +731,9 @@ export class WidgetService {
           assignedAgent: agentName,
           lastMessage: lastMessage
             ? {
-                content: lastMessage.content,
-                createdAt: lastMessage.createdAt,
-              }
+              content: lastMessage.content,
+              createdAt: lastMessage.createdAt,
+            }
             : null,
           lastMessageAt: lastMessage?.createdAt || conv.createdAt,
         };

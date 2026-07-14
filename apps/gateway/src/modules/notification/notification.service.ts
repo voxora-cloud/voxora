@@ -1,5 +1,5 @@
 import { Notification } from "@shared/models";
-import { getSocketManager } from "@sockets/index";
+import { socketService } from "@sockets/services/socket.service";
 import { CreateNotificationInput } from "./notification.types";
 
 class NotificationService {
@@ -24,9 +24,9 @@ class NotificationService {
     };
 
     if (input.userId) {
-      await getSocketManager()?.emitToUser(input.userId, "notification", payload);
+      await socketService.emitToUser(input.userId, "notification", payload);
     } else {
-      getSocketManager()?.emitToOrg(input.organizationId, "notification", payload);
+      socketService.emitToOrg(input.organizationId, "notification", payload);
     }
 
     return notification;

@@ -254,7 +254,6 @@ export class TelegramChannelStrategy implements IChannelStrategy {
         type: "text" as const,
         content: bodyText,
         metadata: {
-          senderName,
           source: "telegram_channel",
           channelId: payload.channelId,
           messageId,
