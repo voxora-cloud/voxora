@@ -34,6 +34,8 @@ export class WidgetUI {
   private scrollHandler: (() => void) | null = null;
   private scrollEndTimer: number | null = null;
   private mobileCloseTimer: number | null = null;
+  private outsideChipsRevealFrame: number | null = null;
+  private outsideChipsVisible = false;
   private isPageScrolling = false;
   private outsideClickHandler: ((event: MouseEvent) => void) | null = null;
   private hasStartedChat = false;
@@ -435,12 +437,63 @@ export class WidgetUI {
       || document.activeElement !== this.launcherInput
     ) return;
 
+    // Focus and click fire during the same interaction. Do not restart a
+    // reveal that is already running (or replay one that is already visible).
+    if (this.outsideChipsVisible) return;
+    this.outsideChipsVisible = true;
+
+    const chips = Array.from(this.outsideChipsContainer.children) as HTMLElement[];
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    chips.forEach((chip) => {
+      chip.getAnimations().forEach((animation) => animation.cancel());
+      chip.style.opacity = reduceMotion ? '1' : '0';
+      chip.style.transform = reduceMotion
+        ? 'translateY(0) scale(1)'
+        : 'translateY(12px) scale(0.96)';
+    });
+
     Object.assign(this.outsideChipsContainer.style, {
       display: 'flex',
       visibility: 'visible',
       opacity: '1',
       pointerEvents: 'auto',
       transform: 'translateX(-50%) translateY(0)',
+    });
+
+    if (reduceMotion) return;
+
+    // Reveal the suggestion nearest the input first, then fan upward. Waiting
+    // one frame establishes the hidden starting pose without flashing content.
+    this.outsideChipsRevealFrame = window.requestAnimationFrame(() => {
+      this.outsideChipsRevealFrame = null;
+      chips.reverse().forEach((chip, index) => {
+        chip.style.opacity = '1';
+        chip.style.transform = 'translateY(0) scale(1)';
+        chip.animate(
+          [
+            {
+              opacity: 0,
+              transform: 'translateY(12px) scale(0.96)',
+            },
+            {
+              opacity: 1,
+              transform: 'translateY(-1px) scale(1.01)',
+              offset: 0.76,
+            },
+            {
+              opacity: 1,
+              transform: 'translateY(0) scale(1)',
+            },
+          ],
+          {
+            duration: 320,
+            delay: index * 45,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'backwards',
+          },
+        );
+      });
     });
   }
 
@@ -479,6 +532,15 @@ export class WidgetUI {
 
   private hideOutsideChips(): void {
     if (!this.outsideChipsContainer) return;
+    this.outsideChipsVisible = false;
+
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
+    }
+    Array.from(this.outsideChipsContainer.children).forEach((chip) => {
+      chip.getAnimations().forEach((animation) => animation.cancel());
+    });
 
     Object.assign(this.outsideChipsContainer.style, {
       display: 'none',
@@ -983,6 +1045,10 @@ export class WidgetUI {
       window.clearTimeout(this.mobileCloseTimer);
       this.mobileCloseTimer = null;
     }
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
+    }
 
     if (this.state.isOpen) {
       if (this.button) {
@@ -994,11 +1060,7 @@ export class WidgetUI {
           transform: 'translateX(-50%) translateY(16px) scale(0.98)',
         });
       }
-      if (this.outsideChipsContainer) {
-        this.outsideChipsContainer.style.display = 'none';
-        this.outsideChipsContainer.style.visibility = 'hidden';
-        this.outsideChipsContainer.style.pointerEvents = 'none';
-      }
+      this.hideOutsideChips();
       if (this.dockContainer) {
         this.dockContainer.style.display = 'block';
         this.applyDockExpandedChrome();
@@ -1046,15 +1108,8 @@ export class WidgetUI {
       this.applyDockExpandedChrome();
     });
 
-    // Hide outside chips while widget is open
-    if (this.outsideChipsContainer) {
-      Object.assign(this.outsideChipsContainer.style, {
-        display: 'none',
-        visibility: 'hidden',
-        opacity: '0',
-        pointerEvents: 'none',
-      });
-    }
+    // Hide outside chips while widget is open.
+    this.hideOutsideChips();
 
     if (this.onToggle) this.onToggle(true);
   }
@@ -1068,6 +1123,10 @@ export class WidgetUI {
     if (this.mobileCloseTimer !== null) {
       window.clearTimeout(this.mobileCloseTimer);
       this.mobileCloseTimer = null;
+    }
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
     }
     const isMobile = this.isMobileSheet();
     this.state.isOpen = false;
@@ -1142,7 +1201,7 @@ export class WidgetUI {
     if (!isVisible) {
       if (this.state.isOpen) this.close();
       if (this.button) this.button.style.display = 'none';
-      if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
+      this.hideOutsideChips();
       if (this.dockContainer) this.dockContainer.style.display = 'none';
       return;
     }
@@ -1272,6 +1331,10 @@ export class WidgetUI {
     if (this.mobileCloseTimer !== null) {
       window.clearTimeout(this.mobileCloseTimer);
       this.mobileCloseTimer = null;
+    }
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
     }
     if (this.outsideClickHandler) {
       document.removeEventListener('click', this.outsideClickHandler);
