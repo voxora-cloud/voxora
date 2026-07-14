@@ -14,6 +14,7 @@ import { getSocketManager } from "@sockets/index";
 import { ConversationService } from "@modules/conversation/conversation.service";
 import { ChannelService } from "@modules/channels/channels.service";
 import { tracker } from "@shared/utils/tracker";
+import { buildTicketLifecycleEmail } from "@shared/utils/email";
 
 const conversationService = new ConversationService();
 
@@ -231,14 +232,29 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
 
             if (channelType === "email_channel") {
               to = contact?.email || convMeta.senderEmail;
+              if (!to && conversation.sessionId?.startsWith("email-")) {
+                to = conversation.sessionId.replace("email-", "");
+              }
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.email) {
                   to = contact.email;
                 }
               }
+              if (!to && conversation.sessionId) {
+                const fallbackContact = await Contact.findOne({
+                  organizationId: conversation.organizationId,
+                  sessionId: conversation.sessionId,
+                }).lean();
+                if (fallbackContact?.email) {
+                  to = fallbackContact.email;
+                }
+              }
             } else if (channelType === "whatsapp_channel") {
-              to = convMeta.phone || contact?.phone || contact?.name;
+              to = convMeta.phone || contact?.phone;
+              if (!to && conversation.sessionId?.startsWith("whatsapp-")) {
+                to = conversation.sessionId.replace("whatsapp-", "");
+              }
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.phone) {
@@ -246,9 +262,10 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
                 }
               }
             } else if (channelType === "telegram_channel") {
-              to =
-                convMeta.chatId ||
-                conversation.sessionId?.replace("telegram-", "");
+              to = convMeta.chatId;
+              if (!to && conversation.sessionId?.startsWith("telegram-")) {
+                to = conversation.sessionId.replace("telegram-", "");
+              }
               if (!to && ticket?.contactId) {
                 const contact = await Contact.findById(ticket.contactId).lean();
                 if (contact?.sessionId?.startsWith("telegram-")) {
@@ -258,10 +275,31 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
             }
 
             if (to) {
+              let emailHtml: string | undefined;
+              let emailSubject: string | undefined;
+
+              if (channelType === "email_channel" && ticket) {
+                try {
+                  const emailObj = await buildTicketLifecycleEmail("updated", {
+                    name: contact?.name || "there",
+                    ticketNumber: ticket.ticketNumber,
+                    title: ticket.title,
+                    status: String(ticket.status).replace(/_/g, " "),
+                    priority: ticket.priority,
+                    updateSummary: content,
+                  });
+                  emailHtml = emailObj.html;
+                  emailSubject = emailObj.subject;
+                } catch (err) {
+                  logger.error("[handleMessage] Failed to build ticket lifecycle email template:", err);
+                }
+              }
+
               ChannelService.sendViaChannel(organizationId, channelIdStr, {
                 to,
-                subject: conversation.subject || "Reply from Support",
+                subject: emailSubject || conversation.subject || "Reply from Support",
                 body: content,
+                html: emailHtml,
                 from: conversation.metadata?.supportEmail,
               }).catch((err: any) => {
                 logger.error(

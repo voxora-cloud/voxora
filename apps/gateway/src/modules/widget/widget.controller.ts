@@ -358,7 +358,7 @@ export const getConversationMessages = asyncHandler(
         messages: messages.map((msg) => ({
           content: msg.content,
           type: msg.type,
-          sender: msg.metadata?.source === "widget" ? "visitor" : "agent",
+          sender: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(msg.metadata?.source) ? "visitor" : "agent",
           senderId: msg.senderId,
           senderName: msg.metadata?.senderName || "Unknown",
           senderEmail: msg.metadata?.senderEmail,

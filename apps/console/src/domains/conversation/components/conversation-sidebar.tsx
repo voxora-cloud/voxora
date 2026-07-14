@@ -85,7 +85,12 @@ export function ConversationSidebar() {
           metadata?: { source?: string };
         };
       }) => {
-        if (data?.message?.metadata?.source === "widget") {
+        if (
+          data?.message?.metadata?.source &&
+          ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(
+            data.message.metadata.source,
+          )
+        ) {
           queryClient.setQueryData<ConversationListItem[]>(
             ["conversations", filterStatus],
             (prev = []) =>

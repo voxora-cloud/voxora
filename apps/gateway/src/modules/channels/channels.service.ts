@@ -1,6 +1,7 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
 import { Conversation, Message, Organization } from "@shared/models";
 import { aiQueue } from "@shared/infra/queue";
+import { getSocketManager } from "@sockets/index";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
@@ -348,37 +349,58 @@ export class ChannelService {
     // Enqueue message to aiQueue for AI processing if conversation is not assigned to a human
     if (result.conversationId && result.messageId) {
       try {
-        const conversation = await Conversation.findById(result.conversationId);
-        if (
-          conversation &&
-          !conversation.assignedTo &&
-          !(conversation.metadata as any)?.escalatedAt &&
-          !(conversation.metadata as any)?.humanJoinedAt &&
-          !["resolved", "closed"].includes(conversation.status)
-        ) {
-          const message = await Message.findById(result.messageId);
-          if (message && message.content) {
-            const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
-            const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
-
-            await aiQueue.add("process", {
-              organizationId: channel.organizationId.toString(),
+        const message = await Message.findById(result.messageId);
+        if (message) {
+          const sm = getSocketManager();
+          if (sm) {
+            sm.emitToConversation(result.conversationId, "new_message", {
               conversationId: result.conversationId,
-              content: message.content,
-              messageId: result.messageId,
-              channel: channel.type,
-              aiEnabled: true,
-              subscriptionExpired,
+              message: {
+                _id: message._id,
+                senderId: message.senderId,
+                content: message.content,
+                type: message.type,
+                metadata: message.metadata,
+                createdAt: message.createdAt,
+              },
             });
-            logger.info("[ChannelService] Inbound message enqueued for AI processing", {
+            sm.ioInstance?.to(`org:${channel.organizationId}`).emit("new_message_alert", {
               conversationId: result.conversationId,
-              messageId: result.messageId,
               channel: channel.type,
             });
           }
+
+          const conversation = await Conversation.findById(result.conversationId);
+          if (
+            conversation &&
+            !conversation.assignedTo &&
+            !(conversation.metadata as any)?.escalatedAt &&
+            !(conversation.metadata as any)?.humanJoinedAt &&
+            !["resolved", "closed"].includes(conversation.status)
+          ) {
+            if (message.content) {
+              const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
+              const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
+
+              await aiQueue.add("process", {
+                organizationId: channel.organizationId.toString(),
+                conversationId: result.conversationId,
+                content: message.content,
+                messageId: result.messageId,
+                channel: channel.type,
+                aiEnabled: true,
+                subscriptionExpired,
+              });
+              logger.info("[ChannelService] Inbound message enqueued for AI processing", {
+                conversationId: result.conversationId,
+                messageId: result.messageId,
+                channel: channel.type,
+              });
+            }
+          }
         }
       } catch (err: any) {
-        logger.error("[ChannelService] Failed to enqueue inbound message to aiQueue", {
+        logger.error("[ChannelService] Failed to process inbound message pipeline", {
           conversationId: result.conversationId,
           messageId: result.messageId,
           error: err.message,

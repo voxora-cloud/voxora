@@ -7,6 +7,7 @@ import { Contact, Message, Conversation } from "@shared/models";
 import { getSocketManager } from "@sockets/index";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
+import { ChannelService } from "../channels/channels.service";
 
 const conversationService = new ConversationService();
 
@@ -371,6 +372,39 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
 
   if (!organizationId) return sendError(res, 400, "organizationId is required");
 
+  // Fetch conversation first to resolve channel details for outbound notifications
+  const conv = await Conversation.findById(conversationId)
+    .select("channel channelId sessionId metadata subject")
+    .lean();
+
+  const notifyChannel = async (messageText: string) => {
+    if (conv && conv.channel && conv.channelId) {
+      let to: string | undefined;
+      const convMeta = (conv.metadata as any) || {};
+
+      if (conv.channel === "email_channel") {
+        to = convMeta.senderEmail || conv.sessionId?.replace("email-", "");
+      } else if (conv.channel === "whatsapp_channel") {
+        to = convMeta.phone || conv.sessionId?.replace("whatsapp-", "");
+      } else if (conv.channel === "telegram_channel") {
+        to = convMeta.chatId || conv.sessionId?.replace("telegram-", "");
+      }
+
+      if (to) {
+        try {
+          await ChannelService.sendViaChannel(organizationId, conv.channelId.toString(), {
+            to,
+            subject: conv.subject || "Support Status Update",
+            body: messageText,
+            from: convMeta.supportEmail,
+          });
+        } catch (err: any) {
+          logger.error("[AI Escalate] Failed to send escalation notification to channel:", err.message);
+        }
+      }
+    }
+  };
+
   // Determine if we should attempt auto-assignment
   let resolvedAgentId = agentId;
   if (!unassigned && !resolvedAgentId) {
@@ -429,6 +463,9 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
       }
     }
 
+    // Send Telegram/WhatsApp/Email notification to user
+    await notifyChannel(`You are being connected to ${result.agentName || "a support agent"}.`);
+
     return sendResponse(res, 200, true, "Escalated to human agent", {
       conversationId,
       assignedAgent: result.selectedAgentId?.toString() || null,
@@ -463,6 +500,9 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
       "metadata.pendingEscalation": false,
     },
   });
+
+  // Send Telegram/WhatsApp/Email notification to user
+  await notifyChannel("Our team will get back to you shortly.");
 
   if (sm) {
     // Notify organization room so lists refresh in real-time

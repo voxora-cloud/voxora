@@ -506,7 +506,7 @@ export class ConversationService {
 
     const memory = messages.reverse().map((m) => ({
       messageId: m._id.toString(),
-      role: m.metadata?.source === "widget" ? "user" : "assistant",
+      role: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(m.metadata?.source) ? "user" : "assistant",
       content: m.content,
       senderName: m.metadata?.senderName || null,
       timestamp: m.createdAt,
@@ -659,7 +659,7 @@ export class ConversationService {
             }
           : { sessionId: conv.sessionId },
         messages: messages.map((m) => ({
-          role: m.metadata?.source === "widget" ? "user" : "assistant",
+          role: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(m.metadata?.source) ? "user" : "assistant",
           content: m.content || "",
         })),
       });
