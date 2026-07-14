@@ -5,6 +5,8 @@
 
 import { WidgetConfig, WidgetServerConfig, WidgetState } from './types';
 
+const DOCK_TRANSITION = 'width 0.34s cubic-bezier(0.22, 1, 0.36, 1), height 0.34s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.34s cubic-bezier(0.22, 1, 0.36, 1), transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease';
+
 export class WidgetUI {
   private config: WidgetConfig;
   private state: WidgetState;
@@ -29,6 +31,12 @@ export class WidgetUI {
   private hostMinHeight: string | null = null;
   private pageVisible = true;
   private resizeHandler: (() => void) | null = null;
+  private scrollHandler: (() => void) | null = null;
+  private scrollEndTimer: number | null = null;
+  private mobileCloseTimer: number | null = null;
+  private outsideChipsRevealFrame: number | null = null;
+  private outsideChipsVisible = false;
+  private isPageScrolling = false;
   private outsideClickHandler: ((event: MouseEvent) => void) | null = null;
   private hasStartedChat = false;
   private ignoreOutsideClicksUntil = 0;
@@ -344,15 +352,21 @@ export class WidgetUI {
 
     this.launcherInput.addEventListener('click', (event) => {
       event.stopPropagation();
+      if (this.hasStartedChat) {
+        this.handleLauncherInputOpen();
+      } else {
+        this.showOutsideChips();
+      }
     });
     this.launcherInput.addEventListener('focus', () => {
-      this.hideOutsideChips();
+      this.showOutsideChips();
       if (this.launcherPlaceholderEl) this.launcherPlaceholderEl.style.opacity = '0';
     });
     this.launcherInput.addEventListener('blur', () => {
       if (this.launcherPlaceholderEl && !this.launcherInput?.value) {
         this.launcherPlaceholderEl.style.opacity = '1';
       }
+      this.hideOutsideChips();
     });
     this.launcherInput.addEventListener('input', () => {
       if (!this.launcherInput) return;
@@ -397,13 +411,11 @@ export class WidgetUI {
   private submitLauncherPrompt(): void {
     const text = this.launcherInput?.value.trim() || '';
     if (!text) {
-      this.hasStartedChat = true;
       this.hideOutsideChips();
       this.open();
       return;
     }
 
-    this.hasStartedChat = true;
     this.hideOutsideChips();
     if (!this.state.isOpen) this.open();
     setTimeout(() => this._sendSuggestionToIframe(text), 600);
@@ -411,13 +423,35 @@ export class WidgetUI {
   }
 
   private handleLauncherInputOpen(): void {
-    this.hasStartedChat = true;
     this.hideOutsideChips();
     this.open();
   }
 
   private showOutsideChips(): void {
-    if (!this.pageVisible || this.state.isOpen || !this.outsideChipsContainer) return;
+    if (
+      this.hasStartedChat
+      || this.isPageScrolling
+      || !this.pageVisible
+      || this.state.isOpen
+      || !this.outsideChipsContainer
+      || document.activeElement !== this.launcherInput
+    ) return;
+
+    // Focus and click fire during the same interaction. Do not restart a
+    // reveal that is already running (or replay one that is already visible).
+    if (this.outsideChipsVisible) return;
+    this.outsideChipsVisible = true;
+
+    const chips = Array.from(this.outsideChipsContainer.children) as HTMLElement[];
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    chips.forEach((chip) => {
+      chip.getAnimations().forEach((animation) => animation.cancel());
+      chip.style.opacity = reduceMotion ? '1' : '0';
+      chip.style.transform = reduceMotion
+        ? 'translateY(0) scale(1)'
+        : 'translateY(12px) scale(0.96)';
+    });
 
     Object.assign(this.outsideChipsContainer.style, {
       display: 'flex',
@@ -426,10 +460,87 @@ export class WidgetUI {
       pointerEvents: 'auto',
       transform: 'translateX(-50%) translateY(0)',
     });
+
+    if (reduceMotion) return;
+
+    // Reveal the suggestion nearest the input first, then fan upward. Waiting
+    // one frame establishes the hidden starting pose without flashing content.
+    this.outsideChipsRevealFrame = window.requestAnimationFrame(() => {
+      this.outsideChipsRevealFrame = null;
+      chips.reverse().forEach((chip, index) => {
+        chip.style.opacity = '1';
+        chip.style.transform = 'translateY(0) scale(1)';
+        chip.animate(
+          [
+            {
+              opacity: 0,
+              transform: 'translateY(12px) scale(0.96)',
+            },
+            {
+              opacity: 1,
+              transform: 'translateY(-1px) scale(1.01)',
+              offset: 0.76,
+            },
+            {
+              opacity: 1,
+              transform: 'translateY(0) scale(1)',
+            },
+          ],
+          {
+            duration: 320,
+            delay: index * 45,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            fill: 'backwards',
+          },
+        );
+      });
+    });
+  }
+
+  /** Keep launcher-level quick suggestions aligned with the iframe chat state. */
+  setConversationStarted(started: boolean): void {
+    this.hasStartedChat = started;
+    if (this.launcherInput) {
+      this.launcherInput.readOnly = started;
+      this.launcherInput.value = '';
+      this.launcherInput.setAttribute(
+        'aria-label',
+        started ? 'Continue current conversation' : 'Start a new conversation',
+      );
+    }
+
+    if (started) {
+      if (this.launcherPlaceholderTimer !== null) {
+        window.clearInterval(this.launcherPlaceholderTimer);
+        this.launcherPlaceholderTimer = null;
+      }
+      if (this.launcherPlaceholderEl) {
+        this.launcherPlaceholderEl.textContent = 'Continue your conversation';
+        this.launcherPlaceholderEl.className = 'InteraOne-launcher-placeholder is-resting';
+        this.launcherPlaceholderEl.style.opacity = '1';
+      }
+    } else if (this.launcherInput) {
+      this.startLauncherPlaceholderTypewriter();
+    }
+
+    if (started) {
+      this.hideOutsideChips();
+    } else {
+      this.showOutsideChips();
+    }
   }
 
   private hideOutsideChips(): void {
     if (!this.outsideChipsContainer) return;
+    this.outsideChipsVisible = false;
+
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
+    }
+    Array.from(this.outsideChipsContainer.children).forEach((chip) => {
+      chip.getAnimations().forEach((animation) => animation.cancel());
+    });
 
     Object.assign(this.outsideChipsContainer.style, {
       display: 'none',
@@ -438,6 +549,90 @@ export class WidgetUI {
       pointerEvents: 'none',
       transform: 'translateX(-50%) translateY(8px)',
     });
+  }
+
+  private hideFloatingLauncherForScroll(): void {
+    if (this.state.isOpen || !this.button) return;
+    Object.assign(this.button.style, {
+      visibility: 'hidden',
+      opacity: '0',
+      pointerEvents: 'none',
+      transform: 'translateX(-50%) translateY(72px) scale(0.98)',
+    });
+    this.hideOutsideChips();
+  }
+
+  private restoreFloatingLauncherAfterScroll(): void {
+    this.isPageScrolling = false;
+    if (!this.pageVisible || this.state.isOpen || !this.button) return;
+
+    Object.assign(this.button.style, {
+      display: 'flex',
+      visibility: 'visible',
+      opacity: '0',
+      pointerEvents: 'none',
+      transform: 'translateX(-50%) translateY(72px) scale(0.98)',
+    });
+
+    requestAnimationFrame(() => {
+      if (!this.button || !this.pageVisible || this.state.isOpen || this.isPageScrolling) return;
+      Object.assign(this.button.style, {
+        opacity: '1',
+        pointerEvents: 'auto',
+        transform: 'translateX(-50%) translateY(0) scale(1)',
+      });
+      this.showOutsideChips();
+    });
+  }
+
+  private revealFloatingLauncherAfterClose(): void {
+    if (!this.button || !this.pageVisible || this.state.isOpen) return;
+    if (this.isPageScrolling) {
+      this.hideFloatingLauncherForScroll();
+      return;
+    }
+
+    Object.assign(this.button.style, {
+      display: 'flex',
+      visibility: 'visible',
+      opacity: '0',
+      pointerEvents: 'none',
+      transform: 'translateX(-50%) translateY(24px) scale(0.98)',
+    });
+    requestAnimationFrame(() => {
+      if (!this.button || !this.pageVisible || this.state.isOpen || this.isPageScrolling) return;
+      Object.assign(this.button.style, {
+        opacity: '1',
+        pointerEvents: 'auto',
+        transform: 'translateX(-50%) translateY(0) scale(1)',
+      });
+    });
+  }
+
+  private setupScrollBehavior(): void {
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler);
+      window.removeEventListener('wheel', this.scrollHandler);
+      window.removeEventListener('touchmove', this.scrollHandler);
+      document.removeEventListener('scroll', this.scrollHandler, true);
+    }
+
+    this.scrollHandler = () => {
+      if (this.state.isOpen) return;
+      this.isPageScrolling = true;
+      this.hideFloatingLauncherForScroll();
+      if (this.scrollEndTimer !== null) window.clearTimeout(this.scrollEndTimer);
+      this.scrollEndTimer = window.setTimeout(() => {
+        this.scrollEndTimer = null;
+        this.restoreFloatingLauncherAfterScroll();
+      }, 180);
+    };
+    window.addEventListener('scroll', this.scrollHandler, { passive: true });
+    window.addEventListener('wheel', this.scrollHandler, { passive: true });
+    window.addEventListener('touchmove', this.scrollHandler, { passive: true });
+    // Scroll events do not bubble. Capture them at the document so pages that
+    // scroll inside a nested layout are handled as well as window scrolling.
+    document.addEventListener('scroll', this.scrollHandler, { passive: true, capture: true });
   }
 
   private getDockExpandedSize(): { width: number; height: number } {
@@ -452,6 +647,9 @@ export class WidgetUI {
     if (!this.dockContainer) return;
 
     Object.assign(this.dockContainer.style, {
+      top: 'auto',
+      right: 'auto',
+      left: '50%',
       width: 'min(560px, calc(100vw - 40px))',
       maxWidth: 'calc(100vw - 40px)',
       height: '48px',
@@ -470,16 +668,19 @@ export class WidgetUI {
 
     if (this.isMobileSheet()) {
       Object.assign(this.dockContainer.style, {
-        width: 'calc(100vw - 24px)',
+        width: '100vw',
         maxWidth: 'none',
-        height: 'min(680px, calc(100dvh - 104px))',
-        bottom: '12px',
-        borderRadius: '14px 14px 0 0',
-        transform: 'translateX(-50%) translateY(0) scale(1)',
+        height: '100dvh',
+        top: '0',
+        right: '0',
+        bottom: '0',
+        left: '0',
+        borderRadius: '0',
+        transform: 'none',
         opacity: '1',
         pointerEvents: 'auto',
       });
-      if (this.iframe) this.iframe.style.borderRadius = '14px 14px 0 0';
+      if (this.iframe) this.iframe.style.borderRadius = '0';
       return;
     }
 
@@ -626,9 +827,6 @@ export class WidgetUI {
         this.close();
         return;
       }
-      if (this.button?.contains(target)) return;
-      if (this.outsideChipsContainer?.contains(target)) return;
-      this.hideOutsideChips();
     };
     document.addEventListener('click', this.outsideClickHandler);
 
@@ -643,6 +841,7 @@ export class WidgetUI {
       }
     });
     this.renderOutsideChips();
+    this.setupScrollBehavior();
     return this.button;
   }
 
@@ -711,7 +910,6 @@ export class WidgetUI {
         chip.style.boxShadow = '0 18px 36px rgba(15, 23, 42, 0.24)';
       });
       chip.addEventListener('click', () => {
-        this.hasStartedChat = true;
         this.hideOutsideChips();
         // Open the widget, then send the suggestion via postMessage to iframe
         if (!this.state.isOpen) {
@@ -722,12 +920,16 @@ export class WidgetUI {
           this._sendSuggestionToIframe(s.text);
         }
       });
-      chip.addEventListener('mousedown', (event) => event.stopPropagation());
+      chip.addEventListener('mousedown', (event) => {
+        // Keep the input focused until the chip's click handler runs.
+        event.preventDefault();
+        event.stopPropagation();
+      });
       this.outsideChipsContainer!.appendChild(chip);
     });
 
     document.body.appendChild(this.outsideChipsContainer);
-    this.hideOutsideChips();
+    this.showOutsideChips();
   }
 
   /** Post the suggestion text to the iframe so it fills + sends the message. */
@@ -770,7 +972,7 @@ export class WidgetUI {
       transform: 'translateX(-50%) translateY(0) scale(1)',
       transformOrigin: 'bottom center',
       opacity: '0',
-      transition: 'width 0.34s cubic-bezier(0.22, 1, 0.36, 1), height 0.34s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.34s cubic-bezier(0.22, 1, 0.36, 1), transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease',
+      transition: DOCK_TRANSITION,
       pointerEvents: 'none',
       border: 'none',
       borderRadius: '999px',
@@ -839,6 +1041,14 @@ export class WidgetUI {
   open(): void {
     if (!this.pageVisible) return;
     if (!this.iframe) return;
+    if (this.mobileCloseTimer !== null) {
+      window.clearTimeout(this.mobileCloseTimer);
+      this.mobileCloseTimer = null;
+    }
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
+    }
 
     if (this.state.isOpen) {
       if (this.button) {
@@ -850,11 +1060,7 @@ export class WidgetUI {
           transform: 'translateX(-50%) translateY(16px) scale(0.98)',
         });
       }
-      if (this.outsideChipsContainer) {
-        this.outsideChipsContainer.style.display = 'none';
-        this.outsideChipsContainer.style.visibility = 'hidden';
-        this.outsideChipsContainer.style.pointerEvents = 'none';
-      }
+      this.hideOutsideChips();
       if (this.dockContainer) {
         this.dockContainer.style.display = 'block';
         this.applyDockExpandedChrome();
@@ -867,8 +1073,22 @@ export class WidgetUI {
     this.ignoreOutsideClicksUntil = Date.now() + 250;
     if (this.dockContainer) {
       this.dockContainer.style.display = 'block';
-      this.applyDockCollapsedChrome();
-      this.dockContainer.style.opacity = '1';
+      if (this.isMobileSheet()) {
+        // Establish full-screen geometry before the first visible frame. This
+        // avoids morphing the 48px launcher pill into a large rounded skeleton.
+        this.dockContainer.style.transition = 'none';
+        this.applyDockExpandedChrome();
+        Object.assign(this.dockContainer.style, {
+          opacity: '0',
+          pointerEvents: 'none',
+          transform: 'translateY(20px)',
+        });
+        void this.dockContainer.offsetHeight;
+        this.dockContainer.style.transition = DOCK_TRANSITION;
+      } else {
+        this.applyDockCollapsedChrome();
+        this.dockContainer.style.opacity = '1';
+      }
     }
 
     if (this.button) {
@@ -888,15 +1108,8 @@ export class WidgetUI {
       this.applyDockExpandedChrome();
     });
 
-    // Hide outside chips while widget is open
-    if (this.outsideChipsContainer) {
-      Object.assign(this.outsideChipsContainer.style, {
-        display: 'none',
-        visibility: 'hidden',
-        opacity: '0',
-        pointerEvents: 'none',
-      });
-    }
+    // Hide outside chips while widget is open.
+    this.hideOutsideChips();
 
     if (this.onToggle) this.onToggle(true);
   }
@@ -907,29 +1120,77 @@ export class WidgetUI {
   close(): void {
     if (!this.iframe) return;
 
+    if (this.mobileCloseTimer !== null) {
+      window.clearTimeout(this.mobileCloseTimer);
+      this.mobileCloseTimer = null;
+    }
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
+    }
+    const isMobile = this.isMobileSheet();
     this.state.isOpen = false;
     this.activePanelWidth = null;
 
     if (this.button) {
       this.setButtonClosedChrome();
-      Object.assign(this.button.style, {
-        transform: 'translateX(-50%) translateY(0) scale(1)',
-        opacity: '1',
-        visibility: 'visible',
-        pointerEvents: 'auto',
-        display: this.pageVisible ? 'flex' : 'none',
-      });
+      if (isMobile) {
+        Object.assign(this.button.style, {
+          display: 'none',
+          visibility: 'hidden',
+          opacity: '0',
+          pointerEvents: 'none',
+        });
+      } else {
+        Object.assign(this.button.style, {
+          transform: 'translateX(-50%) translateY(0) scale(1)',
+          opacity: '1',
+          visibility: 'visible',
+          pointerEvents: 'auto',
+          display: this.pageVisible ? 'flex' : 'none',
+        });
+      }
       this.button.setAttribute('aria-label', this.getLauncherLabel());
       this.button.setAttribute('title', this.getLauncherTitle());
     }
+    if (!isMobile && this.isPageScrolling) this.hideFloatingLauncherForScroll();
 
     // Animate widget out
     if (this.dockContainer) {
-      this.applyDockCollapsedChrome();
+      if (isMobile) {
+        // Lock in a fully open frame before starting the exit. Mobile browsers
+        // can otherwise coalesce the state changes and skip the transition.
+        this.dockContainer.style.transition = 'none';
+        this.applyDockExpandedChrome();
+        Object.assign(this.dockContainer.style, {
+          opacity: '1',
+          pointerEvents: 'none',
+          transform: 'translateY(0)',
+        });
+        void this.dockContainer.offsetHeight;
+        this.dockContainer.style.transition = 'transform 0.36s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease';
+        requestAnimationFrame(() => {
+          if (this.state.isOpen || !this.dockContainer) return;
+          Object.assign(this.dockContainer.style, {
+            opacity: '0',
+            transform: 'translateY(100%)',
+          });
+        });
+        this.mobileCloseTimer = window.setTimeout(() => {
+          this.mobileCloseTimer = null;
+          if (this.state.isOpen || !this.dockContainer) return;
+          this.dockContainer.style.transition = 'none';
+          this.applyDockCollapsedChrome();
+          void this.dockContainer.offsetHeight;
+          this.dockContainer.style.transition = DOCK_TRANSITION;
+          this.revealFloatingLauncherAfterClose();
+        }, 380);
+      } else {
+        this.applyDockCollapsedChrome();
+      }
     }
 
-    // Restore outside chips
-    this.hideOutsideChips();
+    if (!isMobile) this.showOutsideChips();
 
     if (this.onToggle) this.onToggle(false);
   }
@@ -940,7 +1201,7 @@ export class WidgetUI {
     if (!isVisible) {
       if (this.state.isOpen) this.close();
       if (this.button) this.button.style.display = 'none';
-      if (this.outsideChipsContainer) this.outsideChipsContainer.style.display = 'none';
+      this.hideOutsideChips();
       if (this.dockContainer) this.dockContainer.style.display = 'none';
       return;
     }
@@ -957,15 +1218,19 @@ export class WidgetUI {
     }
 
     if (!this.state.isOpen && this.button) {
-      Object.assign(this.button.style, {
-        display: 'flex',
-        opacity: '1',
-        visibility: 'visible',
-        transform: 'translateX(-50%) translateY(0) scale(1)',
-        pointerEvents: 'auto',
-      });
+      if (this.isPageScrolling) {
+        this.hideFloatingLauncherForScroll();
+      } else {
+        Object.assign(this.button.style, {
+          display: 'flex',
+          opacity: '1',
+          visibility: 'visible',
+          transform: 'translateX(-50%) translateY(0) scale(1)',
+          pointerEvents: 'auto',
+        });
+      }
     }
-    if (!this.state.isOpen) this.hideOutsideChips();
+    if (!this.state.isOpen) this.showOutsideChips();
   }
 
   /**
@@ -981,27 +1246,24 @@ export class WidgetUI {
     if (!this.iframe) return;
 
     if (this.isMobileSheet()) {
+      if (this.mobileCloseTimer !== null) return;
       if (this.dockContainer) {
-        Object.assign(this.dockContainer.style, {
-          width: 'calc(100vw - 24px)',
-          maxWidth: 'none',
-          height: 'min(680px, calc(100dvh - 104px))',
-          right: 'auto',
-          left: '50%',
-          top: 'auto',
-          bottom: '12px',
-          marginLeft: '0px',
-          border: 'none',
-          borderRadius: this.state.isOpen ? '14px 14px 0 0' : '999px',
-          background: 'transparent',
-          overflow: 'hidden',
-        });
-        this.dockContainer.style.transformOrigin = 'bottom center';
-        if (this.state.isOpen) this.applyDockExpandedChrome();
-        else this.applyDockCollapsedChrome();
+        if (this.state.isOpen) {
+          this.applyDockExpandedChrome();
+        } else {
+          Object.assign(this.dockContainer.style, {
+            right: 'auto',
+            left: '50%',
+            top: 'auto',
+            bottom: '14px',
+            marginLeft: '0',
+            background: 'transparent',
+          });
+          this.applyDockCollapsedChrome();
+        }
       }
       if (this.iframe) {
-        this.iframe.style.borderRadius = this.state.isOpen ? '14px 14px 0 0' : '999px';
+        this.iframe.style.borderRadius = this.state.isOpen ? '0' : '999px';
       }
       return;
     }
@@ -1054,6 +1316,25 @@ export class WidgetUI {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler);
       this.resizeHandler = null;
+    }
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler);
+      window.removeEventListener('wheel', this.scrollHandler);
+      window.removeEventListener('touchmove', this.scrollHandler);
+      document.removeEventListener('scroll', this.scrollHandler, true);
+      this.scrollHandler = null;
+    }
+    if (this.scrollEndTimer !== null) {
+      window.clearTimeout(this.scrollEndTimer);
+      this.scrollEndTimer = null;
+    }
+    if (this.mobileCloseTimer !== null) {
+      window.clearTimeout(this.mobileCloseTimer);
+      this.mobileCloseTimer = null;
+    }
+    if (this.outsideChipsRevealFrame !== null) {
+      window.cancelAnimationFrame(this.outsideChipsRevealFrame);
+      this.outsideChipsRevealFrame = null;
     }
     if (this.outsideClickHandler) {
       document.removeEventListener('click', this.outsideClickHandler);

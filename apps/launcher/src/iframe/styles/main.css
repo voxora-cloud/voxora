@@ -83,12 +83,12 @@
   background: linear-gradient(135deg, #e4a17f 0%, #9fb8d9 58%, #8397bf 100%);
   border: 0;
   color: #ffffff;
-  box-shadow: 0 10px 22px rgba(91, 112, 143, 0.24);
+  box-shadow: none;
 }
 
 .light-theme .send-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #e4a17f 0%, #9fb8d9 58%, #8397bf 100%);
-  filter: brightness(1.03);
+  filter: none;
 }
 
 
@@ -1318,7 +1318,7 @@ body {
 }
 
 .suggestion-btn::before {
-  content: "?";
+  content: "✦";
   flex: 0 0 24px;
   width: 24px;
   height: 24px;
@@ -1329,8 +1329,8 @@ body {
   background: color-mix(in srgb, var(--vx-text, #fafafa) 7%, transparent);
   border: 1px solid color-mix(in srgb, var(--vx-text, #fafafa) 8%, transparent);
   color: color-mix(in srgb, var(--vx-text, #fafafa) 58%, transparent);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
   line-height: 1;
  }
 
@@ -1949,22 +1949,24 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(91, 112, 143, 0.24);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
   position: relative;
 }
 
 .send-btn:hover:not(:disabled) {
-  filter: brightness(1.03);
+  filter: none;
 }
 
 .send-btn:disabled {
-  opacity: 1;
+  opacity: 1 !important;
   cursor: not-allowed;
-  background: #e5e7eb;
-  color: #9ca3af;
-  filter: none;
-  box-shadow: none;
+  background: linear-gradient(135deg, #e4a17f 0%, #9fb8d9 58%, #8397bf 100%) !important;
+  color: #ffffff !important;
+  filter: none !important;
+  box-shadow: none !important;
 }
 
 .send-btn.is-processing {
@@ -1972,12 +1974,14 @@ body {
   cursor: wait;
   filter: none;
   border-radius: 50%;
-  box-shadow: 0 10px 22px rgba(91, 112, 143, 0.24);
+  box-shadow: none;
 }
 
 .send-btn svg {
   width: 14px;
   height: 14px;
+  filter: none;
+  text-shadow: none;
 }
 
 .send-btn.is-processing svg {
@@ -2002,8 +2006,8 @@ body {
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(91, 112, 143, 0.24);
+  transform: none;
+  box-shadow: none !important;
 }
 
 .input-hint {
@@ -3163,13 +3167,17 @@ body {
 
 
 
-/* Hide close button on mobile, show on desktop */
+/* Keep the close action available in the full-screen mobile widget. */
 .is-mobile #vx-minimize {
-  display: none !important;
+  display: inline-flex !important;
 }
 
 /* ── Mobile responsive sidebar ─────────────────────────────────────────── */
 @media (max-width: 768px) {
+
+  .widget-app {
+    border: 0;
+  }
 
   .history-overlay {
     position: fixed;

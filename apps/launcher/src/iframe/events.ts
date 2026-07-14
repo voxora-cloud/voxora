@@ -1,5 +1,5 @@
 import { state, API_BASE_URL, PROTO_VERSION } from './config';
-import { elements, addMessage, adjustTextareaHeight, hideWelcomeScreen, showTypingDots, removeTypingDots, formatHistoryDateTime, scrollToBottom, showAgentConnectedCard } from './ui';
+import { elements, addMessage, adjustTextareaHeight, hideWelcomeScreen, showWelcomeScreen, showTypingDots, removeTypingDots, formatHistoryDateTime, scrollToBottom, showAgentConnectedCard } from './ui';
 import { makeAuthenticatedRequest, fetchMessagesFromBackend } from './api';
 import { initializeSocket, setAiResponding } from './socket';
 import { stripMarkdown } from './utils/markdown';
@@ -722,13 +722,11 @@ export function startNewConversation() {
   const agentBadge = document.getElementById('agentBadge');
   if (agentBadge) agentBadge.style.display = 'none';
 
-  // Show welcome screen, hide messages
+  // Show the empty-chat welcome state and its quick suggestions.
   if (elements.messagesContainer) {
     elements.messagesContainer.innerHTML = '';
-    elements.messagesContainer.style.display = 'none';
   }
-  const welcomeScreen = document.getElementById('welcomeScreen');
-  if (welcomeScreen) welcomeScreen.style.display = 'flex';
+  showWelcomeScreen();
 
   // Focus input
   setComposerEnabled(true, 'Type your message...');

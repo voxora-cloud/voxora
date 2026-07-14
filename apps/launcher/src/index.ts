@@ -150,6 +150,9 @@ class InteraOneLoader {
             msg.payload.centered === true,
           );
           break;
+        case 'CONVERSATION_STATE':
+          this.ui.setConversationStarted(msg.payload.started);
+          break;
         case 'REQUEST_PAGE_HTML': {
           // Only service the request when DOM access is permitted by config
           if (this.appearance?.features?.endUserDomAccess) {
