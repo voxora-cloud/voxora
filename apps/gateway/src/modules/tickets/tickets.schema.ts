@@ -68,4 +68,9 @@ export const ticketsSchema = {
   addNote: Joi.object({
     content: Joi.string().trim().min(1).max(5000).required(),
   }),
+
+  // ── Agent UI: reply to customer via email ─────────────────────────────────
+  replyToTicket: Joi.object({
+    content: Joi.string().trim().min(1).max(10000).required(),
+  }),
 };

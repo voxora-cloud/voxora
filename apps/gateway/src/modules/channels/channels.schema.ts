@@ -45,12 +45,4 @@ export const channelsSchema = {
   channelParams: Joi.object({
     channelId: Joi.string().required(),
   }),
-
-  sendViaChannel: Joi.object({
-    to: Joi.string().required(),
-    subject: Joi.string().max(200),
-    body: Joi.string().required(),
-    html: Joi.string(),
-    replyTo: Joi.string().email(),
-  }),
 };

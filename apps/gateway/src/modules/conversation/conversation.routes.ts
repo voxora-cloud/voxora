@@ -9,13 +9,15 @@ import {
 
 const router = Router();
 
-// ─── AI-Internal Routes (x-ai-tool-secret, no JWT) ──────────────────────────
+// =============================================================================
+// ─── CATEGORY 1: AI AGENT SYSTEM INTEGRATION ROUTES (Secret Token Verified) ───
+// =============================================================================
 
 /**
  * @openapi
  * /conversations/ai/{conversationId}/memory:
  *   get:
- *     summary: Retrieve message history memory for AI context builder
+ *     summary: Retrieve history / memory for AI processing
  *     tags:
  *       - Conversations
  *     parameters:
@@ -197,10 +199,16 @@ router.post(
   ConversationController.aiSaveAgentRun,
 );
 
-// ─── Agent Dashboard Routes (JWT required) ───────────────────────────────────
+// =============================================================================
+// ─── SECURITY GATEWAY: AGENT AUTHENTICATION MIDDLEWARE ────────────────────────
+// =============================================================================
 
-// All agent dashboard conversation routes require org context.
+// All subsequent routes require JWT and organization scope.
 router.use(auth, resolveOrganization, requireRole("agent"));
+
+// =============================================================================
+// ─── CATEGORY 2: AGENT DASHBOARD - CORE CONVERSATION DATA RETRIEVAL ───────────
+// =============================================================================
 
 /**
  * @openapi
@@ -272,6 +280,31 @@ router.get("/:conversationId", ConversationController.getConversationById);
 
 /**
  * @openapi
+ * /conversations/{conversationId}/agent-runs:
+ *   get:
+ *     summary: Get agent run history for a conversation
+ *     tags:
+ *       - Conversations
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: conversationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: History retrieved successfully
+ */
+router.get("/:conversationId/agent-runs", ConversationController.getAgentRuns);
+
+// =============================================================================
+// ─── CATEGORY 3: AGENT DASHBOARD - CONVERSATION ROUTING & STATE MANAGEMENT ────
+// =============================================================================
+
+/**
+ * @openapi
  * /conversations/{conversationId}/read:
  *   post:
  *     summary: Mark conversation messages as read
@@ -293,6 +326,77 @@ router.post(
   "/:conversationId/read",
   ConversationController.markConversationRead,
 );
+
+/**
+ * @openapi
+ * /conversations/{conversationId}/status:
+ *   patch:
+ *     summary: Update conversation status
+ *     tags:
+ *       - Conversations
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: conversationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ */
+router.patch(
+  "/:conversationId/status",
+  ConversationController.updateConversationStatus,
+);
+
+/**
+ * @openapi
+ * /conversations/{conversationId}/route:
+ *   post:
+ *     summary: Route conversation to a specific support team or human agent
+ *     tags:
+ *       - Conversations
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: conversationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               assignedTo:
+ *                 type: string
+ *               teamId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Conversation routed successfully
+ */
+router.post("/:conversationId/route", ConversationController.routeConversation);
+
+// =============================================================================
+// ─── CATEGORY 4: AGENT DASHBOARD - AI CO-PILOT ASSISTANCE TOOLS ──────────────
+// =============================================================================
 
 /**
  * @openapi
@@ -379,40 +483,9 @@ router.post(
   ConversationController.assistDraft,
 );
 
-/**
- * @openapi
- * /conversations/{conversationId}/status:
- *   patch:
- *     summary: Update conversation status
- *     tags:
- *       - Conversations
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: conversationId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - status
- *             properties:
- *               status:
- *                 type: string
- *     responses:
- *       200:
- *         description: Status updated successfully
- */
-router.patch(
-  "/:conversationId/status",
-  ConversationController.updateConversationStatus,
-);
+// =============================================================================
+// ─── CATEGORY 5: AGENT DASHBOARD - CUSTOMER METADATA ASSOCIATIONS ────────────
+// =============================================================================
 
 /**
  * @openapi
@@ -448,58 +521,5 @@ router.post(
   "/:conversationId/contact",
   ConversationController.updateContactAssociation,
 );
-
-/**
- * @openapi
- * /conversations/{conversationId}/route:
- *   post:
- *     summary: Route conversation to a specific support team or human agent
- *     tags:
- *       - Conversations
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: conversationId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               assignedTo:
- *                 type: string
- *               teamId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Conversation routed successfully
- */
-router.post("/:conversationId/route", ConversationController.routeConversation);
-
-/**
- * @openapi
- * /conversations/{conversationId}/agent-runs:
- *   get:
- *     summary: Get agent run history for a conversation
- *     tags:
- *       - Conversations
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: conversationId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: History retrieved successfully
- */
-router.get("/:conversationId/agent-runs", ConversationController.getAgentRuns);
 
 export default router;

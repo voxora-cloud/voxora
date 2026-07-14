@@ -734,6 +734,12 @@ export class ConversationService {
             }).lean()
           : null;
 
+        // Get linked ticket (if any) so sidebar can show Ticket badge and pass ticketId in URL
+        const linkedTicket = await Ticket.findOne({
+          organizationId,
+          conversationId: conv._id,
+        }).select("_id ticketNumber").lean();
+
         results.push({
           _id: conv._id.toString(),
           subject: conv.subject || "No Subject",
@@ -742,6 +748,8 @@ export class ConversationService {
           lastMessage: lastMsg?.content || "",
           openedAt: recent.openedAt.getTime(),
           status: conv.status,
+          ticketId: linkedTicket?._id?.toString() || undefined,
+          ticketNumber: linkedTicket?.ticketNumber || undefined,
         });
       }
       return results;

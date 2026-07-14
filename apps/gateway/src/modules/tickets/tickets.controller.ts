@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { AuthenticatedRequest } from "@shared/security/middleware";
 import { TicketsService } from "./tickets.service";
+import { ChannelService } from "../channels/channels.service";
 
 const service = new TicketsService();
 
@@ -121,4 +122,19 @@ export const aiCloseTicket = asyncHandler(async (req: Request, res: Response) =>
   const ticket = await service.closeTicket(organizationId, param(req, "ticketId"), { resolutionNote });
   if (!ticket) return sendError(res, 404, "Ticket not found");
   sendResponse(res, 200, true, "Ticket closed by AI", { ticket });
+});
+
+// ─── Agent UI: reply to customer ────────────────────────────────────────────
+
+export const replyToTicket = asyncHandler(async (req: Request, res: Response) => {
+  const orgId = getOrgId(req);
+  const ticketId = param(req, "ticketId");
+  const { content } = req.body;
+
+  // Verify ticket exists and belongs to this org
+  const ticket = await service.getTicketById(orgId, ticketId);
+  if (!ticket) return sendError(res, 404, "Ticket not found");
+
+  await ChannelService.sendTicketFollowup(orgId, ticketId, content);
+  sendResponse(res, 200, true, "Reply sent to customer via email", {});
 });

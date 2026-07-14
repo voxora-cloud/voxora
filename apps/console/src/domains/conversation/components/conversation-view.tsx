@@ -20,8 +20,9 @@ import {
   Shuffle,
   Wand2,
   X,
+  Ticket,
 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
@@ -40,6 +41,7 @@ import { ContactDetailsCard } from "@/domains/contacts/components/contact-detail
 import { Loader } from "@/shared/ui/loader";
 import { toast } from "sonner";
 import { TemplatePicker } from "./template-picker";
+import { ticketsApi } from "@/domains/tickets/api/tickets.api";
 
 import { playNotificationSound } from "@/shared/lib/audio";
 
@@ -257,6 +259,9 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const ticketId = searchParams.get("ticketId");
+  const isTicketReply = Boolean(ticketId);
   const queryClient = useQueryClient();
   const { data: conversationResponse, isLoading } =
     useConversationDetail(conversationId);
@@ -514,11 +519,12 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   }, [conversation]);
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !socket) return;
+    const content = newMessage.trim();
+    if (!content || (!socket && !isTicketReply)) return;
 
     const messageData = {
       conversationId,
-      content: newMessage,
+      content,
       type: "text",
       metadata: {
         senderName: user?.name || "Agent",
@@ -527,7 +533,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       },
     };
 
-    if (isAgentTypingRef.current) {
+    if (socket && isAgentTypingRef.current) {
       try {
         socket.emit("typing_stop", { conversationId });
       } catch {
@@ -537,12 +543,10 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     }
 
-    socket.emit("send_message", messageData);
-
     const tempMessage: ConversationMessage = {
       _id: `temp-${Date.now()}`,
       senderId: user?.id || "agent",
-      content: newMessage,
+      content,
       type: "text",
       metadata: messageData.metadata,
       createdAt: new Date().toISOString(),
@@ -554,6 +558,22 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     setDraftAssistOptions([]);
     setDraftAssistMode(null);
     setSlashCommand(null);
+
+    if (isTicketReply && ticketId) {
+      try {
+        await ticketsApi.replyToTicket(ticketId, content);
+        toast.success("Reply sent to customer");
+      } catch (error: any) {
+        setMessages((prev) =>
+          prev.filter((message) => message._id !== tempMessage._id),
+        );
+        setNewMessage(content);
+        toast.error(error?.message || "Failed to send ticket reply");
+      }
+      return;
+    }
+
+    socket?.emit("send_message", messageData);
   };
 
   const handleSuggestReply = async () => {
@@ -991,6 +1011,12 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                   <h2 className="truncate font-semibold text-foreground">
                     {customerName}
                   </h2>
+                  {isTicketReply && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+                      <Ticket className="h-3 w-3" />
+                      Ticket Reply
+                    </span>
+                  )}
                   {isAnonymous && (
                     <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded-full">
                       Anonymous
@@ -1311,7 +1337,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     value={newMessage}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
-                    placeholder="Write a reply..."
+                    placeholder={isTicketReply ? "Reply via email..." : "Write a reply..."}
                     className="min-h-[76px] flex-1 resize-none cursor-text rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
                     disabled={isLoading}
                   />
@@ -1324,6 +1350,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                   >
                     <Send className="h-4 w-4" />
                   </Button>
+                </div>
+                <div className="mt-1 flex justify-end">
+                  <span className="text-xs text-muted-foreground">
+                    {isTicketReply ? "Reply will be sent via email" : "Press Enter to send"}
+                  </span>
                 </div>
               </div>
             </div>

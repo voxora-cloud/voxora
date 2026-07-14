@@ -90,7 +90,7 @@ export const handleAgentMessage = ({ socket, io }: { socket: any; io: any }) => 
 
         // Forward agent reply to channels if applicable
         if (gateState.interactionSource !== "widget") {
-          ChannelService.sendOutboundMessage(orgId.toString(), conversationId, content).catch((err: any) => {
+          ChannelService.sendConversationReply(orgId.toString(), conversationId, content).catch((err: any) => {
             logger.error(`[handleAgentMessage] Failed to forward agent reply to channel:`, err);
           });
         }

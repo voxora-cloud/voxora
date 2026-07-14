@@ -318,4 +318,43 @@ router.post(
   TicketsController.addNoteAgent,
 );
 
+/**
+ * @openapi
+ * /tickets/{ticketId}/reply:
+ *   post:
+ *     summary: Send a reply to the customer via email for a ticket
+ *     tags:
+ *       - Tickets
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: ticketId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Reply sent to customer via email
+ *       404:
+ *         description: Ticket not found
+ */
+router.post(
+  "/:ticketId/reply",
+  requireRole("agent"),
+  validateRequest(ticketsSchema.replyToTicket),
+  TicketsController.replyToTicket,
+);
+
 export default router;

@@ -49,6 +49,10 @@ class TicketsApi {
   async updateStatus(ticketId: string, status: "open" | "in_progress" | "resolved" | "closed"): Promise<TicketResponse> {
     return this.updateTicket(ticketId, { status });
   }
+
+  async replyToTicket(ticketId: string, content: string): Promise<void> {
+    return apiClient.post(`/tickets/${ticketId}/reply`, { content });
+  }
 }
 
 export const ticketsApi = new TicketsApi();

@@ -161,28 +161,6 @@ export class ChannelsController {
     sendResponse(res, 200, true, `Domain verification status: ${result.status}`, result);
   });
 
-  /**
-   * POST /channels/:channelId/send
-   * AI-agent initiated send through a channel (protected by AI secret).
-   */
-  static sendViaChannel = asyncHandler(async (req: Request, res: Response) => {
-    const channelId = String(req.params.channelId);
-    const { to, subject, body, html, replyTo } = req.body;
-
-    // Resolve org from the channel itself — AI secret routes have no user context
-    const channel = await Channel.findById(channelId).lean();
-    if (!channel) {
-      return sendError(res, 404, "Channel not found");
-    }
-
-    const result = await ChannelService.sendViaChannel(
-      channel.organizationId.toString(),
-      channelId,
-      { to, subject, body, html, replyTo },
-    );
-
-    sendResponse(res, 200, true, "Message sent via channel", result);
-  });
 
   /**
    * DELETE /channels/:channelId

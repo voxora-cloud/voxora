@@ -353,49 +353,49 @@ export class ChannelService {
       try {
         const message = await Message.findById(result.messageId);
         if (message) {
-          socketService.emitToConversation(result.conversationId, "new_message", {
-            conversationId: result.conversationId,
-            message: {
-              _id: message._id,
-              senderId: message.senderId,
-              content: message.content,
-              type: message.type,
-              metadata: message.metadata,
-              createdAt: message.createdAt,
-            },
-          });
-          socketService.getIO().to(`org:${channel.organizationId}`).emit("new_message_alert", {
-            conversationId: result.conversationId,
-            channel: channel.type,
-          });
-
           const conversation = await Conversation.findById(result.conversationId);
-          if (
+          const isHumanHandled =
             conversation &&
-            !conversation.assignedTo &&
-            !(conversation.metadata as any)?.escalatedAt &&
-            !(conversation.metadata as any)?.humanJoinedAt &&
-            !["resolved", "closed"].includes(conversation.status)
-          ) {
-            if (message.content) {
-              const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
-              const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
+            (conversation.assignedTo ||
+              (conversation.metadata as any)?.escalatedAt ||
+              (conversation.metadata as any)?.humanJoinedAt);
 
-              await aiQueue.add("process", {
-                organizationId: channel.organizationId.toString(),
-                conversationId: result.conversationId,
+          if (isHumanHandled) {
+            // Only emit to conversation room when a human agent is actively handling it
+            socketService.emitToConversation(result.conversationId, "new_message", {
+              conversationId: result.conversationId,
+              message: {
+                _id: message._id,
+                senderId: message.senderId,
                 content: message.content,
-                messageId: result.messageId,
-                channel: channel.type,
-                aiEnabled: true,
-                subscriptionExpired,
-              });
-              logger.info("[ChannelService] Inbound message enqueued for AI processing", {
-                conversationId: result.conversationId,
-                messageId: result.messageId,
-                channel: channel.type,
-              });
-            }
+                type: message.type,
+                metadata: message.metadata,
+                createdAt: message.createdAt,
+              },
+            });
+          } else if (
+            conversation &&
+            !["resolved", "closed"].includes(conversation.status) &&
+            message.content
+          ) {
+            // Unassigned and unescalated — let the AI handle it
+            const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
+            const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
+
+            await aiQueue.add("process", {
+              organizationId: channel.organizationId.toString(),
+              conversationId: result.conversationId,
+              content: message.content,
+              messageId: result.messageId,
+              channel: channel.type,
+              aiEnabled: true,
+              subscriptionExpired,
+            });
+            logger.info("[ChannelService] Inbound message enqueued for AI processing", {
+              conversationId: result.conversationId,
+              messageId: result.messageId,
+              channel: channel.type,
+            });
           }
         }
       } catch (err: any) {
@@ -413,7 +413,15 @@ export class ChannelService {
     };
   }
 
-  static async sendOutboundMessage(
+  // ─── Outbound ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Send a reply back to the customer on the conversation's native channel
+   * (Telegram → Telegram, WhatsApp → WhatsApp, Email → Email).
+   * Used by: agent WebSocket handler and AI response consumer.
+   * Widget conversations are silently skipped (no channelId stored).
+   */
+  static async sendConversationReply(
     organizationId: string,
     conversationId: string,
     content: string,
@@ -431,55 +439,6 @@ export class ChannelService {
       return; // Not an external channel conversation
     }
 
-    // Check if there is an associated ticket for this conversation
-    const ticket = await Ticket.findOne({
-      organizationId,
-      conversationId: conversation._id,
-    }).lean();
-
-    if (ticket) {
-      let ticketChannelType: string;
-      if (ticket.source === "whatsapp") {
-        ticketChannelType = "whatsapp";
-      } else if (ticket.source === "telegram") {
-        ticketChannelType = "telegram";
-      } else {
-        ticketChannelType = "email";
-      }
-
-      let activeChannel = await Channel.findOne({
-        organizationId,
-        type: ticketChannelType,
-        isActive: true,
-      }).lean();
-
-      if (!activeChannel && ticketChannelType === "email" && config.email.provider === "mailhog") {
-        activeChannel = (await Channel.create({
-          organizationId,
-          type: "email",
-          name: "Local Dev Email Channel",
-          isActive: true,
-          config: {
-            email: {
-              address: "support@localhost.local",
-              addresses: ["support@localhost.local"],
-              domain: "localhost.local",
-              verificationStatus: "verified",
-              dnsRecords: [],
-            },
-          },
-        })) as any;
-      }
-
-      if (activeChannel) {
-        channelType =
-          ticketChannelType === "email"
-            ? "email_channel"
-            : `${ticketChannelType}_channel`;
-        channelId = activeChannel._id;
-      }
-    }
-
     let to: string | undefined;
     const convMeta = (conversation.metadata as any) || {};
 
@@ -490,24 +449,12 @@ export class ChannelService {
       if (!to && convMeta.senderEmail) {
         to = convMeta.senderEmail;
       }
-      if (!to && ticket?.contactId) {
-        const ticketContact = await Contact.findById(ticket.contactId).lean();
-        if (ticketContact?.email) {
-          to = ticketContact.email;
-        }
-      }
     } else if (channelType === "whatsapp_channel") {
       if (conversation.sessionId?.startsWith("whatsapp-")) {
         to = conversation.sessionId.replace("whatsapp-", "");
       }
       if (!to && convMeta.phone) {
         to = convMeta.phone;
-      }
-      if (!to && ticket?.contactId) {
-        const ticketContact = await Contact.findById(ticket.contactId).lean();
-        if (ticketContact?.phone) {
-          to = ticketContact.phone;
-        }
       }
     } else if (channelType === "telegram_channel") {
       if (conversation.sessionId?.startsWith("telegram-")) {
@@ -516,42 +463,157 @@ export class ChannelService {
       if (!to && convMeta.chatId) {
         to = convMeta.chatId;
       }
-      if (!to && ticket?.contactId) {
-        const ticketContact = await Contact.findById(ticket.contactId).lean();
-        if (ticketContact?.sessionId?.startsWith("telegram-")) {
-          to = ticketContact.sessionId.replace("telegram-", "");
-        }
-      }
     }
 
     if (to) {
-      let emailHtml: string | undefined;
-      let emailSubject: string | undefined;
-
-      if (channelType === "email_channel" && ticket) {
-        try {
-          const emailObj = await buildTicketLifecycleEmail("updated", {
-            name: convMeta.senderName || "there",
-            ticketNumber: ticket.ticketNumber,
-            title: ticket.title,
-            status: String(ticket.status).replace(/_/g, " "),
-            priority: ticket.priority,
-            updateSummary: content,
-          });
-          emailHtml = emailObj.html;
-          emailSubject = emailObj.subject;
-        } catch (err: any) {
-          logger.error("[ChannelService] Failed to build ticket lifecycle email template:", err.message);
-        }
-      }
-
       await this.sendViaChannel(organizationId, channelId.toString(), {
         to,
-        subject: emailSubject || conversation.subject || "Reply from Support",
+        subject: conversation.subject || "Reply from Support",
         body: content,
-        html: emailHtml,
         from: convMeta.supportEmail,
       });
     }
+  }
+
+  /**
+   * Send a follow-up email to the customer on behalf of a ticket.
+   * Always routes via email regardless of the ticket's original source.
+   * Used by: POST /tickets/:ticketId/reply (agent UI).
+   */
+  static async sendTicketFollowup(
+    organizationId: string,
+    ticketId: string,
+    content: string,
+  ): Promise<void> {
+    const ticket = await Ticket.findOne({ _id: ticketId, organizationId }).lean();
+    if (!ticket) {
+      logger.error(`[ChannelService.sendTicketFollowup] Ticket ${ticketId} not found`);
+      return;
+    }
+
+    const metadata = (ticket.metadata || {}) as Record<string, unknown>;
+    let recipientName =
+      typeof metadata.requesterName === "string" && metadata.requesterName.trim()
+        ? metadata.requesterName.trim()
+        : "there";
+
+    // Resolve recipient email — prefer contact record, then ticket metadata, then linked conversation metadata
+    let to: string | undefined;
+    if (ticket.contactId) {
+      const contact = await Contact.findOne({
+        _id: ticket.contactId,
+        organizationId,
+      })
+        .select("name email")
+        .lean();
+      to = contact?.email || undefined;
+      if (contact?.name) {
+        recipientName = contact.name;
+      }
+    }
+
+    if (!to && typeof metadata.requesterEmail === "string") {
+      to = metadata.requesterEmail.trim().toLowerCase();
+    }
+
+    if (!to && ticket.conversationId) {
+      const conversation = await Conversation.findOne({
+        _id: ticket.conversationId,
+        organizationId,
+      })
+        .select("sessionId metadata.senderName metadata.senderEmail")
+        .lean();
+
+      if (typeof conversation?.metadata?.senderEmail === "string") {
+        to = conversation.metadata.senderEmail.trim().toLowerCase();
+      }
+      if (
+        recipientName === "there" &&
+        typeof conversation?.metadata?.senderName === "string" &&
+        conversation.metadata.senderName.trim()
+      ) {
+        recipientName = conversation.metadata.senderName.trim();
+      }
+
+      if (!to && conversation?.sessionId) {
+        const contact = await Contact.findOne({
+          organizationId,
+          sessionId: conversation.sessionId,
+        })
+          .select("name email")
+          .lean();
+        to = contact?.email || undefined;
+        if (recipientName === "there" && contact?.name) {
+          recipientName = contact.name;
+        }
+      }
+    }
+
+    if (!to || to === "anonymous@temp.local") {
+      logger.error(`[ChannelService.sendTicketFollowup] No recipient email for ticket ${ticketId}`);
+      return;
+    }
+
+    // Find the org's active email channel
+    let emailChannel = await Channel.findOne({
+      organizationId,
+      type: "email",
+      isActive: true,
+    }).lean();
+
+    // Dev fallback: auto-create a mailhog channel if none exists
+    if (!emailChannel && config.email.provider === "mailhog") {
+      emailChannel = (await Channel.create({
+        organizationId,
+        type: "email",
+        name: "Local Dev Email Channel",
+        isActive: true,
+        config: {
+          email: {
+            address: "support@localhost.local",
+            addresses: ["support@localhost.local"],
+            domain: "localhost.local",
+            verificationStatus: "verified",
+            dnsRecords: [],
+          },
+        },
+      })) as any;
+    }
+
+    if (!emailChannel) {
+      logger.error(`[ChannelService.sendTicketFollowup] No active email channel for org ${organizationId}`);
+      return;
+    }
+
+    // Render the ticket lifecycle HTML email template
+    let emailHtml: string | undefined;
+    let emailSubject: string | undefined;
+    try {
+      const emailObj = await buildTicketLifecycleEmail("updated", {
+        name: recipientName,
+        ticketNumber: ticket.ticketNumber,
+        title: ticket.title,
+        status: String(ticket.status).replace(/_/g, " "),
+        priority: ticket.priority,
+        updateSummary: content,
+      });
+      emailHtml = emailObj.html;
+      emailSubject = emailObj.subject;
+    } catch (err: any) {
+      logger.error("[ChannelService.sendTicketFollowup] Failed to build email template:", err.message);
+    }
+
+    await this.sendViaChannel(organizationId, emailChannel._id.toString(), {
+      to,
+      subject: emailSubject || `Re: ${ticket.title}`,
+      body: content,
+      html: emailHtml,
+    });
+
+    logger.info("[ChannelService.sendTicketFollowup] Ticket reply sent via email", {
+      ticketId,
+      ticketNumber: ticket.ticketNumber,
+      to,
+    });
   }
 }

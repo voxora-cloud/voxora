@@ -9,7 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "dev": "nodemon src/index.ts",
+    "dev": "nodemon",
     "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node dist/index.js",
     "seed:email-templates": "ts-node -r tsconfig-paths/register src/scripts/seeds/email-templates.seed.ts",

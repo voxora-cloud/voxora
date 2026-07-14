@@ -93,7 +93,7 @@ export async function startAIResponseConsumer(): Promise<void> {
       await msg.save();
 
       // Forward AI response to external channels if applicable
-      ChannelService.sendOutboundMessage(
+      ChannelService.sendConversationReply(
         organizationId,
         conversationId,
         content,
