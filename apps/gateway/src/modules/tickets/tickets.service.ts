@@ -309,9 +309,9 @@ export class TicketsService {
       priority: ticket.priority,
       assignee: ticket.assignedTo
         ? {
-            name: (ticket.assignedTo as any).name || null,
-            email: (ticket.assignedTo as any).email || null,
-          }
+          name: (ticket.assignedTo as any).name || null,
+          email: (ticket.assignedTo as any).email || null,
+        }
         : null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
@@ -495,10 +495,10 @@ export class TicketsService {
       source: ticket.source,
       assignedTo: ticket.assignedTo
         ? {
-            id: ticket.assignedTo._id?.toString() || ticket.assignedTo.toString(),
-            name: ticket.assignedTo.name,
-            email: ticket.assignedTo.email,
-          }
+          id: ticket.assignedTo._id?.toString() || ticket.assignedTo.toString(),
+          name: ticket.assignedTo.name,
+          email: ticket.assignedTo.email,
+        }
         : null,
       tags: ticket.tags || [],
       notes: (ticket.notes || []).map((n: any) => ({

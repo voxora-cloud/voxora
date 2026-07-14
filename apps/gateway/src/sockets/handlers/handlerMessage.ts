@@ -388,8 +388,8 @@ export const handleMessage = ({ socket, io }: { socket: any; io: any }) => {
           .lean();
         const subscriptionExpired = org
           ? org.subscriptionStatus !== null &&
-            org.subscriptionStatus !== undefined &&
-            org.subscriptionStatus !== "active"
+          org.subscriptionStatus !== undefined &&
+          org.subscriptionStatus !== "active"
           : false;
 
         // ── Route: enqueue AI job with full config ─────────────────
