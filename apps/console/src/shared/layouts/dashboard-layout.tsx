@@ -324,13 +324,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ].slice(0, 50)); // Keep last 50
     });
 
-    socket.on("new_widget_conversation", () => {
-      playNotificationSound();
-      if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
-        setHasInboxBadge(true);
-      }
-    });
-
     socket.on("conversation_pending", () => {
       playNotificationSound();
       if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {

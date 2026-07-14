@@ -3,7 +3,6 @@ import {
   authenticate,
   resolveOrganization,
   requireRole,
-  validateAiSecret,
   validateRequest,
 } from "@shared/security/middleware";
 import { ChannelsController } from "./channels.controller";
@@ -82,53 +81,6 @@ channelsRouter.post(
   "/telegram/inbound/:channelId",
   express.json(),
   ChannelsController.handleTelegramInbound,
-);
-
-// ── AI tool: send via channel (AI secret protected) ───────────────────────────
-
-/**
- * @openapi
- * /channels/{channelId}/send:
- *   post:
- *     summary: Send a reply or message through a channel from AI context
- *     tags:
- *       - Channels
- *     parameters:
- *       - in: header
- *         name: x-ai-tool-secret
- *         required: true
- *         schema:
- *           type: string
- *       - in: path
- *         name: channelId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - to
- *               - content
- *             properties:
- *               to:
- *                 type: string
- *               content:
- *                 type: string
- *     responses:
- *       200:
- *         description: Message sent successfully through the channel
- *       401:
- *         description: Invalid AI secret
- */
-channelsRouter.post(
-  "/:channelId/send",
-  validateAiSecret,
-  validateRequest(channelsSchema.sendViaChannel),
-  ChannelsController.sendViaChannel,
 );
 
 // ── All other routes require authenticated user ───────────────────────────────

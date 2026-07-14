@@ -207,7 +207,6 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
         type: "text" as const,
         content: bodyText,
         metadata: {
-          senderName: fromPhone,
           source: "whatsapp_channel",
           channelId: payload.channelId,
           messageSid,

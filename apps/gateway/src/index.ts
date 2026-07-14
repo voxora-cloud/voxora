@@ -14,8 +14,8 @@ import {
   notFound,
 } from "@shared/security/middleware";
 import SocketManager from "@sockets/index";
-import { startAIResponseConsumer } from "@sockets/consumer";
-import { startAssistResponseConsumer } from "@sockets/assist.consumer";
+import { startAIResponseConsumer } from "@sockets/consumers/ai-response.consumer";
+import { startAssistResponseConsumer } from "@sockets/consumers/assist.consumer";
 import logger from "@shared/core/logger";
 import { seedEmailTemplates } from "@shared/seeds/emailTemplates.seed";
 import { authRouter } from "@modules/auth";
@@ -203,10 +203,10 @@ class Application {
       await connectRedis();
 
       // Start AI response stream consumer (background loop)
-      startAIResponseConsumer(this.socketManager);
+      startAIResponseConsumer();
 
       // Start Assist response consumer
-      startAssistResponseConsumer(this.socketManager);
+      startAssistResponseConsumer();
 
       // Initialize MinIO (non-blocking - log error but don't crash)
       initializeMinIO().catch((error) => {
@@ -243,7 +243,7 @@ class Application {
       });
 
       // Close Socket.IO
-      this.socketManager.getIO().close(() => {
+      this.socketManager.ioInstance.close(() => {
         logger.info("Socket.IO server closed");
       });
 

@@ -176,7 +176,6 @@ export function ConversationsInboxPage({ mode = "all" }: { mode?: Tab }) {
       queryClient.invalidateQueries({ queryKey: ["conversations"], exact: false });
     };
 
-    socket.on("new_widget_conversation", handleUpdate);
     socket.on("conversation_pending", handleUpdate);
     socket.on("conversation_assigned", handleUpdate);
     socket.on("conversation_escalated", handleUpdate);

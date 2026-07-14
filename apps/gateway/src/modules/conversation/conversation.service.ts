@@ -506,7 +506,7 @@ export class ConversationService {
 
     const memory = messages.reverse().map((m) => ({
       messageId: m._id.toString(),
-      role: m.metadata?.source === "widget" ? "user" : "assistant",
+      role: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(m.metadata?.source) ? "user" : "assistant",
       content: m.content,
       senderName: m.metadata?.senderName || null,
       timestamp: m.createdAt,
@@ -659,7 +659,7 @@ export class ConversationService {
             }
           : { sessionId: conv.sessionId },
         messages: messages.map((m) => ({
-          role: m.metadata?.source === "widget" ? "user" : "assistant",
+          role: ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(m.metadata?.source) ? "user" : "assistant",
           content: m.content || "",
         })),
       });
@@ -734,6 +734,12 @@ export class ConversationService {
             }).lean()
           : null;
 
+        // Get linked ticket (if any) so sidebar can show Ticket badge and pass ticketId in URL
+        const linkedTicket = await Ticket.findOne({
+          organizationId,
+          conversationId: conv._id,
+        }).select("_id ticketNumber").lean();
+
         results.push({
           _id: conv._id.toString(),
           subject: conv.subject || "No Subject",
@@ -742,6 +748,8 @@ export class ConversationService {
           lastMessage: lastMsg?.content || "",
           openedAt: recent.openedAt.getTime(),
           status: conv.status,
+          ticketId: linkedTicket?._id?.toString() || undefined,
+          ticketNumber: linkedTicket?.ticketNumber || undefined,
         });
       }
       return results;

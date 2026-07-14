@@ -1,5 +1,6 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { IOrganization } from "./Organization";
+import { redisClient } from "../infra/redis";
 
 export interface IConversation extends Document {
   _id: Types.ObjectId;
@@ -45,6 +46,27 @@ conversationSchema.index({ participants: 1 });
 conversationSchema.index({ organizationId: 1, updatedAt: -1 });
 conversationSchema.index({ organizationId: 1, channelId: 1 });
 conversationSchema.index({ organizationId: 1, channel: 1 });
+
+function clearConversationCache(id: any) {
+  if (id) {
+    const idStr = id.toString();
+    redisClient.del(`conversation:${idStr}:gate`).catch(() => {});
+  }
+}
+
+conversationSchema.post("save", function (doc) {
+  clearConversationCache(doc?._id);
+});
+
+conversationSchema.post("updateOne", function (this: any) {
+  const query = this.getQuery();
+  clearConversationCache(query?._id);
+});
+
+conversationSchema.post("findOneAndUpdate", function (this: any) {
+  const query = this.getQuery();
+  clearConversationCache(query?._id);
+});
 
 export const Conversation = mongoose.model<IConversation>(
   "Conversation",

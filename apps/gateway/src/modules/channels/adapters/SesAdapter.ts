@@ -8,6 +8,7 @@ import {
 } from "@aws-sdk/client-sesv2";
 import config from "@shared/infra/config";
 import logger from "@shared/core/logger";
+import dns from "dns";
 import {
   IEmailProviderAdapter,
   AddDomainParams,
@@ -112,7 +113,7 @@ export class SesAdapter implements IEmailProviderAdapter {
 
   async verifyDomain(domainId: string): Promise<VerifyDomainResult> {
     // SES verifies automatically once the user's CNAME records propagate.
-    // We simply poll the current DKIM status and return it.
+    // We poll the current DKIM status and perform a live query of the MX record.
     try {
       const identity = await this.client.send(
         new GetEmailIdentityCommand({ EmailIdentity: domainId }),
@@ -126,7 +127,27 @@ export class SesAdapter implements IEmailProviderAdapter {
         identity.DkimAttributes?.Tokens ?? [],
       );
 
-      return { verified: status === "verified", status, dnsRecords };
+      // Perform a live DNS check to verify the MX record points to AWS SES
+      const mxResult = await new Promise<{ ok: boolean }>((resolve) => {
+        dns.resolveMx(domainId, (err, addresses) => {
+          if (err || !addresses || addresses.length === 0) {
+            resolve({ ok: false });
+            return;
+          }
+          const region = config.aws.region || "us-east-1";
+          const expected = `inbound-smtp.${region}.amazonaws.com`;
+          const hasSesMx = addresses.some((addr) =>
+            addr.exchange.toLowerCase().includes(expected)
+          );
+          resolve({ ok: hasSesMx });
+        });
+      });
+
+      const isDkimVerified = status === "verified";
+      const verified = isDkimVerified && mxResult.ok;
+      const finalStatus = verified ? "verified" : "pending";
+
+      return { verified, status: finalStatus, dnsRecords };
     } catch (err: any) {
       logger.error("[SesAdapter] Failed to verify domain", { domainId, error: err.message });
       throw new Error(`SES domain verification failed: ${err.message}`);

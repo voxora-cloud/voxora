@@ -5,13 +5,14 @@ import {
   redisPublisher,
   redisSubscriber,
 } from "@shared/infra/redis";
-import { User, Membership } from "@shared/models";
-import jwt from "jsonwebtoken";
 import logger from "@shared/core/logger";
 import config from "@shared/infra/config";
-import { handleMessage } from "./handlers/handlerMessage";
-
-let socketManagerInstance: SocketManager | null = null;
+import { authMiddleware } from "./middleware/auth";
+import { subscriptionMiddleware } from "./middleware/subscription";
+import { gatekeeperMiddleware } from "./middleware/gatekeeper";
+import { registerConnectionHandlers } from "./handlers";
+import { socketService } from "./services/socket.service";
+import { updateUserStatus } from "./utils/status";
 
 export class SocketManager {
   private io: Server;
@@ -35,7 +36,8 @@ export class SocketManager {
     this.setupMiddleware();
     this.setupEventHandlers();
 
-    socketManagerInstance = this;
+    // Initialize the broadcasting socketService instance
+    socketService.init(this.io);
   }
 
   public get ioInstance() {
@@ -53,71 +55,8 @@ export class SocketManager {
   }
 
   private setupMiddleware(): void {
-    this.io.use(async (socket, next) => {
-      try {
-        const token = socket.handshake.auth.token;
-        if (!token)
-          return next(new Error("Authentication error: No token provided"));
-
-        // Use custom jwt.verify to inspect the token type
-        const decoded = jwt.verify(token, config.jwt.secret!) as any;
-
-        if (decoded.type === "widget_session") {
-          // Widget Connection
-          socket.data.user = {
-            isWidget: true,
-            orgId: decoded.organizationId,
-            widgetKey: decoded.publicKey,
-            userId: socket.id, // Fallback userId for widget to avoid breaking things expecting a string
-          };
-          return next();
-        }
-
-        // Agent Connection
-        const user = await User.findById(decoded.userId).select("-password");
-        if (!user || !user.isActive)
-          return next(new Error("Authentication error: Invalid user"));
-
-        const orgId = decoded.activeOrganizationId;
-
-        // Verify that the user has an active membership in the claimed org
-        if (!orgId)
-          return next(
-            new Error("Authentication error: No active organization"),
-          );
-
-        const membership = await Membership.findOne({
-          userId: decoded.userId,
-          organizationId: orgId,
-          inviteStatus: "accepted",
-        });
-        if (!membership)
-          return next(
-            new Error(
-              "Authentication error: Not a member of this organization",
-            ),
-          );
-
-        socket.data.user = {
-          isWidget: false,
-          userId: user._id.toString(),
-          email: user.email,
-          name: user.name,
-          orgId,
-          orgRole: membership.role,
-        };
-
-        // Update lastSeen
-        await User.findByIdAndUpdate(
-          user._id,
-          { lastSeen: new Date() },
-          { timestamps: false },
-        );
-        next();
-      } catch (err: any) {
-        next(new Error(`Authentication error: ${err.message}`));
-      }
-    });
+    this.io.use(authMiddleware);
+    this.io.use(subscriptionMiddleware);
   }
 
   private setupEventHandlers(): void {
@@ -131,32 +70,35 @@ export class SocketManager {
       this.connectedUsers.set(userId, { socketId: socket.id, orgId });
       redisClient
         .set(`org:${orgId}:socket:user:${userId}`, socket.id, { EX: 86400 })
-        .catch(() => {});
+        .catch(() => { });
 
-      // Join the org room so we can broadcast org-wide events
+      // Join rooms
       socket.join(`org:${orgId}`);
-
-      // Join the user-specific room
       socket.join(`user:${userId}`);
 
+      // Register packet-level authorization and cache middleware
+      socket.use(gatekeeperMiddleware(socket));
+
+      // Register connection message/room handlers
+      registerConnectionHandlers({ socket, io: this.io });
+
+      // Handle custom user connection updates
       if (!isWidget) {
-        this.updateUserStatus(userId, "online");
+        updateUserStatus(userId, "online");
       }
-      handleMessage({ socket, io: this.io });
 
       socket.on("disconnect", () => {
         logger.info(`${isWidget ? "Widget" : "User"} disconnected: ${userId}`);
         this.connectedUsers.delete(userId);
-        redisClient.del(`org:${orgId}:socket:user:${userId}`).catch(() => {});
+        redisClient.del(`org:${orgId}:socket:user:${userId}`).catch(() => { });
         if (!isWidget) {
-          this.updateUserStatus(userId, "offline");
+          updateUserStatus(userId, "offline");
         }
       });
 
       socket.on("update_status", async (status: string) => {
         if (!isWidget) {
-          await this.updateUserStatus(userId, status);
-          // Broadcast status update only within the same org
+          await updateUserStatus(userId, status);
           this.io.to(`org:${orgId}`).emit("user_status_update", {
             userId,
             status,
@@ -166,58 +108,6 @@ export class SocketManager {
       });
     });
   }
-
-  private async updateUserStatus(
-    userId: string,
-    status: string,
-  ): Promise<void> {
-    try {
-      await User.findByIdAndUpdate(userId, { status, lastSeen: new Date() });
-    } catch (error) {
-      logger.error("Error updating user status:", error);
-    }
-  }
-
-  public getIO(): Server {
-    return this.io;
-  }
-
-  // ─── Emit helpers ──────────────────────────────────────────────────────────────
-
-  /**
-   * Emit to all sockets in a specific org-scoped conversation room.
-   */
-  public emitToConversation(
-    conversationId: string,
-    event: string,
-    data: any,
-  ): void {
-    // Also emit to legacy un-namespaced room (during transition)
-    this.io.to(`conversation:${conversationId}`).emit(event, data);
-  }
-
-  /**
-   * Emit to all sockets in an org (org-wide broadcast).
-   */
-  public emitToOrg(orgId: string, event: string, data: any): void {
-    this.io.to(`org:${orgId}`).emit(event, data);
-  }
-
-  /**
-   * Emit to a specific user. Uses native room routing.
-   */
-  public async emitToUser(
-    userId: string,
-    event: string,
-    data: any,
-  ): Promise<void> {
-    this.io.to(`user:${userId}`).emit(event, data);
-  }
-
-  public emitToAllUsers(event: string, data: any): void {
-    this.io.emit(event, data);
-  }
 }
 
-export const getSocketManager = () => socketManagerInstance;
 export default SocketManager;

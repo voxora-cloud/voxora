@@ -1,9 +1,12 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
-import { Conversation, Message, Organization } from "@shared/models";
+import { Conversation, Message, Organization, Ticket, Contact } from "@shared/models";
 import { aiQueue } from "@shared/infra/queue";
+import { socketService } from "@sockets/services/socket.service";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
+import config from "@shared/infra/config";
+import { buildTicketLifecycleEmail } from "@shared/utils/email";
 import {
   CreateEmailChannelInput,
   CreateWhatsAppChannelInput,
@@ -348,16 +351,34 @@ export class ChannelService {
     // Enqueue message to aiQueue for AI processing if conversation is not assigned to a human
     if (result.conversationId && result.messageId) {
       try {
-        const conversation = await Conversation.findById(result.conversationId);
-        if (
-          conversation &&
-          !conversation.assignedTo &&
-          !(conversation.metadata as any)?.escalatedAt &&
-          !(conversation.metadata as any)?.humanJoinedAt &&
-          !["resolved", "closed"].includes(conversation.status)
-        ) {
-          const message = await Message.findById(result.messageId);
-          if (message && message.content) {
+        const message = await Message.findById(result.messageId);
+        if (message) {
+          const conversation = await Conversation.findById(result.conversationId);
+          const isHumanHandled =
+            conversation &&
+            (conversation.assignedTo ||
+              (conversation.metadata as any)?.escalatedAt ||
+              (conversation.metadata as any)?.humanJoinedAt);
+
+          if (isHumanHandled) {
+            // Only emit to conversation room when a human agent is actively handling it
+            socketService.emitToConversation(result.conversationId, "new_message", {
+              conversationId: result.conversationId,
+              message: {
+                _id: message._id,
+                senderId: message.senderId,
+                content: message.content,
+                type: message.type,
+                metadata: message.metadata,
+                createdAt: message.createdAt,
+              },
+            });
+          } else if (
+            conversation &&
+            !["resolved", "closed"].includes(conversation.status) &&
+            message.content
+          ) {
+            // Unassigned and unescalated — let the AI handle it
             const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
             const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
 
@@ -378,7 +399,7 @@ export class ChannelService {
           }
         }
       } catch (err: any) {
-        logger.error("[ChannelService] Failed to enqueue inbound message to aiQueue", {
+        logger.error("[ChannelService] Failed to process inbound message pipeline", {
           conversationId: result.conversationId,
           messageId: result.messageId,
           error: err.message,
@@ -390,5 +411,209 @@ export class ChannelService {
       conversationId: result.conversationId,
       messageId: result.messageId,
     };
+  }
+
+  // ─── Outbound ─────────────────────────────────────────────────────────────────
+
+  /**
+   * Send a reply back to the customer on the conversation's native channel
+   * (Telegram → Telegram, WhatsApp → WhatsApp, Email → Email).
+   * Used by: agent WebSocket handler and AI response consumer.
+   * Widget conversations are silently skipped (no channelId stored).
+   */
+  static async sendConversationReply(
+    organizationId: string,
+    conversationId: string,
+    content: string,
+  ): Promise<void> {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      logger.error(`[ChannelService] Conversation ${conversationId} not found`);
+      return;
+    }
+
+    let channelType = conversation.channel || conversation.metadata?.channel;
+    let channelId = conversation.channelId || conversation.metadata?.channelId;
+
+    if (!channelType || !channelId) {
+      return; // Not an external channel conversation
+    }
+
+    let to: string | undefined;
+    const convMeta = (conversation.metadata as any) || {};
+
+    if (channelType === "email_channel") {
+      if (conversation.sessionId?.startsWith("email-")) {
+        to = conversation.sessionId.replace("email-", "");
+      }
+      if (!to && convMeta.senderEmail) {
+        to = convMeta.senderEmail;
+      }
+    } else if (channelType === "whatsapp_channel") {
+      if (conversation.sessionId?.startsWith("whatsapp-")) {
+        to = conversation.sessionId.replace("whatsapp-", "");
+      }
+      if (!to && convMeta.phone) {
+        to = convMeta.phone;
+      }
+    } else if (channelType === "telegram_channel") {
+      if (conversation.sessionId?.startsWith("telegram-")) {
+        to = conversation.sessionId.replace("telegram-", "");
+      }
+      if (!to && convMeta.chatId) {
+        to = convMeta.chatId;
+      }
+    }
+
+    if (to) {
+      await this.sendViaChannel(organizationId, channelId.toString(), {
+        to,
+        subject: conversation.subject || "Reply from Support",
+        body: content,
+        from: convMeta.supportEmail,
+      });
+    }
+  }
+
+  /**
+   * Send a follow-up email to the customer on behalf of a ticket.
+   * Always routes via email regardless of the ticket's original source.
+   * Used by: POST /tickets/:ticketId/reply (agent UI).
+   */
+  static async sendTicketFollowup(
+    organizationId: string,
+    ticketId: string,
+    content: string,
+  ): Promise<void> {
+    const ticket = await Ticket.findOne({ _id: ticketId, organizationId }).lean();
+    if (!ticket) {
+      logger.error(`[ChannelService.sendTicketFollowup] Ticket ${ticketId} not found`);
+      return;
+    }
+
+    const metadata = (ticket.metadata || {}) as Record<string, unknown>;
+    let recipientName =
+      typeof metadata.requesterName === "string" && metadata.requesterName.trim()
+        ? metadata.requesterName.trim()
+        : "there";
+
+    // Resolve recipient email — prefer contact record, then ticket metadata, then linked conversation metadata
+    let to: string | undefined;
+    if (ticket.contactId) {
+      const contact = await Contact.findOne({
+        _id: ticket.contactId,
+        organizationId,
+      })
+        .select("name email")
+        .lean();
+      to = contact?.email || undefined;
+      if (contact?.name) {
+        recipientName = contact.name;
+      }
+    }
+
+    if (!to && typeof metadata.requesterEmail === "string") {
+      to = metadata.requesterEmail.trim().toLowerCase();
+    }
+
+    if (!to && ticket.conversationId) {
+      const conversation = await Conversation.findOne({
+        _id: ticket.conversationId,
+        organizationId,
+      })
+        .select("sessionId metadata.senderName metadata.senderEmail")
+        .lean();
+
+      if (typeof conversation?.metadata?.senderEmail === "string") {
+        to = conversation.metadata.senderEmail.trim().toLowerCase();
+      }
+      if (
+        recipientName === "there" &&
+        typeof conversation?.metadata?.senderName === "string" &&
+        conversation.metadata.senderName.trim()
+      ) {
+        recipientName = conversation.metadata.senderName.trim();
+      }
+
+      if (!to && conversation?.sessionId) {
+        const contact = await Contact.findOne({
+          organizationId,
+          sessionId: conversation.sessionId,
+        })
+          .select("name email")
+          .lean();
+        to = contact?.email || undefined;
+        if (recipientName === "there" && contact?.name) {
+          recipientName = contact.name;
+        }
+      }
+    }
+
+    if (!to || to === "anonymous@temp.local") {
+      logger.error(`[ChannelService.sendTicketFollowup] No recipient email for ticket ${ticketId}`);
+      return;
+    }
+
+    // Find the org's active email channel
+    let emailChannel = await Channel.findOne({
+      organizationId,
+      type: "email",
+      isActive: true,
+    }).lean();
+
+    // Dev fallback: auto-create a mailhog channel if none exists
+    if (!emailChannel && config.email.provider === "mailhog") {
+      emailChannel = (await Channel.create({
+        organizationId,
+        type: "email",
+        name: "Local Dev Email Channel",
+        isActive: true,
+        config: {
+          email: {
+            address: "support@localhost.local",
+            addresses: ["support@localhost.local"],
+            domain: "localhost.local",
+            verificationStatus: "verified",
+            dnsRecords: [],
+          },
+        },
+      })) as any;
+    }
+
+    if (!emailChannel) {
+      logger.error(`[ChannelService.sendTicketFollowup] No active email channel for org ${organizationId}`);
+      return;
+    }
+
+    // Render the ticket lifecycle HTML email template
+    let emailHtml: string | undefined;
+    let emailSubject: string | undefined;
+    try {
+      const emailObj = await buildTicketLifecycleEmail("updated", {
+        name: recipientName,
+        ticketNumber: ticket.ticketNumber,
+        title: ticket.title,
+        status: String(ticket.status).replace(/_/g, " "),
+        priority: ticket.priority,
+        updateSummary: content,
+      });
+      emailHtml = emailObj.html;
+      emailSubject = emailObj.subject;
+    } catch (err: any) {
+      logger.error("[ChannelService.sendTicketFollowup] Failed to build email template:", err.message);
+    }
+
+    await this.sendViaChannel(organizationId, emailChannel._id.toString(), {
+      to,
+      subject: emailSubject || `Re: ${ticket.title}`,
+      body: content,
+      html: emailHtml,
+    });
+
+    logger.info("[ChannelService.sendTicketFollowup] Ticket reply sent via email", {
+      ticketId,
+      ticketNumber: ticket.ticketNumber,
+      to,
+    });
   }
 }

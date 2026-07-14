@@ -16,9 +16,6 @@ export interface InitConversationResult {
   isAnonymous: boolean;
   assignedTo: string | null;
   assignedAgent: string | null;
-  metadata: {
-    department: null;
-    routingStrategy: "auto";
-  };
+  metadata?: Record<string, any>;
 }
 

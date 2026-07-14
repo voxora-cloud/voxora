@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Clock, Trash2, ChevronLeft, ChevronRight, MessageSquare, Mail, Send, Phone } from "lucide-react";
+import { Clock, Trash2, ChevronLeft, ChevronRight, MessageSquare, Mail, Send, Phone, Ticket } from "lucide-react";
 import { conversationsApi } from "../api/conversations.api";
 
 interface RecentConversation {
@@ -11,6 +11,8 @@ interface RecentConversation {
   lastMessage?: string;
   openedAt: number;
   status?: string;
+  ticketId?: string;
+  ticketNumber?: string;
 }
 
 export function RecentConversationsSidebar() {
@@ -135,10 +137,13 @@ export function RecentConversationsSidebar() {
               .slice(0, 2)
               .toUpperCase();
             const isActive = conv._id === activeId;
+            const conversationUrl = conv.ticketId
+              ? `/dashboard/conversations/inbox/chat/${conv._id}?ticketId=${conv.ticketId}`
+              : `/dashboard/conversations/inbox/chat/${conv._id}`;
             return (
               <div key={conv._id} className="relative shrink-0 group">
                 <button
-                  onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conv._id}`)}
+                  onClick={() => navigate(conversationUrl)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer border relative transition-all duration-200 hover:scale-105 active:scale-95 ${
                     isActive
                       ? "bg-primary text-primary-foreground border-primary shadow-md ring-2 ring-primary/20"
@@ -213,11 +218,14 @@ export function RecentConversationsSidebar() {
               .join("")
               .slice(0, 2)
               .toUpperCase();
+            const conversationUrl = conv.ticketId
+              ? `/dashboard/conversations/inbox/chat/${conv._id}?ticketId=${conv.ticketId}`
+              : `/dashboard/conversations/inbox/chat/${conv._id}`;
 
             return (
               <button
                 key={conv._id}
-                onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conv._id}`)}
+                onClick={() => navigate(conversationUrl)}
                 className={`w-full text-left flex items-start gap-3 p-3.5 transition-all border-b border-border/40 select-none duration-200 relative ${
                   isActive
                     ? "bg-primary/[0.04] text-foreground"
@@ -251,9 +259,15 @@ export function RecentConversationsSidebar() {
                     </span>
                   </div>
                   
-                  {/* Source and Status Row */}
+                  {/* Source, Ticket and Status Row */}
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     {getChannelBadge(conv.channel)}
+                    {conv.ticketId && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25 leading-none shrink-0">
+                        <Ticket className="h-2.5 w-2.5" />
+                        {conv.ticketNumber || "Ticket"}
+                      </span>
+                    )}
                     {getStatusBadge(conv.status)}
                   </div>
 

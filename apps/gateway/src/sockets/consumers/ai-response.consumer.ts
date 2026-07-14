@@ -1,18 +1,16 @@
 import { redisClient } from "@shared/infra/redis";
-import { Conversation, Message, Contact } from "@shared/models";
+import { Conversation, Message } from "@shared/models";
 import { ChannelService } from "@modules/channels/channels.service";
 import { incrementMessageUsage } from "@shared/security/middleware";
 import { tracker } from "@shared/utils/tracker";
 import logger from "@shared/core/logger";
-import type SocketManager from "@sockets/index";
+import { socketService } from "../services/socket.service";
 
 const PUBSUB_CHANNEL = "ai:response";
 
 // ── Consumer startup ───────────────────────────────────────────────────────────
 
-export async function startAIResponseConsumer(
-  socketManager: SocketManager,
-): Promise<void> {
+export async function startAIResponseConsumer(): Promise<void> {
   const subscriber = redisClient.duplicate();
   await subscriber.connect();
 
@@ -51,15 +49,6 @@ export async function startAIResponseConsumer(
 
       if (!conv) return;
 
-      // Fetch contact matching the conversation's sessionId
-      let contact = null;
-      if (conv.sessionId) {
-        contact = await Contact.findOne({
-          organizationId: conv.organizationId,
-          sessionId: conv.sessionId,
-        }).lean();
-      }
-
       if (
         (conv as any).metadata?.escalatedAt ||
         (conv as any).metadata?.humanJoinedAt ||
@@ -80,7 +69,7 @@ export async function startAIResponseConsumer(
         logger.warn(
           `[AI Response] Message limit reached for org=${organizationId} (used=${usageResult.used} limit=${usageResult.limit}) — dropping AI response`,
         );
-        socketManager.emitToConversation(conversationId, "limit_reached", {
+        socketService.emitToConversation(conversationId, "limit_reached", {
           limitType: "messages",
           currentUsage: usageResult.used,
           limit: usageResult.limit,
@@ -104,38 +93,16 @@ export async function startAIResponseConsumer(
       await msg.save();
 
       // Forward AI response to external channels if applicable
-      const channelType =
-        (conv as any).channel || (conv as any).metadata?.channel;
-      const channelId =
-        (conv as any).channelId || (conv as any).metadata?.channelId;
-
-      if (channelType && channelId) {
-        const channelIdStr = channelId.toString();
-        let to: string | undefined;
-        const convMeta = (conv.metadata as any) || {};
-
-        if (channelType === "email_channel") {
-          to = contact?.email;
-        } else if (channelType === "whatsapp_channel") {
-          to = convMeta.phone || contact?.phone || contact?.name;
-        } else if (channelType === "telegram_channel") {
-          to = convMeta.chatId || conv.sessionId?.replace("telegram-", "");
-        }
-
-        if (to) {
-          ChannelService.sendViaChannel(organizationId, channelIdStr, {
-            to,
-            subject: (conv as any).subject || "Reply from Support",
-            body: content,
-            from: (conv as any).metadata?.supportEmail,
-          }).catch((err: any) => {
-            logger.error(
-              `[AI Response Consumer] Failed to forward AI response to channel ${channelType}:`,
-              err,
-            );
-          });
-        }
-      }
+      ChannelService.sendConversationReply(
+        organizationId,
+        conversationId,
+        content,
+      ).catch((err: any) => {
+        logger.error(
+          `[AI Response Consumer] Failed to forward AI response to channel:`,
+          err,
+        );
+      });
       tracker.trackMessage(
         organizationId,
         "ai",
@@ -173,7 +140,7 @@ export async function startAIResponseConsumer(
         );
       }
 
-      socketManager.emitToConversation(conversationId, "new_message", {
+      socketService.emitToConversation(conversationId, "new_message", {
         conversationId,
         streamMessageId: messageId,
         message: {
@@ -224,7 +191,7 @@ export async function startAIResponseConsumer(
       }
 
       // Emit chunk directly to active clients without DB persistence
-      socketManager.emitToConversation(conversationId, "ai_stream_chunk", {
+      socketService.emitToConversation(conversationId, "ai_stream_chunk", {
         conversationId,
         chunk,
         isThought,

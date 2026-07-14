@@ -361,7 +361,7 @@ export function TicketDetailPage() {
               </button>
               {ticket.conversationId && (
                 <Link
-                  to={`/dashboard/conversations/inbox/chat/${ticket.conversationId}`}
+                  to={`/dashboard/conversations/inbox/chat/${ticket.conversationId}?ticketId=${ticket.id}`}
                   className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
                 >
                   <Inbox className="h-4 w-4 text-primary-foreground/80" />

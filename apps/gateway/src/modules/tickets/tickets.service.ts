@@ -3,7 +3,7 @@ import { Ticket, ITicket, Conversation, Contact } from "@shared/models";
 import { enqueueTicketLifecycleEmail } from "@shared/queues/email.queue";
 import logger from "@shared/core/logger";
 import type { TicketEmailEvent } from "@shared/utils/email";
-import { getSocketManager } from "@sockets/index";
+import { socketService } from "@sockets/services/socket.service";
 import {
   CreateTicketInput,
   UpdateTicketInput,
@@ -309,9 +309,9 @@ export class TicketsService {
       priority: ticket.priority,
       assignee: ticket.assignedTo
         ? {
-            name: (ticket.assignedTo as any).name || null,
-            email: (ticket.assignedTo as any).email || null,
-          }
+          name: (ticket.assignedTo as any).name || null,
+          email: (ticket.assignedTo as any).email || null,
+        }
         : null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
@@ -446,7 +446,7 @@ export class TicketsService {
     action: "created" | "updated" | "closed" | "note_added",
     ticket: any,
   ) {
-    getSocketManager()?.emitToOrg(organizationId, "ticket_updated", {
+    socketService.emitToOrg(organizationId, "ticket_updated", {
       action,
       ticket,
     });
@@ -495,10 +495,10 @@ export class TicketsService {
       source: ticket.source,
       assignedTo: ticket.assignedTo
         ? {
-            id: ticket.assignedTo._id?.toString() || ticket.assignedTo.toString(),
-            name: ticket.assignedTo.name,
-            email: ticket.assignedTo.email,
-          }
+          id: ticket.assignedTo._id?.toString() || ticket.assignedTo.toString(),
+          name: ticket.assignedTo.name,
+          email: ticket.assignedTo.email,
+        }
         : null,
       tags: ticket.tags || [],
       notes: (ticket.notes || []).map((n: any) => ({

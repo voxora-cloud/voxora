@@ -286,8 +286,6 @@ export class EmailChannelStrategy implements IChannelStrategy {
         type: "text" as const,
         content: bodyText,
         metadata: {
-          senderName: fromEmail,
-          senderEmail: fromEmail,
           source: "email_channel",
           channelId: payload.channelId,
           subject,

@@ -46,10 +46,6 @@ export function ConversationSidebar() {
       console.log("Agent socket connected");
     });
 
-    socketInstance.on("new_widget_conversation", () => {
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
-    });
-
     socketInstance.on(
       "conversation_removed",
       (data: { conversationId: string }) => {
@@ -85,7 +81,12 @@ export function ConversationSidebar() {
           metadata?: { source?: string };
         };
       }) => {
-        if (data?.message?.metadata?.source === "widget") {
+        if (
+          data?.message?.metadata?.source &&
+          ["widget", "telegram_channel", "whatsapp_channel", "email_channel"].includes(
+            data.message.metadata.source,
+          )
+        ) {
           queryClient.setQueryData<ConversationListItem[]>(
             ["conversations", filterStatus],
             (prev = []) =>
