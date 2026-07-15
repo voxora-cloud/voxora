@@ -1,5 +1,5 @@
 import { DocumentJob } from "../ingestion.types";
-import { setDocStatus } from "../services/doc-status.service";
+import { InternalApiService } from "../../../infrastructure/api/internal-api.service";
 import { ProviderFactory } from "../../../infrastructure/providers";
 import { vectorStore } from "../../../infrastructure/vector";
 import { generateDeterministicChunkId } from "../utils/chunk-id";
@@ -18,7 +18,7 @@ export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
   const answer = content ? content.trim() : "";
 
   if (!question) {
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: "FAQ Question is empty",
     });
@@ -26,19 +26,21 @@ export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
   }
 
   if (!answer) {
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: "FAQ Answer is empty",
     });
     return;
   }
 
-  await setDocStatus(organizationId, documentId, { status: "indexing" });
-  logger.info(`[FAQ Ingestion] Starting indexing for document ${documentId}`, {
-    documentId,
-    organizationId,
-    question,
-  });
+  console.log(`[FAQ Ingestion] ════════════════════════════════════════════════════════════════════════════`);
+  console.log(`[FAQ Ingestion] Starting FAQ ingestion`);
+  console.log(`[FAQ Ingestion]   Document ID    : ${documentId}`);
+  console.log(`[FAQ Ingestion]   Organization   : ${organizationId}`);
+  console.log(`[FAQ Ingestion]   Question       : ${question}`);
+  console.log(`[FAQ Ingestion] ════════════════════════════════════════════════════════════════`);
+
+  await InternalApiService.updateIngestionStatus(organizationId, documentId, { status: "indexing" });
 
   try {
     // Generate vector embedding on the curated Question (title) only
@@ -76,7 +78,7 @@ export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
     ]);
 
     // Update document status in Mongo to indexed
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "indexed",
       wordCount: question.split(/\s+/).length + answer.split(/\s+/).length,
       chunkCount: 1,
@@ -85,18 +87,22 @@ export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
       lastIndexed: new Date(),
     });
 
-    logger.info(`[FAQ Ingestion] Successfully indexed FAQ ${documentId}`, {
-      documentId,
-      organizationId,
-      question,
-    });
+    console.log(`[FAQ Ingestion] ════════════════════════════════════════════════════════════════`);
+    console.log(`[FAQ Ingestion] ✅ SUCCESS: FAQ ingested successfully`);
+    console.log(`[FAQ Ingestion]   Document ID    : ${documentId}`);
+    console.log(`[FAQ Ingestion]   Organization   : ${organizationId}`);
+    console.log(`[FAQ Ingestion]   Chunks stored  : 1`);
+    console.log(`[FAQ Ingestion]   Word count     : ${question.split(/\s+/).length + answer.split(/\s+/).length}`);
+    console.log(`[FAQ Ingestion] ════════════════════════════════════════════════════════════════`);
   } catch (err: any) {
-    logger.error(`[FAQ Ingestion] Ingestion failed for FAQ ${documentId}`, {
-      documentId,
-      organizationId,
-      error: err,
-    });
-    await setDocStatus(organizationId, documentId, {
+    console.error(`[FAQ Ingestion] ════════════════════════════════════════════════════════════════`);
+    console.error(`[FAQ Ingestion] ❌ FAILED: FAQ ingestion error`);
+    console.error(`[FAQ Ingestion]   Document ID    : ${documentId}`);
+    console.error(`[FAQ Ingestion]   Error message  : ${err.message}`);
+    console.error(`[FAQ Ingestion]   Stack trace    :`);
+    console.error(err.stack);
+    console.error(`[FAQ Ingestion] ════════════════════════════════════════════════════════════════`);
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: err.message ?? "Unknown error",
     });

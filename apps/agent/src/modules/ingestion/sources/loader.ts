@@ -32,6 +32,9 @@ export async function loadDocument(fileKey: string, mimeType: string): Promise<s
 
   if (mimeType === "application/pdf") {
     const data = await pdfParse(buffer);
+    if (data.numpages > 25) {
+      throw new Error(`PDF exceeds page limit of 25 pages (has ${data.numpages} pages).`);
+    }
     return data.text;
   }
 
@@ -41,11 +44,21 @@ export async function loadDocument(fileKey: string, mimeType: string): Promise<s
     mimeType === "application/msword"
   ) {
     const result = await mammoth.extractRawText({ buffer });
-    return result.value;
+    const text = result.value;
+    const estPages = Math.ceil(text.length / 3000);
+    if (estPages > 25) {
+      throw new Error(`Word document exceeds page limit of 25 pages (estimated ${estPages} pages).`);
+    }
+    return text;
   }
 
   if (mimeType === "text/plain") {
-    return buffer.toString("utf-8");
+    const text = buffer.toString("utf-8");
+    const estPages = Math.ceil(text.length / 3000);
+    if (estPages > 25) {
+      throw new Error(`Plain text file exceeds page limit of 25 pages (estimated ${estPages} pages).`);
+    }
+    return text;
   }
 
   throw new Error(`Unsupported MIME type for document ingestion: ${mimeType}`);
@@ -91,6 +104,12 @@ export async function* loadDocumentStream(
   mimeType: string,
 ): AsyncGenerator<ContentStreamItem> {
   if (mimeType === "text/plain") {
+    // Pre-verify text file size from MinIO metadata to enforce estimated 25-page limit
+    const stat = await minioClient.statObject(config.minio.bucket || "", fileKey);
+    const estPages = Math.ceil(stat.size / 3000);
+    if (estPages > 25) {
+      throw new Error(`Plain text file exceeds page limit of 25 pages (estimated ${estPages} pages).`);
+    }
     yield* streamPlainTextFromMinio(fileKey);
     return;
   }

@@ -1,15 +1,7 @@
 import { DocumentJob } from "../ingestion.types";
 import { streamFromText } from "../services/content-stream";
 import { processIngestion } from "../services/process-ingestion";
-import { setDocStatus } from "../services/doc-status.service";
-
-
-
-
-
-
-
-
+import { InternalApiService } from "../../../infrastructure/api/internal-api.service";
 
 export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> {
   const {
@@ -21,15 +13,21 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
   } = job;
 
   if (!content.trim()) {
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: "Content is empty",
     });
     return;
   }
 
-  await setDocStatus(organizationId, documentId, { status: "indexing" });
-  console.log(`[Text Ingestion] Starting: ${fileName}`);
+  console.log(`[Text Ingestion] ════════════════════════════════════════════════════════════════════════════`);
+  console.log(`[Text Ingestion] Starting text ingestion`);
+  console.log(`[Text Ingestion]   Document ID    : ${documentId}`);
+  console.log(`[Text Ingestion]   Organization   : ${organizationId}`);
+  console.log(`[Text Ingestion]   File name      : ${fileName}`);
+  console.log(`[Text Ingestion] ════════════════════════════════════════════════════════════════`);
+
+  await InternalApiService.updateIngestionStatus(organizationId, documentId, { status: "indexing" });
 
   try {
     const result = await processIngestion({
@@ -43,7 +41,7 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
       }),
     });
 
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "indexed",
       wordCount: result.wordCount,
       chunkCount: result.chunksSucceeded,
@@ -55,11 +53,23 @@ export async function runTextIngestionPipeline(job: DocumentJob): Promise<void> 
         : {}),
     });
 
-    console.log(
-      `[Text Ingestion] Done: ${result.chunksSucceeded} chunks for document ${documentId}`,
-    );
+    console.log(`[Text Ingestion] ════════════════════════════════════════════════════════════════`);
+    console.log(`[Text Ingestion] ✅ SUCCESS: Text ingested successfully`);
+    console.log(`[Text Ingestion]   Document ID    : ${documentId}`);
+    console.log(`[Text Ingestion]   Organization   : ${organizationId}`);
+    console.log(`[Text Ingestion]   Chunks stored  : ${result.chunksSucceeded}`);
+    console.log(`[Text Ingestion]   Chunks failed  : ${result.chunksFailed}`);
+    console.log(`[Text Ingestion]   Word count     : ${result.wordCount}`);
+    console.log(`[Text Ingestion] ════════════════════════════════════════════════════════════════`);
   } catch (err: any) {
-    await setDocStatus(organizationId, documentId, {
+    console.error(`[Text Ingestion] ════════════════════════════════════════════════════════════════`);
+    console.error(`[Text Ingestion] ❌ FAILED: Text ingestion error`);
+    console.error(`[Text Ingestion]   Document ID    : ${documentId}`);
+    console.error(`[Text Ingestion]   Error message  : ${err.message}`);
+    console.error(`[Text Ingestion]   Stack trace    :`);
+    console.error(err.stack);
+    console.error(`[Text Ingestion] ════════════════════════════════════════════════════════════════`);
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: err.message ?? "Unknown error",
     });

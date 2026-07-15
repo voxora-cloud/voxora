@@ -1,13 +1,7 @@
 import { DocumentJob } from "../ingestion.types";
 import { loadDocumentStream } from "../sources/loader";
 import { processIngestion } from "../services/process-ingestion";
-import { setDocStatus } from "../services/doc-status.service";
-
-
-
-
-
-
+import { InternalApiService } from "../../../infrastructure/api/internal-api.service";
 
 
 export async function runIngestionPipeline(job: DocumentJob): Promise<void> {
@@ -22,7 +16,7 @@ export async function runIngestionPipeline(job: DocumentJob): Promise<void> {
   console.log(`[Ingestion]   File key       : ${fileKey}`);
   console.log(`[Ingestion] ════════════════════════════════════════════════════════════════`);
 
-  await setDocStatus(organizationId, documentId, { status: "indexing" });
+  await InternalApiService.updateIngestionStatus(organizationId, documentId, { status: "indexing" });
 
   try {
     const result = await processIngestion({
@@ -34,7 +28,7 @@ export async function runIngestionPipeline(job: DocumentJob): Promise<void> {
       contentStream: loadDocumentStream(fileKey, mimeType),
     });
 
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "indexed",
       wordCount: result.wordCount,
       chunkCount: result.chunksSucceeded,
@@ -62,7 +56,7 @@ export async function runIngestionPipeline(job: DocumentJob): Promise<void> {
     console.error(`[Ingestion]   Stack trace    :`);
     console.error(err.stack);
     console.error(`[Ingestion] ════════════════════════════════════════════════════════════════`);
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: err.message,
     });
