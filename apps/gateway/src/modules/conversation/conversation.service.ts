@@ -375,23 +375,8 @@ export class ConversationService {
       { new: true },
     ).populate("assignedTo", "name email");
 
-    // Sync assignee to all open/pending tickets linked to this conversation
-    try {
-      await Ticket.updateMany(
-        {
-          conversationId,
-          status: { $in: ["open", "pending"] },
-        },
-        {
-          $set: {
-            assignedTo: agentId ? new Types.ObjectId(agentId) : null,
-            updatedAt: new Date(),
-          },
-        },
-      );
-    } catch (err: any) {
-      logger.warn(`[routeConversation] Failed to sync linked tickets: ${err.message}`);
-    }
+    // NOTE: Tickets and conversations are independent entities.
+    // Routing a conversation does NOT reassign linked tickets.
 
     return {
       found: true,
@@ -429,54 +414,8 @@ export class ConversationService {
 
     if (!conversation) return { valid: true, found: false };
 
-    // Sync status to active unresolved tickets associated with this conversation
-    try {
-      let mappedTicketStatus: "open" | "resolved" | "closed" = "open";
-      const setOps: Record<string, unknown> = {};
-
-      if (status === "resolved") {
-        mappedTicketStatus = "resolved";
-        setOps.resolvedAt = new Date();
-      } else if (status === "closed") {
-        mappedTicketStatus = "closed";
-        setOps.closedAt = new Date();
-      }
-
-      setOps.status = mappedTicketStatus;
-
-      // Find active unresolved tickets linked to this conversation and update them
-      const ticketsToUpdate = await Ticket.find({
-        conversationId,
-        organizationId,
-        status: { $in: ["open", "in_progress"] },
-      }).select("_id ticketNumber title priority assignedTo").lean();
-
-      if (ticketsToUpdate.length > 0) {
-        const ticketIds = ticketsToUpdate.map((t) => t._id);
-        await Ticket.updateMany(
-          { _id: { $in: ticketIds }, organizationId },
-          { $set: setOps }
-        );
-
-        // Broadcast real-time ticket updates to the organization room
-        for (const t of ticketsToUpdate) {
-          socketService.emitToOrg(organizationId, "ticket_updated", {
-            ticket: {
-              id: t._id.toString(),
-              status: mappedTicketStatus,
-              ticketNumber: t.ticketNumber,
-              title: t.title,
-              priority: t.priority,
-              assignedTo: t.assignedTo,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-          });
-        }
-      }
-    } catch (err: any) {
-      logger.error(`[updateConversationStatus] Failed to sync ticket status: ${err.message}`);
-    }
+    // NOTE: Tickets and conversations are independent entities.
+    // Changing conversation status does NOT auto-resolve or close linked tickets.
 
     return { valid: true, found: true, conversation };
   }
