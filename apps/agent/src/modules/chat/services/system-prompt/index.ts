@@ -50,7 +50,7 @@ This gate is never skipped for autonomy, urgency, or visitor insistence — it i
 
 <visitor_info enabled="${enabled}">
 ${visitorInfoInstructions}
-ONLY call update_contact_profile when BOTH a valid name and a valid email address have been successfully provided by the visitor. Having both name and email is STRICTLY MANDATORY before saving contact details. Respect refusals — don't ask again. Only save supplied info, never fabricate.
+ONLY call update_contact_profile when BOTH a valid name and a valid email address have been successfully provided by the visitor. Having both name and email is STRICTLY MANDATORY before saving contact details. Respect refusals — don't ask again. never fabricate.
 </visitor_info>
 
 ${RESOLUTION_SECTION}

@@ -26,7 +26,6 @@ import { useNavigate, useLocation, useSearchParams } from "react-router";
 import io, { Socket } from "socket.io-client";
 import { RouteConversationDialog } from "./route-conversation-dialog";
 import { StatusSelector } from "./status-selector";
-import { UpdateContactDialog } from "./update-contact-dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversationDetail, useAgentRuns, useTemplates } from "../hooks";
 import type {
@@ -305,10 +304,18 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const matchedContact = useMemo(() => {
     if (!conversation) return null;
     const conversationSessionId = conversation.sessionId;
-    if (!conversationSessionId) return null;
+    
+    const email = conversation.metadata?.customer?.email || conversation.metadata?.senderEmail;
+    const phone = conversation.metadata?.customer?.phone || conversation.metadata?.visitorPhone;
 
     const raw =
-      contacts.find((c) => c.sessionId === conversationSessionId) || null;
+      contacts.find((c) => {
+        if (conversationSessionId && c.sessionId === conversationSessionId) return true;
+        if (email && c.email && c.email.toLowerCase() === email.toLowerCase()) return true;
+        if (phone && c.phone && c.phone === phone) return true;
+        return false;
+      }) || null;
+
     return raw ? toContactViewModel(raw) : null;
   }, [contacts, conversation]);
 
@@ -961,11 +968,11 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
 
   return (
     <div
-      className="flex h-full min-h-0 w-full gap-3 overflow-hidden bg-transparent"
+      className="flex h-full min-h-0 w-full gap-0 overflow-hidden bg-transparent"
       data-tour-id="page-conversation-detail"
     >
       {/* Left Chat / Runs Column */}
-      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-transparent p-4">
           <div className="flex min-w-0 items-center space-x-3">
@@ -1146,7 +1153,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               </div>
             )}
 
-            <div className="border-t border-border/70 bg-transparent px-4 py-3">
+            <div className="border-t border-border/70 bg-[#f3eeff] dark:bg-[#1d162a] px-4 py-3 text-slate-900 dark:text-zinc-100">
               <div className="overflow-visible">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
                   <div className="flex min-w-0 items-center gap-2">
@@ -1204,7 +1211,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     </Button>
                   </div>
                   {newMessage.trim() && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-slate-600 dark:text-zinc-400">
                       {newMessage.length} chars
                     </span>
                   )}
@@ -1333,28 +1340,32 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                     )}
                   </div>
                 )}
-                <div className="flex items-end gap-2 pt-3">
-                  <Textarea
-                    ref={textareaRef}
-                    value={newMessage}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyPress}
-                    placeholder={isTicketReply ? "Reply via email..." : "Write a reply..."}
-                    className="min-h-[76px] flex-1 resize-none cursor-text rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:border-transparent focus-visible:ring-0"
-                    disabled={isLoading}
-                  />
+                <div className="flex items-end gap-3 pt-3">
+                  {/* Rounded text area wrapper */}
+                  <div className="flex-1 flex items-end bg-white dark:bg-[#2b233c] border border-border/50 dark:border-[#382d4e] rounded-xl px-3.5 py-2 shadow-xs focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all duration-200">
+                    <Textarea
+                      ref={textareaRef}
+                      value={newMessage}
+                      onChange={handleInputChange}
+                      onKeyDown={handleKeyPress}
+                      placeholder={isTicketReply ? "Reply via email..." : "Write a reply..."}
+                      className="min-h-[76px] flex-1 resize-none cursor-text rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:border-transparent focus-visible:ring-0 text-foreground placeholder:text-muted-foreground/60 text-sm leading-relaxed"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {/* Send Button */}
                   <Button
                     onClick={sendMessage}
                     disabled={!newMessage.trim() || isLoading}
                     size="icon"
-                    className="mb-0.5 cursor-pointer"
+                    className="h-10 w-10 shrink-0 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm hover:shadow transition-all duration-200 cursor-pointer flex items-center justify-center mb-0.5 disabled:opacity-50"
                     aria-label="Send message"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="mt-1 flex justify-end">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-slate-600 dark:text-zinc-400">
                     {isTicketReply ? "Reply will be sent via email" : "Press Enter to send"}
                   </span>
                 </div>
@@ -1372,21 +1383,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
           <div className="p-4 border-b border-border bg-card flex items-center justify-between">
             <h3 className="text-sm font-semibold">Contact details</h3>
             <div className="flex items-center gap-1">
-              <UpdateContactDialog
-                conversationId={conversationId}
-                contactId={contactDetails?.id}
-                triggerType="icon"
-                visitor={{
-                  name: contactDetails?.name,
-                  email: contactDetails?.email,
-                  phone:
-                    contactDetails?.phone !== "Not provided"
-                      ? contactDetails?.phone
-                      : "",
-                  company: contactDetails?.company,
-                  tags: contactDetails?.tags,
-                }}
-              />
               <Button
                 variant="ghost"
                 size="icon"
@@ -1403,7 +1399,6 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <ContactDetailsCard
               contact={contactDetails}
               conversationId={conversationId}
-              showEditAction={false}
               onGenerateNote={handleGenerateNote}
               isGeneratingNote={isGeneratingNote}
               canGenerateNote={messages.length > 0}

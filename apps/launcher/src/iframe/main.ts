@@ -291,7 +291,6 @@ window.addEventListener('message', function (event) {
         const refreshPayload = {
           publicKey: state.InteraOnePublicKey,
           apiUrl: API_BASE_URL,
-          visitorId: msg.payload.visitorId || '',
           identity: msg.payload,
           pageUrl: (window as any).__InteraOnePageUrl || '',
           source: state.interactionSource || 'widget',

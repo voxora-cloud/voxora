@@ -17,9 +17,6 @@ import { WidgetUI } from './ui';
 import { WidgetState, WidgetServerConfig } from './types';
 import { shouldShowWidgetOnPage } from './page-visibility';
 import {
-  getOrCreateVisitorId,
-} from './session';
-import {
   PROTOCOL_VERSION,
   InitWidgetMessage,
   PageChangeMessage,
@@ -39,7 +36,6 @@ class InteraOneLoader {
   private iframe: HTMLIFrameElement | null = null;
   private iframeReady = false;
   private pendingMessages: QueuedMessage[] = [];
-  private visitorId: string;
   private lastPageUrl: string;
   private appearance: WidgetServerConfig | null = null;
   private allowHostDomAccess = true;
@@ -55,7 +51,6 @@ class InteraOneLoader {
       this.api = null as unknown as WidgetAPI;
       this.ui = null as unknown as WidgetUI;
       this.iframeOrigin = '';
-      this.visitorId = '';
       this.lastPageUrl = '';
       return;
     }
@@ -73,7 +68,6 @@ class InteraOneLoader {
     });
     this.iframeOrigin = getWidgetOrigin(config.apiUrl!, config.cdnUrl);
     this.lastPageUrl = "";
-    this.visitorId = "";
 
     this.init().catch(err => console.error('[InteraOneWidget] Init error:', err));
   }
@@ -95,11 +89,6 @@ class InteraOneLoader {
 
     // DOM access (localStorage/history/title/page URL tracking) is gated by config.
     this.allowHostDomAccess = this.appearance?.features?.endUserDomAccess !== false;
-    if (this.allowHostDomAccess) {
-      this.visitorId = getOrCreateVisitorId();
-    } else {
-      this.visitorId = this.generateEphemeralVisitorId();
-    }
     this.lastPageUrl = window.location.href;
 
     // Register message handler BEFORE creating the iframe.
@@ -195,7 +184,6 @@ class InteraOneLoader {
       payload: {
         publicKey: this.api.getConfig().publicKey,
         apiUrl: this.api.getConfig().apiUrl!,
-        visitorId: this.visitorId,
         pageUrl: this.getCurrentPageUrl(),
         pageTitle: this.getCurrentPageTitle(),
         source: 'widget',
@@ -303,13 +291,6 @@ class InteraOneLoader {
     if (!behavior) return true;
     if (this.isMobileView()) return behavior.showOnMobile !== false;
     return behavior.showOnDesktop !== false;
-  }
-
-  private generateEphemeralVisitorId(): string {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return `v_${crypto.randomUUID().replace(/-/g, "")}`;
-    }
-    return `v_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
   }
 
   destroy(): void {

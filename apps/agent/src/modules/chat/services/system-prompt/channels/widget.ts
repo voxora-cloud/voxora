@@ -21,7 +21,8 @@ const idVerification = OTP_ID_VERIFICATION;
 const getVisitorInfoInstructions = (fieldList: string): string => `Proactively collect missing fields: ${fieldList}.
 - You MUST render an interactive form to collect the missing fields in a single step using a <interaone-form> container:
   * To ask for name and email, write: "Please fill in your contact details: <interaone-form id="contact_details"><interaone-input name="name" placeholder="Your name" /><interaone-input name="email" placeholder="Your email address" /></interaone-form>"
-- Do NOT ask for multiple fields in separate steps or plain text. Always group them in one <interaone-form> container.`;
+- Do NOT ask for multiple fields in separate steps or plain text. Always group them in one <interaone-form> container.
+- If the visitor asks about their past/previous conversations or chat history, explain that once they verify/provide both their Name and Email address using the contact form, their historical conversations will automatically be restored and synced.`;
 
 export const widgetConfig: ChannelPromptConfig = {
     style,

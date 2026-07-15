@@ -4,7 +4,7 @@ import { internalApi } from "../../../infrastructure/api/internal.client";
 export class CreateTicketTool implements Tool {
   readonly name = "create_ticket";
   readonly description =
-    "Create a support ticket for an issue that cannot be resolved immediately. Use this when the user reports a bug, a complex problem, or requests a follow-up action that requires tracking. IMPORTANT: A verified contact must exist before a ticket can be created. If you do not have the user's name and email, ask for them first.";
+    "Create a support ticket for an issue that cannot be resolved immediately. Use this when the user reports a bug, a complex problem, or requests a follow-up action that requires tracking. IMPORTANT: A verified contact must exist before a ticket can be created. If you do not have the user's name and email, ask for them first. CRITICAL: After calling this tool and receiving a successful ticket number, do NOT call escalate_to_human automatically. The ticket IS the resolution — confirm the ticket number to the user and inform them the support team will follow up. Only escalate if the user explicitly requests a human agent after the ticket is already created.";
 
   readonly parameters: Record<string, ToolParameterSchema> = {
     title: {

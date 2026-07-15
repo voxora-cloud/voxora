@@ -41,7 +41,6 @@ export interface InitWidgetMessage {
   payload: {
     publicKey: string;
     apiUrl: string;
-    visitorId: string;
     pageUrl: string;
     pageTitle: string;
     source?: 'widget' | 'qr' | 'link';

@@ -64,18 +64,8 @@ export class TicketsService {
       if (convIdObj) {
         const sessionId = conversation?.sessionId || `conv:${input.conversationId}`;
 
-        await Conversation.updateOne(
-          { _id: convIdObj, organizationId: orgIdObj },
-          {
-            $set: {
-              "metadata.senderName": requesterName,
-              "metadata.senderEmail": requesterEmail,
-              "metadata.contactCapturedByAIAt": new Date(),
-              "metadata.contactCapturedByAI": true,
-            },
-          },
-        );
-
+        // Upsert the contact record only — ticket creation no longer writes back to
+        // the conversation's metadata. Tickets and conversations are independent entities.
         const contact = await Contact.findOneAndUpdate(
           { organizationId: orgIdObj, sessionId },
           {
@@ -357,44 +347,8 @@ export class TicketsService {
 
     if (!ticket) return null;
 
-    // Sync status to the linked conversation if present
-    if (input.status !== undefined && ticket.conversationId) {
-      try {
-        let mappedConvStatus: "open" | "resolved" | "closed" = "open";
-        if (input.status === "resolved") mappedConvStatus = "resolved";
-        else if (input.status === "closed") mappedConvStatus = "closed";
-
-        await Conversation.updateOne(
-          { _id: ticket.conversationId, organizationId },
-          {
-            $set: {
-              status: mappedConvStatus,
-              "metadata.statusUpdatedBy": "ticket_update",
-              "metadata.statusUpdatedAt": new Date(),
-            },
-            $currentDate: { updatedAt: true },
-          },
-        );
-
-        // Emit status_updated to conversation room
-        socketService.emitToConversation(ticket.conversationId.toString(), "status_updated", {
-          conversationId: ticket.conversationId.toString(),
-          status: mappedConvStatus,
-          updatedBy: "Ticket Update",
-          timestamp: new Date(),
-        });
-
-        // Broadcast to the whole organization so lists refresh in real-time
-        socketService.emitToOrg(organizationId, "status_updated", {
-          conversationId: ticket.conversationId.toString(),
-          status: mappedConvStatus,
-          updatedBy: "Ticket Update",
-          timestamp: new Date(),
-        });
-      } catch (err: any) {
-        logger.error(`[updateTicket] Failed to sync conversation status: ${err.message}`);
-      }
-    }
+    // NOTE: Tickets and conversations are independent entities.
+    // Ticket status/assignee changes do NOT propagate to the linked conversation.
 
     let event: TicketEmailEvent = "updated";
     if (input.status === "resolved" && previous.status !== "resolved") event = "resolved";
@@ -440,40 +394,9 @@ export class TicketsService {
 
     if (!ticket) return null;
 
-    // Sync status to the linked conversation if present
-    if (ticket.conversationId) {
-      try {
-        await Conversation.updateOne(
-          { _id: ticket.conversationId, organizationId },
-          {
-            $set: {
-              status: "closed",
-              "metadata.statusUpdatedBy": "ticket_close",
-              "metadata.statusUpdatedAt": new Date(),
-            },
-            $currentDate: { updatedAt: true },
-          },
-        );
+    // NOTE: Tickets and conversations are independent entities.
+    // Closing a ticket does NOT close or affect the linked conversation.
 
-        // Emit status_updated to conversation room
-        socketService.emitToConversation(ticket.conversationId.toString(), "status_updated", {
-          conversationId: ticket.conversationId.toString(),
-          status: "closed",
-          updatedBy: "Ticket Close",
-          timestamp: new Date(),
-        });
-
-        // Broadcast to the whole organization so lists refresh in real-time
-        socketService.emitToOrg(organizationId, "status_updated", {
-          conversationId: ticket.conversationId.toString(),
-          status: "closed",
-          updatedBy: "Ticket Close",
-          timestamp: new Date(),
-        });
-      } catch (err: any) {
-        logger.error(`[closeTicket] Failed to sync conversation status: ${err.message}`);
-      }
-    }
 
     if (previous.status !== "closed") {
       await this.notifyTicketLifecycle(ticket, "closed", input.resolutionNote);

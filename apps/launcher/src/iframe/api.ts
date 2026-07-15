@@ -32,7 +32,7 @@ export async function makeAuthenticatedRequest(url: string, options: any = {}) {
 }
 
 export async function bootstrapSession(initPayload: any, onReady: (token: string, sessionId: string) => void) {
-  const { publicKey, apiUrl, visitorId, identity } = initPayload;
+  const { publicKey, apiUrl, identity } = initPayload;
 
   const stored = loadStoredSession(publicKey);
   if (stored) {
@@ -86,9 +86,9 @@ export async function bootstrapSession(initPayload: any, onReady: (token: string
 
     const token = data.data.token;
     const expiresAt = data.data.expiresAt || (Date.now() + 60 * 60 * 1000);
-    const sessionId = data.data.sessionId || (visitorId && visitorId.length > 4 ? visitorId : null) || preservedSessionId || ('sess_' + Date.now());
+    const sessionId = data.data.sessionId || preservedSessionId || ('sess_' + Date.now());
 
-    persistSession(publicKey, token, expiresAt, sessionId, visitorId);
+    persistSession(publicKey, token, expiresAt, sessionId);
     state.currentSessionId = sessionId;
     onReady(token, sessionId);
   } catch (err) {

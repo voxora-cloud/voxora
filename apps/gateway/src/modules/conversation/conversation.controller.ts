@@ -202,6 +202,7 @@ export const routeConversation = asyncHandler(
         socketService.emitToOrg(orgId, "conversation_assigned", { conversationId });
         socketService.emitToOrg(orgId, "conversation_escalated", { conversationId });
 
+        // Notify the old agent that the conversation was removed from their queue
         const oldAgentId = result.originalConversation!.assignedTo;
         if (
           oldAgentId &&
@@ -211,6 +212,14 @@ export const routeConversation = asyncHandler(
             conversationId,
           });
         }
+
+        // Notify the newly assigned agent directly so their inbox highlights immediately
+        socketService.emitToUser(result.selectedAgentId.toString(), "assigned_to_you", {
+          conversationId,
+          type: "conversation",
+          routedBy: (req as AuthenticatedRequest).user.email,
+        });
+
       } catch (err: any) {
         logger.error(`Failed to emit routing notification: ${err?.message}`);
       }

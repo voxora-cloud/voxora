@@ -17,9 +17,9 @@ export function loadStoredSession(pubKey: string) {
   }
 }
 
-export function persistSession(pubKey: string, token: string, expiresAt: number, sessionId: string, visitorId: string) {
+export function persistSession(pubKey: string, token: string, expiresAt: number, sessionId: string) {
   try {
-    const data = JSON.stringify({ token, expiresAt, sessionId, visitorId });
+    const data = JSON.stringify({ token, expiresAt, sessionId });
     localStorage.setItem(getSessionKey(pubKey), data);
   } catch {
     // Silently ignore
