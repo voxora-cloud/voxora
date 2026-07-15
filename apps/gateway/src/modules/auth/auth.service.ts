@@ -5,7 +5,8 @@ import { isEmailEnabled } from "@shared/utils/email";
 import {
   enqueueWelcomeEmail,
   enqueueEmailVerificationOTPEmail,
-  enqueueForgotPasswordOTPEmail
+  enqueueForgotPasswordOTPEmail,
+  enqueueFreeCreditGrantedEmail
 } from "@shared/queues/email.queue";
 import { generateOTP, hashOTP, verifyOTP as checkOTP } from "@shared/security/auth/otp";
 import crypto from "crypto";
@@ -113,6 +114,20 @@ export class AuthService {
     }
 
     const ctx = signupContext;
+
+    // Send free credits email
+    const nextMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1));
+    const resetDateStr = nextMonth.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    enqueueFreeCreditGrantedEmail(
+      ctx.userEmail,
+      ctx.userName,
+      "500 AI messages",
+      resetDateStr
+    ).catch((err) => console.error("[completeSignup] Failed to send free credits email:", err));
 
     const tokens = await this._issueOrgSession(
       ctx.userId,

@@ -1,5 +1,6 @@
 import { FallbackRouter } from "../../infrastructure/providers/routing/fallback-router";
 import { LLMMessage } from "../../infrastructure/providers/types/ai.types";
+import { getConversationGate } from "../../infrastructure/cache";
 import { AssistMessage, AssistRequestBody } from "./types";
 
 function normalizeMessages(
@@ -35,14 +36,21 @@ export async function generateNote(
     throw new Error("At least one message is required");
   }
 
+  const gate = await getConversationGate(body.conversationId, body.organizationId).catch(() => null);
+  const isEscalated = !!(gate?.metadata?.escalatedAt || gate?.metadata?.humanJoinedAt || gate?.assignedTo);
+
   const contactLine = body.contactName
     ? `The contact's name is ${body.contactName}.`
     : "The contact's name is unknown.";
 
+  const systemContent = isEscalated
+    ? `You are a CRM assistant. ${contactLine} Summarize the following customer conversation, which has been escalated to a human agent, as a concise internal contact note in 2-4 sentences. Focus on what the customer wanted, the outcome of the agent's interaction, sentiment, and any follow-up action needed. Return only the note text.`
+    : `You are a CRM assistant. ${contactLine} Summarize the following customer conversation as a concise internal contact note in 2-4 sentences. Focus on what the customer wanted, the outcome, sentiment, and any follow-up action needed. Return only the note text.`;
+
   const messages: LLMMessage[] = [
     {
       role: "system" as const,
-      content: `You are a CRM assistant. ${contactLine} Summarize the following customer conversation as a concise internal contact note in 2-4 sentences. Focus on what the customer wanted, the outcome, sentiment, and any follow-up action needed. Return only the note text.`,
+      content: systemContent,
     },
     ...conversationMessages,
   ];

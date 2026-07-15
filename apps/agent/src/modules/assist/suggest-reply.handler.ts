@@ -1,5 +1,6 @@
 import { FallbackRouter } from "../../infrastructure/providers/routing/fallback-router";
 import { LLMMessage } from "../../infrastructure/providers/types/ai.types";
+import { getConversationGate } from "../../infrastructure/cache";
 import { AssistMessage, AssistRequestBody } from "./types";
 
 function normalizeMessages(
@@ -58,11 +59,17 @@ export async function suggestReply(
     throw new Error("At least one message is required");
   }
 
+  const gate = await getConversationGate(body.conversationId, body.organizationId).catch(() => null);
+  const isEscalated = !!(gate?.metadata?.escalatedAt || gate?.metadata?.humanJoinedAt || gate?.assignedTo);
+
+  const systemContent = isEscalated
+    ? "You are a support agent assistant. This conversation has been escalated to a human support agent. Based on the conversation history, suggest 3 short reply options for the human agent to send to the customer. Each option should be professional, appropriate for a human agent handling an escalated issue, and no more than 2 sentences. Return only a JSON array of 3 strings."
+    : "You are a support agent assistant. Based on the conversation below, suggest 3 short reply options, each no more than 2 sentences. Return only a JSON array of 3 strings.";
+
   const messages: LLMMessage[] = [
     {
       role: "system" as const,
-      content:
-        "You are a support agent assistant. Based on the conversation below, suggest 3 short reply options, each no more than 2 sentences. Return only a JSON array of 3 strings.",
+      content: systemContent,
     },
     ...conversationMessages,
   ];

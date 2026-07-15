@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { authApi } from "@/domains/auth/api/auth.api";
 import { apiClient } from "@/shared/lib/api-client";
 import { Loader } from "@/shared/ui/loader";
-import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import {
   MessageSquare,
   UserCheck,
@@ -12,6 +13,9 @@ import {
   Star,
   Zap,
   Crown,
+  Sparkles,
+  ArrowRight,
+  InfoIcon,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,22 +52,85 @@ type UsageSnapshot = {
 };
 type UsageResponse = { success: boolean; data: UsageSnapshot };
 
-// ─── Static data ──────────────────────────────────────────────────────────────
+// ─── Plan Visual Styling ──────────────────────────────────────────────────────
 
-const planMeta: Record<PlanTier, { icon: React.ReactNode; label: string }> = {
-  free: { icon: <Star className="h-4 w-4 text-muted-foreground" />, label: "Free" },
-  pro: { icon: <Zap className="h-4 w-4 text-primary" />, label: "Pro" },
-  proplus: { icon: <Crown className="h-4 w-4 text-primary" />, label: "Pro+" },
+const planMeta: Record<
+  PlanTier,
+  {
+    icon: React.ReactNode;
+    label: string;
+    description: string;
+    bgGradient: string;
+    textGradient: string;
+    borderGlow: string;
+    badgeBg: string;
+  }
+> = {
+  free: {
+    icon: <Star className="h-5 w-5 text-zinc-400" />,
+    label: "Free Starter",
+    description: "Ideal for testing and building small workflows",
+    bgGradient: "from-zinc-500/5 via-transparent to-transparent",
+    textGradient: "from-zinc-600 via-zinc-500 to-zinc-400",
+    borderGlow: "group-hover:border-zinc-500/20",
+    badgeBg: "bg-zinc-500/10 text-zinc-400 border-zinc-500/25",
+  },
+  pro: {
+    icon: <Zap className="h-5 w-5 text-violet-400" />,
+    label: "Professional Pro",
+    description: "Best for growing and scaling support teams",
+    bgGradient: "from-violet-500/10 via-transparent to-transparent",
+    textGradient: "from-violet-400 via-indigo-400 to-cyan-400",
+    borderGlow: "group-hover:border-violet-500/25",
+    badgeBg: "bg-violet-500/10 text-violet-400 border-violet-500/25",
+  },
+  proplus: {
+    icon: <Crown className="h-5 w-5 text-amber-400" />,
+    label: "Enterprise ProPlus",
+    description: "High-volume orchestration with branding removed",
+    bgGradient: "from-amber-500/10 via-transparent to-transparent",
+    textGradient: "from-amber-400 via-orange-400 to-yellow-500",
+    borderGlow: "group-hover:border-amber-500/25",
+    badgeBg: "bg-amber-500/10 text-amber-400 border-amber-500/25",
+  },
 };
 
 const limitItems: {
   key: "messages" | "humanAgents" | "contacts";
   label: string;
+  description: string;
   icon: React.ReactNode;
+  colorClass: string;
+  barGradient: string;
+  glowClass: string;
 }[] = [
-  { key: "messages", label: "AI messages", icon: <MessageSquare className="h-4 w-4" /> },
-  { key: "humanAgents", label: "Human agents", icon: <UserCheck className="h-4 w-4" /> },
-  { key: "contacts", label: "Database contacts", icon: <BookUser className="h-4 w-4" /> },
+  {
+    key: "messages",
+    label: "AI Bot Messages",
+    description: "Monthly count of bot-generated responses",
+    icon: <MessageSquare className="h-5 w-5" />,
+    colorClass: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+    barGradient: "from-violet-600 via-indigo-500 to-cyan-400",
+    glowClass: "shadow-[0_0_12px_rgba(139,92,246,0.25)]",
+  },
+  {
+    key: "humanAgents",
+    label: "Teammates & Agents",
+    description: "Active members handling live conversations",
+    icon: <UserCheck className="h-5 w-5" />,
+    colorClass: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+    barGradient: "from-sky-600 via-blue-500 to-indigo-400",
+    glowClass: "shadow-[0_0_12px_rgba(14,165,233,0.25)]",
+  },
+  {
+    key: "contacts",
+    label: "Captured Leads",
+    description: "Saved customers in your directory",
+    icon: <BookUser className="h-5 w-5" />,
+    colorClass: "text-teal-500 bg-teal-500/10 border-teal-500/20",
+    barGradient: "from-teal-600 via-emerald-500 to-cyan-400",
+    glowClass: "shadow-[0_0_12px_rgba(20,184,166,0.25)]",
+  },
 ];
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
@@ -134,194 +201,219 @@ export function UsagePage() {
   }
 
   return (
-    <div className="flex flex-col items-center w-full pb-10">
+    <div className="flex flex-col items-center w-full pb-14 px-4 sm:px-6">
       <div className="w-full max-w-4xl space-y-8">
-        {/* Page header */}
-        <div className="text-center space-y-1.5 pt-2">
-          <h1 className="text-2xl font-bold text-foreground">Resource Usage</h1>
-          <p className="text-sm text-muted-foreground">
-            {isSelfHost
-              ? "Resource usage metrics and capabilities for this self-hosted server."
-              : `Track usage metrics and limits for the active ${meta.label} plan.`}
-          </p>
+        
+        {/* ── Page Header ── */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/50 pb-6 pt-2">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-primary" />
+              Resource Usage
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {isSelfHost
+                ? "Self-hosted server resource capacity and environment configurations."
+                : "Real-time usage metrics, quotas, and thresholds associated with your current plan."}
+            </p>
+          </div>
+          {!isSelfHost && (
+            <Button asChild variant="outline" size="sm" className="shadow-sm hover:bg-muted/80 self-start md:self-auto">
+              <Link to="/dashboard/settings/billing/plans" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-violet-500 animate-pulse" />
+                Change Plans
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
+          )}
         </div>
 
-        {/* ── Active Subscription Card ── */}
-        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/60 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                {meta.icon}
+        {/* ── Active Subscription / Plan Status ── */}
+        <div className={`group relative overflow-hidden rounded-3xl border border-border/80 dark:border-white/5 bg-gradient-to-br ${meta.bgGradient} bg-card/45 backdrop-blur-xl p-6 md:p-8 shadow-xl transition-all duration-300 ${meta.borderGlow}`}>
+          {/* Subtle background abstract shape */}
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl group-hover:bg-primary/10 transition-all duration-300 pointer-events-none" />
+
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-background border border-border/60 dark:border-white/10 shadow-sm">
+                  {meta.icon}
+                </div>
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Active Plan</span>
+                  <h2 className={`text-xl md:text-2xl font-black bg-gradient-to-r ${meta.textGradient} bg-clip-text text-transparent mt-0.5`}>
+                    {meta.label}
+                  </h2>
+                </div>
               </div>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  Active Subscription: {meta.label}
-                  <Badge
-                    variant="secondary"
-                    className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] uppercase px-1.5 py-0.5"
-                  >
-                    Active
-                  </Badge>
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {isSelfHost
-                    ? "Unlimited access — self-hosted open source instance"
-                    : (currentPlanDef?.summary ?? "Your current active plan")}
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground/90 max-w-xl">
+                {isSelfHost
+                  ? "Unlimited access server instance. Free and open source license deployed on your own infrastructure."
+                  : (currentPlanDef?.summary ?? meta.description)}
+              </p>
             </div>
-            {isSelfHost && (
-              <Badge
-                variant="secondary"
-                className="bg-primary/10 text-primary border border-primary/20 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 self-start sm:self-auto"
-              >
-                Self-hosted
-              </Badge>
+
+            <div className="flex flex-col gap-2 w-full md:w-auto shrink-0 pt-2 md:pt-0">
+              {isSelfHost ? (
+                <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary/10 px-4 py-2 border border-primary/20 text-xs font-bold uppercase tracking-wider text-primary">
+                  <span className="h-2 w-2 rounded-full bg-primary animate-ping" />
+                  Self-hosted Instance
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1 items-start md:items-end">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Reset Cycle</span>
+                  <span className="text-sm font-semibold text-foreground">
+                    {usageSnapshot ? (
+                      new Date(usageSnapshot.resetsAt).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })
+                    ) : (
+                      "Monthly cycle"
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Telemetry Monitor Counters Grid ── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1.5">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              Live Telemetry Checks
+            </h2>
+            {usageSnapshot && !isSelfHost && (
+              <span className="text-xs text-muted-foreground font-medium">
+                Resets in {Math.max(0, Math.ceil((new Date(usageSnapshot.resetsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days
+              </span>
             )}
           </div>
 
-          {/* Plan limits summary row */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {limitItems.map(({ key, label, icon }) => {
-              const limitVal = isSelfHost ? null : (currentPlanDef?.limits[key] ?? null);
+          <div className="grid gap-5 sm:grid-cols-3">
+            {limitItems.map(({ key, label, description, icon, colorClass, barGradient, glowClass }) => {
+              const stat = usageSnapshot?.usage[key] || { used: 0, limit: isSelfHost ? null : (limits?.[key] ?? null), pct: 0 };
+              const limitVal = isSelfHost ? null : stat.limit;
+              const usedVal = stat.used;
+              const pct = isSelfHost ? 0 : stat.pct;
+
+              const isOver = pct >= 100;
+              const isClose = pct >= 80 && pct < 100;
+
+              const displayPct = isSelfHost ? "—" : `${pct}%`;
+
+              let statusBorder = "border-border/80 dark:border-white/5";
+              let dynamicBarGradient = barGradient;
+              let dynamicGlow = glowClass;
+
+              if (isOver) {
+                statusBorder = "border-rose-500/30 dark:border-rose-500/20 shadow-red-500/5 shadow-2xl";
+                dynamicBarGradient = "from-rose-600 via-red-500 to-orange-400";
+                dynamicGlow = "shadow-[0_0_12px_rgba(244,63,94,0.3)]";
+              } else if (isClose) {
+                statusBorder = "border-amber-500/30 dark:border-amber-500/20";
+                dynamicBarGradient = "from-amber-600 via-orange-500 to-yellow-400";
+                dynamicGlow = "shadow-[0_0_12px_rgba(245,158,11,0.25)]";
+              }
+
               return (
-                <div key={key} className="flex flex-col gap-1 rounded-xl border bg-muted/20 px-4 py-3">
-                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    {icon}
-                    {label}
-                  </span>
-                  <span className="text-base font-extrabold text-foreground">
-                    {limitVal === null ? "Unlimited" : limitVal.toLocaleString()}
-                  </span>
+                <div
+                  key={key}
+                  className={`relative overflow-hidden rounded-2xl border ${statusBorder} bg-card/45 backdrop-blur-xl p-5 hover:translate-y-[-2px] hover:shadow-lg transition-all duration-300`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2.5 text-xs font-bold text-foreground">
+                      <div className={`p-1.5 rounded-xl border ${colorClass} shadow-sm shrink-0`}>
+                        {icon}
+                      </div>
+                      {label}
+                    </span>
+                    <span className={`text-xs font-black tracking-tight tabular-nums ${isOver ? "text-rose-500" : isClose ? "text-amber-500" : "text-muted-foreground/80"}`}>
+                      {displayPct}
+                    </span>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed h-8">
+                    {description}
+                  </p>
+
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="text-xs text-muted-foreground">Consumption</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-lg font-black text-foreground tabular-nums">
+                          {usedVal.toLocaleString()}
+                        </span>
+                        <span className="text-xs text-muted-foreground/60">
+                          / {limitVal === null ? "∞" : limitVal.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress Track */}
+                    {!isSelfHost && (
+                      <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted border border-border/30 dark:border-white/5">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-out ${dynamicBarGradient} ${dynamicGlow}`}
+                          style={{ width: `${Math.min(100, pct)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warning/Limit Badges */}
+                  {!isSelfHost && isOver && (
+                    <div className="absolute right-4 top-4 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    </div>
+                  )}
+                  {!isSelfHost && isClose && (
+                    <div className="absolute right-4 top-4 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* ── Self-hosted Capabilities ── */}
-        {isSelfHost && (
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-border/60">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <BarChart3 className="h-4 w-4 text-primary" />
-              </div>
+        {/* ── Guidelines Section ── */}
+        <div className="rounded-3xl border border-border/80 dark:border-white/5 bg-card/45 backdrop-blur-xl p-6 md:p-8 space-y-4 shadow-md">
+          <div className="flex items-center gap-2 border-b border-border/50 pb-4">
+            <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+              <InfoIcon className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Usage Guidelines</h2>
+              <p className="text-[10px] text-muted-foreground">How quotas and thresholds affect your workspace</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 text-xs leading-relaxed text-muted-foreground/90">
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-muted/20 border border-border/40 dark:border-white/5">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Server Capabilities</h2>
-                <p className="text-xs text-muted-foreground">Unlimited limits for self-hosted instances</p>
+                <h4 className="font-semibold text-foreground mb-0.5">AI Response Interruption</h4>
+                <p>If you exhaust your monthly AI message quota, the automated assistant will pause, but human agents can continue receiving and replying to chats without interruption.</p>
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              {limitItems.map(({ key, label, icon }) => (
-                <div key={key} className="rounded-xl border bg-card/60 p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                    <span className="p-1 rounded-md bg-muted text-muted-foreground">{icon}</span>
-                    {label}
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1.5">
-                    <span className="text-2xl font-bold tracking-tight text-foreground">Unlimited</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Cloud: Live In-Period Usage Monitors ── */}
-        {!isSelfHost && usageSnapshot && (
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 space-y-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <BarChart3 className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Monthly Resource Consumption</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Real-time resource limits check</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="self-start sm:self-auto font-medium text-xs px-2.5 py-1">
-                Period Resets:{" "}
-                {new Date(usageSnapshot.resetsAt).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </Badge>
-            </div>
-
-            <div className="grid gap-5 sm:grid-cols-3">
-              {limitItems.map(({ key, label, icon }) => {
-                const stat = usageSnapshot.usage[key];
-                if (!stat) return null;
-                const pct = stat.pct;
-
-                const isOver = pct >= 100;
-                const isClose = pct >= 80 && pct < 100;
-
-                const barColor = isOver
-                  ? "bg-red-500"
-                  : isClose
-                    ? "bg-amber-500"
-                    : "bg-primary";
-
-                const textColor = isOver
-                  ? "text-red-500"
-                  : isClose
-                    ? "text-amber-500"
-                    : "text-muted-foreground";
-
-                return (
-                  <div key={key} className="space-y-3 rounded-xl border bg-card/60 p-4 transition-all duration-200">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                        <span className="p-1 rounded-md bg-muted border text-muted-foreground/85">{icon}</span>
-                        {label}
-                      </span>
-                      <span className={`text-xs font-bold tabular-nums ${textColor}`}>
-                        {pct}%
-                      </span>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                        style={{ width: `${Math.min(100, pct)}%` }}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span>Used: {stat.used.toLocaleString()}</span>
-                      <span>Limit: {stat.limit === null ? "Unlimited" : stat.limit.toLocaleString()}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── Usage Guidelines ── */}
-        {!isSelfHost && limits && (
-          <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-xl p-6 space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-border/60">
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold text-foreground">Usage Guidelines</h2>
-            </div>
-            <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span>If you reach your AI message limit, automated answers will pause, but human agents can continue chats normally.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                <span>Contact and Agent limits are checked when inviting new members or saving new leads in the database.</span>
+            <div className="flex items-start gap-3 p-3 rounded-2xl bg-muted/20 border border-border/40 dark:border-white/5">
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-foreground mb-0.5">Hard Quotas</h4>
+                <p>Limits on human agents and contact capacity are checked immediately when adding team members or creating contact records. Upgrades apply instantly.</p>
               </div>
             </div>
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );

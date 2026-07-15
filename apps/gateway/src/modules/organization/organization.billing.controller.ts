@@ -14,7 +14,10 @@ import {
   BillingSubscription,
   BillingWebhookEvent,
   Organization,
+  Membership,
+  User,
 } from "@shared/models";
+import { enqueueSubscriptionActivatedEmail } from "@shared/queues/email.queue";
 
 const resolveAndValidateScopedOrgId = (req: Request, res: Response): string | null => {
   const { activeOrganizationId } = (req as AuthenticatedRequest).user;
@@ -135,6 +138,39 @@ export class OrganizationBillingController {
 
       if (parsed.organizationId) {
         invalidateOrganizationPlanCache(parsed.organizationId);
+      }
+
+      if (parsed.organizationId && (parsed.action === "activate" || parsed.action === "renew")) {
+        try {
+          const ownerMembership = await Membership.findOne({
+            organizationId: parsed.organizationId,
+            role: "owner",
+            inviteStatus: "accepted",
+          }).lean();
+
+          if (ownerMembership) {
+            const ownerUser = await User.findById(ownerMembership.userId).lean();
+            if (ownerUser && ownerUser.email) {
+              const planName = parsed.targetPlan ? parsed.targetPlan.toUpperCase() : "PRO";
+              const nextBillingDateStr = parsed.currentPeriodEnd
+                ? new Date(parsed.currentPeriodEnd).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "Next Billing Period";
+              
+              await enqueueSubscriptionActivatedEmail(
+                ownerUser.email,
+                ownerUser.name,
+                planName,
+                nextBillingDateStr
+              );
+            }
+          }
+        } catch (err: any) {
+          logger.error(`[Billing Webhook] Failed to send subscription email for org=${parsed.organizationId}: ${err.message}`);
+        }
       }
 
       await BillingWebhookEvent.updateOne(

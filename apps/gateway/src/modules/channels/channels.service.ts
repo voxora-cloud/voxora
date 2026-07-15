@@ -1,11 +1,12 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
-import { Conversation, Message, Organization, Ticket, Contact } from "@shared/models";
+import { Conversation, Message, Organization, Ticket, Contact, User, Membership } from "@shared/models";
 import { aiQueue } from "@shared/infra/queue";
 import { socketService } from "@sockets/services/socket.service";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
 import logger from "@shared/core/logger";
 import config from "@shared/infra/config";
+import { enqueueChannelVerifiedEmail } from "@shared/queues/email.queue";
 import { buildTicketLifecycleEmail } from "@shared/utils/email";
 import {
   CreateEmailChannelInput,
@@ -129,6 +130,10 @@ export class ChannelService {
     channel.config = provisionResult.updatedConfig;
     await channel.save();
 
+    this.notifyChannelVerification(organizationId, "WhatsApp", input.phoneNumber).catch((err) => {
+      logger.error(`[createWhatsAppChannel] Failed to send verification email: ${err.message}`);
+    });
+
     logger.info("[ChannelService] WhatsApp channel created and provisioned", {
       channelId: channel._id.toString(),
       organizationId,
@@ -182,6 +187,10 @@ export class ChannelService {
     channel.config = provisionResult.updatedConfig;
     await channel.save();
 
+    this.notifyChannelVerification(organizationId, "Telegram", channel.config.telegram?.botUsername || input.name).catch((err) => {
+      logger.error(`[createTelegramChannel] Failed to send verification email: ${err.message}`);
+    });
+
     logger.info("[ChannelService] Telegram channel created and provisioned", {
       channelId: channel._id.toString(),
       organizationId,
@@ -228,6 +237,8 @@ export class ChannelService {
       throw new Error("Channel not found");
     }
 
+    const previousStatus = channel.config.email?.verificationStatus;
+
     const strategy = ChannelStrategyFactory.create(channel.type);
     const result = await strategy.checkVerification(channelId, channel.config);
 
@@ -243,11 +254,38 @@ export class ChannelService {
       await channel.save();
     }
 
+    const currentStatus = channel.config.email?.verificationStatus;
+    if (currentStatus === "verified" && previousStatus !== "verified") {
+      this.notifyChannelVerification(organizationId, "Email", channel.config.email?.domain || channel.name).catch((err) => {
+        logger.error(`[verifyChannel] Failed to send verification email: ${err.message}`);
+      });
+    }
+
     return {
       status: result.status,
       dnsRecords: channel.config.email?.dnsRecords ?? [],
     };
   }
+
+  private static async notifyChannelVerification(organizationId: string, channelType: string, channelName: string) {
+    try {
+      const ownerMembership = await Membership.findOne({
+        organizationId,
+        role: "owner",
+        inviteStatus: "accepted",
+      }).lean();
+
+      if (ownerMembership) {
+        const ownerUser = await User.findById(ownerMembership.userId).lean();
+        if (ownerUser && ownerUser.email) {
+          await enqueueChannelVerifiedEmail(ownerUser.email, ownerUser.name, channelType, channelName);
+        }
+      }
+    } catch (err: any) {
+      logger.error(`[ChannelService] Failed to send channel verification email: ${err.message}`);
+    }
+  }
+
 
   // ─── Send ────────────────────────────────────────────────────────────────────
 
