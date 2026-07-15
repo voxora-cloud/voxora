@@ -375,6 +375,24 @@ export class ConversationService {
       { new: true },
     ).populate("assignedTo", "name email");
 
+    // Sync assignee to all open/pending tickets linked to this conversation
+    try {
+      await Ticket.updateMany(
+        {
+          conversationId,
+          status: { $in: ["open", "pending"] },
+        },
+        {
+          $set: {
+            assignedTo: agentId ? new Types.ObjectId(agentId) : null,
+            updatedAt: new Date(),
+          },
+        },
+      );
+    } catch (err: any) {
+      logger.warn(`[routeConversation] Failed to sync linked tickets: ${err.message}`);
+    }
+
     return {
       found: true,
       noAgent: false,
@@ -386,6 +404,7 @@ export class ConversationService {
       originalConversation: conversation,
     };
   }
+
 
   async updateConversationStatus(
     organizationId: string,

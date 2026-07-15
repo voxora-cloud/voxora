@@ -395,7 +395,8 @@ export class AnalyticsService {
                 },
               },
             ],
-            // Top 5 asked questions
+            // Top 5 asked questions: project initial messages to process them in JS
+            // (avoids unsupported $regexReplace in older MongoDB versions)
             questions: [
               {
                 $match: {
@@ -408,21 +409,10 @@ export class AnalyticsService {
               },
               {
                 $project: {
-                  question: {
-                    $toLower: {
-                      $trim: { input: "$metadata.customer.initialMessage" },
-                    },
-                  },
+                  _id: 0,
+                  initialMessage: "$metadata.customer.initialMessage",
                 },
               },
-              {
-                $group: {
-                  _id: "$question",
-                  count: { $sum: 1 },
-                },
-              },
-              { $sort: { count: -1 } },
-              { $limit: 5 },
             ],
             sources: [
               {
@@ -594,10 +584,28 @@ export class AnalyticsService {
         ? Math.round(conversationResults.resolution[0].avgResolutionTimeMs)
         : null,
       widgetLoads: analyticsResults.widgetLoads?.[0]?.widgetLoads || 0,
-      mostAskedQuestions: (conversationResults.questions || []).map((q: any) => ({
-        question: q._id,
-        count: q.count,
-      })),
+      mostAskedQuestions: (() => {
+        const questionCounts: Record<string, number> = {};
+        (conversationResults.questions || []).forEach((row: any) => {
+          const rawMessage = typeof row.initialMessage === "string" ? row.initialMessage.trim() : "";
+          if (!rawMessage) return;
+
+          // Strip the [PAGE_CONTEXT] block and any preceding newlines/escaped-newlines
+          const cleaned = rawMessage
+            .replace(/[\r\n\\n]*\[PAGE_CONTEXT\][\s\S]*$/gi, "")
+            .trim()
+            .toLowerCase();
+
+          if (cleaned) {
+            questionCounts[cleaned] = (questionCounts[cleaned] || 0) + 1;
+          }
+        });
+
+        return Object.entries(questionCounts)
+          .map(([question, count]) => ({ question, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+      })(),
       unansweredQuestions,
       source,
       aiCost: {

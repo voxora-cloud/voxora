@@ -396,6 +396,46 @@ export class TicketsService {
       }
     }
 
+    // Sync assignedTo back to the parent conversation (only if still open/pending)
+    if ("assignedTo" in input && ticket.conversationId) {
+      try {
+        const newAssigneeId = input.assignedTo ? new Types.ObjectId(input.assignedTo) : null;
+
+        await Conversation.findOneAndUpdate(
+          {
+            _id: ticket.conversationId,
+            organizationId,
+            status: { $in: ["open", "pending"] },
+          },
+          {
+            $set: {
+              assignedTo: newAssigneeId,
+              "metadata.routedBy": "ticket_reassign",
+              "metadata.routedAt": new Date(),
+              "metadata.routeReason": "Reassigned via ticket",
+            },
+          },
+        );
+
+        // Notify the org room so inbox lists refresh
+        socketService.emitToOrg(organizationId, "conversation_assigned", {
+          conversationId: ticket.conversationId.toString(),
+          source: "ticket_reassign",
+        });
+
+        // Notify the newly assigned agent's personal room
+        if (input.assignedTo) {
+          socketService.emitToUser(input.assignedTo, "assigned_to_you", {
+            conversationId: ticket.conversationId.toString(),
+            type: "ticket",
+            ticketId: ticket._id?.toString(),
+          });
+        }
+      } catch (err: any) {
+        logger.error(`[updateTicket] Failed to sync conversation assignee: ${err.message}`);
+      }
+    }
+
     let event: TicketEmailEvent = "updated";
     if (input.status === "resolved" && previous.status !== "resolved") event = "resolved";
     if (input.status === "closed" && previous.status !== "closed") event = "closed";

@@ -34,6 +34,8 @@ import { useLogout } from "@/domains/auth/hooks/useLogout";
 import { authApi } from "@/domains/auth/api/auth.api";
 import { useConversationDetail } from "@/domains/conversation/hooks/useConversationDetail";
 import { useTicket } from "@/domains/tickets/hooks/useTicket";
+import { useQueryClient } from "@tanstack/react-query";
+import { useConversations, useMyConversations } from "@/domains/conversation/hooks";
 import io, { Socket } from "socket.io-client";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -123,6 +125,54 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [notificationFilter, setNotificationFilter] = useState<"all" | "unread">("all");
   const [isContentFullscreen, setIsContentFullscreen] = useState(false);
   const [hasInboxBadge, setHasInboxBadge] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // Fetch open unassigned conversations and open conversations assigned to the current user
+  const { data: unassignedConvs = [] } = useConversations("open", { unassigned: true });
+  const { data: myConvs = [] } = useMyConversations("open");
+
+  // Merge, filter duplicates, sort by latest activity, and keep top 5
+  const escalatedOrUnassigned = useMemo(() => {
+    if (!isAuthenticated || !user) return [];
+    
+    const merged = [...unassignedConvs, ...myConvs];
+    const uniqueMap = new Map<string, any>();
+    
+    for (const conv of merged) {
+      uniqueMap.set(conv._id, conv);
+    }
+
+    return Array.from(uniqueMap.values())
+      .sort((a, b) => {
+        const timeA = new Date(a.lastMessageAt || a.createdAt).getTime();
+        const timeB = new Date(b.lastMessageAt || b.createdAt).getTime();
+        return timeB - timeA;
+      })
+      .slice(0, 5);
+  }, [unassignedConvs, myConvs, isAuthenticated, user]);
+
+  const AVATAR_BG_COLORS = [
+    "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/30",
+    "bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-900/30",
+    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/30",
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/30",
+    "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-900/30",
+  ];
+
+  const getColorClass = (id: string) => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return AVATAR_BG_COLORS[Math.abs(hash) % AVATAR_BG_COLORS.length];
+  };
+
+  const getVisitorName = (conv: any) =>
+    conv.metadata?.customer?.name ||
+    conv.metadata?.senderName ||
+    conv.metadata?.customerName ||
+    "Anonymous Visitor";
 
   // Clear badge when on the inbox page
   useEffect(() => {
@@ -324,11 +374,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       ].slice(0, 50)); // Keep last 50
     });
 
+    const handleConversationsUpdate = () => {
+      queryClient.invalidateQueries({ queryKey: ["conversations"], exact: false });
+    };
+
     socket.on("conversation_pending", () => {
       playNotificationSound();
       if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
         setHasInboxBadge(true);
       }
+      handleConversationsUpdate();
     });
 
     socket.on("conversation_assigned", (data: { conversationId: string; agentId: string }) => {
@@ -338,7 +393,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           setHasInboxBadge(true);
         }
       }
+      handleConversationsUpdate();
     });
+
+    socket.on("conversation_escalated", handleConversationsUpdate);
+    socket.on("status_updated", handleConversationsUpdate);
+    socket.on("conversation_removed", handleConversationsUpdate);
 
     return () => {
       socket.disconnect();
@@ -763,6 +823,51 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   </div>
 
                   <div className="flex items-center gap-2 lg:gap-3">
+                    {/* Escalated/Unassigned Avatars stack */}
+                    {escalatedOrUnassigned.length > 0 && (
+                      <div className="flex items-center -space-x-2 mr-1">
+                        {escalatedOrUnassigned.map((conv) => {
+                          const name = getVisitorName(conv);
+                          const initials = name
+                            .split(" ")
+                            .map((w: string) => w[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase();
+                          const hasAgent = !!conv.assignedTo;
+                          const colorClass = getColorClass(conv._id);
+                          const lastMsg = conv.lastMessage?.content || "No messages yet";
+                          
+                          return (
+                            <button
+                              key={conv._id}
+                              type="button"
+                              onClick={() => navigate(`/dashboard/conversations/inbox/chat/${conv._id}`)}
+                              className="group relative cursor-pointer focus:outline-none transition-all duration-300 hover:z-10 hover:-translate-y-0.5"
+                              aria-label={`Conversation with ${name}`}
+                            >
+                              {/* Avatar circle using InteraOne primary brand color */}
+                              <div className="w-8 h-8 rounded-full border-2 border-background flex items-center justify-center text-[10px] font-semibold bg-primary text-primary-foreground shadow-sm transition-all duration-300 group-hover:shadow-md">
+                                {initials}
+                              </div>
+                              
+                              {/* Status dot */}
+                              <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border border-background shadow-sm ${
+                                hasAgent ? "bg-red-500" : "bg-amber-500"
+                              }`} />
+                              
+                              {/* Premium designed tooltip showing the contact name */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-zinc-900/95 dark:bg-zinc-100/95 text-zinc-50 dark:text-zinc-950 border border-zinc-800/30 dark:border-zinc-200/30 shadow-md text-[11px] font-semibold tracking-wide whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-1 group-hover:translate-y-0 pointer-events-none z-50">
+                                {name}
+                                {/* Pointer arrow */}
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-0.5 border-4 border-transparent border-t-zinc-900/95 dark:border-t-zinc-100/95" />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     <form
                       ref={searchContainerRef}
                       className="relative w-full max-w-xs"
