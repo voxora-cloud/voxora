@@ -1045,7 +1045,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
 
               {isConversationRoute ? (
-                <div className="flex-1 min-h-0 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden">
                   {children}
                 </div>
               ) : isTicketDetailRoute ? (

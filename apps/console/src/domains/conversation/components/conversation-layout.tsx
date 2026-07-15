@@ -7,7 +7,7 @@ interface ConversationLayoutProps {
 
 export function ConversationLayout({ children }: ConversationLayoutProps) {
   return (
-    <div className="flex h-full min-h-0 w-full gap-3 overflow-hidden bg-background">
+    <div className="flex h-full min-h-0 w-full gap-0 overflow-hidden bg-background">
       <div className="h-full shrink-0">
         <RecentConversationsSidebar />
       </div>
