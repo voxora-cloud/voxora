@@ -1,5 +1,5 @@
-export { startWorker } from "./reply.worker";
-export { startIngestionWorker } from "./ingestion.worker";
+export { startChatReplyWorker } from "./chat-reply.worker";
+export { startKnowledgeIngestionWorker } from "./knowledge-ingestion.worker";
 export { startObservabilityWorker } from "./observability.worker";
-export { startAnalyzerWorker } from "./analyzer.worker";
-export { startAssistWorker } from "./assist.worker";
+export { startConversationAnalysisWorker } from "./conversation-analysis.worker";
+export { startAgentAssistWorker } from "./agent-assist.worker";

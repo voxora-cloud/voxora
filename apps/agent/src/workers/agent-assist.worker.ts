@@ -24,7 +24,7 @@ export interface AssistJobData {
   };
 }
 
-export function startAssistWorker() {
+export function startAgentAssistWorker() {
   const connection = getBullMQConnection();
 
   const worker = new Worker<AssistJobData, void, string>(

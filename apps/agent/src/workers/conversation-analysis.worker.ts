@@ -10,7 +10,7 @@ const BATCH_SIZE = 5; // Optimal batch size for LLM context window and extractio
 
 export interface AnalyzerJobData {}
 
-export function startAnalyzerWorker() {
+export function startConversationAnalysisWorker() {
   const connection = getBullMQConnection();
 
   // Unified repeatable schedule for checking conversation inactivity and batch analysis

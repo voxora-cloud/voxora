@@ -2,11 +2,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import {
-  startWorker,
-  startIngestionWorker,
+  startChatReplyWorker,
+  startKnowledgeIngestionWorker,
   startObservabilityWorker,
-  startAnalyzerWorker,
-  startAssistWorker,
+  startConversationAnalysisWorker,
+  startAgentAssistWorker,
 } from "./workers";
 import { startHealthServer } from "./health/health.server";
 import logger from "./utils/logger";
@@ -15,10 +15,10 @@ logger.info("Starting AI service", {
   nodeEnv: process.env.NODE_ENV || "development",
 });
 
-const chatWorker = startWorker();
-const ingestionWorker = startIngestionWorker();
-const analyzerWorker = startAnalyzerWorker();
-const assistWorker = startAssistWorker();
+const chatReplyWorker = startChatReplyWorker();
+const knowledgeIngestionWorker = startKnowledgeIngestionWorker();
+const conversationAnalysisWorker = startConversationAnalysisWorker();
+const agentAssistWorker = startAgentAssistWorker();
 const { worker: obsWorker, flush: obsFlush } = startObservabilityWorker();
 const healthServer = startHealthServer();
 
@@ -26,11 +26,11 @@ const shutdown = async (signal: string) => {
   logger.info("Received shutdown signal", { signal });
   await obsFlush().catch(() => undefined);
   await Promise.all([
-    chatWorker.close(),
-    ingestionWorker.close(),
-    analyzerWorker.close(),
+    chatReplyWorker.close(),
+    knowledgeIngestionWorker.close(),
+    conversationAnalysisWorker.close(),
     obsWorker.close(),
-    assistWorker.close(),
+    agentAssistWorker.close(),
     new Promise<void>((resolve) => healthServer.close(() => resolve())),
   ]);
   logger.info("AI service shutdown completed", { signal });

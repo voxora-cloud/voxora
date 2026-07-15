@@ -7,7 +7,7 @@ import logger from "../utils/logger";
 
 const QUEUE_NAME = "ai-processing";
 
-export function startWorker() {
+export function startChatReplyWorker() {
   const connection = getBullMQConnection();
 
   const worker = new Worker<AIJobData, void, string>(

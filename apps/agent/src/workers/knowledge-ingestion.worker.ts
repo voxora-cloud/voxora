@@ -19,7 +19,7 @@ const URL_LOCK_TTL_SECONDS = parseInt(
 );
 const LOCK_RETRY_DELAY_MS = 60_000;
 
-export function startIngestionWorker() {
+export function startKnowledgeIngestionWorker() {
   const connection = getBullMQConnection();
 
   const ingestionQueue = new Queue<DocumentJob>(INGESTION_QUEUE, {
