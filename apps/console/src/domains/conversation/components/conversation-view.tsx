@@ -1153,7 +1153,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
               </div>
             )}
 
-            <div className="border-t border-border/70 bg-[#f3eeff] dark:bg-[#1d162a] px-4 py-3 text-slate-900 dark:text-zinc-100">
+            <div className="border-t border-border/70 bg-card px-4 py-3 text-slate-900 dark:text-zinc-100">
               <div className="overflow-visible">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
                   <div className="flex min-w-0 items-center gap-2">
@@ -1342,7 +1342,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                 )}
                 <div className="flex items-end gap-3 pt-3">
                   {/* Rounded text area wrapper */}
-                  <div className="flex-1 flex items-end bg-white dark:bg-[#2b233c] border border-border/50 dark:border-[#382d4e] rounded-xl px-3.5 py-2 shadow-xs focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all duration-200">
+                  <div className="flex-1 flex items-end bg-card border border-border/50 rounded-xl px-3.5 py-2 shadow-xs focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/30 transition-all duration-200">
                     <Textarea
                       ref={textareaRef}
                       value={newMessage}
