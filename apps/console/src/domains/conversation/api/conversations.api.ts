@@ -121,10 +121,6 @@ class ConversationsApi {
   async getRecentConversations(): Promise<any> {
     return apiClient.get<any>("/conversations/recents");
   }
-
-  async clearRecentConversations(): Promise<any> {
-    return apiClient.delete<any>("/conversations/recents");
-  }
 }
 
 export const conversationsApi = new ConversationsApi();

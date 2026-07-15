@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Clock, Trash2, ChevronLeft, ChevronRight, MessageSquare, Mail, Send, Phone, Ticket } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, MessageSquare, Mail, Send, Phone, Ticket } from "lucide-react";
 import { conversationsApi } from "../api/conversations.api";
 
 interface RecentConversation {
@@ -41,18 +41,6 @@ export function RecentConversationsSidebar() {
       window.removeEventListener("interaone_recents_updated", loadRecents);
     };
   }, []);
-
-  const clearRecents = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      const res = await conversationsApi.clearRecentConversations();
-      if (res?.success) {
-        setRecents([]);
-      }
-    } catch (err) {
-      console.error("Failed to clear recent conversations:", err);
-    }
-  };
 
   const getChannelIcon = (channel: string) => {
     switch (channel?.toLowerCase()) {
@@ -180,15 +168,6 @@ export function RecentConversationsSidebar() {
       <div className="h-14 px-4 border-b border-border flex items-center justify-between shrink-0 bg-card">
         <h3 className="text-sm font-semibold text-foreground select-none">Recent Chats</h3>
         <div className="flex items-center gap-1.5">
-          {recents.length > 0 && (
-            <button
-              onClick={clearRecents}
-              className="p-1.5 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg cursor-pointer transition-all duration-200 border border-transparent hover:border-destructive/20"
-              title="Clear Recents"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
           <button
             onClick={() => setIsCollapsed(true)}
             className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg cursor-pointer transition-all duration-200 border border-transparent hover:border-border"
@@ -226,7 +205,7 @@ export function RecentConversationsSidebar() {
               <button
                 key={conv._id}
                 onClick={() => navigate(conversationUrl)}
-                className={`w-full text-left flex items-start gap-3 p-3.5 transition-all border-b border-border/40 select-none duration-200 relative ${
+                className={`w-full text-left flex items-start gap-3 p-3.5 transition-all border-b border-border/40 select-none cursor-pointer duration-200 relative ${
                   isActive
                     ? "bg-primary/[0.04] text-foreground"
                     : "bg-transparent text-muted-foreground hover:bg-muted/20"

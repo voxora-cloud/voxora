@@ -73,6 +73,13 @@ export const handleAgentMessage = ({ socket, io }: { socket: any; io: any }) => 
             agentId,
             agentName: socket.data.user.name,
           });
+
+          // Broadcast to the whole organization so other agents' inbox lists refresh in real-time
+          socketService.emitToOrg(orgId.toString(), "conversation_assigned", {
+            conversationId,
+            agentId,
+            agentName: socket.data.user.name,
+          });
         }
 
         // Emit message to other members of the conversation

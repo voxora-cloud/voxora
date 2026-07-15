@@ -16,6 +16,5 @@ export { SystemEvent, ISystemEvent, EventCategory } from "./SystemEvent";
 export { Ticket, ITicket, TicketStatus, TicketPriority, TicketSource } from "./Ticket";
 export { Channel, IChannel, ChannelType, ChannelVerificationStatus, IDnsRecord, IEmailChannelConfig, IChannelConfig } from "./Channel";
 export { ContactConflict, IContactConflict } from "./ContactConflict";
-export { RecentConversation, IRecentConversation } from "./RecentConversation";
 export { UnansweredQuestion, IUnansweredQuestion } from "./UnansweredQuestion";
 export { Template, ITemplate } from "./Template";

@@ -7,8 +7,8 @@ import {
   SystemEvent,
   Ticket,
   Contact,
-  RecentConversation,
 } from "@shared/models";
+import { socketService } from "@sockets/services/socket.service";
 import logger from "@shared/core/logger";
 import {
   ListConversationsOptions,
@@ -42,36 +42,22 @@ export class ConversationService {
 
     const filter: any = { organizationId };
 
-    // Fetch all ticket conversation IDs for this organization
-    const tickets = await Ticket.find(
-      {
-        organizationId,
-        conversationId: { $ne: null },
-      },
-      "conversationId",
-    ).lean();
-    const ticketConversationIds = tickets
-      .map((t) => t.conversationId)
-      .filter(Boolean);
-
     if (assignedTo === null) {
       // Specifically requesting unassigned conversations (In Queue)
       filter.assignedTo = null;
       filter.$or = [
         { "metadata.escalatedAt": { $ne: null } },
         { "metadata.pendingEscalation": true },
-        { _id: { $in: ticketConversationIds } },
       ];
     } else if (assignedTo) {
       // Specifically requesting conversations for a certain agent
       filter.assignedTo = assignedTo;
     } else {
-      // General view (All Open) - show assigned OR escalated OR ticket-picked
+      // General view (All Open) - show assigned OR escalated
       filter.$or = [
         { assignedTo: { $ne: null } },
         { "metadata.escalatedAt": { $ne: null } },
         { "metadata.pendingEscalation": true },
-        { _id: { $in: ticketConversationIds } },
       ];
     }
 
@@ -190,7 +176,7 @@ export class ConversationService {
           [`metadata.agentReads.${userId}.lastReadAt`]: new Date(),
         },
       },
-      { new: true },
+      { new: true, timestamps: false },
     ).lean();
   }
 
@@ -423,6 +409,55 @@ export class ConversationService {
     );
 
     if (!conversation) return { valid: true, found: false };
+
+    // Sync status to active unresolved tickets associated with this conversation
+    try {
+      let mappedTicketStatus: "open" | "resolved" | "closed" = "open";
+      const setOps: Record<string, unknown> = {};
+
+      if (status === "resolved") {
+        mappedTicketStatus = "resolved";
+        setOps.resolvedAt = new Date();
+      } else if (status === "closed") {
+        mappedTicketStatus = "closed";
+        setOps.closedAt = new Date();
+      }
+
+      setOps.status = mappedTicketStatus;
+
+      // Find active unresolved tickets linked to this conversation and update them
+      const ticketsToUpdate = await Ticket.find({
+        conversationId,
+        organizationId,
+        status: { $in: ["open", "in_progress"] },
+      }).select("_id ticketNumber title priority assignedTo").lean();
+
+      if (ticketsToUpdate.length > 0) {
+        const ticketIds = ticketsToUpdate.map((t) => t._id);
+        await Ticket.updateMany(
+          { _id: { $in: ticketIds }, organizationId },
+          { $set: setOps }
+        );
+
+        // Broadcast real-time ticket updates to the organization room
+        for (const t of ticketsToUpdate) {
+          socketService.emitToOrg(organizationId, "ticket_updated", {
+            ticket: {
+              id: t._id.toString(),
+              status: mappedTicketStatus,
+              ticketNumber: t.ticketNumber,
+              title: t.title,
+              priority: t.priority,
+              assignedTo: t.assignedTo,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        }
+      }
+    } catch (err: any) {
+      logger.error(`[updateConversationStatus] Failed to sync ticket status: ${err.message}`);
+    }
 
     return { valid: true, found: true, conversation };
   }
@@ -669,55 +704,37 @@ export class ConversationService {
   }
 
   /**
-   * Add or update a recent conversation for a user
-   */
-  async upsertRecentConversation(
-    userId: string,
-    organizationId: string,
-    conversationId: string,
-  ): Promise<void> {
-    try {
-      await RecentConversation.findOneAndUpdate(
-        { userId, conversationId },
-        { openedAt: new Date(), organizationId },
-        { upsert: true, new: true },
-      );
-
-      // Keep only top 10 recent conversations for this user and organization
-      const recents = await RecentConversation.find({
-        userId,
-        organizationId,
-      }).sort({ openedAt: -1 });
-      if (recents.length > 10) {
-        const toDelete = recents.slice(10).map((r) => r._id);
-        await RecentConversation.deleteMany({ _id: { $in: toDelete } });
-      }
-    } catch (error: any) {
-      logger.error(`Error in upsertRecentConversation: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get recent conversations for a user
+   * Get recently active/assigned conversations for an agent
    */
   async getRecentConversations(
     userId: string,
     organizationId: string,
   ): Promise<any[]> {
     try {
-      const recents = await RecentConversation.find({ userId, organizationId })
-        .sort({ openedAt: -1 })
+      // Fetch active conversations for this organization that:
+      // - Are assigned to the user OR
+      // - Are open, unassigned, and escalated (or pending escalation)
+      // Sorted by updatedAt desc, limited to 10
+      const convs = await Conversation.find({
+        organizationId,
+        $or: [
+          { assignedTo: userId },
+          {
+            assignedTo: null,
+            status: { $ne: "resolved" },
+            $or: [
+              { "metadata.escalatedAt": { $ne: null } },
+              { "metadata.pendingEscalation": true },
+            ],
+          },
+        ],
+      })
+        .sort({ updatedAt: -1 })
         .limit(10)
         .lean();
 
       const results = [];
-      for (const recent of recents) {
-        const conv = await Conversation.findOne({
-          _id: recent.conversationId,
-          organizationId,
-        }).lean();
-        if (!conv) continue;
-
+      for (const conv of convs) {
         // Get last message
         const lastMsg = await Message.findOne({
           conversationId: conv._id,
@@ -738,7 +755,9 @@ export class ConversationService {
         const linkedTicket = await Ticket.findOne({
           organizationId,
           conversationId: conv._id,
-        }).select("_id ticketNumber").lean();
+        })
+          .select("_id ticketNumber")
+          .lean();
 
         results.push({
           _id: conv._id.toString(),
@@ -746,7 +765,7 @@ export class ConversationService {
           visitorName: contact?.name || "Anonymous User",
           channel: conv.channel || conv.metadata?.source || "widget",
           lastMessage: lastMsg?.content || "",
-          openedAt: recent.openedAt.getTime(),
+          openedAt: conv.updatedAt.getTime(),
           status: conv.status,
           ticketId: linkedTicket?._id?.toString() || undefined,
           ticketNumber: linkedTicket?.ticketNumber || undefined,
@@ -756,20 +775,6 @@ export class ConversationService {
     } catch (error: any) {
       logger.error(`Error in getRecentConversations: ${error.message}`);
       return [];
-    }
-  }
-
-  /**
-   * Clear all recent conversations for a user
-   */
-  async clearRecentConversations(
-    userId: string,
-    organizationId: string,
-  ): Promise<void> {
-    try {
-      await RecentConversation.deleteMany({ userId, organizationId });
-    } catch (error: any) {
-      logger.error(`Error in clearRecentConversations: ${error.message}`);
     }
   }
 }
