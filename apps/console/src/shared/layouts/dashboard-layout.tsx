@@ -152,21 +152,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       .slice(0, 5);
   }, [unassignedConvs, myConvs, isAuthenticated, user]);
 
-  const AVATAR_BG_COLORS = [
-    "bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200 dark:border-rose-900/30",
-    "bg-violet-100 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300 border-violet-200 dark:border-violet-900/30",
-    "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-900/30",
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/30",
-    "bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200 dark:border-sky-900/30",
-  ];
 
-  const getColorClass = (id: string) => {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      hash = id.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return AVATAR_BG_COLORS[Math.abs(hash) % AVATAR_BG_COLORS.length];
-  };
 
   const getVisitorName = (conv: any) =>
     conv.metadata?.customer?.name ||
@@ -835,8 +821,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                             .slice(0, 2)
                             .toUpperCase();
                           const hasAgent = !!conv.assignedTo;
-                          const colorClass = getColorClass(conv._id);
-                          const lastMsg = conv.lastMessage?.content || "No messages yet";
                           
                           return (
                             <button
