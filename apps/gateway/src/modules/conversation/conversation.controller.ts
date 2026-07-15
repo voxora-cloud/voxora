@@ -60,13 +60,6 @@ export const getConversationById = asyncHandler(
     );
     if (!result) return sendError(res, 404, "Conversation not found");
 
-    // Record this conversation in agent's recents list in the database asynchronously
-    conversationService
-      .upsertRecentConversation(userId, orgId, conversationId)
-      .catch((err) => {
-        logger.error(`Failed to upsert recent conversation: ${err.message}`);
-      });
-
     sendResponse(res, 200, true, "Conversation fetched successfully", result);
   },
 );
@@ -204,6 +197,11 @@ export const routeConversation = asyncHandler(
             email: result.agentEmail,
           },
         });
+
+        // Broadcast to the whole organization so other agents' inbox lists refresh in real-time
+        socketService.emitToOrg(orgId, "conversation_assigned", { conversationId });
+        socketService.emitToOrg(orgId, "conversation_escalated", { conversationId });
+
         const oldAgentId = result.originalConversation!.assignedTo;
         if (
           oldAgentId &&
@@ -271,6 +269,14 @@ export const updateConversationStatus = asyncHandler(
         updatedBy: (req as any).user?.name || "Agent",
         timestamp: new Date(),
       });
+
+    // Broadcast to the whole organization so other agents' inbox lists refresh in real-time
+    socketService.emitToOrg(orgId, "status_updated", {
+      conversationId: result.conversation!._id,
+      status,
+      updatedBy: (req as any).user?.name || "Agent",
+      timestamp: new Date(),
+    });
 
     sendResponse(res, 200, true, "Status updated successfully", {
       conversationId: result.conversation!._id,
@@ -436,6 +442,10 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
             email: result.agentEmail,
           },
         });
+
+        // Broadcast to the whole organization so other agents' inbox lists refresh in real-time
+        socketService.emitToOrg(organizationId, "conversation_assigned", { conversationId });
+        socketService.emitToOrg(organizationId, "conversation_escalated", { conversationId });
       } catch (err: any) {
         logger.error(`[AI Escalate] Socket emit failed: ${err?.message}`);
       }
@@ -713,23 +723,6 @@ export const getRecentConversations = asyncHandler(
       true,
       "Recent conversations fetched successfully",
       results,
-    );
-  },
-);
-
-// ─── CLEAR recent conversations ────────────────────────────────────────────────
-
-export const clearRecentConversations = asyncHandler(
-  async (req: Request, res: Response) => {
-    const userId = (req as AuthenticatedRequest).user.userId;
-    const orgId = getOrgId(req);
-    await conversationService.clearRecentConversations(userId, orgId);
-    sendResponse(
-      res,
-      200,
-      true,
-      "Recent conversations cleared successfully",
-      null,
     );
   },
 );

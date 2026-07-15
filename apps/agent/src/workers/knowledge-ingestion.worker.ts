@@ -7,19 +7,17 @@ import { runTextIngestionPipeline } from "../modules/ingestion/pipelines/text.pi
 import { runFaqIngestionPipeline } from "../modules/ingestion/pipelines/faq.pipeline";
 import { vectorStore } from "../infrastructure/vector";
 import { getBullMQConnection } from "../infrastructure/queue/bullmq.client";
-import { getSyncDelay } from "../modules/ingestion/utils/sync-delays";
-import { cacheRedis } from "../infrastructure/cache/redis.client";
-import { internalApi } from "../infrastructure/api/internal.client";
-import logger from "../utils/logger";
+import { getSyncDelay } from "../shared/sync";
+import {
+  acquireUrlLock,
+  releaseUrlLock,
+} from "../shared/locking";
+import { InternalApiService } from "../infrastructure/api/internal-api.service";
+import logger from "../shared/logger";
 
 export const INGESTION_QUEUE = "document-ingestion";
-const URL_LOCK_TTL_SECONDS = parseInt(
-  process.env.URL_INGEST_LOCK_TTL_SECONDS || "3600",
-  10,
-);
-const LOCK_RETRY_DELAY_MS = 60_000;
 
-export function startIngestionWorker() {
+export function startKnowledgeIngestionWorker() {
   const connection = getBullMQConnection();
 
   const ingestionQueue = new Queue<DocumentJob>(INGESTION_QUEUE, {
@@ -52,47 +50,13 @@ export function startIngestionWorker() {
       }
 
       if (source === "url") {
-        const lockKey = `ingestion:url:lock:${job.data.documentId}`;
-        const lockValue = job.id ?? "1";
-
-        const lockAcquired = await cacheRedis.set(
-          lockKey,
-          lockValue,
-          "EX",
-          URL_LOCK_TTL_SECONDS,
-          "NX",
-        );
-        if (!lockAcquired) {
-          const retryJobId = `ingest-lock-retry:${job.data.documentId}`;
-          try {
-            await ingestionQueue.add("ingest", job.data, {
-              delay: LOCK_RETRY_DELAY_MS,
-              jobId: retryJobId,
-              removeOnComplete: true,
-              removeOnFail: true,
-            });
-          } catch (err: any) {
-            logger.warn("URL ingestion lock retry already scheduled", {
-              jobId: job.id,
-              queue: INGESTION_QUEUE,
-              documentId: job.data.documentId,
-              organizationId: job.data.organizationId,
-              error: err,
-            });
-          }
-          logger.info("URL ingestion skipped due to active lock", {
-            jobId: job.id,
-            queue: INGESTION_QUEUE,
-            documentId: job.data.documentId,
-            organizationId: job.data.organizationId,
-          });
-          return;
-        }
+        const lockAcquired = await acquireUrlLock(ingestionQueue, job);
+        if (!lockAcquired) return;
 
         try {
           await runUrlIngestionPipeline(job.data);
         } finally {
-          await cacheRedis.del(lockKey).catch(() => undefined);
+          await releaseUrlLock(job.data.documentId);
         }
         return;
       }
@@ -129,16 +93,16 @@ export function startIngestionWorker() {
 
     if (job.data.jobType !== "delete-vectors") {
       try {
-        await internalApi.post("/notifications/ai", {
-          organizationId: job.data.organizationId,
-          type: "ai_sync",
-          title: "Knowledge Base Indexed",
-          description: `AI training completed for '${job.data.fileName || "Data Source"}'.`,
-        });
+        await InternalApiService.sendNotification(
+          job.data.organizationId,
+          "ai_sync",
+          "Knowledge Base Indexed",
+          `AI training completed for '${job.data.fileName || "Data Source"}'.`
+        );
       } catch (err: any) {
         logger.warn("Failed to send ingestion completed notification", {
           jobId: job.id,
-          error: err?.response?.data?.message || err.message,
+          error: err.message,
         });
       }
     }
@@ -147,11 +111,7 @@ export function startIngestionWorker() {
     if (job.data.jobType !== "delete-vectors" && job.data.source === "url") {
       let doc: any = null;
       try {
-        const { data } = await internalApi.get(
-          `/knowledge/ai/${job.data.documentId}/sync-info`,
-          { params: { organizationId: job.data.organizationId } },
-        );
-        doc = data?.data ?? null;
+        doc = await InternalApiService.getSyncInfo(job.data.documentId, job.data.organizationId);
       } catch (err: any) {
         if (err?.response?.status === 404) {
           logger.info("Skipping re-crawl because document was deleted", {
@@ -247,16 +207,16 @@ export function startIngestionWorker() {
 
     if (job && job.data.jobType !== "delete-vectors") {
       try {
-        await internalApi.post("/notifications/ai", {
-          organizationId: job.data.organizationId,
-          type: "ai_sync",
-          title: "Knowledge Sync Failed",
-          description: `Failed to index '${job.data.fileName || "Data Source"}'.`,
-        });
+        await InternalApiService.sendNotification(
+          job.data.organizationId,
+          "ai_sync",
+          "Knowledge Sync Failed",
+          `Failed to index '${job.data.fileName || "Data Source"}'.`
+        );
       } catch (notifErr: any) {
         logger.warn("Failed to send ingestion failure notification", {
           jobId: job.id,
-          error: notifErr?.response?.data?.message || notifErr.message,
+          error: notifErr.message,
         });
       }
     }

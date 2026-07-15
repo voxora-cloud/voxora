@@ -484,8 +484,9 @@ export class ChannelService {
     organizationId: string,
     ticketId: string,
     content: string,
+    agentUser?: { userId: string; name: string; email: string },
   ): Promise<void> {
-    const ticket = await Ticket.findOne({ _id: ticketId, organizationId }).lean();
+    const ticket = await Ticket.findOne({ _id: ticketId, organizationId });
     if (!ticket) {
       logger.error(`[ChannelService.sendTicketFollowup] Ticket ${ticketId} not found`);
       return;
@@ -615,5 +616,64 @@ export class ChannelService {
       ticketNumber: ticket.ticketNumber,
       to,
     });
+
+    // Save reply message and update conversation timeline to show the message and bump recents sorting
+    if (ticket.conversationId) {
+      try {
+        const msg = new Message({
+          organizationId,
+          conversationId: ticket.conversationId,
+          senderId: agentUser?.userId || "system",
+          content,
+          type: "text",
+          metadata: {
+            source: "web",
+            senderName: agentUser?.name || "Agent",
+            senderEmail: agentUser?.email || "",
+          },
+        });
+        await msg.save();
+
+        await Conversation.updateOne(
+          { _id: ticket.conversationId, organizationId },
+          {
+            $set: {
+              status: "open",
+              assignedTo: agentUser?.userId || null,
+            },
+            $addToSet: { participants: agentUser?.userId },
+            $currentDate: { updatedAt: true },
+          },
+        );
+
+        // Emit real-time message event to conversation room
+        socketService.emitToConversation(ticket.conversationId.toString(), "new_message", {
+          conversationId: ticket.conversationId.toString(),
+          message: {
+            _id: msg._id,
+            senderId: msg.senderId,
+            content: msg.content,
+            type: msg.type,
+            metadata: msg.metadata,
+            createdAt: msg.createdAt,
+          },
+        });
+
+        // Broadcast to the whole organization so lists refresh in real-time
+        socketService.emitToOrg(organizationId, "status_updated", {
+          conversationId: ticket.conversationId.toString(),
+          status: "open",
+        });
+        if (agentUser?.userId) {
+          socketService.emitToOrg(organizationId, "conversation_assigned", {
+            conversationId: ticket.conversationId.toString(),
+            agentId: agentUser.userId,
+            agentName: agentUser.name,
+          });
+        }
+      } catch (err: any) {
+        logger.error(`[sendTicketFollowup] Failed to update conversation state: ${err.message}`);
+      }
+    }
   }
 }

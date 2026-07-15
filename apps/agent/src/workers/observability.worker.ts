@@ -3,7 +3,7 @@ import { getBullMQConnection } from "../infrastructure/queue/bullmq.client";
 import { AI_OBSERVABILITY_QUEUE } from "../infrastructure/providers/observability/observability.queue";
 import { AICallEvent } from "../infrastructure/providers/types/ai.types";
 import { internalApi } from "../infrastructure/api/internal.client";
-import logger from "../utils/logger";
+import logger from "../shared/logger";
 
 /**
  * How many events to accumulate before flushing to MongoDB.

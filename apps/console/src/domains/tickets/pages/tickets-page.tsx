@@ -149,7 +149,7 @@ export function TicketsPage() {
   const queryClient = useQueryClient();
 
   const [members, setMembers] = useState<Member[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("open");
   const [priorityFilter, setPriorityFilter] = useState<string>("");
   const [assignedToFilter, setAssignedToFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");

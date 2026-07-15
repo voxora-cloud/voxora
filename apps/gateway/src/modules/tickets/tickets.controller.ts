@@ -3,6 +3,7 @@ import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { AuthenticatedRequest } from "@shared/security/middleware";
 import { TicketsService } from "./tickets.service";
 import { ChannelService } from "../channels/channels.service";
+import { User } from "@shared/models";
 
 const service = new TicketsService();
 
@@ -135,6 +136,12 @@ export const replyToTicket = asyncHandler(async (req: Request, res: Response) =>
   const ticket = await service.getTicketById(orgId, ticketId);
   if (!ticket) return sendError(res, 404, "Ticket not found");
 
-  await ChannelService.sendTicketFollowup(orgId, ticketId, content);
+  const user = (req as AuthenticatedRequest).user;
+  const userDoc = await User.findById(user.userId).select("name").lean();
+  await ChannelService.sendTicketFollowup(orgId, ticketId, content, {
+    userId: user.userId,
+    name: userDoc?.name || "Agent",
+    email: user.email || "",
+  });
   sendResponse(res, 200, true, "Reply sent to customer via email", {});
 });

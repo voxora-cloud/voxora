@@ -563,6 +563,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
       try {
         await ticketsApi.replyToTicket(ticketId, content);
         toast.success("Reply sent to customer");
+        window.dispatchEvent(new Event("interaone_recents_updated"));
       } catch (error: any) {
         setMessages((prev) =>
           prev.filter((message) => message._id !== tempMessage._id),
@@ -574,6 +575,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     }
 
     socket?.emit("send_message", messageData);
+    window.dispatchEvent(new Event("interaone_recents_updated"));
   };
 
   const handleSuggestReply = async () => {

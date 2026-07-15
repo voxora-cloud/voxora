@@ -5,7 +5,7 @@ import {
 } from "../../../infrastructure/providers";
 import { vectorStore } from "../../../infrastructure/vector";
 import { chunkText } from "../utils/chunker";
-import { generateDeterministicChunkId } from "../utils/chunk-id";
+import { generateDeterministicChunkId } from "../../../shared/id";
 import {
   ContentStreamItem,
   ProcessIngestionInput,

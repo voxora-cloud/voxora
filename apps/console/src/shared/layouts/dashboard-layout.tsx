@@ -331,6 +331,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       }
     });
 
+    socket.on("conversation_assigned", (data: { conversationId: string; agentId: string }) => {
+      if (data?.agentId === user?.id) {
+        playNotificationSound();
+        if (!window.location.pathname.startsWith("/dashboard/conversations/inbox")) {
+          setHasInboxBadge(true);
+        }
+      }
+    });
+
     return () => {
       socket.disconnect();
     };

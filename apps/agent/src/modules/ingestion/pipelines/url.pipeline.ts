@@ -1,18 +1,7 @@
 import { DocumentJob } from "../ingestion.types";
 import { streamFromCrawl, streamFromSingleUrl } from "../services/content-stream";
 import { processIngestion } from "../services/process-ingestion";
-import { setDocStatus } from "../services/doc-status.service";
-
-
-
-
-
-
-
-
-
-
-
+import { InternalApiService } from "../../../infrastructure/api/internal-api.service";
 
 export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
   const {
@@ -29,10 +18,17 @@ export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
     throw new Error(`[URL Ingestion] sourceUrl missing for document ${documentId}`);
   }
 
-  await setDocStatus(organizationId, documentId, { status: "indexing" });
-  console.log(
-    `[URL Ingestion] Starting ${fetchMode} of ${sourceUrl} (depth: ${crawlDepth})`,
-  );
+  console.log(`[URL Ingestion] ════════════════════════════════════════════════════════════════════════════`);
+  console.log(`[URL Ingestion] Starting URL ingestion`);
+  console.log(`[URL Ingestion]   Document ID    : ${documentId}`);
+  console.log(`[URL Ingestion]   Organization   : ${organizationId}`);
+  console.log(`[URL Ingestion]   Source URL     : ${sourceUrl}`);
+  console.log(`[URL Ingestion]   Fetch mode     : ${fetchMode}`);
+  console.log(`[URL Ingestion]   Crawl depth    : ${crawlDepth}`);
+  console.log(`[URL Ingestion]   File name      : ${fileName}`);
+  console.log(`[URL Ingestion] ════════════════════════════════════════════════════════════════`);
+
+  await InternalApiService.updateIngestionStatus(organizationId, documentId, { status: "indexing" });
 
   try {
     const contentStream =
@@ -54,7 +50,7 @@ export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
       contentStream,
     });
 
-    await setDocStatus(organizationId, documentId, {
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "indexed",
       wordCount: result.wordCount,
       chunkCount: result.chunksSucceeded,
@@ -66,14 +62,27 @@ export async function runUrlIngestionPipeline(job: DocumentJob): Promise<void> {
         : {}),
     });
 
-    console.log(
-      `[URL Ingestion] Done: ${result.chunksSucceeded} chunks across ${result.unitsProcessed} page(s) — document ${documentId}`,
-    );
+    console.log(`[URL Ingestion] ════════════════════════════════════════════════════════════════`);
+    console.log(`[URL Ingestion] ✅ SUCCESS: URL ingested successfully`);
+    console.log(`[URL Ingestion]   Document ID    : ${documentId}`);
+    console.log(`[URL Ingestion]   Organization   : ${organizationId}`);
+    console.log(`[URL Ingestion]   Chunks stored  : ${result.chunksSucceeded}`);
+    console.log(`[URL Ingestion]   Chunks failed  : ${result.chunksFailed}`);
+    console.log(`[URL Ingestion]   Pages processed: ${result.unitsProcessed}`);
+    console.log(`[URL Ingestion]   Word count     : ${result.wordCount}`);
+    console.log(`[URL Ingestion] ════════════════════════════════════════════════════════════════`);
   } catch (err: any) {
-    await setDocStatus(organizationId, documentId, {
+    console.error(`[URL Ingestion] ════════════════════════════════════════════════════════════════`);
+    console.error(`[URL Ingestion] ❌ FAILED: URL ingestion error`);
+    console.error(`[URL Ingestion]   Document ID    : ${documentId}`);
+    console.error(`[URL Ingestion]   Error message  : ${err.message}`);
+    console.error(`[URL Ingestion]   Stack trace    :`);
+    console.error(err.stack);
+    console.error(`[URL Ingestion] ════════════════════════════════════════════════════════════════`);
+    await InternalApiService.updateIngestionStatus(organizationId, documentId, {
       status: "failed",
       errorMessage: err.message ?? "Unknown error",
     });
-    throw err; // re-throw so BullMQ marks the job as failed
+    throw err;
   }
 }

@@ -242,21 +242,6 @@ router.get("/recents", ConversationController.getRecentConversations);
 
 /**
  * @openapi
- * /conversations/recents:
- *   delete:
- *     summary: Clear list of recently accessed conversations
- *     tags:
- *       - Conversations
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Successfully cleared recent conversations history
- */
-router.delete("/recents", ConversationController.clearRecentConversations);
-
-/**
- * @openapi
  * /conversations/{conversationId}:
  *   get:
  *     summary: Get a specific conversation with all message history

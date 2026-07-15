@@ -6,11 +6,11 @@ import {
 } from "../chat.types";
 import { internalApi } from "../../../infrastructure/api/internal.client";
 import { cacheRedis } from "../../../infrastructure/cache/redis.client";
-import { buildSystemPrompt } from "./system-prompt.builder";
+import { buildSystemPrompt } from "../services/system-prompt";
 
 const HISTORY_LIMIT = parseInt(process.env.CHAT_HISTORY_LIMIT || "10", 10);
 const MEMORY_CACHE_TTL_SECONDS = parseInt(
-  process.env.MEMORY_CACHE_TTL_SECONDS || "5",
+  process.env.MEMORY_CACHE_TTL_SECONDS || "10",
   10,
 );
 const PAGE_CONTEXT_MARKER = "[PAGE_CONTEXT]";
@@ -211,8 +211,6 @@ export async function buildContext(
   }
 
   // ── PROMPT ASSEMBLY ───────────────────────────────────────────────────────
-  // RAG is no longer injected here — the LLM calls knowledge_retrieval when it
-  // needs uploaded knowledge context. This saves 3-4s embedding latency on every message.
   console.time(t("prompt:build"));
   const systemPrompt = buildSystemPrompt({
     companyName,
@@ -236,14 +234,14 @@ export async function buildContext(
   const allMessages: ContextMessage[] = currentAlreadyInHistory
     ? history
     : [
-        ...history,
-        {
-          messageId: currentMessageId,
-          role: "user",
-          content: currentMessage,
-          timestamp: new Date(),
-        },
-      ];
+      ...history,
+      {
+        messageId: currentMessageId,
+        role: "user",
+        content: currentMessage,
+        timestamp: new Date(),
+      },
+    ];
 
   if (currentAlreadyInHistory && !lastHistoryMsg.messageId) {
     lastHistoryMsg.messageId = currentMessageId;
