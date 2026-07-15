@@ -60,9 +60,6 @@ const planMeta: Record<
     icon: React.ReactNode;
     label: string;
     description: string;
-    bgGradient: string;
-    textGradient: string;
-    borderGlow: string;
     badgeBg: string;
   }
 > = {
@@ -70,28 +67,19 @@ const planMeta: Record<
     icon: <Star className="h-5 w-5 text-zinc-400" />,
     label: "Free Starter",
     description: "Ideal for testing and building small workflows",
-    bgGradient: "from-zinc-500/5 via-transparent to-transparent",
-    textGradient: "from-zinc-600 via-zinc-500 to-zinc-400",
-    borderGlow: "group-hover:border-zinc-500/20",
     badgeBg: "bg-zinc-500/10 text-zinc-400 border-zinc-500/25",
   },
   pro: {
-    icon: <Zap className="h-5 w-5 text-violet-400" />,
+    icon: <Zap className="h-5 w-5 text-primary animate-pulse" />,
     label: "Professional Pro",
     description: "Best for growing and scaling support teams",
-    bgGradient: "from-violet-500/10 via-transparent to-transparent",
-    textGradient: "from-violet-400 via-indigo-400 to-cyan-400",
-    borderGlow: "group-hover:border-violet-500/25",
-    badgeBg: "bg-violet-500/10 text-violet-400 border-violet-500/25",
+    badgeBg: "bg-primary/10 text-primary border-primary/20",
   },
   proplus: {
-    icon: <Crown className="h-5 w-5 text-amber-400" />,
+    icon: <Crown className="h-5 w-5 text-primary" />,
     label: "Enterprise ProPlus",
     description: "High-volume orchestration with branding removed",
-    bgGradient: "from-amber-500/10 via-transparent to-transparent",
-    textGradient: "from-amber-400 via-orange-400 to-yellow-500",
-    borderGlow: "group-hover:border-amber-500/25",
-    badgeBg: "bg-amber-500/10 text-amber-400 border-amber-500/25",
+    badgeBg: "bg-primary/10 text-primary border-primary/20",
   },
 };
 
@@ -101,35 +89,31 @@ const limitItems: {
   description: string;
   icon: React.ReactNode;
   colorClass: string;
-  barGradient: string;
-  glowClass: string;
+  barColor: string;
 }[] = [
   {
     key: "messages",
     label: "AI Bot Messages",
     description: "Monthly count of bot-generated responses",
     icon: <MessageSquare className="h-5 w-5" />,
-    colorClass: "text-violet-500 bg-violet-500/10 border-violet-500/20",
-    barGradient: "from-violet-600 via-indigo-500 to-cyan-400",
-    glowClass: "shadow-[0_0_12px_rgba(139,92,246,0.25)]",
+    colorClass: "text-foreground bg-muted border-border/50",
+    barColor: "bg-primary",
   },
   {
     key: "humanAgents",
     label: "Teammates & Agents",
     description: "Active members handling live conversations",
     icon: <UserCheck className="h-5 w-5" />,
-    colorClass: "text-sky-500 bg-sky-500/10 border-sky-500/20",
-    barGradient: "from-sky-600 via-blue-500 to-indigo-400",
-    glowClass: "shadow-[0_0_12px_rgba(14,165,233,0.25)]",
+    colorClass: "text-foreground bg-muted border-border/50",
+    barColor: "bg-primary",
   },
   {
     key: "contacts",
     label: "Captured Leads",
     description: "Saved customers in your directory",
     icon: <BookUser className="h-5 w-5" />,
-    colorClass: "text-teal-500 bg-teal-500/10 border-teal-500/20",
-    barGradient: "from-teal-600 via-emerald-500 to-cyan-400",
-    glowClass: "shadow-[0_0_12px_rgba(20,184,166,0.25)]",
+    colorClass: "text-foreground bg-muted border-border/50",
+    barColor: "bg-primary",
   },
 ];
 
@@ -229,7 +213,7 @@ export function UsagePage() {
         </div>
 
         {/* ── Active Subscription / Plan Status ── */}
-        <div className={`group relative overflow-hidden rounded-3xl border border-border/80 dark:border-white/5 bg-gradient-to-br ${meta.bgGradient} bg-card/45 backdrop-blur-xl p-6 md:p-8 shadow-xl transition-all duration-300 ${meta.borderGlow}`}>
+        <div className="group relative overflow-hidden rounded-3xl border border-border/80 dark:border-white/5 bg-card/65 backdrop-blur-xl p-6 md:p-8 shadow-md transition-all duration-300">
           {/* Subtle background abstract shape */}
           <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-primary/5 blur-3xl group-hover:bg-primary/10 transition-all duration-300 pointer-events-none" />
 
@@ -241,7 +225,7 @@ export function UsagePage() {
                 </div>
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/60">Active Plan</span>
-                  <h2 className={`text-xl md:text-2xl font-black bg-gradient-to-r ${meta.textGradient} bg-clip-text text-transparent mt-0.5`}>
+                  <h2 className="text-xl md:text-2xl font-black text-foreground mt-0.5">
                     {meta.label}
                   </h2>
                 </div>
@@ -294,7 +278,7 @@ export function UsagePage() {
           </div>
 
           <div className="grid gap-5 sm:grid-cols-3">
-            {limitItems.map(({ key, label, description, icon, colorClass, barGradient, glowClass }) => {
+            {limitItems.map(({ key, label, description, icon, colorClass, barColor }) => {
               const stat = usageSnapshot?.usage[key] || { used: 0, limit: isSelfHost ? null : (limits?.[key] ?? null), pct: 0 };
               const limitVal = isSelfHost ? null : stat.limit;
               const usedVal = stat.used;
@@ -306,23 +290,20 @@ export function UsagePage() {
               const displayPct = isSelfHost ? "—" : `${pct}%`;
 
               let statusBorder = "border-border/80 dark:border-white/5";
-              let dynamicBarGradient = barGradient;
-              let dynamicGlow = glowClass;
+              let dynamicBarColor = barColor;
 
               if (isOver) {
-                statusBorder = "border-rose-500/30 dark:border-rose-500/20 shadow-red-500/5 shadow-2xl";
-                dynamicBarGradient = "from-rose-600 via-red-500 to-orange-400";
-                dynamicGlow = "shadow-[0_0_12px_rgba(244,63,94,0.3)]";
+                statusBorder = "border-rose-500/30 dark:border-rose-500/20";
+                dynamicBarColor = "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.2)]";
               } else if (isClose) {
                 statusBorder = "border-amber-500/30 dark:border-amber-500/20";
-                dynamicBarGradient = "from-amber-600 via-orange-500 to-yellow-400";
-                dynamicGlow = "shadow-[0_0_12px_rgba(245,158,11,0.25)]";
+                dynamicBarColor = "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.2)]";
               }
 
               return (
                 <div
                   key={key}
-                  className={`relative overflow-hidden rounded-2xl border ${statusBorder} bg-card/45 backdrop-blur-xl p-5 hover:translate-y-[-2px] hover:shadow-lg transition-all duration-300`}
+                  className={`relative overflow-hidden rounded-2xl border ${statusBorder} bg-card/65 backdrop-blur-xl p-5 hover:translate-y-[-2px] hover:shadow-md transition-all duration-300`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2.5 text-xs font-bold text-foreground">
@@ -357,7 +338,7 @@ export function UsagePage() {
                     {!isSelfHost && (
                       <div className="relative h-2 w-full overflow-hidden rounded-full bg-muted border border-border/30 dark:border-white/5">
                         <div
-                          className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-out ${dynamicBarGradient} ${dynamicGlow}`}
+                          className={`h-full rounded-full transition-all duration-700 ease-out ${dynamicBarColor}`}
                           style={{ width: `${Math.min(100, pct)}%` }}
                         />
                       </div>
