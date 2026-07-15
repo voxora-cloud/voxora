@@ -45,6 +45,7 @@ UnansweredQuestionSchema.index({
   normalizedQuestion: 1,
   createdAt: -1,
 });
+UnansweredQuestionSchema.index({ organizationId: 1, createdAt: -1 });
 
 export const UnansweredQuestion = mongoose.model<IUnansweredQuestion>(
   "UnansweredQuestion",

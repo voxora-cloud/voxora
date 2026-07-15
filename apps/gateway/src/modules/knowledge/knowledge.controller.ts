@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { AuthenticatedRequest } from "@shared/security/middleware/auth";
 import KnowledgeService from "./knowledge.service";
+import { AnalyticsService } from "../analytics/analytics.service";
 import { tracker } from "@shared/utils/tracker";
 import { Knowledge, UnansweredQuestion } from "@shared/models";
 
@@ -199,6 +200,8 @@ export const aiSaveUnansweredQuestion = asyncHandler(async (req: Request, res: R
       normalizedQuestion,
       source: "knowledge_gap",
     });
+
+    await AnalyticsService.invalidateCache(organizationId);
   }
 
   sendResponse(res, 201, true, "Unanswered question saved", {

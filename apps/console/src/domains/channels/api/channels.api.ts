@@ -7,7 +7,7 @@ import type {
 
 export interface CreateEmailChannelPayload {
   name: string;
-  email: string;
+  email?: string;
   domain: string;
 }
 
@@ -28,19 +28,6 @@ export const channelsApi = {
   /** List all channels for the active org */
   listChannels: () =>
     apiClient.get<ChannelListResponse>("/channels"),
-
-  /** Get the org's email channel */
-  getEmailChannel: () =>
-    apiClient.get<ChannelResponse>("/channels/email"),
-
-  /** Get the org's WhatsApp channel */
-  getWhatsAppChannel: () =>
-    apiClient.get<ChannelResponse>("/channels/whatsapp"),
-
-  /** Get the org's Telegram channel */
-  getTelegramChannel: () =>
-    apiClient.get<ChannelResponse>("/channels/telegram"),
-
 
   /** Create + provision the email channel */
   createEmailChannel: (payload: CreateEmailChannelPayload) =>

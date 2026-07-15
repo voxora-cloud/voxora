@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Loader } from "@/shared/ui/loader";
-import { Plus, Radio } from "lucide-react";
+import { Plus, Radio, RefreshCw } from "lucide-react";
 import { LiveSourceTable } from "../components/live-source-table";
 import { AddLiveSourceModal } from "../components/add-live-source-modal";
 import { DeleteConfirmDialog } from "@/shared/components/delete-confirm-dialog";
@@ -24,7 +24,12 @@ import {
 import { toast } from "sonner";
 
 export function KnowledgeRealtimePage() {
-  const { data: items = [], isLoading } = useKnowledgeItems();
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useKnowledgeItems();
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [showViewModal, setShowViewModal] = useState<boolean>(false);
   const [selectedSource, setSelectedSource] = useState<LiveSource | null>(null);
@@ -178,17 +183,31 @@ export function KnowledgeRealtimePage() {
             Auto-sync live URLs with your vector database
           </p>
         </div>
-        <Button data-tour-id="page-knowledge-realtime-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Live Source
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="cursor-pointer"
+            aria-label="Refresh realtime knowledge"
+            title="Refresh realtime knowledge"
+          >
+            <RefreshCw className={isFetching ? "animate-spin" : ""} />
+          </Button>
+          <Button data-tour-id="page-knowledge-realtime-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Live Source
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <Loader size="lg" />
-            <p className="text-muted-foreground mt-4">Loading live sources...</p>
+            <Loader size="sm" />
+            <p className="mt-2 text-sm text-muted-foreground">Loading live sources...</p>
           </div>
         </div>
       ) : sources.length > 0 ? (

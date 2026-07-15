@@ -7,6 +7,7 @@ import io from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConversations } from "../hooks";
 import type { ConversationListItem } from "../types/types";
+import { ChannelIcon } from "@/shared/ui/channel-icon";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3002";
 
@@ -202,7 +203,8 @@ export function ConversationSidebar() {
     }
 
     return (
-      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold select-none shrink-0 ${colorClasses}`}>
+      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold select-none shrink-0 ${colorClasses}`}>
+        <ChannelIcon channel={channel} className="h-2.5 w-2.5" />
         {displayChannel}
       </span>
     );

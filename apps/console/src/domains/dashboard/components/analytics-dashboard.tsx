@@ -33,6 +33,7 @@ import {
 import { MetricCard } from "./metric-card";
 import { MostAskedQuestionsCard } from "./most-asked-questions-card";
 import { AnalyticsEmptyState } from "./analytics-empty-state";
+import { UnansweredQuestionsCard } from "./unanswered-questions-card";
 
 const formatDuration = (ms?: number | null) => {
   if (!ms) return "—";
@@ -214,6 +215,10 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
             )}
           </div>
         </Card>
+      </div>
+
+      <div data-tour-id="page-dashboard-unanswered-questions">
+        <UnansweredQuestionsCard questions={summary?.unansweredQuestions} />
       </div>
     </div>
   );

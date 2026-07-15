@@ -145,6 +145,19 @@ router.post(
 	ContactsController.addNote,
 );
 
+router.patch(
+	"/:id/notes/:noteId",
+	validateRequest(contactsSchema.updateNote),
+	requireRole("agent"),
+	ContactsController.updateNote,
+);
+
+router.delete(
+	"/:id/notes/:noteId",
+	requireRole("agent"),
+	ContactsController.deleteNote,
+);
+
 router.post(
 	"/:id/tags",
 	validateRequest(contactsSchema.addTag),

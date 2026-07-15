@@ -455,6 +455,56 @@ export class ContactsService {
     return note;
   }
 
+  async updateNote(
+    organizationId: string,
+    contactId: string,
+    noteId: string,
+    content: string,
+  ): Promise<any> {
+    const updated = await Contact.findOneAndUpdate(
+      {
+        organizationId: new Types.ObjectId(organizationId),
+        _id: new Types.ObjectId(contactId),
+        "notes.id": noteId,
+      },
+      {
+        $set: { "notes.$.content": content },
+      },
+      { new: true },
+    ).lean();
+
+    if (!updated) throw new Error("Contact note not found");
+
+    const note = updated.notes.find((item) => item.id === noteId);
+    if (!note) throw new Error("Contact note not found");
+
+    return {
+      id: note.id,
+      author: note.author,
+      content: note.content,
+      createdAt: new Date(note.createdAt).toISOString(),
+    };
+  }
+
+  async deleteNote(
+    organizationId: string,
+    contactId: string,
+    noteId: string,
+  ): Promise<void> {
+    const result = await Contact.updateOne(
+      {
+        organizationId: new Types.ObjectId(organizationId),
+        _id: new Types.ObjectId(contactId),
+        "notes.id": noteId,
+      },
+      {
+        $pull: { notes: { id: noteId } },
+      },
+    );
+
+    if (result.modifiedCount === 0) throw new Error("Contact note not found");
+  }
+
   async addTag(organizationId: string, contactId: string, tag: string): Promise<string> {
     // Normalize: trim whitespace and lowercase so stored value matches UI display
     const cleanedTag = tag.trim().toLowerCase();

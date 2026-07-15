@@ -291,7 +291,12 @@ export class ChannelsController {
       if (!resolvedChannelId) {
         const recipient = emailMessage?.mail?.destination?.[0]?.toLowerCase()?.trim();
         if (recipient) {
-          const channel = await Channel.findOne({ "config.email.address": recipient });
+          const channel = await Channel.findOne({
+            $or: [
+              { "config.email.address": recipient },
+              { "config.email.addresses": recipient },
+            ],
+          });
           if (channel) {
             resolvedChannelId = channel._id.toString();
           } else {
@@ -322,7 +327,12 @@ export class ChannelsController {
     if (!resolvedChannelId) {
       const recipient = (payload.to || payload.mail?.destination?.[0] || "").toLowerCase().trim();
       if (recipient) {
-        const channel = await Channel.findOne({ "config.email.address": recipient });
+        const channel = await Channel.findOne({
+          $or: [
+            { "config.email.address": recipient },
+            { "config.email.addresses": recipient },
+          ],
+        });
         if (channel) {
           resolvedChannelId = channel._id.toString();
         }

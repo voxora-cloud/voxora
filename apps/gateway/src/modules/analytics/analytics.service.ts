@@ -1,4 +1,10 @@
-import { SystemEvent, Conversation, Message, Membership } from "@shared/models";
+import {
+  SystemEvent,
+  Conversation,
+  Message,
+  Membership,
+  UnansweredQuestion,
+} from "@shared/models";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import mongoose from "mongoose";
@@ -263,8 +269,16 @@ export class AnalyticsService {
     try {
       const cached = await redisClient.get(cacheKey);
       if (cached) {
-        logger.debug("Analytics summary cache hit", { organizationId, days });
-        return JSON.parse(cached);
+        const parsed = JSON.parse(cached);
+
+        // Summaries cached before unanswered-question analytics was added do not
+        // contain this field. Recompute them instead of returning incomplete data.
+        if (Array.isArray(parsed.unansweredQuestions)) {
+          logger.debug("Analytics summary cache hit", { organizationId, days });
+          return parsed;
+        }
+
+        await redisClient.del(cacheKey);
       }
     } catch (error) {
       logger.warn("Redis cache read failed, proceeding with query", { error });
@@ -313,7 +327,7 @@ export class AnalyticsService {
       : {};
 
     // Single $facet pipeline for all Conversation aggregations
-    const [conversationFacet, analyticsEventFacet, totalMessages] = await Promise.all([
+    const [conversationFacet, analyticsEventFacet, totalMessages, unansweredQuestions] = await Promise.all([
       // ─────── SINGLE FACET FOR CONVERSATION QUERIES ───────
       Conversation.aggregate([
         {
@@ -503,6 +517,37 @@ export class AnalyticsService {
           ? { conversationId: { $in: scopedConversationIds } }
           : {}),
       }),
+
+      UnansweredQuestion.aggregate([
+        {
+          $match: {
+            organizationId: orgObjectId,
+            createdAt: { $gte: startDate },
+            ...(scopedConversationIds
+              ? { conversationId: { $in: scopedConversationIds } }
+              : {}),
+          },
+        },
+        { $sort: { createdAt: -1 } },
+        {
+          $group: {
+            _id: "$normalizedQuestion",
+            question: { $first: "$question" },
+            count: { $sum: 1 },
+            lastAskedAt: { $first: "$createdAt" },
+          },
+        },
+        { $sort: { count: -1, lastAskedAt: -1 } },
+        { $limit: 10 },
+        {
+          $project: {
+            _id: 0,
+            question: 1,
+            count: 1,
+            lastAskedAt: 1,
+          },
+        },
+      ]),
     ]);
 
     // Extract results from facets
@@ -553,6 +598,7 @@ export class AnalyticsService {
         question: q._id,
         count: q.count,
       })),
+      unansweredQuestions,
       source,
       aiCost: {
         promptTokens: ai.promptTokens,

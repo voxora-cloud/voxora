@@ -13,7 +13,7 @@ export interface IDnsRecord {
 
 export interface IEmailChannelConfig {
   /** The full email address e.g. support@acme.com */
-  address: string;
+  address?: string;
   /** The list of all configured email addresses under this domain */
   addresses: string[];
   /** The domain portion e.g. acme.com */
@@ -85,7 +85,7 @@ const dnsRecordSchema = new Schema<IDnsRecord>(
 
 const emailChannelConfigSchema = new Schema<IEmailChannelConfig>(
   {
-    address: { type: String, required: true, trim: true, lowercase: true },
+    address: { type: String, trim: true, lowercase: true },
     addresses: { type: [String], default: [] },
     domain: { type: String, required: true, trim: true, lowercase: true },
     providerDomainId: { type: String },

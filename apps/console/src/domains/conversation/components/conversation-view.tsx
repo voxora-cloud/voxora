@@ -1403,6 +1403,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
             <ContactDetailsCard
               contact={contactDetails}
               conversationId={conversationId}
+              showEditAction={false}
               onGenerateNote={handleGenerateNote}
               isGeneratingNote={isGeneratingNote}
               canGenerateNote={messages.length > 0}

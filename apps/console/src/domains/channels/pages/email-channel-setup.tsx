@@ -1,30 +1,40 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Mail,
   Globe,
-  ArrowLeft,
   CheckCircle2,
   Copy,
   Check,
   Loader2,
   Info,
+  RefreshCw,
 } from "lucide-react";
+import { EmailIcon } from "@/shared/ui/channel-icon";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import { useCreateEmailChannel } from "../hooks/use-channels";
+import {
+  useCreateEmailChannel,
+  useUpdateEmailChannelAddresses,
+  useVerifyChannel,
+} from "../hooks/use-channels";
 import type { DnsRecord } from "../types/types";
+import {
+  ChannelSetupLayout,
+  SetupField,
+  setupInputClassName,
+} from "../components/channel-setup-layout";
 
 // ── Step types ────────────────────────────────────────────────────────────────
 
-type Step = "form" | "dns";
+type Step = "domain" | "dns" | "email";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StepIndicator({ current }: { current: Step }) {
   const steps: Array<{ key: Step; label: string }> = [
-    { key: "form", label: "Channel Details" },
-    { key: "dns", label: "DNS Setup" },
+    { key: "domain", label: "Add domain" },
+    { key: "dns", label: "Verify DNS" },
+    { key: "email", label: "Create email" },
   ];
   const currentIdx = steps.findIndex((s) => s.key === current);
   return (
@@ -110,10 +120,16 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 function DnsRecordsStep({
   records,
-  onDone,
+  onVerify,
+  isVerifying,
+  verificationMessage,
+  verificationError,
 }: {
   records: DnsRecord[];
-  onDone: () => void;
+  onVerify: () => void;
+  isVerifying: boolean;
+  verificationMessage?: string;
+  verificationError?: string;
 }) {
   return (
     <div className="space-y-6">
@@ -123,8 +139,7 @@ function DnsRecordsStep({
           <p className="text-sm font-semibold text-foreground">Add these DNS records</p>
           <p className="text-sm text-muted-foreground mt-1">
             Log into your DNS provider and add the records below. DNS propagation can take up to
-            48 hours. Once added, go back to the Channels page and click{" "}
-            <strong>Verify Now</strong>.
+            48 hours. Once added, verify the domain below to unlock email creation.
           </p>
         </div>
       </div>
@@ -151,11 +166,141 @@ function DnsRecordsStep({
         </div>
       </div>
 
-      <Button onClick={onDone} className="w-full" size="lg" id="btn-finish-setup">
-        <CheckCircle2 className="h-4 w-4 mr-2" />
-        Done — Go to Channels
+      {verificationMessage && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-700 dark:text-amber-400">
+          {verificationMessage}
+        </div>
+      )}
+      {verificationError && (
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+          {verificationError}
+        </div>
+      )}
+
+      <Button
+        onClick={onVerify}
+        disabled={isVerifying}
+        className="h-11 w-full rounded-lg"
+        size="lg"
+        id="btn-verify-domain"
+      >
+        <RefreshCw className={`mr-2 h-4 w-4 ${isVerifying ? "animate-spin" : ""}`} />
+        {isVerifying ? "Checking DNS records…" : "Verify domain"}
       </Button>
     </div>
+  );
+}
+
+function CreateEmailStep({
+  channelId,
+  domain,
+  onFinish,
+}: {
+  channelId: string;
+  domain: string;
+  onFinish: () => void;
+}) {
+  const updateMutation = useUpdateEmailChannelAddresses();
+  const [email, setEmail] = useState(`support@${domain}`);
+  const [error, setError] = useState("");
+  const [createdEmail, setCreatedEmail] = useState("");
+
+  const handleCreateEmail = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Enter a valid email address");
+      return;
+    }
+    if (!normalizedEmail.endsWith(`@${domain}`)) {
+      setError(`Email address must use @${domain}`);
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({ channelId, emails: [normalizedEmail] });
+      setCreatedEmail(normalizedEmail);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create email address");
+    }
+  };
+
+  if (createdEmail) {
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5 text-center">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-5 w-5" />
+          </span>
+          <h2 className="mt-3 text-base font-semibold text-foreground">Email setup complete</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            <strong className="font-semibold text-foreground">{createdEmail}</strong> is ready to use.
+          </p>
+        </div>
+        <Button onClick={onFinish} className="h-11 w-full rounded-lg" size="lg">
+          Finish setup
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleCreateEmail} className="space-y-5" noValidate>
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+        <div>
+          <p className="text-sm font-semibold text-foreground">Domain verified</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {domain} is verified. You can now create your first email address.
+          </p>
+        </div>
+      </div>
+
+      <SetupField
+        htmlFor="first-email-address"
+        label="First email address"
+        hint={`Create an address using your verified @${domain} domain.`}
+        error={error || undefined}
+      >
+        <div className="relative">
+          <EmailIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
+          <Input
+            id="first-email-address"
+            type="email"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              if (error) setError("");
+            }}
+            className={`${setupInputClassName} pl-10`}
+            placeholder={`support@${domain}`}
+            disabled={updateMutation.isPending}
+          />
+        </div>
+      </SetupField>
+
+      <Button
+        type="submit"
+        className="h-11 w-full rounded-lg"
+        size="lg"
+        disabled={updateMutation.isPending || !email.trim()}
+        id="btn-create-first-email"
+      >
+        {updateMutation.isPending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating email…
+          </>
+        ) : (
+          <>
+            <EmailIcon className="mr-2 h-4 w-4" />
+            Create email address
+          </>
+        )}
+      </Button>
+    </form>
   );
 }
 
@@ -163,15 +308,12 @@ function DnsRecordsStep({
 
 interface FormErrors {
   name?: string;
-  email?: string;
   domain?: string;
 }
 
-function validate(name: string, email: string, domain: string): FormErrors {
+function validate(name: string, domain: string): FormErrors {
   const errors: FormErrors = {};
   if (!name.trim() || name.trim().length < 2) errors.name = "Name must be at least 2 characters";
-  if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-    errors.email = "Enter a valid email address";
   if (
     !domain.trim() ||
     !/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/.test(domain)
@@ -185,51 +327,44 @@ function validate(name: string, email: string, domain: string): FormErrors {
 export function EmailChannelSetupPage() {
   const navigate = useNavigate();
   const createMutation = useCreateEmailChannel();
-  const [step, setStep] = useState<Step>("form");
+  const verifyMutation = useVerifyChannel();
+  const [step, setStep] = useState<Step>("domain");
+  const [channelId, setChannelId] = useState("");
   const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
+  const [verificationMessage, setVerificationMessage] = useState("");
 
   const [name, setName] = useState("Support Email");
-  const [email, setEmail] = useState("");
   const [domain, setDomain] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
-  const [touched, setTouched] = useState({ name: false, email: false, domain: false });
-
-  const handleEmailChange = (val: string) => {
-    setEmail(val);
-    const atIdx = val.indexOf("@");
-    if (atIdx !== -1) {
-      const d = val.slice(atIdx + 1).toLowerCase();
-      if (d && d.includes(".")) setDomain(d);
-    }
-    if (touched.email) {
-      const v = validate(name, val, domain);
-      setErrors((prev) => ({ ...prev, email: v.email }));
-    }
-  };
+  const [touched, setTouched] = useState({ name: false, domain: false });
 
   const handleBlur = (field: keyof typeof touched) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
-    const v = validate(name, email, domain);
+    const v = validate(name, domain);
     setErrors((prev) => ({ ...prev, [field]: v[field] }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const v = validate(name, email, domain);
+    const v = validate(name, domain);
     setErrors(v);
-    setTouched({ name: true, email: true, domain: true });
+    setTouched({ name: true, domain: true });
     if (Object.keys(v).length > 0) return;
 
     try {
-      const res = await createMutation.mutateAsync({ name, email, domain });
+      const res = await createMutation.mutateAsync({ name, domain });
       const channel = res?.data?.channel;
       const status = channel?.config?.email?.verificationStatus;
       const records = channel?.config?.email?.dnsRecords ?? [];
 
+      if (!channel?._id) return;
+      setChannelId(channel._id);
+      setDomain(channel.config.email?.domain || domain.trim().toLowerCase());
+      setDnsRecords(records);
+
       if (status === "verified") {
-        navigate("/dashboard/channels");
+        setStep("email");
       } else {
-        setDnsRecords(records);
         setStep("dns");
       }
     } catch {
@@ -237,112 +372,93 @@ export function EmailChannelSetupPage() {
     }
   };
 
+  const handleVerifyDomain = async () => {
+    if (!channelId) return;
+    setVerificationMessage("");
+
+    try {
+      const response = await verifyMutation.mutateAsync(channelId);
+      const status = response.data?.status;
+      setDnsRecords(response.data?.dnsRecords ?? dnsRecords);
+
+      if (status === "verified") {
+        setStep("email");
+      } else {
+        setVerificationMessage(
+          "DNS verification is still pending. Confirm the records are correct, then check again.",
+        );
+      }
+    } catch {
+      // Mutation error is displayed in the DNS step.
+    }
+  };
+
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Back button */}
-      <button
-        type="button"
-        onClick={() => navigate("/dashboard/channels")}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-        id="btn-back-to-channels"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Channels
-      </button>
-
-      <div className="rounded-2xl border border-border bg-card p-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Mail className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Connect Email Channel</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Your own domain, powered by AI support.
-            </p>
-          </div>
-        </div>
-
+    <ChannelSetupLayout
+      icon={<EmailIcon className="h-6 w-6" />}
+      eyebrow="Email integration"
+      title="Verify your sending domain"
+      description="Connect and verify your business domain first. Email address creation unlocks after DNS verification."
+      benefits={[
+        "Add your business domain",
+        "Copy provider-ready DNS records",
+        "Create email addresses after verification",
+      ]}
+      onBack={() => navigate("/dashboard/channels")}
+    >
         <StepIndicator current={step} />
 
         {/* Step: Form */}
-        {step === "form" && (
+        {step === "domain" && (
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* Channel name */}
-            <div className="space-y-1.5">
-              <label htmlFor="channel-name" className="text-sm font-medium text-foreground">
-                Channel Name
-              </label>
+            <SetupField
+              htmlFor="channel-name"
+              label="Internal channel name"
+              hint="A friendly name your team will recognize, such as “Customer Support”."
+              error={touched.name ? errors.name : undefined}
+            >
               <Input
                 id="channel-name"
-                placeholder="Support Email"
+                placeholder="Customer Support"
+                className={setupInputClassName}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
                   if (touched.name) {
-                    const v = validate(e.target.value, email, domain);
+                    const v = validate(e.target.value, domain);
                     setErrors((prev) => ({ ...prev, name: v.name }));
                   }
                 }}
                 onBlur={() => handleBlur("name")}
               />
-              {errors.name && touched.name && (
-                <p className="text-xs text-destructive">{errors.name}</p>
-              )}
-            </div>
-
-            {/* Email address */}
-            <div className="space-y-1.5">
-              <label htmlFor="channel-email" className="text-sm font-medium text-foreground">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="channel-email"
-                  type="email"
-                  placeholder="support@acme.com"
-                  className="pl-9"
-                  value={email}
-                  onChange={(e) => handleEmailChange(e.target.value)}
-                  onBlur={() => handleBlur("email")}
-                />
-              </div>
-              {errors.email && touched.email && (
-                <p className="text-xs text-destructive">{errors.email}</p>
-              )}
-            </div>
+            </SetupField>
 
             {/* Domain */}
-            <div className="space-y-1.5">
-              <label htmlFor="channel-domain" className="text-sm font-medium text-foreground">
-                Domain
-              </label>
+            <SetupField
+              htmlFor="channel-domain"
+              label="Sending domain"
+              hint="You’ll need access to this domain’s DNS settings to complete verification."
+              error={touched.domain ? errors.domain : undefined}
+            >
               <div className="relative">
                 <Globe className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="channel-domain"
                   placeholder="acme.com"
-                  className="pl-9"
+                  className={`${setupInputClassName} pl-10`}
                   value={domain}
                   onChange={(e) => {
                     setDomain(e.target.value);
                     if (touched.domain) {
-                      const v = validate(name, email, e.target.value);
+                      const v = validate(name, e.target.value);
                       setErrors((prev) => ({ ...prev, domain: v.domain }));
                     }
                   }}
                   onBlur={() => handleBlur("domain")}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Auto-filled from email. You must own this domain and be able to edit its DNS.
-              </p>
-              {errors.domain && touched.domain && (
-                <p className="text-xs text-destructive">{errors.domain}</p>
-              )}
-            </div>
+            </SetupField>
 
             {/* API error */}
             {createMutation.isError && (
@@ -355,7 +471,7 @@ export function EmailChannelSetupPage() {
 
             <Button
               type="submit"
-              className="w-full"
+              className="h-11 w-full rounded-lg"
               size="lg"
               disabled={createMutation.isPending}
               id="btn-create-channel"
@@ -367,8 +483,8 @@ export function EmailChannelSetupPage() {
                 </>
               ) : (
                 <>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Connect &amp; Get DNS Records
+                  <EmailIcon className="h-4 w-4 mr-2" />
+                  Add domain &amp; get DNS records
                 </>
               )}
             </Button>
@@ -377,9 +493,27 @@ export function EmailChannelSetupPage() {
 
         {/* Step: DNS */}
         {step === "dns" && (
-          <DnsRecordsStep records={dnsRecords} onDone={() => navigate("/dashboard/channels")} />
+          <DnsRecordsStep
+            records={dnsRecords}
+            onVerify={handleVerifyDomain}
+            isVerifying={verifyMutation.isPending}
+            verificationMessage={verificationMessage}
+            verificationError={
+              verifyMutation.isError
+                ? (verifyMutation.error as Error)?.message || "Failed to verify the domain"
+                : undefined
+            }
+          />
         )}
-      </div>
-    </div>
+
+        {/* Step: Create first email */}
+        {step === "email" && channelId && (
+          <CreateEmailStep
+            channelId={channelId}
+            domain={domain}
+            onFinish={() => navigate("/dashboard/channels")}
+          />
+        )}
+    </ChannelSetupLayout>
   );
 }

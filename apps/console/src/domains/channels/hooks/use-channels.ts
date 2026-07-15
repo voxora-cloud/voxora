@@ -1,119 +1,195 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { authApi } from "@/domains/auth/api/auth.api";
 import { channelsApi } from "../api/channels.api";
-import type { CreateEmailChannelPayload, CreateWhatsAppChannelPayload, CreateTelegramChannelPayload } from "../api/channels.api";
+import type {
+  CreateEmailChannelPayload,
+  CreateTelegramChannelPayload,
+  CreateWhatsAppChannelPayload,
+} from "../api/channels.api";
+import type { Channel, ChannelListResponse } from "../types/types";
 
-const CHANNEL_KEY = ["channels", "email"];
-const WHATSAPP_CHANNEL_KEY = ["channels", "whatsapp"];
-const TELEGRAM_CHANNEL_KEY = ["channels", "telegram"];
+const getChannelScope = () => authApi.getActiveOrgId() || "unknown";
 
-export const useEmailChannel = () => {
-  return useQuery({
-    queryKey: CHANNEL_KEY,
-    queryFn: () => channelsApi.getEmailChannel(),
-    select: (res) => res.data?.channel,
-    retry: (failureCount, error: any) => {
-      // 404 means no channel yet — don't retry
-      if (error?.message?.includes("404") || error?.message?.includes("No email channel")) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+export const channelKeys = {
+  all: ["channels"] as const,
+  list: (scope: string) => [...channelKeys.all, "list", scope] as const,
+};
+
+const channelListQuery = (scope: string) => ({
+  queryKey: channelKeys.list(scope),
+  queryFn: () => channelsApi.listChannels(),
+  staleTime: 30 * 1000,
+  refetchOnWindowFocus: true,
+});
+
+const upsertCachedChannel = (
+  queryClient: QueryClient,
+  scope: string,
+  channel: Channel,
+) => {
+  queryClient.setQueryData<ChannelListResponse>(channelKeys.list(scope), (current) => {
+    const channels = current?.data?.channels ?? [];
+    const exists = channels.some((item) => item._id === channel._id);
+    const nextChannels = exists
+      ? channels.map((item) => (item._id === channel._id ? channel : item))
+      : [...channels, channel];
+
+    return {
+      success: true,
+      data: { channels: nextChannels },
+    };
   });
 };
+
+const removeCachedChannel = (
+  queryClient: QueryClient,
+  scope: string,
+  channelId: string,
+) => {
+  queryClient.setQueryData<ChannelListResponse>(channelKeys.list(scope), (current) => {
+    if (!current) return current;
+    return {
+      ...current,
+      data: {
+        ...current.data,
+        channels: current.data.channels.filter((channel) => channel._id !== channelId),
+      },
+    };
+  });
+};
+
+const invalidateChannelList = (queryClient: QueryClient, scope: string) =>
+  queryClient.invalidateQueries({ queryKey: channelKeys.list(scope) });
+
+export const useChannels = () => {
+  const scope = getChannelScope();
+  return useQuery({
+    ...channelListQuery(scope),
+    select: (response) => response.data?.channels ?? [],
+  });
+};
+
+const useChannelByType = (type: Channel["type"]) => {
+  const scope = getChannelScope();
+  return useQuery({
+    ...channelListQuery(scope),
+    select: (response) => response.data?.channels.find((channel) => channel.type === type),
+  });
+};
+
+export const useEmailChannel = () => useChannelByType("email");
+
+export const useWhatsAppChannel = () => useChannelByType("whatsapp");
+
+export const useTelegramChannel = () => useChannelByType("telegram");
 
 export const useCreateEmailChannel = () => {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: CreateEmailChannelPayload) =>
-      channelsApi.createEmailChannel(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHANNEL_KEY });
-    },
-  });
-};
+  const scope = getChannelScope();
 
-export const useWhatsAppChannel = () => {
-  return useQuery({
-    queryKey: WHATSAPP_CHANNEL_KEY,
-    queryFn: () => channelsApi.getWhatsAppChannel(),
-    select: (res) => res.data?.channel,
-    retry: (failureCount, error: any) => {
-      // 404 means no channel yet — don't retry
-      if (error?.message?.includes("404") || error?.message?.includes("No WhatsApp channel")) {
-        return false;
+  return useMutation({
+    mutationFn: (payload: CreateEmailChannelPayload) => channelsApi.createEmailChannel(payload),
+    onSuccess: (response) => {
+      if (response.data?.channel) {
+        upsertCachedChannel(queryClient, scope, response.data.channel);
       }
-      return failureCount < 2;
     },
+    onSettled: () => invalidateChannelList(queryClient, scope),
   });
 };
 
 export const useCreateWhatsAppChannel = () => {
   const queryClient = useQueryClient();
+  const scope = getChannelScope();
+
   return useMutation({
     mutationFn: (payload: CreateWhatsAppChannelPayload) =>
       channelsApi.createWhatsAppChannel(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WHATSAPP_CHANNEL_KEY });
-    },
-  });
-};
-
-export const useTelegramChannel = () => {
-  return useQuery({
-    queryKey: TELEGRAM_CHANNEL_KEY,
-    queryFn: () => channelsApi.getTelegramChannel(),
-    select: (res) => res.data?.channel,
-    retry: (failureCount, error: any) => {
-      // 404 means no channel yet — don't retry
-      if (error?.message?.includes("404") || error?.message?.includes("No Telegram channel")) {
-        return false;
+    onSuccess: (response) => {
+      if (response.data?.channel) {
+        upsertCachedChannel(queryClient, scope, response.data.channel);
       }
-      return failureCount < 2;
     },
+    onSettled: () => invalidateChannelList(queryClient, scope),
   });
 };
 
 export const useCreateTelegramChannel = () => {
   const queryClient = useQueryClient();
+  const scope = getChannelScope();
+
   return useMutation({
     mutationFn: (payload: CreateTelegramChannelPayload) =>
       channelsApi.createTelegramChannel(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TELEGRAM_CHANNEL_KEY });
+    onSuccess: (response) => {
+      if (response.data?.channel) {
+        upsertCachedChannel(queryClient, scope, response.data.channel);
+      }
     },
+    onSettled: () => invalidateChannelList(queryClient, scope),
   });
 };
 
-
 export const useVerifyChannel = () => {
   const queryClient = useQueryClient();
+  const scope = getChannelScope();
+
   return useMutation({
     mutationFn: (channelId: string) => channelsApi.verifyChannel(channelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHANNEL_KEY });
+    onSuccess: (response, channelId) => {
+      queryClient.setQueryData<ChannelListResponse>(channelKeys.list(scope), (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          data: {
+            ...current.data,
+            channels: current.data.channels.map((channel) => {
+              if (channel._id !== channelId || !channel.config.email) return channel;
+              return {
+                ...channel,
+                config: {
+                  ...channel.config,
+                  email: {
+                    ...channel.config.email,
+                    verificationStatus: response.data.status,
+                    dnsRecords: response.data.dnsRecords,
+                  },
+                },
+              };
+            }),
+          },
+        };
+      });
     },
+    onSettled: () => invalidateChannelList(queryClient, scope),
   });
 };
 
 export const useDeleteChannel = () => {
   const queryClient = useQueryClient();
+  const scope = getChannelScope();
+
   return useMutation({
     mutationFn: (channelId: string) => channelsApi.deleteChannel(channelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHANNEL_KEY });
-      queryClient.invalidateQueries({ queryKey: WHATSAPP_CHANNEL_KEY });
-      queryClient.invalidateQueries({ queryKey: TELEGRAM_CHANNEL_KEY });
+    onSuccess: (_response, channelId) => {
+      removeCachedChannel(queryClient, scope, channelId);
     },
+    onSettled: () => invalidateChannelList(queryClient, scope),
   });
 };
 
 export const useUpdateEmailChannelAddresses = () => {
   const queryClient = useQueryClient();
+  const scope = getChannelScope();
+
   return useMutation({
     mutationFn: ({ channelId, emails }: { channelId: string; emails: string[] }) =>
       channelsApi.updateEmailChannelAddresses(channelId, emails),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHANNEL_KEY });
+    onSuccess: (response) => {
+      if (response.data?.channel) {
+        upsertCachedChannel(queryClient, scope, response.data.channel);
+      }
     },
+    onSettled: () => invalidateChannelList(queryClient, scope),
   });
 };
