@@ -717,11 +717,11 @@ export class ConversationService {
       // Sorted by updatedAt desc, limited to 10
       const convs = await Conversation.find({
         organizationId,
+        status: { $nin: ["closed", "resolved"] },
         $or: [
           { assignedTo: userId },
           {
             assignedTo: null,
-            status: { $ne: "resolved" },
             $or: [
               { "metadata.escalatedAt": { $ne: null } },
               { "metadata.pendingEscalation": true },
