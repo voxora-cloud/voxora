@@ -6,7 +6,7 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const channelsSchema = {
   createEmailChannel: Joi.object({
     name: Joi.string().min(2).max(100).required(),
-    email: Joi.string().pattern(emailPattern).required().messages({
+    email: Joi.string().pattern(emailPattern).optional().messages({
       "string.pattern.base": "Must be a valid email address",
     }),
     domain: Joi.string().pattern(domainPattern).required().messages({
@@ -15,8 +15,7 @@ export const channelsSchema = {
   }),
 
   updateEmailChannelAddresses: Joi.object({
-    emails: Joi.array().items(Joi.string().pattern(emailPattern)).min(1).required().messages({
-      "array.min": "At least one email address is required",
+    emails: Joi.array().items(Joi.string().pattern(emailPattern)).required().messages({
       "string.pattern.base": "Must be a valid email address",
     }),
   }),

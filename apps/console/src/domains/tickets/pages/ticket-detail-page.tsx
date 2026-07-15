@@ -34,6 +34,7 @@ import {
 } from "../hooks";
 import { ContactDialog } from "@/domains/contacts/components/contact-form";
 import { Loader } from "@/shared/ui/loader";
+import { ChannelIcon } from "@/shared/ui/channel-icon";
 
 type TicketStatus = "open" | "in_progress" | "resolved" | "closed";
 type TicketPriority = "low" | "medium" | "high" | "urgent";
@@ -69,7 +70,7 @@ const PRIORITY_META: Record<TicketPriority, { label: string; color: string }> = 
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-  ai: "AI",
+  ai: "AI Assistant",
   agent: "Agent",
   api: "API",
   widget: "Widget",
@@ -77,6 +78,19 @@ const SOURCE_LABELS: Record<string, string> = {
   whatsapp: "WhatsApp",
   telegram: "Telegram",
 };
+
+const CHANNEL_SOURCES = new Set(["widget", "email", "whatsapp", "telegram"]);
+
+function SourceLabel({ source }: { source: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {CHANNEL_SOURCES.has(source) && (
+        <ChannelIcon channel={source} className="h-3 w-3 shrink-0" />
+      )}
+      {SOURCE_LABELS[source] || source}
+    </span>
+  );
+}
 
 function SelectField({
   value,
@@ -383,8 +397,8 @@ export function TicketDetailPage() {
                     <span className={`h-1.5 w-1.5 rounded-full ${status.color}`} />
                     {status.label}
                   </span>
-                  <span className="text-[10px] font-semibold text-muted-foreground">
-                    via {SOURCE_LABELS[ticket.source] || ticket.source}
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                    via <SourceLabel source={ticket.source} />
                   </span>
                 </div>
                 <h1 className="text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl">
@@ -556,7 +570,7 @@ export function TicketDetailPage() {
             <dl className="space-y-1.5">
               <DetailRow label="Created">{formatShortDate(ticket.createdAt)}</DetailRow>
               <DetailRow label="Updated">{formatShortDate(ticket.updatedAt)}</DetailRow>
-              <DetailRow label="Source">{SOURCE_LABELS[ticket.source] || ticket.source}</DetailRow>
+              <DetailRow label="Source"><SourceLabel source={ticket.source} /></DetailRow>
               <DetailRow label="Priority">
                 <span className={priority.color}>{priority.label}</span>
               </DetailRow>
@@ -598,7 +612,13 @@ export function TicketDetailPage() {
               {ticketNumber}
             </div>
             <div className="flex items-center justify-end gap-1.5 text-[10px]">
-              {ticket.source === "api" ? <Wifi className="h-3 w-3" /> : <CircleUserRound className="h-3 w-3" />}
+              {CHANNEL_SOURCES.has(ticket.source) ? (
+                <ChannelIcon channel={ticket.source} className="h-3 w-3" />
+              ) : ticket.source === "api" ? (
+                <Wifi className="h-3 w-3" />
+              ) : (
+                <CircleUserRound className="h-3 w-3" />
+              )}
               {SOURCE_LABELS[ticket.source] || ticket.source}
             </div>
           </div>

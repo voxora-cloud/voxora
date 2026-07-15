@@ -160,6 +160,35 @@ export class ContactsController {
     }
   }
 
+  static async updateNote(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const noteId = req.params.noteId as string;
+      const { content } = req.body as { content: string };
+
+      const note = await contactsService.updateNote(orgId, id, noteId, content);
+      sendResponse(res, 200, true, "Note updated successfully", note);
+    } catch (error: any) {
+      const notFound = error.message === "Contact note not found";
+      sendError(res, notFound ? 404 : 500, error.message || "Failed to update contact note");
+    }
+  }
+
+  static async deleteNote(req: Request, res: Response): Promise<void> {
+    try {
+      const orgId = getOrgId(req);
+      const id = req.params.id as string;
+      const noteId = req.params.noteId as string;
+
+      await contactsService.deleteNote(orgId, id, noteId);
+      sendResponse(res, 200, true, "Note deleted successfully");
+    } catch (error: any) {
+      const notFound = error.message === "Contact note not found";
+      sendError(res, notFound ? 404 : 500, error.message || "Failed to delete contact note");
+    }
+  }
+
   static async addTag(req: Request, res: Response): Promise<void> {
     try {
       const orgId = getOrgId(req);
@@ -230,4 +259,3 @@ export class ContactsController {
     }
   }
 }
-

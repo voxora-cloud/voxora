@@ -128,6 +128,9 @@ export class EmailChannelStrategy implements IChannelStrategy {
 
     try {
       const fromAddress = input.from || emailCfg.address;
+      if (!fromAddress) {
+        return { success: false, error: "Create an email address before sending email." };
+      }
       const parsedHtml = parseMarkdown(input.body);
       const emailHtml = input.html ?? `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -219,7 +222,11 @@ export class EmailChannelStrategy implements IChannelStrategy {
 
       const organizationId = channel.organizationId;
       const emailConfig = channel.config.email;
-      const addresses = emailConfig?.addresses || [emailConfig?.address];
+      const addresses = emailConfig?.addresses?.length
+        ? emailConfig.addresses
+        : emailConfig?.address
+          ? [emailConfig.address]
+          : [];
       const supportEmail = toEmail && addresses.includes(toEmail)
         ? toEmail
         : (emailConfig?.address || "");

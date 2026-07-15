@@ -1,7 +1,7 @@
 export interface CreateEmailChannelInput {
   name: string;
   /** Full email address: support@acme.com */
-  email: string;
+  email?: string;
   /** Domain only: acme.com */
   domain: string;
 }
@@ -18,5 +18,4 @@ export interface CreateTelegramChannelInput {
   name: string;
   botToken: string;
 }
-
 

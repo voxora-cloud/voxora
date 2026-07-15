@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { Clock, ChevronLeft, ChevronRight, MessageSquare, Mail, Send, Phone, Ticket } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Ticket } from "lucide-react";
 import { conversationsApi } from "../api/conversations.api";
+import { ChannelIcon } from "@/shared/ui/channel-icon";
 
 interface RecentConversation {
   _id: string;
@@ -43,16 +44,7 @@ export function RecentConversationsSidebar() {
   }, []);
 
   const getChannelIcon = (channel: string) => {
-    switch (channel?.toLowerCase()) {
-      case "email":
-        return <Mail className="h-2.5 w-2.5 shrink-0" />;
-      case "telegram":
-        return <Send className="h-2.5 w-2.5 shrink-0 rotate-[-30deg]" />;
-      case "whatsapp":
-        return <Phone className="h-2.5 w-2.5 shrink-0" />;
-      default:
-        return <MessageSquare className="h-2.5 w-2.5 shrink-0" />;
-    }
+    return <ChannelIcon channel={channel} className="h-2.5 w-2.5 shrink-0" />;
   };
 
   const getStatusBadge = (status?: string) => {

@@ -1,26 +1,35 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   BadgeCheck,
   Building2,
-  Mail,
   MessageSquare,
   NotebookPen,
   Phone,
-  Send,
+  Pencil,
   Sparkles,
   Tags,
+  Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
+import { ChannelIcon, EmailIcon } from "@/shared/ui/channel-icon";
 import { Input } from "@/shared/ui/input";
 import { Button } from "@/shared/ui/button";
 import { Textarea } from "@/shared/ui/textarea";
 import { Badge } from "@/shared/ui/badge";
 import { contactsApi } from "../api/contacts.api";
-import type { Contact } from "../types/types";
+import type { Contact, ContactNote } from "../types/types";
 import { useNavigate } from "react-router";
 import { ContactDialog } from "./contact-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/shared/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog";
 
 interface ContactDetailsCardProps {
   contact: Contact;
@@ -29,6 +38,7 @@ interface ContactDetailsCardProps {
   onGenerateNote?: () => Promise<string | undefined>;
   isGeneratingNote?: boolean;
   canGenerateNote?: boolean;
+  showEditAction?: boolean;
 }
 
 export function ContactDetailsCard({
@@ -38,12 +48,18 @@ export function ContactDetailsCard({
   onGenerateNote,
   isGeneratingNote = false,
   canGenerateNote = true,
+  showEditAction = true,
 }: ContactDetailsCardProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [newTag, setNewTag] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
+  const noteComposerRef = useRef<HTMLTextAreaElement>(null);
   const [isConversationsDialogOpen, setIsConversationsDialogOpen] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteToDelete, setNoteToDelete] = useState<ContactNote | null>(null);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [isDeletingNote, setIsDeletingNote] = useState(false);
 
   const handleAddTag = async () => {
     if (!newTag.trim()) return;
@@ -78,6 +94,51 @@ export function ContactDetailsCard({
     }
   };
 
+  const startEditingNote = (note: ContactNote) => {
+    setEditingNoteId(note.id);
+    setNoteDraft(note.content);
+    requestAnimationFrame(() => {
+      noteComposerRef.current?.focus();
+      noteComposerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNoteId(null);
+    setNoteDraft("");
+  };
+
+  const handleUpdateNote = async () => {
+    if (!editingNoteId || !noteDraft.trim()) return;
+    setIsSavingNote(true);
+    try {
+      await contactsApi.updateNote(contact.id, editingNoteId, noteDraft.trim());
+      await queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      cancelEditingNote();
+      toast.success("Note updated");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to update note");
+    } finally {
+      setIsSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!noteToDelete) return;
+    setIsDeletingNote(true);
+    try {
+      await contactsApi.deleteNote(contact.id, noteToDelete.id);
+      await queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      if (editingNoteId === noteToDelete.id) cancelEditingNote();
+      setNoteToDelete(null);
+      toast.success("Note deleted");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete note");
+    } finally {
+      setIsDeletingNote(false);
+    }
+  };
+
   const handleGenerateNote = async () => {
     if (!onGenerateNote) return;
     const generatedNote = await onGenerateNote();
@@ -98,16 +159,7 @@ export function ContactDetailsCard({
   };
 
   const getChannelIcon = (channel: string) => {
-    switch (channel?.toLowerCase()) {
-      case "email":
-        return <Mail className="h-3 w-3 shrink-0" />;
-      case "telegram":
-        return <Send className="h-3 w-3 shrink-0 rotate-[-30deg]" />;
-      case "whatsapp":
-        return <Phone className="h-3 w-3 shrink-0" />;
-      default:
-        return <MessageSquare className="h-3 w-3 shrink-0" />;
-    }
+    return <ChannelIcon channel={channel} className="h-3 w-3 shrink-0" />;
   };
 
   const getChannelBadge = (channel: string) => {
@@ -148,19 +200,21 @@ export function ContactDetailsCard({
                     {contact.email || displayPhone || "No contact info"}
                   </p>
                 </div>
-                <ContactDialog
-                  mode="update"
-                  contactId={contact.id}
-                  conversationId={conversationId}
-                  contact={{
-                    name: contact.name,
-                    email: contact.email || "",
-                    phone: displayPhone,
-                    company: contact.company || "",
-                    tags: contact.tags,
-                  }}
-                  triggerType="icon"
-                />
+                {showEditAction && (
+                  <ContactDialog
+                    mode="update"
+                    contactId={contact.id}
+                    conversationId={conversationId}
+                    contact={{
+                      name: contact.name,
+                      email: contact.email || "",
+                      phone: displayPhone,
+                      company: contact.company || "",
+                      tags: contact.tags,
+                    }}
+                    triggerType="icon"
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -168,7 +222,7 @@ export function ContactDetailsCard({
           <div className="space-y-2 rounded-md bg-muted/30 p-3 text-xs text-muted-foreground">
             {contact.email && (
               <div className="flex items-center gap-2">
-                <Mail className="h-3.5 w-3.5 shrink-0" />
+                <EmailIcon className="h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0 truncate">{contact.email}</span>
               </div>
             )}
@@ -280,16 +334,38 @@ export function ContactDetailsCard({
             </span>
           </div>
           <Textarea
-            placeholder="Add internal note"
+            ref={noteComposerRef}
+            placeholder={editingNoteId ? "Edit internal note" : "Add internal note"}
             value={noteDraft}
             onChange={(event) => setNoteDraft(event.target.value)}
             className="min-h-20 cursor-text resize-none text-sm"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={handleAddNote} className="cursor-pointer">
-              Add note
+            <Button
+              size="sm"
+              onClick={editingNoteId ? handleUpdateNote : handleAddNote}
+              disabled={!noteDraft.trim() || isSavingNote}
+              className="cursor-pointer"
+            >
+              {editingNoteId
+                ? isSavingNote
+                  ? "Saving…"
+                  : "Save"
+                : "Add note"}
             </Button>
-            {onGenerateNote && (
+            {editingNoteId && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={cancelEditingNote}
+                disabled={isSavingNote}
+                className="cursor-pointer text-muted-foreground"
+              >
+                Cancel
+              </Button>
+            )}
+            {onGenerateNote && !editingNoteId && (
               <Button
                 type="button"
                 size="sm"
@@ -304,16 +380,48 @@ export function ContactDetailsCard({
             )}
           </div>
           <div className="mt-3 space-y-2">
-            {contact.notes.map((note) => (
+            {contact.notes.filter((note) => note.id !== editingNoteId).map((note) => (
               <div
                 key={note.id}
-                className="rounded-md border border-border bg-background/60 p-2.5 text-sm"
+                className="group rounded-md bg-muted/25 p-2.5 text-sm transition-colors hover:bg-muted/40"
               >
-                <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{note.author}</span>
-                  <span>{formatRelative(note.createdAt)}</span>
+                <div className="mb-1.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate" title={note.author}>
+                    {note.author}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <time
+                      className="mr-0.5 whitespace-nowrap text-[11px]"
+                      dateTime={note.createdAt}
+                      title={new Date(note.createdAt).toLocaleString()}
+                    >
+                      {formatRelative(note.createdAt)}
+                    </time>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 cursor-pointer opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-60"
+                      onClick={() => startEditingNote(note)}
+                      title="Edit note"
+                      aria-label="Edit note"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 cursor-pointer text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive hover:opacity-100 focus-visible:opacity-100 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-60"
+                      onClick={() => setNoteToDelete(note)}
+                      title="Delete note"
+                      aria-label="Delete note"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-                <p className="leading-relaxed">{note.content}</p>
+                <p className="whitespace-pre-wrap break-words leading-relaxed">{note.content}</p>
               </div>
             ))}
             {contact.notes.length === 0 && (
@@ -420,6 +528,40 @@ export function ContactDetailsCard({
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(noteToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingNote) setNoteToDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Delete this note?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The note will be permanently removed from the contact.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setNoteToDelete(null)}
+              disabled={isDeletingNote}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteNote}
+              disabled={isDeletingNote}
+            >
+              {isDeletingNote ? "Deleting…" : "Delete note"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

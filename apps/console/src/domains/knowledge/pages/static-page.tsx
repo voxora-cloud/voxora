@@ -28,7 +28,12 @@ import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/shared/ui/tabs";
 
 export function KnowledgeStaticPage() {
-  const { data: items = [], isLoading } = useKnowledgeItems();
+  const {
+    data: items = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useKnowledgeItems();
 
   const documents = useMemo(
     () => items.filter((item) => item.source !== "url" && item.source !== "faq"),
@@ -186,10 +191,24 @@ export function KnowledgeStaticPage() {
             PDFs, DOCX files, plain text, and curated FAQs indexed into your vector database
           </p>
         </div>
-        <Button data-tour-id="page-knowledge-static-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Knowledge
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="cursor-pointer"
+            aria-label="Refresh knowledge base"
+            title="Refresh knowledge base"
+          >
+            <RefreshCw className={isFetching ? "animate-spin" : ""} />
+          </Button>
+          <Button data-tour-id="page-knowledge-static-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Knowledge
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="documents" className="w-full">
@@ -206,8 +225,8 @@ export function KnowledgeStaticPage() {
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[300px]">
               <div className="text-center">
-                <Loader size="lg" />
-                <p className="text-muted-foreground mt-4">Loading documents...</p>
+                <Loader size="sm" />
+                <p className="mt-2 text-sm text-muted-foreground">Loading documents...</p>
               </div>
             </div>
           ) : documents.length > 0 ? (
@@ -242,8 +261,8 @@ export function KnowledgeStaticPage() {
           {isLoading ? (
             <div className="flex items-center justify-center min-h-[300px]">
               <div className="text-center">
-                <Loader size="lg" />
-                <p className="text-muted-foreground mt-4">Loading FAQs...</p>
+                <Loader size="sm" />
+                <p className="mt-2 text-sm text-muted-foreground">Loading FAQs...</p>
               </div>
             </div>
           ) : faqs.length > 0 ? (

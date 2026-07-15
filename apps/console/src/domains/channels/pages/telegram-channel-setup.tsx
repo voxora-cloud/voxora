@@ -1,16 +1,22 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  Send,
-  ArrowLeft,
   CheckCircle2,
   Loader2,
   ShieldCheck,
   Info,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { TelegramIcon } from "@/shared/ui/channel-icon";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { useCreateTelegramChannel } from "../hooks/use-channels";
+import {
+  ChannelSetupLayout,
+  SetupField,
+  setupInputClassName,
+} from "../components/channel-setup-layout";
 
 type Step = "form" | "success";
 
@@ -125,6 +131,7 @@ export function TelegramChannelSetupPage() {
 
   const [name, setName] = useState("Support Bot");
   const [botToken, setBotToken] = useState("");
+  const [showBotToken, setShowBotToken] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState({ name: false, botToken: false });
 
@@ -156,56 +163,43 @@ export function TelegramChannelSetupPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <button
-        type="button"
-        onClick={() => navigate("/dashboard/channels")}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-        id="btn-back-to-channels"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Channels
-      </button>
-
-      <div className="rounded-2xl border border-border bg-card p-8">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="h-12 w-12 rounded-xl bg-sky-500/10 flex items-center justify-center shrink-0">
-            <Send className="h-6 w-6 text-sky-500" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Connect Telegram Channel</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Connect a Telegram Bot to receive support chats in your inbox.
-            </p>
-          </div>
-        </div>
-
+    <ChannelSetupLayout
+      icon={<TelegramIcon className="h-6 w-6" />}
+      eyebrow="Telegram integration"
+      title="Connect your Telegram bot"
+      description="Turn messages sent to your Telegram bot into conversations your support team can manage together."
+      benefits={[
+        "Verify your bot before activation",
+        "Configure the webhook automatically",
+        "Start receiving messages immediately",
+      ]}
+      onBack={() => navigate("/dashboard/channels")}
+    >
         <StepIndicator current={step} />
 
         {step === "form" && (
           <div className="space-y-6">
-            <div className="p-4 rounded-xl border border-border bg-muted/40 space-y-2 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-4 text-sm text-muted-foreground">
               <span className="font-semibold text-foreground flex items-center gap-1.5 mb-1.5">
                 <Info className="h-4 w-4 text-sky-500 shrink-0" />
-                How to create a Telegram Bot?
+                Need a bot token?
               </span>
-              <ol className="list-decimal list-inside space-y-1.5">
-                <li>Open Telegram and search for <strong>@BotFather</strong>.</li>
-                <li>Send the command <strong>/newbot</strong>.</li>
-                <li>Choose a display name and a unique username (e.g. <code>acme_support_bot</code>) for your bot.</li>
-                <li>Copy the provided **HTTP API Bot Token**.</li>
-              </ol>
+              Open <strong>@BotFather</strong> in Telegram, send <code>/newbot</code>, follow the
+              prompts, then copy the HTTP API token it gives you.
             </div>
 
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               {/* Name */}
-              <div className="space-y-1.5">
-                <label htmlFor="channel-name" className="text-sm font-medium text-foreground">
-                  Channel Name
-                </label>
+              <SetupField
+                htmlFor="channel-name"
+                label="Internal channel name"
+                hint="A friendly label your team will see, such as “Community Support”."
+                error={touched.name ? errors.name : undefined}
+              >
                 <Input
                   id="channel-name"
-                  placeholder="Support Bot"
+                  placeholder="Community Support"
+                  className={setupInputClassName}
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value);
@@ -216,34 +210,43 @@ export function TelegramChannelSetupPage() {
                   }}
                   onBlur={() => handleBlur("name")}
                 />
-                {errors.name && touched.name && (
-                  <p className="text-xs text-destructive">{errors.name}</p>
-                )}
-              </div>
+              </SetupField>
 
               {/* Bot Token */}
-              <div className="space-y-1.5">
-                <label htmlFor="bot-token" className="text-sm font-medium text-foreground">
-                  Telegram Bot HTTP API Token
-                </label>
-                <Input
-                  id="bot-token"
-                  type="password"
-                  placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
-                  value={botToken}
-                  onChange={(e) => {
-                    setBotToken(e.target.value);
-                    if (touched.botToken) {
-                      const v = validate(name, e.target.value);
-                      setErrors((prev) => ({ ...prev, botToken: v.botToken }));
-                    }
-                  }}
-                  onBlur={() => handleBlur("botToken")}
-                />
-                {errors.botToken && touched.botToken && (
-                  <p className="text-xs text-destructive">{errors.botToken}</p>
-                )}
-              </div>
+              <SetupField
+                htmlFor="bot-token"
+                label="Bot API token"
+                hint="Paste the complete token from @BotFather. It begins with numbers followed by a colon."
+                error={touched.botToken ? errors.botToken : undefined}
+              >
+                <div className="relative">
+                  <Input
+                    id="bot-token"
+                    type={showBotToken ? "text" : "password"}
+                    placeholder="123456789:AA..."
+                    className={`${setupInputClassName} pr-11 font-mono text-sm`}
+                    autoComplete="new-password"
+                    spellCheck={false}
+                    value={botToken}
+                    onChange={(e) => {
+                      setBotToken(e.target.value);
+                      if (touched.botToken) {
+                        const v = validate(name, e.target.value);
+                        setErrors((prev) => ({ ...prev, botToken: v.botToken }));
+                      }
+                    }}
+                    onBlur={() => handleBlur("botToken")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowBotToken((value) => !value)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                    aria-label={showBotToken ? "Hide bot token" : "Show bot token"}
+                  >
+                    {showBotToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </SetupField>
 
               {/* Mutation API Error */}
               {createMutation.isError && (
@@ -254,7 +257,7 @@ export function TelegramChannelSetupPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white"
+                className="h-11 w-full rounded-lg bg-sky-600 text-white hover:bg-sky-700"
                 size="lg"
                 disabled={createMutation.isPending}
               >
@@ -265,7 +268,7 @@ export function TelegramChannelSetupPage() {
                   </>
                 ) : (
                   <>
-                    <Send className="h-4 w-4 mr-2" />
+                    <TelegramIcon className="h-4 w-4 mr-2" />
                     Verify &amp; Connect Channel
                   </>
                 )}
@@ -277,7 +280,6 @@ export function TelegramChannelSetupPage() {
         {step === "success" && (
           <SuccessScreen botUsername={botUsername} onDone={() => navigate("/dashboard/channels")} />
         )}
-      </div>
-    </div>
+    </ChannelSetupLayout>
   );
 }

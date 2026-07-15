@@ -10,7 +10,7 @@ export interface DnsRecord {
 }
 
 export interface EmailChannelConfig {
-  address: string;
+  address?: string;
   addresses: string[];
   domain: string;
   providerDomainId?: string;

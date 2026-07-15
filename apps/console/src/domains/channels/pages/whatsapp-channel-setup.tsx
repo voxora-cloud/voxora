@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import {
-  MessageSquare,
-  ArrowLeft,
   CheckCircle2,
   Copy,
   Check,
   Loader2,
   ShieldCheck,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { WhatsAppIcon } from "@/shared/ui/channel-icon";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { useCreateWhatsAppChannel } from "../hooks/use-channels";
+import {
+  ChannelSetupLayout,
+  SetupField,
+  setupInputClassName,
+} from "../components/channel-setup-layout";
 
 type Step = "form" | "instructions";
 
@@ -142,7 +148,9 @@ interface FormErrors {
 function validate(name: string, phoneNumber: string, accountSid: string, authToken: string): FormErrors {
   const errors: FormErrors = {};
   if (!name.trim()) errors.name = "Channel Name is required";
-  if (!phoneNumber.trim()) errors.phoneNumber = "WhatsApp number is required";
+  if (!/^\+[1-9]\d{7,14}$/.test(phoneNumber.trim())) {
+    errors.phoneNumber = "Enter a valid number such as +14155550123";
+  }
   if (!accountSid.trim() || !/^AC[a-f0-9]{32}$/i.test(accountSid.trim())) {
     errors.accountSid = "Invalid Twilio Account SID (must start with AC followed by 32 characters)";
   }
@@ -160,6 +168,7 @@ export function WhatsAppChannelSetupPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [accountSid, setAccountSid] = useState("");
   const [authToken, setAuthToken] = useState("");
+  const [showAuthToken, setShowAuthToken] = useState(false);
   const [messagingServiceSid, setMessagingServiceSid] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState({ name: false, phoneNumber: false, accountSid: false, authToken: false });
@@ -199,42 +208,33 @@ export function WhatsAppChannelSetupPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <button
-        type="button"
-        onClick={() => navigate("/dashboard/channels")}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-        id="btn-back-to-channels"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Channels
-      </button>
-
-      <div className="rounded-2xl border border-border bg-card p-8">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-            <MessageSquare className="h-6 w-6 text-emerald-500" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Connect WhatsApp Channel</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Connect Twilio to receive WhatsApp support messages.
-            </p>
-          </div>
-        </div>
-
+    <ChannelSetupLayout
+      icon={<WhatsAppIcon className="h-6 w-6" />}
+      eyebrow="WhatsApp via Twilio"
+      title="Connect your WhatsApp number"
+      description="Let customers message your business on WhatsApp while your team replies from one shared inbox."
+      benefits={[
+        "Keep your existing Twilio WhatsApp sender",
+        "Receive conversations in real time",
+        "Get a webhook URL with setup guidance",
+      ]}
+      onBack={() => navigate("/dashboard/channels")}
+    >
         <StepIndicator current={step} />
 
         {step === "form" && (
           <form onSubmit={handleSubmit} noValidate className="space-y-5">
             {/* Name */}
-            <div className="space-y-1.5">
-              <label htmlFor="channel-name" className="text-sm font-medium text-foreground">
-                Channel Name
-              </label>
+            <SetupField
+              htmlFor="channel-name"
+              label="Internal channel name"
+              hint="A friendly name only your team sees, such as “Sales WhatsApp”."
+              error={touched.name ? errors.name : undefined}
+            >
               <Input
                 id="channel-name"
-                placeholder="Support WhatsApp"
+                placeholder="Sales WhatsApp"
+                className={setupInputClassName}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
@@ -245,19 +245,21 @@ export function WhatsAppChannelSetupPage() {
                 }}
                 onBlur={() => handleBlur("name")}
               />
-              {errors.name && touched.name && (
-                <p className="text-xs text-destructive">{errors.name}</p>
-              )}
-            </div>
+            </SetupField>
 
             {/* Phone Number */}
-            <div className="space-y-1.5">
-              <label htmlFor="wa-phone" className="text-sm font-medium text-foreground">
-                WhatsApp Phone Number
-              </label>
+            <SetupField
+              htmlFor="wa-phone"
+              label="WhatsApp sender number"
+              hint="Enter the Twilio-approved number in E.164 format: +, country code, then number."
+              error={touched.phoneNumber ? errors.phoneNumber : undefined}
+            >
               <Input
                 id="wa-phone"
-                placeholder="+14155238886"
+                type="tel"
+                inputMode="tel"
+                placeholder="+14155550123"
+                className={setupInputClassName}
                 value={phoneNumber}
                 onChange={(e) => {
                   setPhoneNumber(e.target.value);
@@ -268,22 +270,28 @@ export function WhatsAppChannelSetupPage() {
                 }}
                 onBlur={() => handleBlur("phoneNumber")}
               />
-              <p className="text-xs text-muted-foreground">
-                The Twilio phone number registered for WhatsApp (use your active sender or sandbox number).
+            </SetupField>
+
+            <div className="border-t border-border pt-5">
+              <p className="text-sm font-semibold text-foreground">Twilio credentials</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                Find these values on the Twilio Console dashboard under Account Info.
               </p>
-              {errors.phoneNumber && touched.phoneNumber && (
-                <p className="text-xs text-destructive">{errors.phoneNumber}</p>
-              )}
             </div>
 
             {/* Account SID */}
-            <div className="space-y-1.5">
-              <label htmlFor="account-sid" className="text-sm font-medium text-foreground">
-                Twilio Account SID
-              </label>
+            <SetupField
+              htmlFor="account-sid"
+              label="Account SID"
+              hint="Your Twilio account identifier. It always starts with “AC”."
+              error={touched.accountSid ? errors.accountSid : undefined}
+            >
               <Input
                 id="account-sid"
                 placeholder="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                className={`${setupInputClassName} font-mono text-sm`}
+                autoComplete="off"
+                spellCheck={false}
                 value={accountSid}
                 onChange={(e) => {
                   setAccountSid(e.target.value);
@@ -294,50 +302,61 @@ export function WhatsAppChannelSetupPage() {
                 }}
                 onBlur={() => handleBlur("accountSid")}
               />
-              {errors.accountSid && touched.accountSid && (
-                <p className="text-xs text-destructive">{errors.accountSid}</p>
-              )}
-            </div>
+            </SetupField>
 
             {/* Auth Token */}
-            <div className="space-y-1.5">
-              <label htmlFor="auth-token" className="text-sm font-medium text-foreground">
-                Twilio Auth Token
-              </label>
-              <Input
-                id="auth-token"
-                type="password"
-                placeholder="••••••••••••••••••••••••••••••••"
-                value={authToken}
-                onChange={(e) => {
-                  setAuthToken(e.target.value);
-                  if (touched.authToken) {
-                    const v = validate(name, phoneNumber, accountSid, e.target.value);
-                    setErrors((prev) => ({ ...prev, authToken: v.authToken }));
-                  }
-                }}
-                onBlur={() => handleBlur("authToken")}
-              />
-              {errors.authToken && touched.authToken && (
-                <p className="text-xs text-destructive">{errors.authToken}</p>
-              )}
-            </div>
+            <SetupField
+              htmlFor="auth-token"
+              label="Auth Token"
+              hint="The secret token shown beside your Account SID in Twilio."
+              error={touched.authToken ? errors.authToken : undefined}
+            >
+              <div className="relative">
+                <Input
+                  id="auth-token"
+                  type={showAuthToken ? "text" : "password"}
+                  placeholder="Paste your Twilio auth token"
+                  className={`${setupInputClassName} pr-11 font-mono text-sm`}
+                  autoComplete="new-password"
+                  spellCheck={false}
+                  value={authToken}
+                  onChange={(e) => {
+                    setAuthToken(e.target.value);
+                    if (touched.authToken) {
+                      const v = validate(name, phoneNumber, accountSid, e.target.value);
+                      setErrors((prev) => ({ ...prev, authToken: v.authToken }));
+                    }
+                  }}
+                  onBlur={() => handleBlur("authToken")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAuthToken((value) => !value)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+                  aria-label={showAuthToken ? "Hide auth token" : "Show auth token"}
+                >
+                  {showAuthToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </SetupField>
 
             {/* Messaging Service SID */}
-            <div className="space-y-1.5">
-              <label htmlFor="messaging-service-sid" className="text-sm font-medium text-foreground">
-                Messaging Service SID (Optional)
-              </label>
+            <SetupField
+              htmlFor="messaging-service-sid"
+              label="Messaging Service SID"
+              hint="Add this only if your WhatsApp sender belongs to a Twilio Messaging Service."
+              optional
+            >
               <Input
                 id="messaging-service-sid"
                 placeholder="MGXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                className={`${setupInputClassName} font-mono text-sm`}
+                autoComplete="off"
+                spellCheck={false}
                 value={messagingServiceSid}
                 onChange={(e) => setMessagingServiceSid(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                If using a Messaging Service containing your WhatsApp number, enter its SID here.
-              </p>
-            </div>
+            </SetupField>
 
             {/* Mutation API Error */}
             {createMutation.isError && (
@@ -348,7 +367,7 @@ export function WhatsAppChannelSetupPage() {
 
             <Button
               type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="h-11 w-full rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
               size="lg"
               disabled={createMutation.isPending}
             >
@@ -359,7 +378,7 @@ export function WhatsAppChannelSetupPage() {
                 </>
               ) : (
                 <>
-                  <MessageSquare className="h-4 w-4 mr-2" />
+                  <WhatsAppIcon className="h-4 w-4 mr-2" />
                   Verify &amp; Connect Channel
                 </>
               )}
@@ -370,7 +389,6 @@ export function WhatsAppChannelSetupPage() {
         {step === "instructions" && (
           <SetupInstructions webhookUrl={webhookUrl} onDone={() => navigate("/dashboard/channels")} />
         )}
-      </div>
-    </div>
+    </ChannelSetupLayout>
   );
 }

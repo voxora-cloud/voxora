@@ -33,6 +33,10 @@ export const contactsSchema = {
     content: Joi.string().trim().max(2000).required(),
   }),
 
+  updateNote: Joi.object({
+    content: Joi.string().trim().max(2000).required(),
+  }),
+
   addTag: Joi.object({
     tag: Joi.string().trim().max(50).required(),
   }),

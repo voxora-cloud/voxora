@@ -39,7 +39,10 @@ export class ChannelService {
       );
     }
 
-    // Build the initial channel config (pre-provision)
+    const initialEmail = input.email?.trim().toLowerCase();
+
+    // Build the initial domain config. Addresses are created only after the
+    // provider confirms that this domain belongs to the organization.
     const channel = await Channel.create({
       organizationId,
       type: "email" as ChannelType,
@@ -47,8 +50,8 @@ export class ChannelService {
       isActive: true,
       config: {
         email: {
-          address: input.email.trim().toLowerCase(),
-          addresses: [input.email.trim().toLowerCase()],
+          ...(initialEmail ? { address: initialEmail } : {}),
+          addresses: initialEmail ? [initialEmail] : [],
           domain: input.domain.trim().toLowerCase(),
           verificationStatus: "pending",
           dnsRecords: [],
@@ -308,12 +311,12 @@ export class ChannelService {
       throw new Error("Email configuration is missing");
     }
 
+    if (channel.config.email.verificationStatus !== "verified") {
+      throw new Error("Verify the domain before creating email addresses");
+    }
+
     const domain = channel.config.email.domain;
     const cleanEmails = emails.map((e) => e.trim().toLowerCase()).filter(Boolean);
-
-    if (cleanEmails.length === 0) {
-      throw new Error("At least one email address is required");
-    }
 
     for (const email of cleanEmails) {
       if (!email.endsWith(`@${domain}`)) {

@@ -35,6 +35,15 @@ class ContactsApi {
     return res.data;
   }
 
+  async updateNote(id: string, noteId: string, content: string): Promise<any> {
+    const res = await apiClient.patch<any>(`/contacts/${id}/notes/${encodeURIComponent(noteId)}`, { content });
+    return res.data;
+  }
+
+  async deleteNote(id: string, noteId: string): Promise<void> {
+    await apiClient.delete(`/contacts/${id}/notes/${encodeURIComponent(noteId)}`);
+  }
+
   async addTag(id: string, tag: string): Promise<string> {
     const res = await apiClient.post<any>(`/contacts/${id}/tags`, { tag });
     return res.data?.tag || tag;

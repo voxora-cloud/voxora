@@ -7,6 +7,11 @@ export interface DashboardSummary {
   avgResolutionTimeMs: number | null;
   widgetLoads: number;
   mostAskedQuestions: Array<{ question: string; count: number }>;
+  unansweredQuestions: Array<{
+    question: string;
+    count: number;
+    lastAskedAt: string;
+  }>;
   source: {
     widget: number;
     qr: number;
