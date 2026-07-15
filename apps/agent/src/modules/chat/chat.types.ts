@@ -39,3 +39,32 @@ export interface ContextResult {
   messages: ContextMessage[];
   turnCount: number;
 }
+
+export interface BuildSystemPromptOptions {
+  companyName?: string;
+  fallbackToAgent: boolean;
+  collectUserInfo?: CollectUserInfo;
+  knownVisitorDetails?: KnownVisitorDetails;
+  channel?: "widget" | "email" | "whatsapp" | "telegram";
+}
+
+
+
+export type Channel = "widget" | "email" | "whatsapp" | "telegram";
+
+export interface MiddlewareContext {
+  job: AIJobData;
+  conversationId: string;
+  content: string;
+  startTime: number;
+  steps: any[];
+  cid: string;
+  t: (label: string) => string;
+}
+
+export interface MiddlewareResult {
+  shouldReturn: boolean;
+  verifiedIdentityEmail?: string | null;
+  otpCode?: string | null;
+  channel?: Channel;
+}

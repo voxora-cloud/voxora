@@ -3,7 +3,7 @@ import config from "../config";
 import { getBullMQConnection } from "../infrastructure/queue/bullmq.client";
 import { FallbackRouter } from "../infrastructure/providers/routing/fallback-router";
 import { internalApi } from "../infrastructure/api/internal.client";
-import logger from "../utils/logger";
+import logger from "../shared/logger";
 
 const QUEUE_NAME = "conversation-analyzer";
 const BATCH_SIZE = 5; // Optimal batch size for LLM context window and extraction accuracy

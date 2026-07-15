@@ -1,5 +1,5 @@
 import { cacheRedis } from "./redis.client";
-import { internalApi } from "../api/internal.client";
+import { InternalApiService } from "../api/internal-api.service";
 
 const CACHE_TTL_SECONDS = parseInt(
   process.env.CONVERSATION_CACHE_TTL_SECONDS || "5",
@@ -14,6 +14,7 @@ export interface ConversationGate {
     escalatedAt?: string | null;
     humanJoinedAt?: string | null;
   };
+  interactionSource?: string;
 }
 
 interface CachedGate {
@@ -24,6 +25,19 @@ interface CachedGate {
     escalatedAt?: string | null;
     humanJoinedAt?: string | null;
   };
+  interactionSource?: string;
+}
+
+function parseGateData(parsed: any): ConversationGate {
+  return {
+    status: parsed.status,
+    assignedTo: parsed.assignedTo ?? null,
+    metadata: {
+      escalatedAt: parsed.escalatedAt ?? parsed.metadata?.escalatedAt ?? null,
+      humanJoinedAt: parsed.humanJoinedAt ?? parsed.metadata?.humanJoinedAt ?? null,
+    },
+    interactionSource: parsed.interactionSource ?? parsed.metadata?.interactionSource ?? undefined,
+  };
 }
 
 export async function getConversationGate(
@@ -31,41 +45,46 @@ export async function getConversationGate(
   organizationId: string,
 ): Promise<ConversationGate | null> {
   if (!conversationId) return null;
-  const key = `${CACHE_PREFIX}:${conversationId}`;
 
-  const cached = await cacheRedis.get(key);
-  if (cached) {
+  // 1. Try checking the shared socket gatekeeper key first to skip Gateway HTTP callback overhead
+  const sharedKey = `conversation:${conversationId}:gate`;
+  const sharedCached = await cacheRedis.get(sharedKey);
+  if (sharedCached) {
     try {
-      const parsed = JSON.parse(cached) as CachedGate;
-      if (parsed.missing) return null;
-      return {
-        status: parsed.status,
-        assignedTo: parsed.assignedTo ?? null,
-        metadata: parsed.metadata ?? {},
-      };
+      const parsed = JSON.parse(sharedCached);
+      return parseGateData(parsed);
     } catch {
-      await cacheRedis.del(key);
+      await cacheRedis.del(sharedKey);
     }
   }
 
-  try {
-    const { data } = await internalApi.get(
-      `/conversations/ai/${conversationId}/gate`,
-      { params: { organizationId } },
-    );
+  // 2. Fall back to local prefix key
+  const localKey = `${CACHE_PREFIX}:${conversationId}`;
+  const localCached = await cacheRedis.get(localKey);
+  if (localCached) {
+    try {
+      const parsed = JSON.parse(localCached) as CachedGate;
+      if (parsed.missing) return null;
+      return parseGateData(parsed);
+    } catch {
+      await cacheRedis.del(localKey);
+    }
+  }
 
-    const gate: ConversationGate = data?.data?.gate ?? null;
+  // 3. Load from Gateway API if missing in both
+  try {
+    const gate = await InternalApiService.getConversationGate(conversationId, organizationId);
 
     if (!gate) {
-      await cacheRedis.set(key, JSON.stringify({ missing: true }), "EX", CACHE_TTL_SECONDS);
+      await cacheRedis.set(localKey, JSON.stringify({ missing: true }), "EX", CACHE_TTL_SECONDS);
       return null;
     }
 
-    await cacheRedis.set(key, JSON.stringify(gate), "EX", CACHE_TTL_SECONDS);
+    await cacheRedis.set(localKey, JSON.stringify(gate), "EX", CACHE_TTL_SECONDS);
     return gate;
   } catch (err: any) {
     if (err?.response?.status === 404) {
-      await cacheRedis.set(key, JSON.stringify({ missing: true }), "EX", CACHE_TTL_SECONDS);
+      await cacheRedis.set(localKey, JSON.stringify({ missing: true }), "EX", CACHE_TTL_SECONDS);
       return null;
     }
     // On unexpected errors, skip the cache and return null gracefully
@@ -75,5 +94,8 @@ export async function getConversationGate(
 
 export async function invalidateConversationGate(conversationId: string): Promise<void> {
   if (!conversationId) return;
-  await cacheRedis.del(`${CACHE_PREFIX}:${conversationId}`);
+  await Promise.all([
+    cacheRedis.del(`${CACHE_PREFIX}:${conversationId}`),
+    cacheRedis.del(`conversation:${conversationId}:gate`),
+  ]);
 }

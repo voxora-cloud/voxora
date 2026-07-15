@@ -6,7 +6,7 @@ import {
 } from "../types/ai.types";
 import { getLLMModelConfig, LLM_REGISTRY } from "../registry/model.registry";
 import config from "../../../config";
-import logger from "../../../utils/logger";
+import logger from "../../../shared/logger";
 import { modelHealth, ModelFailureType } from "./model-health";
 
 export interface FallbackChainEntry {

@@ -7,13 +7,13 @@ import { runTextIngestionPipeline } from "../modules/ingestion/pipelines/text.pi
 import { runFaqIngestionPipeline } from "../modules/ingestion/pipelines/faq.pipeline";
 import { vectorStore } from "../infrastructure/vector";
 import { getBullMQConnection } from "../infrastructure/queue/bullmq.client";
-import { getSyncDelay } from "../modules/ingestion/utils/sync-delays";
+import { getSyncDelay } from "../shared/sync";
 import {
   acquireUrlLock,
   releaseUrlLock,
-} from "../utils/ingestion.utils";
+} from "../shared/locking";
 import { InternalApiService } from "../infrastructure/api/internal-api.service";
-import logger from "../utils/logger";
+import logger from "../shared/logger";
 
 export const INGESTION_QUEUE = "document-ingestion";
 

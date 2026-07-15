@@ -9,7 +9,7 @@ import {
   startAgentAssistWorker,
 } from "./workers";
 import { startHealthServer } from "./health/health.server";
-import logger from "./utils/logger";
+import logger from "./shared/logger";
 
 logger.info("Starting AI service", {
   nodeEnv: process.env.NODE_ENV || "development",

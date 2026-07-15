@@ -2,8 +2,8 @@ import { DocumentJob } from "../ingestion.types";
 import { InternalApiService } from "../../../infrastructure/api/internal-api.service";
 import { ProviderFactory } from "../../../infrastructure/providers";
 import { vectorStore } from "../../../infrastructure/vector";
-import { generateDeterministicChunkId } from "../utils/chunk-id";
-import logger from "../../../utils/logger";
+import { generateDeterministicChunkId } from "../../../shared/id";
+import logger from "../../../shared/logger";
 
 export async function runFaqIngestionPipeline(job: DocumentJob): Promise<void> {
   const {

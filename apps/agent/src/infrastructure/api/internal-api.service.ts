@@ -64,4 +64,49 @@ export const InternalApiService = {
       description,
     });
   },
+
+  /**
+   * Fetch conversation gate properties (status, assignment, escalation details)
+   */
+  async getConversationGate(
+    conversationId: string,
+    organizationId: string,
+  ): Promise<any> {
+    const { data } = await internalApi.get(`/conversations/ai/${conversationId}/gate`, {
+      params: { organizationId },
+    });
+    return data?.data?.gate ?? null;
+  },
+
+  /**
+   * Save agent run execution steps and statistics
+   */
+  async saveAgentRunLogs(
+    conversationId: string,
+    payload: {
+      organizationId: string;
+      messageId: string;
+      steps: any[];
+      duration: number;
+      status: "success" | "failed";
+      error?: string;
+      usage?: any;
+    },
+  ): Promise<void> {
+    await internalApi.post(`/conversations/ai/${conversationId}/agent-runs`, payload);
+  },
+
+  /**
+   * Escalate a conversation to a human agent
+   */
+  async escalateConversation(
+    conversationId: string,
+    payload: {
+      organizationId: string;
+      reason: string;
+      unassigned?: boolean;
+    },
+  ): Promise<void> {
+    await internalApi.post(`/conversations/ai/${conversationId}/escalate`, payload);
+  },
 };

@@ -5,7 +5,7 @@ import { pubsubRedis } from "../infrastructure/cache/redis.client";
 import { suggestReply } from "../modules/assist/suggest-reply.handler";
 import { generateNote } from "../modules/assist/generate-note.handler";
 import { assistDraft } from "../modules/assist/draft-assist.handler";
-import logger from "../utils/logger";
+import logger from "../shared/logger";
 
 const QUEUE_NAME = "assist-processing";
 const PUBSUB_CHANNEL = "assist:response";

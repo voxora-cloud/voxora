@@ -3,7 +3,7 @@ import config from "../config";
 import { runPipeline } from "../modules/chat/pipelines/run-pipeline";
 import { AIJobData } from "../modules/chat/chat.types";
 import { getBullMQConnection } from "../infrastructure/queue/bullmq.client";
-import logger from "../utils/logger";
+import logger from "../shared/logger";
 
 const QUEUE_NAME = "ai-processing";
 
