@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { Contact, Conversation, Message, ContactConflict } from "@shared/models";
 import { ListContactsOptions, UpsertFromAIInput } from "./contacts.types";
+import logger from "@shared/core/logger";
 
 export class ContactsService {
   async listContacts(organizationId: string, options: ListContactsOptions = {}) {
@@ -16,32 +17,23 @@ export class ContactsService {
     const contacts = await Contact.find(query).sort({ lastActivityAt: -1 }).limit(limit).lean();
 
     const sessionIds = contacts.map((c) => c.sessionId).filter(Boolean);
-    const convStats = await Conversation.aggregate<{
-      _id: string;
-      count: number;
-      lastActivityAt: Date;
-    }>([
-      {
-        $match: {
-          organizationId: new Types.ObjectId(organizationId),
-          sessionId: { $in: sessionIds },
-        },
-      },
-      {
-        $group: {
-          _id: "$sessionId",
-          count: { $sum: 1 },
-          lastActivityAt: { $max: "$updatedAt" },
-        },
-      },
-    ]);
+    const emails = contacts.map((c) => c.email).filter(Boolean);
+    const phones = contacts.map((c) => c.phone).filter(Boolean);
 
-    const statsMap = new Map(convStats.map((row) => [row._id, row]));
-
-    // Query actual recent conversations
+    // Query actual recent conversations matching sessionId, email, or phone number
     const conversations = await Conversation.find({
       organizationId: new Types.ObjectId(organizationId),
-      sessionId: { $in: sessionIds },
+      $or: [
+        { sessionId: { $in: sessionIds } },
+        ...(emails.length > 0 ? [
+          { "metadata.customer.email": { $in: emails } },
+          { "metadata.senderEmail": { $in: emails } }
+        ] : []),
+        ...(phones.length > 0 ? [
+          { "metadata.customer.phone": { $in: phones } },
+          { "metadata.visitorPhone": { $in: phones } }
+        ] : [])
+      ]
     }).sort({ updatedAt: -1 }).lean();
 
     const convIds = conversations.map((c) => c._id);
@@ -59,26 +51,20 @@ export class ContactsService {
       }
     }
 
-    const conversationsBySession = new Map<string, any[]>();
-    for (const conv of conversations) {
-      const sId = conv.sessionId;
-      if (!sId) continue;
-      
-      const firstMsg = firstMessageMap.get(conv._id.toString()) || conv.subject || "Conversation context is still syncing.";
-      
-      const convListItem = {
-        id: conv._id.toString(),
-        status: conv.status,
-        lastMessage: firstMsg,
-        channel: conv.channel || conv.metadata?.source || "widget",
-        updatedAt: conv.updatedAt.toISOString(),
-      };
-      
-      if (!conversationsBySession.has(sId)) {
-        conversationsBySession.set(sId, []);
-      }
-      conversationsBySession.get(sId)!.push(convListItem);
-    }
+    // Helper to filter conversations for a specific contact
+    const getContactConversations = (contact: any) => {
+      return conversations.filter((conv) => {
+        if (contact.sessionId && conv.sessionId === contact.sessionId) return true;
+        
+        const convEmail = conv.metadata?.customer?.email || conv.metadata?.senderEmail;
+        if (contact.email && convEmail && convEmail.toLowerCase() === contact.email.toLowerCase()) return true;
+
+        const convPhone = conv.metadata?.customer?.phone || conv.metadata?.visitorPhone;
+        if (contact.phone && convPhone && convPhone === contact.phone) return true;
+
+        return false;
+      });
+    };
 
     // Query pending conflicts for all contacts
     const pendingConflicts = await ContactConflict.find({
@@ -103,13 +89,21 @@ export class ContactsService {
     }
 
     return contacts.map((contact) => {
-      const stats = statsMap.get(contact.sessionId);
-      const contactConversations = conversationsBySession.get(contact.sessionId) || [];
+      const contactConversations = getContactConversations(contact);
       const contactConflicts = conflictsMap.get(contact._id.toString()) || [];
 
-      // Get all conversations for this session ID
-      const sessionConvs = conversations.filter(c => c.sessionId === contact.sessionId);
-      const convTags = sessionConvs.flatMap(c => c.tags || []);
+      const convListItems = contactConversations.map((conv) => {
+        const firstMsg = firstMessageMap.get(conv._id.toString()) || conv.subject || "Conversation context is still syncing.";
+        return {
+          id: conv._id.toString(),
+          status: conv.status,
+          lastMessage: firstMsg,
+          channel: conv.channel || conv.metadata?.source || "widget",
+          updatedAt: conv.updatedAt.toISOString(),
+        };
+      });
+
+      const convTags = contactConversations.flatMap(c => c.tags || []);
       
       // Combine contact's tags and all associated conversation tags
       const combinedTags = [...(contact.tags || []), ...convTags];
@@ -122,6 +116,14 @@ export class ContactsService {
             .filter(Boolean)
         )
       );
+
+      let lastActivityAt = contact.lastActivityAt || contact.updatedAt;
+      if (contactConversations.length > 0) {
+        const maxUpdated = new Date(Math.max(...contactConversations.map(c => new Date(c.updatedAt).getTime())));
+        if (maxUpdated > lastActivityAt) {
+          lastActivityAt = maxUpdated;
+        }
+      }
 
       return {
         id: contact._id.toString(),
@@ -138,15 +140,15 @@ export class ContactsService {
           content: note.content,
           createdAt: new Date(note.createdAt).toISOString(),
         })),
-        conversations: contactConversations,
+        conversations: convListItems,
         conflicts: contactConflicts,
         insights: {
           summary: contact.insights?.summary || "No insights yet.",
           sentiment: contact.insights?.sentiment || "neutral",
           topics: contact.insights?.topics || [],
         },
-        conversationCount: stats?.count || 0,
-        lastActivity: (stats?.lastActivityAt || contact.lastActivityAt || contact.updatedAt).toISOString(),
+        conversationCount: contactConversations.length,
+        lastActivity: lastActivityAt.toISOString(),
         createdAt: (contact.createdAt || contact.updatedAt).toISOString(),
         updatedAt: (contact.updatedAt || contact.createdAt).toISOString(),
       };
@@ -228,6 +230,12 @@ export class ContactsService {
         organizationId: orgObjectId,
         sessionId,
       });
+    }
+
+    // Do not create a Contact document for anonymous conversations (no existing contact and no email/phone)
+    if (!contactDoc && !resolvedEmail && !resolvedPhone) {
+      logger.debug(`[upsertFromAI] Conversation ${conversationId} is anonymous and has no existing contact. Skipping contact creation.`);
+      return;
     }
 
     // 2. Determine proposed fields and detect conflicts against target contact details
@@ -415,6 +423,17 @@ export class ContactsService {
       organizationId: new Types.ObjectId(organizationId),
       _id: { $in: objectIds },
     });
+
+    // Delete associated contact conflicts to avoid orphaned data
+    try {
+      await ContactConflict.deleteMany({
+        organizationId: new Types.ObjectId(organizationId),
+        contactId: { $in: objectIds },
+      });
+    } catch (err: any) {
+      logger.warn(`[deleteContacts] Failed to delete associated contact conflicts: ${err.message}`);
+    }
+
     return { deletedCount: result.deletedCount || 0 };
   }
 

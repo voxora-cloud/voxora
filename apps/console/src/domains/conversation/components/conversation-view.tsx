@@ -305,10 +305,18 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
   const matchedContact = useMemo(() => {
     if (!conversation) return null;
     const conversationSessionId = conversation.sessionId;
-    if (!conversationSessionId) return null;
+    
+    const email = conversation.metadata?.customer?.email || conversation.metadata?.senderEmail;
+    const phone = conversation.metadata?.customer?.phone || conversation.metadata?.visitorPhone;
 
     const raw =
-      contacts.find((c) => c.sessionId === conversationSessionId) || null;
+      contacts.find((c) => {
+        if (conversationSessionId && c.sessionId === conversationSessionId) return true;
+        if (email && c.email && c.email.toLowerCase() === email.toLowerCase()) return true;
+        if (phone && c.phone && c.phone === phone) return true;
+        return false;
+      }) || null;
+
     return raw ? toContactViewModel(raw) : null;
   }, [contacts, conversation]);
 

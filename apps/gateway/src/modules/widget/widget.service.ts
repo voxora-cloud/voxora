@@ -1,5 +1,6 @@
 import crypto from "crypto";
-import { Widget, Conversation, Membership, Message } from "@shared/models";
+import { Types } from "mongoose";
+import { Widget, Conversation, Membership, Message, Contact } from "@shared/models";
 import logger from "@shared/core/logger";
 import {
   enqueueDomainVerificationPendingEmail,
@@ -691,9 +692,33 @@ export class WidgetService {
 
   async getWidgetConversations(organizationId: string, sessionId: string): Promise<any[]> {
     const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
+    
+    // Find contact associated with the current sessionId
+    const contact = await Contact.findOne({
+      organizationId: new Types.ObjectId(organizationId),
+      sessionId,
+    }).lean();
+
+    const queryOr: any[] = [{ sessionId }];
+    
+    if (contact) {
+      if (contact.email) {
+        queryOr.push(
+          { "metadata.customer.email": contact.email },
+          { "metadata.senderEmail": contact.email }
+        );
+      }
+      if (contact.phone) {
+        queryOr.push(
+          { "metadata.customer.phone": contact.phone },
+          { "metadata.visitorPhone": contact.phone }
+        );
+      }
+    }
+
     const conversations = await Conversation.find({
       organizationId,
-      sessionId,
+      $or: queryOr,
       "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
       status: { $ne: "closed" },
     })
@@ -747,10 +772,34 @@ export class WidgetService {
     sessionId: string
   ): Promise<any[]> {
     const WIDGET_CONVERSATION_SOURCES = ["widget", "qr", "link"];
+    
+    // Find contact associated with the current sessionId
+    const contact = await Contact.findOne({
+      organizationId: new Types.ObjectId(organizationId),
+      sessionId,
+    }).lean();
+
+    const queryOr: any[] = [{ sessionId }];
+    
+    if (contact) {
+      if (contact.email) {
+        queryOr.push(
+          { "metadata.customer.email": contact.email },
+          { "metadata.senderEmail": contact.email }
+        );
+      }
+      if (contact.phone) {
+        queryOr.push(
+          { "metadata.customer.phone": contact.phone },
+          { "metadata.visitorPhone": contact.phone }
+        );
+      }
+    }
+
     const conversation = await Conversation.findOne({
       _id: conversationId,
       organizationId,
-      sessionId,
+      $or: queryOr,
       "metadata.source": { $in: WIDGET_CONVERSATION_SOURCES },
     });
 

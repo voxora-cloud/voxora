@@ -6,7 +6,6 @@ export function useContacts() {
   return useQuery<ContactListItem[], Error>({
     queryKey: ["contacts"],
     queryFn: () => contactsApi.getContacts(),
-    refetchInterval: 8000,
   });
 }
 
@@ -14,7 +13,6 @@ export function usePendingConflicts() {
   return useQuery<ContactConflictItem[], Error>({
     queryKey: ["contacts", "conflicts"],
     queryFn: () => contactsApi.getPendingConflicts(),
-    refetchInterval: 8000,
   });
 }
 
