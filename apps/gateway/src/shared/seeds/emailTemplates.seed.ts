@@ -594,12 +594,12 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       preheader: "Your workspace has used all {{limit}} messages for this billing period.",
       eyebrow: "Quota exhausted",
       title: "Your message quota is used up",
-      intro: "Your workspace has reached its monthly message limit and the AI assistant is currently paused.",
+      intro: "Your workspace has reached its monthly message limit. The AI assistant has been disabled, and all incoming messages are currently routed directly to human agents.",
       children: `
         <p class="text">Hello {{name}},</p>
         <p class="text muted">
           Your workspace has consumed all <strong>{{limit}} AI messages</strong> for this billing period.
-          The AI assistant will resume automatically when the quota resets on <strong>{{resetDate}}</strong>.
+          <strong>AI responses are now disabled. All customer messages are being routed directly to human agents so no support queries are missed.</strong>
         </p>
         <div class="panel" style="border-color:#ead3d2;background:#fff8f7;">
           <p class="section-title" style="color:${BRAND.danger};">Quota exceeded</p>
@@ -609,7 +609,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           </table>
         </div>
         <p class="text muted">
-          Upgrade now to restore AI responses immediately and prevent this from happening next month.
+          Upgrade now to restore automated AI responses immediately and prevent this from happening next month.
         </p>
       `,
       cta: {
@@ -618,7 +618,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       },
       footerNote: "You are receiving this because you are the owner of this InteraOne workspace.",
     }),
-    textTemplate: "Hello {{name}},\n\nYour workspace has used all {{limit}} AI messages for this billing period. The AI assistant is paused until the quota resets on {{resetDate}}.\n\nUpgrade now to restore immediately: {{upgradeUrl}}",
+    textTemplate: "Hello {{name}},\n\nYour workspace has used all {{limit}} AI messages for this billing period. The AI assistant is disabled, and all incoming messages are routed directly to human agents. The AI assistant will resume when the quota resets on {{resetDate}}.\n\nUpgrade now to restore immediately: {{upgradeUrl}}",
   },
   {
     templateKey: "global.subscription_activated",

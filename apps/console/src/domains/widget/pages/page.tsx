@@ -4,6 +4,8 @@ import type { CreateWidgetData } from "@/domains/widget/types";
 import { validateWidgetForm } from "@/shared/lib/validation";
 import { toast } from "sonner";
 import { Loader } from "@/shared/ui/loader";
+import { authApi } from "@/domains/auth/api/auth.api";
+import { apiClient } from "@/shared/lib/api-client";
 import {
   WidgetActionsPanel,
   WidgetAdvancedConfigForm,
@@ -117,6 +119,8 @@ function validatePageRule(value: string): boolean {
 export function WidgetPage() {
   const [isExistingWidget, setIsExistingWidget] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isQuotaExhausted, setIsQuotaExhausted] = useState(false);
+  const [isSubscriptionExpired, setIsSubscriptionExpired] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{
     displayName?: string;
   }>({});
@@ -125,6 +129,39 @@ export function WidgetPage() {
   );
   const { data: widgetData, isLoading: isWidgetLoading } = useWidget();
   const saveWidget = useSaveWidget();
+
+  useEffect(() => {
+    const orgId = authApi.getActiveOrgId();
+    if (!orgId) return;
+
+    const checkBillingStatus = async () => {
+      try {
+        const [orgRes, usageRes] = await Promise.allSettled([
+          apiClient.get<any>(`/organizations/${orgId}`),
+          apiClient.get<any>(`/organizations/${orgId}/billing/usage`),
+        ]);
+
+        if (orgRes.status === "fulfilled" && orgRes.value?.data?.data?.organization) {
+          const org = orgRes.value.data.data.organization;
+          const isExpired = org?.subscriptionStatus !== null &&
+            org?.subscriptionStatus !== undefined &&
+            org?.subscriptionStatus !== "active";
+          setIsSubscriptionExpired(isExpired);
+        }
+
+        if (usageRes.status === "fulfilled" && usageRes.value?.data?.data?.usage?.messages) {
+          const msgUsage = usageRes.value.data.data.usage.messages;
+          if (msgUsage.limit !== null && msgUsage.used >= msgUsage.limit) {
+            setIsQuotaExhausted(true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load widget page billing details:", err);
+      }
+    };
+
+    void checkBillingStatus();
+  }, []);
 
   const handleInputChange = (field: keyof CreateWidgetData, value: string) => {
     setFormData((prev: CreateWidgetData) => ({
@@ -145,6 +182,15 @@ export function WidgetPage() {
     setFormData(withWidgetDefaults(widgetData));
     setIsExistingWidget(true);
   }, [widgetData]);
+
+  useEffect(() => {
+    if (isSubscriptionExpired || isQuotaExhausted) {
+      setFormData((prev) => ({
+        ...prev,
+        ai: { ...prev.ai, enabled: false },
+      }));
+    }
+  }, [isSubscriptionExpired, isQuotaExhausted]);
 
   const handleSubmit = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -264,6 +310,8 @@ export function WidgetPage() {
             onChange={setFormData}
             generalError={validationErrors.displayName}
             onSaveDomain={() => handleSubmit()}
+            isSubscriptionExpired={isSubscriptionExpired}
+            isQuotaExhausted={isQuotaExhausted}
             beforeContent={
               <WidgetAppearanceForm
                 formData={formData}

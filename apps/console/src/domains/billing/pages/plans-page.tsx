@@ -220,7 +220,6 @@ interface PlanCardProps {
 
 function PlanCard({ plan, canBuy, loading, selectedPlan, onUpgrade, isCurrentPlan }: PlanCardProps) {
   const meta = planMeta[plan.plan];
-  const isUpgradeable = plan.plan === "pro" || plan.plan === "proplus";
   const isFeatured = plan.plan === "pro";
 
   // Hostinger pricing layouts
