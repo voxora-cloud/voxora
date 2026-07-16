@@ -11,6 +11,7 @@ import {
   Sparkles,
   Tags,
   Trash2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ChannelIcon, EmailIcon } from "@/shared/ui/channel-icon";
@@ -372,9 +373,13 @@ export function ContactDetailsCard({
                 variant="outline"
                 onClick={handleGenerateNote}
                 disabled={isGeneratingNote || !canGenerateNote}
-                className="cursor-pointer border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300"
+                className="cursor-pointer border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-400 dark:hover:bg-violet-900/40 dark:disabled:bg-violet-950/20 dark:disabled:text-violet-600"
               >
-                <Sparkles className="h-3.5 w-3.5" />
+                {isGeneratingNote ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                )}
                 {isGeneratingNote ? "Generating" : "Generate"}
               </Button>
             )}

@@ -3,6 +3,7 @@ import { Button } from "@/shared/ui/button";
 import { Textarea } from "@/shared/ui/textarea";
 
 import { useAuth } from "@/domains/auth/hooks";
+import { useAuthStore } from "@/domains/auth/store/auth.store";
 import {
   Send,
   ArrowLeft,
@@ -21,6 +22,7 @@ import {
   Wand2,
   X,
   Ticket,
+  Loader2,
 } from "lucide-react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import io, { Socket } from "socket.io-client";
@@ -256,6 +258,8 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     >
   >(new Map());
   const { user } = useAuth();
+  const storeOrg = useAuthStore((state) => state.organization);
+  const orgName = storeOrg?.name || "our company";
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -687,11 +691,19 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     }
   };
 
+  const personalizeTemplate = (content: string): string => {
+    let result = content;
+    result = result.replaceAll("{{customer_name}}", customerName || "there");
+    result = result.replaceAll("{{agent_name}}", user?.name || user?.email?.split("@")[0] || "Agent");
+    result = result.replaceAll("{{agent_email}}", user?.email || "");
+    result = result.replaceAll("{{channel}}", (conversation?.channel || "web").toLowerCase().replace(/_channel$/, ""));
+    result = result.replaceAll("{{org_name}}", orgName);
+    result = result.replaceAll("{{current_date}}", new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }));
+    return result;
+  };
+
   const handleInsertTemplate = (content: string) => {
-    const personalized = content.replaceAll(
-      "{{customer_name}}",
-      customerName || "there",
-    );
+    const personalized = personalizeTemplate(content);
     setNewMessage(personalized);
     setTemplatePickerOpen(false);
     setSlashCommand(null);
@@ -701,10 +713,7 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
     template: Template,
     command = slashCommand,
   ) => {
-    const personalized = template.content.replaceAll(
-      "{{customer_name}}",
-      customerName || "there",
-    );
+    const personalized = personalizeTemplate(template.content);
 
     if (!command) {
       setNewMessage(personalized);
@@ -1170,9 +1179,13 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       size="sm"
                       onClick={handleSuggestReply}
                       disabled={isSuggestLoading || messages.length === 0}
-                      className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300 cursor-pointer"
+                      className="border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 focus-visible:ring-violet-300 dark:border-violet-900/50 dark:bg-violet-950/30 dark:text-violet-400 dark:hover:bg-violet-900/40 dark:disabled:bg-violet-950/20 dark:disabled:text-violet-600 cursor-pointer"
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
+                      {isSuggestLoading ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                      )}
                       {isSuggestLoading ? "Suggesting" : "Suggest"}
                     </Button>
                     <Button
@@ -1181,15 +1194,19 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       size="sm"
                       onClick={() => handleDraftAssist("variations")}
                       disabled={isDraftAssistLoading || !newMessage.trim()}
-                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 focus-visible:ring-blue-300 disabled:bg-blue-50 disabled:text-blue-700 cursor-pointer"
+                      className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800 focus-visible:ring-blue-300 disabled:bg-blue-50 disabled:text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-400 dark:hover:bg-blue-900/40 dark:disabled:bg-blue-950/20 dark:disabled:text-blue-600 cursor-pointer"
                       title={
                         newMessage.trim()
                           ? "Generate draft variations"
                           : "Type a message first"
                       }
                     >
-                      <Shuffle className="h-3.5 w-3.5" />
-                      Variations
+                      {isDraftAssistLoading && draftAssistMode === "variations" ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Shuffle className="mr-1.5 h-3.5 w-3.5" />
+                      )}
+                      {isDraftAssistLoading && draftAssistMode === "variations" ? "Generating" : "Variations"}
                     </Button>
                     <Button
                       type="button"
@@ -1197,14 +1214,18 @@ export function ConversationView({ conversationId }: ConversationViewProps) {
                       size="sm"
                       onClick={() => handleDraftAssist("reframe")}
                       disabled={isDraftAssistLoading || !newMessage.trim()}
-                      className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-300 disabled:bg-emerald-50 disabled:text-emerald-700 cursor-pointer"
+                      className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 focus-visible:ring-emerald-300 disabled:bg-emerald-50 disabled:text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-900/40 dark:disabled:bg-emerald-950/20 dark:disabled:text-emerald-600 cursor-pointer"
                       title={
                         newMessage.trim()
                           ? "Reframe this draft"
                           : "Type a message first"
                       }
                     >
-                      <Wand2 className="h-3.5 w-3.5" />
+                      {isDraftAssistLoading && draftAssistMode === "reframe" ? (
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Wand2 className="mr-1.5 h-3.5 w-3.5" />
+                      )}
                       {isDraftAssistLoading && draftAssistMode === "reframe"
                         ? "Reframing"
                         : "Reframe"}

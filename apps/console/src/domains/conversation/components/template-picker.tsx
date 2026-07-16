@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { ClipboardList, Edit2, Plus, Search, Trash2, X } from "lucide-react";
+import { ClipboardList, Edit2, Plus, Search, Trash2, X, Calendar, Mail, User, ShieldCheck, Building2, MessageSquare, AtSign, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/shared/ui/button";
 import {
@@ -83,6 +83,27 @@ export function TemplatePicker({
       setUncontrolledOpen(resolvedOpen);
     }
     onOpenChange?.(resolvedOpen);
+  };
+
+  const insertPlaceholder = (tag: string) => {
+    const textarea = document.getElementById("template-content") as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = form.content;
+      const before = text.substring(0, start);
+      const after = text.substring(end, text.length);
+      const newContent = before + tag + after;
+      setForm((current) => ({ ...current, content: newContent }));
+
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = start + tag.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
+    } else {
+      setForm((current) => ({ ...current, content: current.content + tag }));
+    }
   };
 
   const categories = useMemo(() => {
@@ -363,7 +384,7 @@ export function TemplatePicker({
           if (!nextOpen) resetForm();
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Edit Template" : "Create Template"}
@@ -373,123 +394,169 @@ export function TemplatePicker({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={submitTemplate} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="template-title">Title</Label>
-                <Input
-                  id="template-title"
-                  value={form.title}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      title: event.target.value,
-                    }))
-                  }
-                  placeholder="Refund follow-up"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="template-shortcut">Shortcut</Label>
-                <div className="flex rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
-                  <span className="flex h-9 items-center border-r border-border px-3 text-sm text-muted-foreground">
-                    /
-                  </span>
+          <form onSubmit={submitTemplate} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Left Column: Metadata settings */}
+              <div className="md:col-span-5 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="template-title">Title</Label>
                   <Input
-                    id="template-shortcut"
-                    value={form.shortcut}
+                    id="template-title"
+                    value={form.title}
                     onChange={(event) =>
                       setForm((current) => ({
                         ...current,
-                        shortcut: normalizeShortcut(event.target.value),
+                        title: event.target.value,
                       }))
                     }
-                    placeholder="refund"
-                    className="border-0 shadow-none focus-visible:ring-0"
+                    placeholder="Refund follow-up"
                   />
                 </div>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Selected
-                </span>
-                <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
-                  {normalizeCategory(form.category)}
-                </span>
-              </div>
-              <datalist id="template-categories">
-                {categories
-                  .filter((category) => category !== "All")
-                  .map((category) => (
-                    <option key={category} value={category} />
-                  ))}
-              </datalist>
-              <div className="flex flex-wrap gap-1.5 rounded-lg border border-border bg-muted/20 p-1.5">
-                {categories
-                  .filter((category) => category !== "All")
-                  .map((category) => (
-                    <button
-                      key={category}
+                <div className="space-y-2">
+                  <Label htmlFor="template-shortcut">Shortcut</Label>
+                  <div className="flex rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring">
+                    <span className="flex h-9 items-center border-r border-border px-3 text-sm text-muted-foreground font-semibold">
+                      /
+                    </span>
+                    <Input
+                      id="template-shortcut"
+                      value={form.shortcut}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          shortcut: normalizeShortcut(event.target.value),
+                        }))
+                      }
+                      placeholder="refund"
+                      className="border-0 shadow-none focus-visible:ring-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Selected
+                    </span>
+                    <span className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground">
+                      {normalizeCategory(form.category)}
+                    </span>
+                  </div>
+                  <datalist id="template-categories">
+                    {categories
+                      .filter((category) => category !== "All")
+                      .map((category) => (
+                        <option key={category} value={category} />
+                      ))}
+                  </datalist>
+                  <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-muted/20 p-1.5 max-h-36 overflow-y-auto">
+                    {categories
+                      .filter((category) => category !== "All")
+                      .map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() =>
+                            setForm((current) => ({ ...current, category }))
+                          }
+                          className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 cursor-pointer ${normalizeCategory(form.category) === category
+                              ? "bg-primary text-primary-foreground shadow-xs"
+                              : "text-muted-foreground hover:bg-background hover:text-foreground"
+                            }`}
+                          aria-pressed={
+                            normalizeCategory(form.category) === category
+                          }
+                        >
+                          {category}
+                        </button>
+                      ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      id="template-custom-category"
+                      value={customCategory}
+                      list="template-categories"
+                      onChange={(event) => setCustomCategory(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && customCategory.trim()) {
+                          event.preventDefault();
+                          applyCustomCategory();
+                        }
+                      }}
+                      placeholder="Custom category"
+                    />
+                    <Button
                       type="button"
-                      onClick={() =>
-                        setForm((current) => ({ ...current, category }))
-                      }
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${normalizeCategory(form.category) === category
-                          ? "bg-primary text-primary-foreground shadow-xs"
-                          : "text-muted-foreground hover:bg-background hover:text-foreground"
-                        }`}
-                      aria-pressed={
-                        normalizeCategory(form.category) === category
-                      }
+                      variant="outline"
+                      onClick={applyCustomCategory}
+                      disabled={!customCategory.trim()}
+                      className="cursor-pointer"
                     >
-                      {category}
-                    </button>
-                  ))}
+                      Add
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Input
-                  id="template-custom-category"
-                  value={customCategory}
-                  list="template-categories"
-                  onChange={(event) => setCustomCategory(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && customCategory.trim()) {
-                      event.preventDefault();
-                      applyCustomCategory();
-                    }
-                  }}
-                  placeholder="Custom category"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={applyCustomCategory}
-                  disabled={!customCategory.trim()}
-                >
-                  Add
-                </Button>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="template-content">Message</Label>
-              <Textarea
-                id="template-content"
-                value={form.content}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    content: event.target.value,
-                  }))
-                }
-                placeholder="Write the template message..."
-                className="min-h-40 resize-y"
-              />
+              {/* Right Column: Editor and Clickable tags */}
+              <div className="md:col-span-7 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="template-content">Message</Label>
+                  <Textarea
+                    id="template-content"
+                    value={form.content}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        content: event.target.value,
+                      }))
+                    }
+                    placeholder="Write the template message..."
+                    className="min-h-[160px] md:min-h-[220px] resize-y"
+                  />
+                </div>
+
+                <div className="text-[11px] text-muted-foreground/90 bg-muted/30 rounded-xl p-3 border border-border/40 space-y-2">
+                  <div className="flex items-center justify-between gap-1.5 border-b border-border/40 pb-2">
+                    <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                      <span>Dynamic Placeholders</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground bg-muted/80 px-2 py-0.5 rounded-full font-medium">Click to insert</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 pt-1.5">
+                    {[
+                      { tag: "{{customer_name}}", label: "Customer Name", desc: "e.g., John Doe", icon: <User className="h-3 w-3" /> },
+                      { tag: "{{customer_email}}", label: "Customer Email", desc: "e.g., john@example.com", icon: <Mail className="h-3 w-3" /> },
+                      { tag: "{{agent_name}}", label: "Agent Name", desc: "Your full name", icon: <ShieldCheck className="h-3 w-3" /> },
+                      { tag: "{{agent_email}}", label: "Agent Email", desc: "Your login email", icon: <AtSign className="h-3 w-3" /> },
+                      { tag: "{{org_name}}", label: "Organization Name", desc: "Active workspace name", icon: <Building2 className="h-3 w-3" /> },
+                      { tag: "{{current_date}}", label: "Current Date", desc: "e.g., July 16, 2026", icon: <Calendar className="h-3 w-3" /> },
+                      { tag: "{{channel}}", label: "Channel Source", desc: "e.g., WhatsApp, Web", icon: <MessageSquare className="h-3 w-3" /> },
+                    ].map(({ tag, label, desc, icon }) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => insertPlaceholder(tag)}
+                        className="flex flex-col items-start text-left p-2 rounded-lg border border-border/50 bg-background hover:bg-muted hover:border-primary/30 transition-all duration-150 group cursor-pointer"
+                        title={`Click to insert ${tag} into message`}
+                      >
+                        <div className="flex items-center gap-1.5 font-mono text-[10.5px] font-semibold text-primary group-hover:text-primary/80 transition-colors">
+                          <span className="text-muted-foreground/80 group-hover:text-primary/80 transition-colors shrink-0">
+                            {icon}
+                          </span>
+                          <span>{tag}</span>
+                        </div>
+                        <span className="text-[9.5px] text-muted-foreground mt-0.5 font-medium pl-[18px]">
+                          {label} <span className="text-muted-foreground/50 font-normal">({desc})</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <DialogFooter>

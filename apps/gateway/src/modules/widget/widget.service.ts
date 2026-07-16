@@ -510,6 +510,9 @@ export class WidgetService {
       );
     }
 
+    if (widget?._id) {
+      redisClient.del(`widget:${widget._id.toString()}:config`).catch(() => {});
+    }
     if (widget?.publicKey) {
       redisClient.del(`widget:${widget.publicKey}:config`).catch(() => {});
     }
@@ -588,6 +591,9 @@ export class WidgetService {
       });
     }
 
+    if (widget?._id) {
+      redisClient.del(`widget:${widget._id.toString()}:config`).catch(() => {});
+    }
     if (widget?.publicKey) {
       redisClient.del(`widget:${widget.publicKey}:config`).catch(() => {});
     }
