@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   CheckCircle2,
   Clock,
-  Coins,
+  Layers,
   MessageSquare,
   MessagesSquare,
   UserCheck,
@@ -159,10 +159,10 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
           description="Last 30 days"
         />
         <MetricCard
-          title="AI Tokens Used"
-          value={summary?.aiCost?.totalTokens || 0}
-          icon={Coins}
-          description="Prompt + completion tokens"
+          title="Total Messages"
+          value={summary?.totalMessages || 0}
+          icon={MessagesSquare}
+          description="Inbound & outbound messages"
         />
         <MetricCard
           title="Avg Messages / Conversation"
@@ -171,7 +171,7 @@ export function AnalyticsDashboard({ title = "Analytics Dashboard" }: { title?: 
               ? Math.round((summary?.totalMessages ?? 0) / summary!.totalConversations)
               : "—"
           }
-          icon={MessagesSquare}
+          icon={Layers}
           description="Message depth per conversation"
         />
       </div>

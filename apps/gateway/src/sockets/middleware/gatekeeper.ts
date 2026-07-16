@@ -28,7 +28,7 @@ export const gatekeeperMiddleware = (socket: any) => {
             gateState = JSON.parse(cached);
           } else {
             const conversation = await Conversation.findById(conversationId)
-              .select("organizationId sessionId metadata assignedTo status")
+              .select("organizationId sessionId metadata assignedTo status channel")
               .lean();
 
             if (conversation) {
@@ -40,6 +40,7 @@ export const gatekeeperMiddleware = (socket: any) => {
                 humanJoinedAt: (conversation.metadata as any)?.humanJoinedAt || null,
                 customerStartedAt: (conversation.metadata as any)?.customer?.startedAt || null,
                 interactionSource:
+                  conversation.channel ||
                   (conversation.metadata as any)?.interactionSource ||
                   (conversation.metadata as any)?.source ||
                   "widget",
