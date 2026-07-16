@@ -208,16 +208,14 @@ export function TemplatePicker({
 
       {open && (
         <div
-          className={`absolute left-0 z-50 overflow-hidden rounded-lg border border-border bg-card shadow-xl ${
-            compact
+          className={`absolute left-0 z-50 overflow-hidden rounded-lg border border-border bg-card shadow-xl ${compact
               ? "bottom-9 w-[min(96vw,42rem)]"
               : "bottom-11 w-[min(96vw,42rem)]"
-          }`}
+            }`}
         >
           <div
-            className={`border-b border-border bg-muted/20 ${
-              compact ? "p-3" : "p-4"
-            }`}
+            className={`border-b border-border bg-muted/20 ${compact ? "p-3" : "p-4"
+              }`}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -256,20 +254,18 @@ export function TemplatePicker({
             </div>
 
             <div
-              className={`flex gap-1 overflow-x-auto rounded-lg border border-border bg-background p-1 ${
-                compact ? "mt-2" : "mt-3"
-              }`}
+              className={`flex gap-1 overflow-x-auto rounded-lg border border-border bg-background p-1 ${compact ? "mt-2" : "mt-3"
+                }`}
             >
               {categories.map((category) => (
                 <button
                   key={category}
                   type="button"
                   onClick={() => setCategoryFilter(category)}
-                  className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${
-                    categoryFilter === category
+                  className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${categoryFilter === category
                       ? "bg-primary text-primary-foreground shadow-xs"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
+                    }`}
                   aria-pressed={categoryFilter === category}
                 >
                   {category}
@@ -443,11 +439,10 @@ export function TemplatePicker({
                       onClick={() =>
                         setForm((current) => ({ ...current, category }))
                       }
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${
-                        normalizeCategory(form.category) === category
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${normalizeCategory(form.category) === category
                           ? "bg-primary text-primary-foreground shadow-xs"
                           : "text-muted-foreground hover:bg-background hover:text-foreground"
-                      }`}
+                        }`}
                       aria-pressed={
                         normalizeCategory(form.category) === category
                       }

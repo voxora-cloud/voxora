@@ -382,7 +382,7 @@ function PlanCard({ plan, canBuy, loading, selectedPlan, onUpgrade, isCurrentPla
                     {icon}
                   </span>
                   <span className={`leading-tight ${isFeatured ? "text-zinc-200" : "text-zinc-700 dark:text-zinc-300"}`}>
-                    <strong>{formatLimit(plan.limits[key])}</strong> {label.toLowerCase()}
+                    <strong>{formatLimit(plan.limits[key])}</strong> {label}
                   </span>
                 </li>
               ))}
