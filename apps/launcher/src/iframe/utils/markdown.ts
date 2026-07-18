@@ -187,7 +187,7 @@ export function scanStreamingMarkdownBlocks(text: string): MarkdownBlock[] {
   if (!text) return [];
 
   // Clean up initial HTML-like tags (thinking blocks etc)
-  const cleanedText = stripHtmlLikeMarkupOutsideCode(normalizeHtmlEntities(text));
+  const cleanedText = stripHtmlLikeMarkupOutsideCode(normalizeHtmlEntities(text), true);
 
   const lines = cleanedText.split('\n');
   const blocks: MarkdownBlock[] = [];
@@ -600,6 +600,55 @@ export function parseMarkdown(text: string) {
       `).join('');
       return `<div class="vx-form-row"><div class="vx-form-radio-group">${radiosHtml}</div></div>`;
     });
+    content = content.replace(/&lt;interaone-select\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+      const attrs = parseAttributes(attrStr);
+      const name = protectGeneratedAttribute(attrs.name || '');
+      const placeholder = protectGeneratedAttribute(attrs.placeholder || 'Select option');
+      const optionsStr = attrs.options || '';
+      const options = optionsStr.split(',').map((o: string) => o.trim());
+      const optionsHtml = options.map((opt: string) => `<option value="${protectGeneratedAttribute(opt)}">${opt}</option>`).join('');
+      return `<div class="vx-form-row"><select class="vx-form-select" name="${name}" data-interaone-select><option value="" disabled selected>${placeholder}</option>${optionsHtml}</select></div>`;
+    });
+    content = content.replace(/&lt;interaone-date\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+      const attrs = parseAttributes(attrStr);
+      const name = protectGeneratedAttribute(attrs.name || '');
+      const minAttr = attrs.min || '';
+      const minVal = minAttr === 'today' ? new Date().toISOString().split('T')[0] : minAttr;
+      return `<div class="vx-form-row"><input type="date" class="vx-form-date" name="${name}" min="${minVal}" data-interaone-date /></div>`;
+    });
+    content = content.replace(/&lt;interaone-slider\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+      const attrs = parseAttributes(attrStr);
+      const name = protectGeneratedAttribute(attrs.name || '');
+      const min = protectGeneratedAttribute(attrs.min || '0');
+      const max = protectGeneratedAttribute(attrs.max || '100');
+      const step = protectGeneratedAttribute(attrs.step || '1');
+      return `
+        <div class="vx-form-row">
+          <div class="vx-slider-header"><span class="vx-slider-value">Value: <span id="val-${name}">${min}</span></span></div>
+          <input type="range" class="vx-form-slider" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}" oninput="document.getElementById('val-${name}').textContent = this.value" data-interaone-slider />
+        </div>
+      `;
+    });
+    content = content.replace(/&lt;interaone-rating\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+      const attrs = parseAttributes(attrStr);
+      const name = protectGeneratedAttribute(attrs.name || '');
+      const max = parseInt(attrs.max || '5', 10) || 5;
+      let starsHtml = '';
+      for (let i = max; i >= 1; i--) {
+        starsHtml += `<input type="radio" id="star${i}-${name}" name="${name}" value="${i}" data-interaone-rating /><label for="star${i}-${name}">★</label>`;
+      }
+      return `<div class="vx-form-row"><div class="vx-rating-stars">${starsHtml}</div></div>`;
+    });
+    content = content.replace(/&lt;interaone-otp\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+      const attrs = parseAttributes(attrStr);
+      const name = protectGeneratedAttribute(attrs.name || '');
+      const length = parseInt(attrs.length || '6', 10) || 6;
+      let boxesHtml = '';
+      for (let i = 0; i < length; i++) {
+        boxesHtml += `<input type="text" maxlength="1" class="vx-otp-box" name="${name}-${i}" data-interaone-otp-box />`;
+      }
+      return `<div class="vx-form-row"><div class="vx-otp-container" data-interaone-otp name="${name}">${boxesHtml}</div></div>`;
+    });
 
     return `
       <form class="vx-interactive-form vx-form-group" id="${safeFormId}" data-interaone-form="${safeFormId}">
@@ -648,6 +697,102 @@ export function parseMarkdown(text: string) {
       </div>
     `;
   });
+
+  s = s.replace(/&lt;interaone-select\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+    const attrs = parseAttributes(attrStr);
+    const name = protectGeneratedAttribute(attrs.name || '');
+    const placeholder = protectGeneratedAttribute(attrs.placeholder || 'Select option');
+    const optionsStr = attrs.options || '';
+    const options = optionsStr.split(',').map((o: string) => o.trim());
+    const optionsHtml = options.map((opt: string) => `<option value="${protectGeneratedAttribute(opt)}">${opt}</option>`).join('');
+    return `
+      <div class="vx-interactive-form vx-select-wrapper" data-target="${name}">
+        <select class="vx-form-select" name="${name}" data-interaone-select>
+          <option value="" disabled selected>${placeholder}</option>
+          ${optionsHtml}
+        </select>
+        <button class="vx-form-submit" data-action="submit-select" data-target="${name}">Submit</button>
+      </div>
+    `;
+  });
+
+  s = s.replace(/&lt;interaone-date\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+    const attrs = parseAttributes(attrStr);
+    const name = protectGeneratedAttribute(attrs.name || '');
+    const minAttr = attrs.min || '';
+    const minVal = minAttr === 'today' ? new Date().toISOString().split('T')[0] : minAttr;
+    return `
+      <div class="vx-interactive-form vx-date-wrapper" data-target="${name}">
+        <input type="date" class="vx-form-date" name="${name}" min="${minVal}" data-interaone-date />
+        <button class="vx-form-submit" data-action="submit-date" data-target="${name}">Submit</button>
+      </div>
+    `;
+  });
+
+  s = s.replace(/&lt;interaone-slider\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+    const attrs = parseAttributes(attrStr);
+    const name = protectGeneratedAttribute(attrs.name || '');
+    const min = protectGeneratedAttribute(attrs.min || '0');
+    const max = protectGeneratedAttribute(attrs.max || '100');
+    const step = protectGeneratedAttribute(attrs.step || '1');
+    return `
+      <div class="vx-interactive-form vx-slider-wrapper" data-target="${name}">
+        <div class="vx-slider-header"><span class="vx-slider-value">Value: <span id="val-${name}">${min}</span></span></div>
+        <input type="range" class="vx-form-slider" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}" oninput="document.getElementById('val-${name}').textContent = this.value" data-interaone-slider />
+        <button class="vx-form-submit" data-action="submit-slider" data-target="${name}">Submit</button>
+      </div>
+    `;
+  });
+
+  s = s.replace(/&lt;interaone-card\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+    const attrs = parseAttributes(attrStr);
+    const action = protectGeneratedAttribute(attrs.action || '');
+    const image = attrs.image || '';
+    const title = attrs.title || '';
+    const subtitle = attrs.subtitle || '';
+    return `
+      <button class="vx-form-card" data-interaone-button data-action="${action}">
+        ${image ? `<img src="${image}" alt="${title}" class="vx-card-image" />` : ''}
+        <div class="vx-card-content">
+          <div class="vx-card-title">${title}</div>
+          <div class="vx-card-subtitle">${subtitle}</div>
+        </div>
+      </button>
+    `;
+  });
+
+  s = s.replace(/&lt;interaone-rating\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+    const attrs = parseAttributes(attrStr);
+    const name = protectGeneratedAttribute(attrs.name || '');
+    const max = parseInt(attrs.max || '5', 10) || 5;
+    let starsHtml = '';
+    for (let i = max; i >= 1; i--) {
+      starsHtml += `<input type="radio" id="star${i}-${name}" name="${name}" value="${i}" data-interaone-rating /><label for="star${i}-${name}">★</label>`;
+    }
+    return `
+      <div class="vx-interactive-form vx-rating-wrapper" data-target="${name}">
+        <div class="vx-rating-stars">${starsHtml}</div>
+        <button class="vx-form-submit" data-action="submit-rating" data-target="${name}">Submit</button>
+      </div>
+    `;
+  });
+
+  s = s.replace(/&lt;interaone-otp\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
+    const attrs = parseAttributes(attrStr);
+    const name = protectGeneratedAttribute(attrs.name || '');
+    const length = parseInt(attrs.length || '6', 10) || 6;
+    let boxesHtml = '';
+    for (let i = 0; i < length; i++) {
+      boxesHtml += `<input type="text" maxlength="1" class="vx-otp-box" name="${name}-${i}" data-interaone-otp-box />`;
+    }
+    return `
+      <div class="vx-interactive-form vx-otp-wrapper" data-target="${name}">
+        <div class="vx-otp-container" data-interaone-otp name="${name}">${boxesHtml}</div>
+        <button class="vx-form-submit" data-action="submit-otp" data-target="${name}">Submit</button>
+      </div>
+    `;
+  });
+
 
   s = s
     .replace(/&lt;\/?interaone-[\s\S]*?&gt;/gi, '')
