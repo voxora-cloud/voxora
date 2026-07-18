@@ -385,20 +385,9 @@ prompt_config() {
     echo ""
 
     echo "Choose an LLM & Embedding Provider:"
-    PS3="Enter selection [1-5]: "
-    select llm_opt in "Google Gemini" "AWS Bedrock" "Hugging Face" "OpenAI" "Ollama (local)"; do
+    PS3="Enter selection [1-4]: "
+    select llm_opt in "AWS Bedrock" "Hugging Face" "OpenAI" "Ollama (local)"; do
         case $llm_opt in
-            "Google Gemini")
-                LLM_PROVIDER="gemini"
-                EMBEDDING_PROVIDER="gemini"
-                GEMINI_MODEL="gemini-2.5-flash"
-                GEMINI_EMBEDDING_MODEL="gemini-embedding-001"
-                read -p "Enter Gemini API Key: " GEMINI_API_KEY
-                if [ -z "$GEMINI_API_KEY" ]; then
-                    log_warning "Gemini API key not provided. AI features will not work."
-                fi
-                break
-                ;;
             "AWS Bedrock")
                 LLM_PROVIDER="bedrock"
                 EMBEDDING_PROVIDER="bedrock"
@@ -411,77 +400,27 @@ prompt_config() {
                     AWS_REGION=${AWS_REGION:-us-east-1}
                 fi
                 
-                echo ""
-                echo "Choose AWS Bedrock Model:"
-                PS3="Enter selection [1-5]: "
-                select model_opt in "Amazon Nova Pro" "Amazon Nova Lite" "Amazon Nova Micro" "Meta Llama 3.1 70B" "Claude 3.5 Sonnet"; do
-                    case $model_opt in
-                        "Amazon Nova Pro")
-                            BEDROCK_MODEL="amazon.nova-pro-v1:0"
-                            break
-                            ;;
-                        "Amazon Nova Lite")
-                            BEDROCK_MODEL="amazon.nova-lite-v1:0"
-                            break
-                            ;;
-                        "Amazon Nova Micro")
-                            BEDROCK_MODEL="amazon.nova-micro-v1:0"
-                            break
-                            ;;
-                        "Meta Llama 3.1 70B")
-                            BEDROCK_MODEL="meta.llama3-1-70b-instruct-v1:0"
-                            break
-                            ;;
-                        "Claude 3.5 Sonnet")
-                            BEDROCK_MODEL="us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-                            break
-                            ;;
-                        *) echo "Invalid option. Please choose 1, 2, 3, 4, or 5.";;
-                    esac
-                done
-                
-                echo ""
-                echo "Choose AWS Bedrock Embedding Model:"
-                PS3="Enter selection [1-2]: "
-                select embed_opt in "Titan Embeddings v2 (1024 dim)" "Cohere Embed Multilingual v3 (1024 dim)"; do
-                    case $embed_opt in
-                        "Titan Embeddings v2 (1024 dim)")
-                            BEDROCK_EMBEDDING_MODEL="amazon.titan-embed-text-v2:0"
-                            BEDROCK_EMBEDDING_DIMENSIONS="1024"
-                            break
-                            ;;
-                        "Cohere Embed Multilingual v3 (1024 dim)")
-                            BEDROCK_EMBEDDING_MODEL="cohere.embed-multilingual-v3"
-                            BEDROCK_EMBEDDING_DIMENSIONS="1024"
-                            break
-                            ;;
-                        *) echo "Invalid option. Please choose 1 or 2.";;
-                    esac
-                done
+                BEDROCK_MODEL="amazon.nova-pro-v1:0"
+                BEDROCK_EMBEDDING_MODEL="amazon.titan-embed-text-v2:0"
+                BEDROCK_EMBEDDING_DIMENSIONS="1024"
                 break
                 ;;
             "Hugging Face")
                 LLM_PROVIDER="huggingface"
                 EMBEDDING_PROVIDER="huggingface"
                 read -p "Enter Hugging Face Token (HF_TOKEN): " HF_TOKEN
-                read -p "Enter Hugging Face LLM Model [deepseek-ai/DeepSeek-V4-Flash]: " HF_MODEL
-                HF_MODEL=${HF_MODEL:-deepseek-ai/DeepSeek-V4-Flash}
-                read -p "Enter Hugging Face Embedding Model [sentence-transformers/all-MiniLM-L6-v2]: " HF_EMBEDDING_MODEL
-                HF_EMBEDDING_MODEL=${HF_EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
-                read -p "Enter Hugging Face Embedding Dimensions [384]: " HF_EMBEDDING_DIMENSIONS
-                HF_EMBEDDING_DIMENSIONS=${HF_EMBEDDING_DIMENSIONS:-384}
+                HF_MODEL="deepseek-ai/DeepSeek-V4-Flash"
+                HF_EMBEDDING_MODEL="BAAI/bge-large-en-v1.5"
+                HF_EMBEDDING_DIMENSIONS="1024"
                 break
                 ;;
             "OpenAI")
                 LLM_PROVIDER="openai"
                 EMBEDDING_PROVIDER="openai"
                 read -p "Enter OpenAI API Key: " OPENAI_API_KEY
-                read -p "Enter OpenAI LLM Model [gpt-4o-mini]: " OPENAI_MODEL
-                OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
-                read -p "Enter OpenAI Embedding Model [text-embedding-3-small]: " OPENAI_EMBEDDING_MODEL
-                OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
-                read -p "Enter OpenAI Embedding Dimensions [1536]: " OPENAI_EMBEDDING_DIMENSIONS
-                OPENAI_EMBEDDING_DIMENSIONS=${OPENAI_EMBEDDING_DIMENSIONS:-1536}
+                OPENAI_MODEL="gpt-4o-mini"
+                OPENAI_EMBEDDING_MODEL="text-embedding-3-small"
+                OPENAI_EMBEDDING_DIMENSIONS="1024"
                 break
                 ;;
             "Ollama (local)")
@@ -491,12 +430,9 @@ prompt_config() {
                 OLLAMA_HOST=${OLLAMA_HOST:-ollama}
                 read -p "Enter Ollama Port [11434]: " OLLAMA_PORT
                 OLLAMA_PORT=${OLLAMA_PORT:-11434}
-                read -p "Enter Ollama LLM Model [llama3.2]: " OLLAMA_MODEL
-                OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
-                read -p "Enter Ollama Embedding Model [nomic-embed-text]: " OLLAMA_EMBEDDING_MODEL
-                OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
-                read -p "Enter Ollama Embedding Dimensions [768]: " OLLAMA_EMBEDDING_DIMENSIONS
-                OLLAMA_EMBEDDING_DIMENSIONS=${OLLAMA_EMBEDDING_DIMENSIONS:-768}
+                OLLAMA_MODEL="llama4:scout"
+                OLLAMA_EMBEDDING_MODEL="mxbai-embed-large"
+                OLLAMA_EMBEDDING_DIMENSIONS="1024"
                 break
                 ;;
             *) echo "Invalid option. Please choose 1, 2, 3, 4, or 5.";;
@@ -504,18 +440,6 @@ prompt_config() {
     done
     PS3="$OLD_PS3"
 
-    echo ""
-    # ── Dodo Payments ──
-    log_info "=== Dodo Payments Configuration ==="
-    read -p "Dodo Payments API key: " DODO_PAYMENTS_API_KEY
-    [ -z "$DODO_PAYMENTS_API_KEY" ] && log_warning "Dodo API key empty — billing portal will be unavailable."
-
-    read -p "Dodo webhook secret (whsec_...): " DODO_PAYMENTS_WEBHOOK_SECRET
-    [ -z "$DODO_PAYMENTS_WEBHOOK_SECRET" ] && log_warning "Webhook secret empty — payment webhooks will be rejected."
-
-    read -p "Dodo Product ID — Pro plan (pdt_...): " DODO_PAYMENTS_PRODUCT_PRO
-    read -p "Dodo Product ID — Pro+ plan (pdt_...): " DODO_PAYMENTS_PRODUCT_PROPLUS
-    
     # Generate (or reuse) secure passwords
     if [ -f "docker/.env" ] && grep -q "^MONGO_ROOT_PASSWORD=" docker/.env; then
         log_info "Existing docker/.env detected — reusing database passwords to preserve MongoDB data."
@@ -525,11 +449,6 @@ prompt_config() {
         JWT_SECRET=$(grep "^JWT_SECRET=" docker/.env | cut -d= -f2-)
         AI_TOOL_SECRET=$(grep "^AI_TOOL_SECRET=" docker/.env | cut -d= -f2-)
         LOG_VIEWER_PORT=$(grep "^LOG_VIEWER_PORT=" docker/.env | cut -d= -f2- || echo "")
-        # Reuse Dodo Payments keys if they exist, else use what user just input
-        [ -z "$DODO_PAYMENTS_API_KEY" ] && DODO_PAYMENTS_API_KEY=$(grep "^DODO_PAYMENTS_API_KEY=" docker/.env | cut -d= -f2- || echo "")
-        [ -z "$DODO_PAYMENTS_WEBHOOK_SECRET" ] && DODO_PAYMENTS_WEBHOOK_SECRET=$(grep "^DODO_PAYMENTS_WEBHOOK_SECRET=" docker/.env | cut -d= -f2- || echo "")
-        [ -z "$DODO_PAYMENTS_PRODUCT_PRO" ] && DODO_PAYMENTS_PRODUCT_PRO=$(grep "^DODO_PAYMENTS_PRODUCT_PRO=" docker/.env | cut -d= -f2- || echo "")
-        [ -z "$DODO_PAYMENTS_PRODUCT_PROPLUS" ] && DODO_PAYMENTS_PRODUCT_PROPLUS=$(grep "^DODO_PAYMENTS_PRODUCT_PROPLUS=" docker/.env | cut -d= -f2- || echo "")
     else
         MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
         REDIS_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
@@ -594,12 +513,6 @@ JWT_SECRET=$JWT_SECRET
 # AI Tool auth (stored to keep re-runs in sync)
 AI_TOOL_SECRET=$AI_TOOL_SECRET
 
-# Dodo Payments (EE billing)
-DODO_PAYMENTS_API_KEY=$DODO_PAYMENTS_API_KEY
-DODO_PAYMENTS_WEBHOOK_SECRET=$DODO_PAYMENTS_WEBHOOK_SECRET
-DODO_PAYMENTS_PRODUCT_PRO=$DODO_PAYMENTS_PRODUCT_PRO
-DODO_PAYMENTS_PRODUCT_PROPLUS=$DODO_PAYMENTS_PRODUCT_PROPLUS
-
 # Dozzle Log Viewer (OSS Log Console)
 LOG_VIEWER_PORT=$LOG_VIEWER_PORT
 EOF
@@ -617,9 +530,6 @@ EOF
     
     # Resolve InteraOne Mode dynamically based on Dodo Payments config
     INTERAONE_MODE="self-host"
-    if [ -n "$DODO_PAYMENTS_API_KEY" ]; then
-        INTERAONE_MODE="cloud"
-    fi
 
     # apps/gateway/.env.docker
     cat > apps/gateway/.env.docker << EOF
@@ -679,12 +589,6 @@ AI_TOOL_SECRET=$AI_TOOL_SECRET
 
 # Public API URL for webhooks
 PUBLIC_API_URL=https://$API_HOST
-
-# Dodo Payments (EE billing)
-DODO_PAYMENTS_API_KEY=$DODO_PAYMENTS_API_KEY
-DODO_PAYMENTS_WEBHOOK_SECRET=$DODO_PAYMENTS_WEBHOOK_SECRET
-DODO_PAYMENTS_PRODUCT_PRO=$DODO_PAYMENTS_PRODUCT_PRO
-DODO_PAYMENTS_PRODUCT_PROPLUS=$DODO_PAYMENTS_PRODUCT_PROPLUS
 EOF
     
     # apps/console/.env.docker
