@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { state, API_BASE_URL, type StreamingMessage } from './config';
 import { elements, addMessage, addSystemNotice, typeMessage, removeTypingDots, scrollToBottom, showTyping, hideTyping, showAgentConnectedCard, renderAgentResponseIcon, createToolStepsPanel, addToolStep, completeToolStep, removeToolStepsPanel, showWelcomeScreen } from './ui';
-import { parseMarkdown, parseStreamingMarkdown } from './utils/markdown';
+import { parseMarkdown, parseStreamingMarkdown, scanStreamingMarkdownBlocks, renderMarkdownBlock } from './utils/markdown';
 import { showOutcomeOverlay } from './events';
 
 let authRetryCount = 0;
@@ -101,6 +101,55 @@ function getResponseFlow(messageElement: HTMLElement): HTMLElement | null {
 
 type StreamTextSegment = NonNullable<StreamingMessage['textSegments']>[number];
 
+function reconcileDOM(segment: StreamTextSegment) {
+  const blocks = scanStreamingMarkdownBlocks(segment.content);
+  segment.renderedBlocks ||= [];
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const blockHtml = renderMarkdownBlock(block);
+    const existing = segment.renderedBlocks[i];
+
+    if (!existing) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = blockHtml;
+      const el = (tempDiv.firstElementChild as HTMLElement) || document.createElement('div');
+      if (blockHtml === '') {
+        el.style.display = 'none';
+      }
+      segment.element.appendChild(el);
+      segment.renderedBlocks.push({ blockHtml, element: el });
+    } else {
+      if (existing.blockHtml !== blockHtml) {
+        if (blockHtml === '') {
+          existing.element.style.display = 'none';
+        } else {
+          existing.element.style.display = '';
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = blockHtml;
+          const newEl = tempDiv.firstElementChild as HTMLElement;
+          if (newEl) {
+            if (existing.element.tagName !== newEl.tagName) {
+              segment.element.replaceChild(newEl, existing.element);
+              existing.element = newEl;
+            } else {
+              existing.element.innerHTML = newEl.innerHTML;
+            }
+          }
+        }
+        existing.blockHtml = blockHtml;
+      }
+    }
+  }
+
+  while (segment.renderedBlocks.length > blocks.length) {
+    const extra = segment.renderedBlocks.pop();
+    if (extra && extra.element.isConnected) {
+      segment.element.removeChild(extra.element);
+    }
+  }
+}
+
 function addResponseTextSegment(stream: StreamingMessage): StreamTextSegment | null {
   const flow = getResponseFlow(stream.element);
   if (!flow) return null;
@@ -129,7 +178,7 @@ function scheduleStreamSegmentRender(stream: StreamingMessage, segment: StreamTe
     const segmentsToRender = stream.dirtyTextSegments?.splice(0) || [];
     segmentsToRender.forEach((dirtySegment) => {
       if (!dirtySegment.element.isConnected) return;
-      dirtySegment.element.innerHTML = parseStreamingMarkdown(dirtySegment.content);
+      reconcileDOM(dirtySegment);
     });
     scrollToBottom();
   });
@@ -154,7 +203,7 @@ function appendStreamChunk(stream: StreamingMessage, chunk: string, renderImmedi
 
   segment.content += chunk;
   if (renderImmediately) {
-    segment.element.innerHTML = parseStreamingMarkdown(segment.content);
+    reconcileDOM(segment);
   } else {
     scheduleStreamSegmentRender(stream, segment);
   }

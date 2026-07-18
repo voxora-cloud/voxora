@@ -12,9 +12,21 @@ export interface StreamingMessage {
   element: HTMLElement;
   lastSequence: number;
   status: 'streaming' | 'completed';
-  textSegments?: Array<{ element: HTMLElement; content: string }>;
-  currentTextSegment?: { element: HTMLElement; content: string } | null;
-  dirtyTextSegments?: Array<{ element: HTMLElement; content: string }>;
+  textSegments?: Array<{
+    element: HTMLElement;
+    content: string;
+    renderedBlocks?: Array<{ blockHtml: string; element: HTMLElement }>;
+  }>;
+  currentTextSegment?: {
+    element: HTMLElement;
+    content: string;
+    renderedBlocks?: Array<{ blockHtml: string; element: HTMLElement }>;
+  } | null;
+  dirtyTextSegments?: Array<{
+    element: HTMLElement;
+    content: string;
+    renderedBlocks?: Array<{ blockHtml: string; element: HTMLElement }>;
+  }>;
   renderFrameId?: number | null;
   hasToolSteps?: boolean;
   currentToolPanel?: HTMLElement | null;

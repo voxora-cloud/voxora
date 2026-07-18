@@ -161,22 +161,259 @@ export function stripMarkdown(text: string) {
     .trim();
 }
 
-export function parseStreamingMarkdown(text: string) {
-  const s = escapeHtml(stripHtmlLikeMarkupOutsideCode(
-    stripStreamingMarkdownMarkers(stripIncompleteStreamingTable(
-      stripStreamingInteractiveMarkup(normalizeHtmlEntities(text || "")),
-    )),
-  ));
+function renderInlineElements(text: string) {
+  let s = escapeHtml(text);
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Links
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  // Auto-link bare URLs
+  s = s.replace(/(?<![="'(])https?:\/\/[^\s<>"')]+/g, function (url) {
+    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+  });
+  // Bold + italic
+  s = renderInlineMarkdown(s);
+  return s;
+}
 
-  return s
-    .split(/\n{2,}/)
-    .map((part) => {
-      const trimmed = part.trim();
-      if (!trimmed) return "";
-      return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
-    })
-    .filter(Boolean)
-    .join('');
+export interface MarkdownBlock {
+  type: 'paragraph' | 'heading' | 'list' | 'code_fence' | 'table' | 'component';
+  content: string;
+  lang?: string;
+  isComplete: boolean;
+}
+
+export function scanStreamingMarkdownBlocks(text: string): MarkdownBlock[] {
+  if (!text) return [];
+
+  // Clean up initial HTML-like tags (thinking blocks etc)
+  const cleanedText = stripHtmlLikeMarkupOutsideCode(normalizeHtmlEntities(text));
+
+  const lines = cleanedText.split('\n');
+  const blocks: MarkdownBlock[] = [];
+
+  let insideCode = false;
+  let codeLang = '';
+  let codeBuffer: string[] = [];
+
+  let insideComponent = false;
+  let componentBuffer: string[] = [];
+  let componentName = '';
+
+  let insideTable = false;
+  let tableBuffer: string[] = [];
+
+  let currentBlockType: 'paragraph' | 'heading' | 'list' | null = null;
+  let currentBuffer: string[] = [];
+
+  function flushCurrentBlock() {
+    if (currentBuffer.length === 0) return;
+    const content = currentBuffer.join('\n');
+    if (currentBlockType === 'heading') {
+      blocks.push({ type: 'heading', content, isComplete: true });
+    } else if (currentBlockType === 'list') {
+      blocks.push({ type: 'list', content, isComplete: true });
+    } else {
+      blocks.push({ type: 'paragraph', content, isComplete: true });
+    }
+    currentBuffer = [];
+    currentBlockType = null;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // 1. Code Fence Block parsing
+    if (insideCode) {
+      if (trimmed.startsWith('```')) {
+        blocks.push({
+          type: 'code_fence',
+          content: codeBuffer.join('\n'),
+          lang: codeLang,
+          isComplete: true,
+        });
+        insideCode = false;
+        codeBuffer = [];
+        codeLang = '';
+      } else {
+        codeBuffer.push(line);
+      }
+      continue;
+    }
+
+    if (trimmed.startsWith('```')) {
+      flushCurrentBlock();
+      insideCode = true;
+      codeLang = trimmed.slice(3).trim();
+      codeBuffer = [];
+      continue;
+    }
+
+    // 2. Custom Interactive Components parsing
+    if (insideComponent) {
+      componentBuffer.push(line);
+      if (line.includes(`</interaone-${componentName}>`)) {
+        blocks.push({
+          type: 'component',
+          content: componentBuffer.join('\n'),
+          isComplete: true,
+        });
+        insideComponent = false;
+        componentBuffer = [];
+        componentName = '';
+      }
+      continue;
+    }
+
+    const componentMatch = line.match(/<(interaone-[a-z0-9:-]+)/i);
+    if (componentMatch) {
+      flushCurrentBlock();
+      insideComponent = true;
+      componentName = componentMatch[1].slice(10);
+      componentBuffer = [line];
+      if (line.includes(`</interaone-${componentName}>`)) {
+        blocks.push({
+          type: 'component',
+          content: componentBuffer.join('\n'),
+          isComplete: true,
+        });
+        insideComponent = false;
+        componentBuffer = [];
+        componentName = '';
+      }
+      continue;
+    }
+
+    // 3. Tables parsing
+    if (insideTable) {
+      if (line.includes('|')) {
+        tableBuffer.push(line);
+      } else {
+        blocks.push({
+          type: 'table',
+          content: tableBuffer.join('\n'),
+          isComplete: true,
+        });
+        insideTable = false;
+        tableBuffer = [];
+        i--; // re-evaluate this line outside table context
+      }
+      continue;
+    }
+
+    if (line.includes('|')) {
+      const nextLine = lines[i + 1];
+      if (nextLine && isTableSeparator(nextLine)) {
+        flushCurrentBlock();
+        insideTable = true;
+        tableBuffer = [line];
+        continue;
+      }
+    }
+
+    // 4. Headings
+    if (trimmed.startsWith('#')) {
+      flushCurrentBlock();
+      blocks.push({
+        type: 'heading',
+        content: line,
+        isComplete: true,
+      });
+      continue;
+    }
+
+    // 5. Lists
+    const isListItem = /^[ \t]*([-*+]|\d+\.)[ \t]+/.test(line);
+    if (isListItem) {
+      if (currentBlockType !== 'list') {
+        flushCurrentBlock();
+        currentBlockType = 'list';
+      }
+      currentBuffer.push(line);
+      continue;
+    }
+
+    // 6. Blank lines
+    if (trimmed === '') {
+      flushCurrentBlock();
+      continue;
+    }
+
+    // 7. Paragraph text accumulation
+    if (currentBlockType !== 'paragraph' && currentBlockType !== null) {
+      flushCurrentBlock();
+    }
+    currentBlockType = 'paragraph';
+    currentBuffer.push(line);
+  }
+
+  flushCurrentBlock();
+
+  // If there are unclosed streaming blocks, append them marked as incomplete
+  if (insideCode) {
+    blocks.push({
+      type: 'code_fence',
+      content: codeBuffer.join('\n'),
+      lang: codeLang,
+      isComplete: false,
+    });
+  } else if (insideTable) {
+    blocks.push({
+      type: 'table',
+      content: tableBuffer.join('\n'),
+      isComplete: false,
+    });
+  } else if (insideComponent) {
+    blocks.push({
+      type: 'component',
+      content: componentBuffer.join('\n'),
+      isComplete: false,
+    });
+  }
+
+  return blocks;
+}
+
+export function renderMarkdownBlock(block: MarkdownBlock): string {
+  switch (block.type) {
+    case 'code_fence': {
+      const escapedContent = escapeHtml(block.content);
+      return `<pre><code>${escapedContent}</code></pre>`;
+    }
+    case 'table': {
+      if (!block.isComplete) {
+        return `<div class="vx-table-placeholder" style="padding: 10px; border: 1px dashed var(--vx-border-color, #ccc); border-radius: 6px; margin: 8px 0; font-size: 0.9em; opacity: 0.8; display: flex; align-items: center; gap: 8px;">⏳ Rendering data table...</div>`;
+      }
+      return parseMarkdown(block.content);
+    }
+    case 'component': {
+      if (!block.isComplete) {
+        return `<div class="vx-form-placeholder" style="padding: 10px; border: 1px dashed var(--vx-border-color, #ccc); border-radius: 6px; margin: 8px 0; font-size: 0.9em; opacity: 0.8; display: flex; align-items: center; gap: 8px;">⏳ Preparing interactive element...</div>`;
+      }
+      return parseMarkdown(block.content);
+    }
+    case 'heading': {
+      const hText = block.content.trim();
+      if (hText.startsWith('### ')) return `<h3>${renderInlineElements(hText.slice(4))}</h3>`;
+      if (hText.startsWith('## ')) return `<h2>${renderInlineElements(hText.slice(3))}</h2>`;
+      if (hText.startsWith('# ')) return `<h1>${renderInlineElements(hText.slice(2))}</h1>`;
+      return `<p>${renderInlineElements(block.content)}</p>`;
+    }
+    case 'list': {
+      return parseMarkdown(block.content);
+    }
+    case 'paragraph':
+    default: {
+      const inline = renderInlineElements(block.content.trim());
+      return `<p>${inline.replace(/\n/g, '<br>')}</p>`;
+    }
+  }
+}
+
+export function parseStreamingMarkdown(text: string): string {
+  const blocks = scanStreamingMarkdownBlocks(text);
+  return blocks.map(renderMarkdownBlock).join('');
 }
 
 function parseTableRow(line: string) {

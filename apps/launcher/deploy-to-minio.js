@@ -50,24 +50,6 @@ async function setBucketPolicy() {
   await minioClient.setBucketPolicy(BUCKET_NAME, JSON.stringify(policy));
 }
 
-async function setCorsPolicy() {
-  const corsConfig = {
-    CORSRules: [
-      {
-        AllowedOrigins: ['*'],
-        AllowedMethods: ['GET', 'HEAD'],
-        AllowedHeaders: ['*'],
-        ExposeHeaders: ['ETag'],
-        MaxAgeSeconds: 86400,
-      },
-    ],
-  };
-  try {
-    await minioClient.setBucketCors(BUCKET_NAME, corsConfig);
-  } catch (error) {
-    console.warn('CORS setting failed:', error.message);
-  }
-}
 
 function getContentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -137,7 +119,6 @@ async function deployWidget() {
 
     await ensureBucketExists();
     await setBucketPolicy();
-    await setCorsPolicy();
 
     const distPath = path.join(__dirname, 'dist');
     if (!fs.existsSync(distPath)) {
