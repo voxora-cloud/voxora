@@ -1,26 +1,45 @@
-import { EMBEDDING_REGISTRY, getEmbeddingModelConfig } from "../registry/model.registry";
+import { EMBEDDING_REGISTRY, getEmbeddingModelConfig, hasProviderCredentials } from "../registry/model.registry";
 import { EmbeddingProvider, EmbeddingOptions } from "../base/embedding.provider";
 import { modelHealth } from "./model-health";
 import logger from "../../../shared/logger";
+import config from "../../../config";
 
 export class EmbeddingFallbackRouter {
   /**
    * Builds the fallback chain dynamically for the current model.
-   * Only models of the SAME provider with the SAME dimensions are candidates.
+   * Only models of the SAME provider with the SAME dimensions and valid credentials are candidates.
    */
   static buildChain(providerName: string, primaryModel: string): string[] {
     const primaryConfig = getEmbeddingModelConfig(primaryModel);
-    if (!primaryConfig) {
-      return [primaryModel];
+    let dimensions = primaryConfig?.dimensions;
+
+    if (!dimensions) {
+      // Fallback: Read the configured dimensions from .env config for this provider
+      const providerKey = providerName as keyof typeof config.embeddings;
+      const providerConfig = config.embeddings[providerKey];
+      if (providerConfig && typeof providerConfig === "object" && "dimensions" in providerConfig) {
+        dimensions = (providerConfig as any).dimensions;
+      }
     }
 
-    const primaryDimensions = primaryConfig.dimensions;
+    if (!dimensions) {
+      // System standard dimension lock to 1024
+      dimensions = 1024;
+    }
+
     const candidates: string[] = [];
 
     for (const [modelId, modelCfg] of Object.entries(EMBEDDING_REGISTRY)) {
       if (modelId === primaryModel) continue;
+
+      // ── Rule 1: Must be from the same provider ──────────────────────────────────
       if (modelCfg.provider !== providerName) continue;
-      if (modelCfg.dimensions !== primaryDimensions) continue;
+
+      // ── Rule 2: Must match dimensions exactly to prevent database corruption ─────
+      if (modelCfg.dimensions !== dimensions) continue;
+
+      // ── Rule 3: Must have active credentials configured ──────────────────────────
+      if (!hasProviderCredentials(modelCfg.provider)) continue;
 
       candidates.push(modelId);
     }

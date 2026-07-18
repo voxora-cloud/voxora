@@ -47,17 +47,17 @@ const config = {
       dimensions: parseInt(process.env.BEDROCK_EMBEDDING_DIMENSIONS || "1024", 10),
     },
     ollama: {
-      model: process.env.OLLAMA_EMBEDDING_MODEL || "nomic-embed-text",
-      dimensions: parseInt(process.env.OLLAMA_EMBEDDING_DIMENSIONS || "768", 10),
+      model: process.env.OLLAMA_EMBEDDING_MODEL || "mxbai-embed-large",
+      dimensions: parseInt(process.env.OLLAMA_EMBEDDING_DIMENSIONS || "1024", 10),
     },
     huggingface: {
-      model: process.env.HF_EMBEDDING_MODEL || "sentence-transformers/all-MiniLM-L6-v2",
-      dimensions: parseInt(process.env.HF_EMBEDDING_DIMENSIONS || "384", 10),
+      model: process.env.HF_EMBEDDING_MODEL || "BAAI/bge-large-en-v1.5",
+      dimensions: parseInt(process.env.HF_EMBEDDING_DIMENSIONS || "1024", 10),
       endpointUrl: process.env.HF_EMBEDDING_ENDPOINT_URL,
     },
     openai: {
       model: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
-      dimensions: parseInt(process.env.OPENAI_EMBEDDING_DIMENSIONS || "1536", 10),
+      dimensions: parseInt(process.env.OPENAI_EMBEDDING_DIMENSIONS || "1024", 10),
     },
     ragTopK: parseInt(process.env.RAG_TOP_K || "5", 10),
   },
