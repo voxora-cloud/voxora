@@ -518,6 +518,174 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
     }),
     textTemplate: "Hello {{name}},\n\nYour domain {{domain}} has been verified. Your chat widget is now restricted to this domain, and other websites cannot embed it using your public key.\n\nManage domain settings: {{settingsUrl}}",
   },
+  {
+    templateKey: "global.free_credit_granted",
+    type: "free_credit_granted",
+    subjectTemplate: "Your free monthly credits are ready — InteraOne",
+    htmlTemplate: renderLayout({
+      preheader: "Your InteraOne free plan is active and {{creditAmount}} are ready to use.",
+      eyebrow: "Free plan activated",
+      title: "Your free credits are ready",
+      intro: "Welcome to InteraOne. Your workspace is live and your free monthly credits have been added.",
+      children: `
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">
+          Your account is on the <strong>Free plan</strong>. You have been credited
+          <strong>{{creditAmount}}</strong> for this billing period.
+        </p>
+        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Credits this month</td><td class="detail-value">{{creditAmount}}</td></tr>
+            <tr><td class="detail-label">Resets on</td><td class="detail-value">{{resetDate}}</td></tr>
+          </table>
+        </div>
+        <p class="text muted">
+          Need more messages or advanced features? Upgrade to a paid plan anytime from your billing settings.
+        </p>
+      `,
+      cta: {
+        href: "{{dashboardUrl}}",
+        label: "Open dashboard",
+      },
+      footerNote: "You are receiving this because a free InteraOne workspace was created for your account.",
+    }),
+    textTemplate: "Hello {{name}},\n\nYour InteraOne Free plan is active. You have been credited {{creditAmount}} for this billing period (resets on {{resetDate}}).\n\nNeed more? Upgrade from your billing settings.\n\nOpen dashboard: {{dashboardUrl}}",
+  },
+  {
+    templateKey: "global.usage_threshold_warning",
+    type: "usage_threshold_warning",
+    subjectTemplate: "Heads up: you've used {{pct}}% of your InteraOne message quota",
+    htmlTemplate: renderLayout({
+      preheader: "You've used {{pct}}% of your monthly message quota — {{used}} of {{limit}} messages.",
+      eyebrow: "Usage alert",
+      title: "You're at {{pct}}% of your quota",
+      intro: "Your workspace is approaching its monthly message limit.",
+      children: `
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">
+          Your workspace has used <strong>{{used}} of {{limit}} AI messages</strong> ({{pct}}%) this billing period.
+          At this rate you may exhaust your quota before the period resets.
+        </p>
+        <div class="panel" style="border-color:#f5ddb3;background:#fffcf5;">
+          <p class="section-title" style="color:${BRAND.warning};">Usage summary</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Messages used</td><td class="detail-value">{{used}} / {{limit}}</td></tr>
+            <tr><td class="detail-label">Usage</td><td class="detail-value">{{pct}}%</td></tr>
+            <tr><td class="detail-label">Period resets</td><td class="detail-value">{{resetDate}}</td></tr>
+          </table>
+        </div>
+        <p class="text muted">
+          Upgrade to a higher plan to avoid service interruption and get unlimited or expanded message quotas.
+        </p>
+      `,
+      cta: {
+        href: "{{upgradeUrl}}",
+        label: "View upgrade options",
+      },
+      footerNote: "You are receiving this alert because you are the owner of this InteraOne workspace.",
+    }),
+    textTemplate: "Hello {{name}},\n\nYour workspace has used {{used}} of {{limit}} AI messages ({{pct}}%) this billing period.\n\nPeriod resets: {{resetDate}}\n\nUpgrade to avoid interruption: {{upgradeUrl}}",
+  },
+  {
+    templateKey: "global.usage_exhausted",
+    type: "usage_exhausted",
+    subjectTemplate: "Action required: your InteraOne message quota is exhausted",
+    htmlTemplate: renderLayout({
+      preheader: "Your workspace has used all {{limit}} messages for this billing period.",
+      eyebrow: "Quota exhausted",
+      title: "Your message quota is used up",
+      intro: "Your workspace has reached its monthly message limit. The AI assistant has been disabled, and all incoming messages are currently routed directly to human agents.",
+      children: `
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">
+          Your workspace has consumed all <strong>{{limit}} AI messages</strong> for this billing period.
+          <strong>AI responses are now disabled. All customer messages are being routed directly to human agents so no support queries are missed.</strong>
+        </p>
+        <div class="panel" style="border-color:#ead3d2;background:#fff8f7;">
+          <p class="section-title" style="color:${BRAND.danger};">Quota exceeded</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Messages used</td><td class="detail-value">{{used}} / {{limit}}</td></tr>
+            <tr><td class="detail-label">Quota resets</td><td class="detail-value">{{resetDate}}</td></tr>
+          </table>
+        </div>
+        <p class="text muted">
+          Upgrade now to restore automated AI responses immediately and prevent this from happening next month.
+        </p>
+      `,
+      cta: {
+        href: "{{upgradeUrl}}",
+        label: "Upgrade plan",
+      },
+      footerNote: "You are receiving this because you are the owner of this InteraOne workspace.",
+    }),
+    textTemplate: "Hello {{name}},\n\nYour workspace has used all {{limit}} AI messages for this billing period. The AI assistant is disabled, and all incoming messages are routed directly to human agents. The AI assistant will resume when the quota resets on {{resetDate}}.\n\nUpgrade now to restore immediately: {{upgradeUrl}}",
+  },
+  {
+    templateKey: "global.subscription_activated",
+    type: "subscription_activated",
+    subjectTemplate: "Your InteraOne {{planName}} plan is now active",
+    htmlTemplate: renderLayout({
+      preheader: "Your InteraOne {{planName}} subscription is confirmed and active.",
+      eyebrow: "Subscription confirmed",
+      title: "Your {{planName}} plan is active",
+      intro: "Thank you for subscribing. Your workspace has been upgraded and all plan features are now available.",
+      children: `
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">
+          Your <strong>{{planName}}</strong> subscription is active. All plan features and increased limits are
+          now available in your workspace.
+        </p>
+        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
+          <p class="section-title" style="color:${BRAND.success};">Subscription details</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Plan</td><td class="detail-value">{{planName}}</td></tr>
+            <tr><td class="detail-label">Next billing date</td><td class="detail-value">{{nextBillingDate}}</td></tr>
+          </table>
+        </div>
+        <p class="text muted">
+          Manage your subscription, invoices, and payment details from the billing settings at any time.
+        </p>
+      `,
+      cta: {
+        href: "{{dashboardUrl}}",
+        label: "Open dashboard",
+      },
+      footerNote: "You are receiving this because you activated or renewed an InteraOne subscription.",
+    }),
+    textTemplate: "Hello {{name}},\n\nYour InteraOne {{planName}} plan is now active.\n\nNext billing date: {{nextBillingDate}}\n\nManage billing: {{dashboardUrl}}",
+  },
+  {
+    templateKey: "global.channel_verified",
+    type: "channel_verified",
+    subjectTemplate: "{{channelType}} channel connected — InteraOne",
+    htmlTemplate: renderLayout({
+      preheader: "Your {{channelType}} channel \"{{channelName}}\" is now connected and receiving messages.",
+      eyebrow: "Channel connected",
+      title: "{{channelType}} is connected",
+      intro: "Your channel has been verified and is now live.",
+      children: `
+        <p class="text">Hello {{name}},</p>
+        <p class="text muted">
+          Your <strong>{{channelType}}</strong> channel has been successfully connected to InteraOne.
+          Incoming messages from this channel will now route through your AI assistant and inbox.
+        </p>
+        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
+          <p class="section-title" style="color:${BRAND.success};">Channel details</p>
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr><td class="detail-label">Type</td><td class="detail-value">{{channelType}}</td></tr>
+            <tr><td class="detail-label">Name</td><td class="detail-value">{{channelName}}</td></tr>
+            <tr><td class="detail-label">Status</td><td class="detail-value">Active</td></tr>
+          </table>
+        </div>
+      `,
+      cta: {
+        href: "{{dashboardUrl}}",
+        label: "View channels",
+      },
+      footerNote: "You are receiving this because you are the owner of this InteraOne workspace.",
+    }),
+    textTemplate: "Hello {{name}},\n\nYour {{channelType}} channel \"{{channelName}}\" has been connected to InteraOne. Incoming messages will now route through your AI assistant and inbox.\n\nView channels: {{dashboardUrl}}",
+  },
 ];
 
 export async function seedEmailTemplates(): Promise<{

@@ -44,22 +44,24 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     return this.client;
   }
 
-  private cacheKey(text: string, organizationId?: string): string | null {
+  private cacheKey(text: string, organizationId?: string, modelId?: string): string | null {
     if (!organizationId) return null;
     if (text.length > EMBED_CACHE_MAX_TEXT_LENGTH) return null;
     const hash = createHash("sha256")
       .update(text.trim().toLowerCase())
       .digest("hex")
       .slice(0, 16);
-    return `org:${organizationId}:embed:${this.model}:${hash}`;
+    const activeModel = modelId || this.model;
+    return `org:${organizationId}:embed:${activeModel}:${hash}`;
   }
 
   async embed(
     text: string,
-    options?: { organizationId?: string; conversationId?: string },
+    options?: { organizationId?: string; conversationId?: string; modelId?: string },
   ): Promise<number[]> {
+    const activeModel = options?.modelId || this.model;
     // ── Cache check ────────────────────────────────────────────────────────
-    const key = this.cacheKey(text, options?.organizationId);
+    const key = this.cacheKey(text, options?.organizationId, activeModel);
     if (key) {
       try {
         const cached = await cacheRedis.getBuffer(key);
@@ -68,7 +70,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
             new Float32Array(cached.buffer, cached.byteOffset, cached.length / 4),
           );
           console.log(
-            `[OpenAI Embed] CACHE HIT model=${this.model} chars=${text.length} dims=${embedding.length}`,
+            `[OpenAI Embed] CACHE HIT model=${activeModel} chars=${text.length} dims=${embedding.length}`,
           );
           return embedding;
         }
@@ -82,11 +84,11 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
 
     try {
       const client = this.getClient();
-      const registryEntry = getEmbeddingModelConfig(this.model);
+      const registryEntry = getEmbeddingModelConfig(activeModel);
       const supportsCustomDimensions = registryEntry?.supportsCustomDimensions ?? true;
 
       const payload: Record<string, unknown> = {
-        model: this.model,
+        model: activeModel,
         input: text,
       };
 
@@ -110,7 +112,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       const inputTokens = response.usage?.prompt_tokens ?? Math.ceil(text.length / 4);
       const estimatedCost = estimateCost(
         "openai",
-        this.model,
+        activeModel,
         inputTokens,
         0,
       );
@@ -118,7 +120,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       trackAICall({
         timestamp: new Date().toISOString(),
         provider: "openai",
-        modelId: this.model,
+        modelId: activeModel,
         callType: "embedding",
         latencyMs,
         inputTokens,
@@ -139,7 +141,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       }
 
       console.log(
-        `[OpenAI Embed] model=${this.model} chars=${text.length} dims=${this.dimensions} latency=${latencyMs.toFixed(0)}ms`,
+        `[OpenAI Embed] model=${activeModel} chars=${text.length} dims=${this.dimensions} latency=${latencyMs.toFixed(0)}ms`,
       );
 
       return embedding;
@@ -148,7 +150,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       const inputTokens = Math.ceil(text.length / 4);
       const estimatedCost = estimateCost(
         "openai",
-        this.model,
+        activeModel,
         inputTokens,
         0,
       );
@@ -156,7 +158,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
       trackAICall({
         timestamp: new Date().toISOString(),
         provider: "openai",
-        modelId: this.model,
+        modelId: activeModel,
         callType: "embedding",
         latencyMs,
         inputTokens,

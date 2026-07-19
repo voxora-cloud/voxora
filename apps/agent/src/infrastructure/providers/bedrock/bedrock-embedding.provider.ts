@@ -69,22 +69,24 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
    * Returns null if text is too long (caching huge chunks is wasteful)
    * or if orgId is missing (global cache could leak across tenants).
    */
-  private cacheKey(text: string, organizationId?: string): string | null {
+  private cacheKey(text: string, organizationId?: string, modelId?: string): string | null {
     if (!organizationId) return null;
     if (text.length > EMBED_CACHE_MAX_TEXT_LENGTH) return null;
     const hash = createHash("sha256")
       .update(text.trim().toLowerCase())
       .digest("hex")
       .slice(0, 16);
-    return `org:${organizationId}:embed:${this.model}:${hash}`;
+    const activeModel = modelId || this.model;
+    return `org:${organizationId}:embed:${activeModel}:${hash}`;
   }
 
   async embed(
     text: string,
-    options?: { organizationId?: string; conversationId?: string },
+    options?: { organizationId?: string; conversationId?: string; modelId?: string },
   ): Promise<number[]> {
+    const activeModel = options?.modelId || this.model;
     // ── Cache check: skip Bedrock for repeated/similar queries ──────────────
-    const cacheKey = this.cacheKey(text, options?.organizationId);
+    const cacheKey = this.cacheKey(text, options?.organizationId, activeModel);
     if (cacheKey) {
       try {
         const cached = await cacheRedis.getBuffer(cacheKey);
@@ -93,7 +95,7 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
             new Float32Array(cached.buffer, cached.byteOffset, cached.length / 4),
           );
           console.log(
-            `[Bedrock Embed] CACHE HIT model=${this.model} chars=${text.length} dims=${embedding.length}`,
+            `[Bedrock Embed] CACHE HIT model=${activeModel} chars=${text.length} dims=${embedding.length}`,
           );
           return embedding;
         }
@@ -106,12 +108,12 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
     latencyTracker.start();
 
     try {
-      const { embedding, inputTokens } = await this.executeEmbed(text);
+      const { embedding, inputTokens } = await this.executeEmbed(text, activeModel);
 
       const latencyMs = latencyTracker.stopMs();
       const estimatedCost = estimateCost(
         "bedrock",
-        this.model,
+        activeModel,
         inputTokens,
         0,
       );
@@ -119,7 +121,7 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
       trackAICall({
         timestamp: new Date().toISOString(),
         provider: "bedrock",
-        modelId: this.model,
+        modelId: activeModel,
         callType: "embedding",
         latencyMs,
         inputTokens,
@@ -145,7 +147,7 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
       const inputTokens = Math.ceil(text.length / 4);
       const estimatedCost = estimateCost(
         "bedrock",
-        this.model,
+        activeModel,
         inputTokens,
         0,
       );
@@ -153,7 +155,7 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
       trackAICall({
         timestamp: new Date().toISOString(),
         provider: "bedrock",
-        modelId: this.model,
+        modelId: activeModel,
         callType: "embedding",
         latencyMs,
         inputTokens,
@@ -172,11 +174,12 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
 
   private async executeEmbed(
     text: string,
+    modelId: string,
   ): Promise<{ embedding: number[]; inputTokens: number }> {
     const client = this.getClient();
 
     // Registry-driven: no more if (model.includes("titan-embed-text-v1"))
-    const registryEntry = getEmbeddingModelConfig(this.model);
+    const registryEntry = getEmbeddingModelConfig(modelId);
     const supportsCustomDimensions =
       registryEntry?.supportsCustomDimensions ?? true;
 
@@ -189,7 +192,7 @@ export class BedrockEmbeddingProvider implements EmbeddingProvider {
     const t0 = performance.now();
     const response = await client.send(
       new InvokeModelCommand({
-        modelId: this.model,
+        modelId: modelId,
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify(payload),

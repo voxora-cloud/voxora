@@ -35,22 +35,24 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
     this.dimensions = embedConfig?.dimensions || 768;
   }
 
-  private cacheKey(text: string, organizationId?: string): string | null {
+  private cacheKey(text: string, organizationId?: string, modelId?: string): string | null {
     if (!organizationId) return null;
     if (text.length > EMBED_CACHE_MAX_TEXT_LENGTH) return null;
     const hash = createHash("sha256")
       .update(text.trim().toLowerCase())
       .digest("hex")
       .slice(0, 16);
-    return `org:${organizationId}:embed:${this.model}:${hash}`;
+    const activeModel = modelId || this.model;
+    return `org:${organizationId}:embed:${activeModel}:${hash}`;
   }
 
   async embed(
     text: string,
-    options?: { organizationId?: string; conversationId?: string },
+    options?: { organizationId?: string; conversationId?: string; modelId?: string },
   ): Promise<number[]> {
+    const activeModel = options?.modelId || this.model;
     // ── Cache check ────────────────────────────────────────────────────────
-    const key = this.cacheKey(text, options?.organizationId);
+    const key = this.cacheKey(text, options?.organizationId, activeModel);
     if (key) {
       try {
         const cached = await cacheRedis.getBuffer(key);
@@ -59,7 +61,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
             new Float32Array(cached.buffer, cached.byteOffset, cached.length / 4),
           );
           console.log(
-            `[Ollama Embed] CACHE HIT model=${this.model} chars=${text.length} dims=${embedding.length}`,
+            `[Ollama Embed] CACHE HIT model=${activeModel} chars=${text.length} dims=${embedding.length}`,
           );
           return embedding;
         }
@@ -74,7 +76,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
     try {
       const response = await axios.post(
         `${this.baseUrl}/api/embeddings`,
-        { model: this.model, prompt: text },
+        { model: activeModel, prompt: text },
         { timeout: 30000 },
       );
 
@@ -94,7 +96,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
       trackAICall({
         timestamp: new Date().toISOString(),
         provider: "ollama",
-        modelId: this.model,
+        modelId: activeModel,
         callType: "embedding",
         latencyMs,
         inputTokens,
@@ -115,7 +117,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
       }
 
       console.log(
-        `[Ollama Embed] model=${this.model} chars=${text.length} dims=${this.dimensions} latency=${latencyMs.toFixed(0)}ms`,
+        `[Ollama Embed] model=${activeModel} chars=${text.length} dims=${this.dimensions} latency=${latencyMs.toFixed(0)}ms`,
       );
 
       return embedding;
@@ -126,7 +128,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
       trackAICall({
         timestamp: new Date().toISOString(),
         provider: "ollama",
-        modelId: this.model,
+        modelId: activeModel,
         callType: "embedding",
         latencyMs,
         inputTokens,

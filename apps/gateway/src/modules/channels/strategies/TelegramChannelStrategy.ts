@@ -143,17 +143,52 @@ export class TelegramChannelStrategy implements IChannelStrategy {
     }
 
     try {
-      // recipient is the customer's Telegram chat/user ID
       const chatId = input.to;
-      const formattedText = parseTelegramHtml(input.body);
+
+      // Parse suggestion buttons from the message body
+      const keyboardRows: any[] = [];
+      const buttonRegex = /<interaone-button\s+action="([^"]+)">([^<]+)<\/interaone-button>/gi;
+      let match;
+      const buttons: { text: string }[] = [];
+      while ((match = buttonRegex.exec(input.body)) !== null) {
+        buttons.push({
+          text: match[1], // Use the action string as the button text so it gets natively posted in the chat when clicked
+        });
+      }
+
+      if (buttons.length > 0) {
+        for (let i = 0; i < buttons.length; i += 2) {
+          keyboardRows.push(buttons.slice(i, i + 2));
+        }
+      }
+
+      // Clean HTML custom tags from body text
+      const cleanedBody = input.body
+        .replace(/<interaone-button\s+action="([^"]+)">([^<]+)<\/interaone-button>/gi, '')
+        .replace(/<interaone-radio\s+name="[^"]+"\s+options="([^"]+)"\s*\/?>/gi, '')
+        .replace(/<interaone-input\s+name="([^"]+)"\s+placeholder="([^"]+)"\s*\/?>/gi, '')
+        .replace(/<\/?interaone-form[^>]*>/gi, '')
+        .trim();
+
+      const formattedText = parseTelegramHtml(cleanedBody);
+      const payload: any = {
+        chat_id: chatId,
+        text: formattedText,
+        parse_mode: "HTML",
+      };
+
+      if (keyboardRows.length > 0) {
+        payload.reply_markup = {
+          keyboard: keyboardRows,
+          one_time_keyboard: true,
+          resize_keyboard: true,
+        };
+      }
+
       const res = await fetch(`https://api.telegram.org/bot${tgCfg.botToken}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: formattedText,
-          parse_mode: "HTML",
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -179,18 +214,38 @@ export class TelegramChannelStrategy implements IChannelStrategy {
       const data = payload.raw as any;
 
       // Extract update fields
-      const messageObj = data.message;
+      let messageObj = data.message;
+      let bodyText = "";
+      let isCallback = false;
+      let callbackQueryId = "";
+
+      if (data.callback_query) {
+        isCallback = true;
+        callbackQueryId = data.callback_query.id;
+        messageObj = data.callback_query.message;
+        bodyText = data.callback_query.data || "";
+      }
+
       if (!messageObj) {
         return { success: false, error: "Missing message object in update payload" };
       }
 
       const chatId = messageObj.chat?.id;
-      const fromUser = messageObj.from;
-      const bodyText = messageObj.text || "";
+      const fromUser = isCallback && data.callback_query ? data.callback_query.from : messageObj.from;
+      const finalBodyText = bodyText || messageObj.text || "";
       const messageId = messageObj.message_id?.toString() || "";
 
-      if (!chatId || !bodyText) {
+      if (!chatId || !finalBodyText) {
         return { success: false, error: "Missing chat ID or message text" };
+      }
+
+      const tgCfg = (await Channel.findById(payload.channelId).lean())?.config.telegram;
+      if (isCallback && tgCfg?.botToken) {
+        fetch(`https://api.telegram.org/bot${tgCfg.botToken}/answerCallbackQuery`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callback_query_id: callbackQueryId }),
+        }).catch((err) => logger.error("[TelegramChannelStrategy] Failed to answer callback query", err));
       }
 
       const senderName = fromUser
@@ -252,7 +307,7 @@ export class TelegramChannelStrategy implements IChannelStrategy {
         organizationId,
         senderId: chatId.toString(),
         type: "text" as const,
-        content: bodyText,
+        content: finalBodyText,
         metadata: {
           source: "telegram_channel",
           channelId: payload.channelId,

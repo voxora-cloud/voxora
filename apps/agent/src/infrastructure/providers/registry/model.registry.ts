@@ -1,8 +1,7 @@
 import { ProviderType } from "../types/ai.types";
+import config from "../../../config";
 
 // ── LLM Model Registry ────────────────────────────────────────────────────────
-// This is the ONLY place where LLM model capabilities are defined.
-// Never use model.includes("claude") or similar magic strings.
 export interface LLMModelConfig {
   provider: ProviderType;
   contextWindow: number;
@@ -10,179 +9,56 @@ export interface LLMModelConfig {
   supportsVision: boolean;
   supportsReasoning: boolean;
   supportsStreaming: boolean;
-  /**
-   * Fallback priority — lower number = tried earlier in the fallback chain.
-   * The primary model (from BEDROCK_MODEL env) is always first regardless.
-   * Models without a priority default to 99 (tried last).
-   *
-   * InteraOne fallback order: Nova Pro (primary) → Kimi(1) → Claude(2) → GPT(3)
-   */
   fallbackPriority?: number;
 }
+
 export const LLM_REGISTRY: Record<string, LLMModelConfig> = {
-  // ── OpenAI GPT via Bedrock (priority 3) ────────────────────────────────────
-  "openai.gpt-oss-120b-1:0": {
-    provider: "bedrock",
-    contextWindow: 128_000,
+  // ── Hugging Face Models ─────────────────────────────────────────────────────
+  "meta-llama/Llama-4-Maverick-17B-128E-Instruct": {
+    provider: "huggingface",
+    contextWindow: 1_000_000,
     supportsTools: true,
     supportsVision: true,
-    supportsReasoning: false,
-    supportsStreaming: true,
-    fallbackPriority: 3,
-  },
-
-  // ── Anthropic Claude via Bedrock (priority 2) ─────────────────────────────
-  "anthropic.claude-sonnet-4-5-20250929-v1:0": {
-    provider: "bedrock",
-    contextWindow: 200_000,
-    supportsTools: true,
-    supportsVision: true,
-    supportsReasoning: false,
-    supportsStreaming: true,
-    fallbackPriority: 2,
-  },
-  "anthropic.claude-haiku-4-5-20251001-v1:0": {
-    provider: "bedrock",
-    contextWindow: 200_000,
-    supportsTools: true,
-    supportsVision: true,
-    supportsReasoning: false,
-    supportsStreaming: true,
-    fallbackPriority: 2,
-  },
-  "anthropic.claude-sonnet-4-6": {
-    provider: "bedrock",
-    contextWindow: 200_000,
-    supportsTools: true,
-    supportsVision: true,
-    supportsReasoning: true,
-    supportsStreaming: true,
-    fallbackPriority: 2,
-  },
-
-
-  // ── Amazon Nova via Bedrock (priority 4 — same family as primary, last resort) ──
-  "us.amazon.nova-pro-v1:0": {
-    provider: "bedrock",
-    contextWindow: 300_000,
-    supportsTools: true,
-    supportsVision: true,
-    supportsReasoning: false,
-    supportsStreaming: true,
-    fallbackPriority: 4,
-  },
-  "us.amazon.nova-lite-v1:0": {
-    provider: "bedrock",
-    contextWindow: 300_000,
-    supportsTools: true,
-    supportsVision: true,
-    supportsReasoning: false,
-    supportsStreaming: true,
-    fallbackPriority: 4,
-  },
-  "us.amazon.nova-micro-v1:0": {
-    provider: "bedrock",
-    contextWindow: 128_000,
-    supportsTools: false,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-    fallbackPriority: 4,
-  },
-
-  // ── Moonshot Kimi via Bedrock (priority 1 — first fallback) ────────────────
-  "moonshotai.kimi-k2.5": {
-    provider: "bedrock",
-    contextWindow: 200_000,
-    supportsTools: true,
-    supportsVision: false,
     supportsReasoning: false,
     supportsStreaming: true,
     fallbackPriority: 1,
   },
-
-  // ── Ollama (local/self-hosted) ───────────────────────────────────────────
-  "llama3.2": {
-    provider: "ollama",
-    contextWindow: 128_000,
+  "meta-llama/Llama-4-Scout-17B-16E-Instruct": {
+    provider: "huggingface",
+    contextWindow: 10_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 2,
+  },
+  "deepseek-ai/DeepSeek-V4-Flash": {
+    provider: "huggingface",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 3,
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+    provider: "huggingface",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 4,
+  },
+  "mistralai/Mistral-Large-3-2512": {
+    provider: "huggingface",
+    contextWindow: 256_000,
     supportsTools: true,
     supportsVision: false,
     supportsReasoning: false,
     supportsStreaming: true,
+    fallbackPriority: 5,
   },
-  "llama3.1": {
-    provider: "ollama",
-    contextWindow: 128_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "llama3.1:8b": {
-    provider: "ollama",
-    contextWindow: 128_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "llama3.1:70b": {
-    provider: "ollama",
-    contextWindow: 128_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "mistral": {
-    provider: "ollama",
-    contextWindow: 32_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "mixtral": {
-    provider: "ollama",
-    contextWindow: 32_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "qwen2.5": {
-    provider: "ollama",
-    contextWindow: 128_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "qwen2.5:32b": {
-    provider: "ollama",
-    contextWindow: 128_000,
-    supportsTools: true,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "phi3": {
-    provider: "ollama",
-    contextWindow: 128_000,
-    supportsTools: false,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  "gemma2": {
-    provider: "ollama",
-    contextWindow: 8_000,
-    supportsTools: false,
-    supportsVision: false,
-    supportsReasoning: false,
-    supportsStreaming: true,
-  },
-  // ── Hugging Face ─────────────────────────────────────────────────────────
   "meta-llama/Llama-3.3-70B-Instruct": {
     provider: "huggingface",
     contextWindow: 128_000,
@@ -190,18 +66,111 @@ export const LLM_REGISTRY: Record<string, LLMModelConfig> = {
     supportsVision: false,
     supportsReasoning: false,
     supportsStreaming: true,
+    fallbackPriority: 6,
   },
-
-  "deepseek-ai/DeepSeek-V4-Flash": {
+  "deepseek-ai/DeepSeek-R1": {
     provider: "huggingface",
     contextWindow: 128_000,
     supportsTools: true,
     supportsVision: false,
-    supportsReasoning: false,
+    supportsReasoning: true,
     supportsStreaming: true,
+    fallbackPriority: 7,
   },
 
-  // ── OpenAI ───────────────────────────────────────────────────────────────
+  // ── AWS Bedrock Models ──────────────────────────────────────────────────────
+  "anthropic.claude-opus-4-8": {
+    provider: "bedrock",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 1,
+  },
+  "us.anthropic.claude-sonnet-4-6": {
+    provider: "bedrock",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 2,
+  },
+  "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+    provider: "bedrock",
+    contextWindow: 200_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 3,
+  },
+  "amazon.nova-2-lite-v1:0": {
+    provider: "bedrock",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 4,
+  },
+  "amazon.nova-2-pro-v1:0": {
+    provider: "bedrock",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 5,
+  },
+  "amazon.nova-pro-v1:0": {
+    provider: "bedrock",
+    contextWindow: 300_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 6,
+  },
+  "anthropic.claude-3-5-sonnet-20241022-v2:0": {
+    provider: "bedrock",
+    contextWindow: 200_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 7,
+  },
+  "meta.llama4-maverick-17b-instruct-v1:0": {
+    provider: "bedrock",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 8,
+  },
+
+  // ── OpenAI Models ───────────────────────────────────────────────────────────
+  "gpt-5.5": {
+    provider: "openai",
+    contextWindow: 400_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 1,
+  },
+  "o3-mini": {
+    provider: "openai",
+    contextWindow: 200_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: true,
+    supportsStreaming: true,
+    fallbackPriority: 3,
+  },
   "gpt-4o": {
     provider: "openai",
     contextWindow: 128_000,
@@ -209,109 +178,131 @@ export const LLM_REGISTRY: Record<string, LLMModelConfig> = {
     supportsVision: true,
     supportsReasoning: false,
     supportsStreaming: true,
+    fallbackPriority: 2,
   },
-  "gpt-4o-mini": {
-    provider: "openai",
-    contextWindow: 128_000,
+
+  // ── Ollama Models ───────────────────────────────────────────────────────────
+  "llama4:scout": {
+    provider: "ollama",
+    contextWindow: 10_000_000,
     supportsTools: true,
     supportsVision: true,
     supportsReasoning: false,
     supportsStreaming: true,
+    fallbackPriority: 1,
   },
-  "o1-mini": {
-    provider: "openai",
+  "llama4:maverick": {
+    provider: "ollama",
+    contextWindow: 1_000_000,
+    supportsTools: true,
+    supportsVision: true,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 2,
+  },
+  "mistral-large3": {
+    provider: "ollama",
+    contextWindow: 256_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 3,
+  },
+  "deepseek-r1:70b": {
+    provider: "ollama",
     contextWindow: 128_000,
     supportsTools: true,
     supportsVision: false,
     supportsReasoning: true,
     supportsStreaming: true,
+    fallbackPriority: 4,
+  },
+  "llama3.3": {
+    provider: "ollama",
+    contextWindow: 128_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 5,
+  },
+  "qwen2.5:72b": {
+    provider: "ollama",
+    contextWindow: 128_000,
+    supportsTools: true,
+    supportsVision: false,
+    supportsReasoning: false,
+    supportsStreaming: true,
+    fallbackPriority: 6,
   },
 };
 
-
 // ── Embedding Model Registry ──────────────────────────────────────────────────
-// Defines dimensions and flags — no string-based checks ever needed.
 export interface EmbeddingModelConfig {
   provider: ProviderType;
   dimensions: number;
-  /** If false, the dimensions field is fixed and cannot be customised in the API request */
   supportsCustomDimensions: boolean;
-  /** Bedrock pricing per 1k tokens — used for cost estimation */
   costPer1kTokens?: number;
 }
 
 export const EMBEDDING_REGISTRY: Record<string, EmbeddingModelConfig> = {
-  "amazon.titan-embed-text-v1": {
-    provider: "bedrock",
-    dimensions: 1536,
+  // Hugging Face Embeddings
+  "BAAI/bge-large-en-v1.5": {
+    provider: "huggingface",
+    dimensions: 1024,
     supportsCustomDimensions: false,
-    costPer1kTokens: 0.0001,
   },
+
+  // Bedrock Embeddings
   "amazon.titan-embed-text-v2:0": {
     provider: "bedrock",
     dimensions: 1024,
     supportsCustomDimensions: true,
-    costPer1kTokens: 0.00002,
   },
-  "nomic-embed-text": {
-    provider: "ollama",
-    dimensions: 768,
-    supportsCustomDimensions: false,
-    costPer1kTokens: 0,
+
+  // OpenAI Embeddings
+  "text-embedding-3-small": {
+    provider: "openai",
+    dimensions: 1024,
+    supportsCustomDimensions: true,
   },
+  "text-embedding-3-large": {
+    provider: "openai",
+    dimensions: 1024,
+    supportsCustomDimensions: true,
+  },
+
+  // Ollama Embeddings
   "mxbai-embed-large": {
     provider: "ollama",
     dimensions: 1024,
     supportsCustomDimensions: false,
-    costPer1kTokens: 0,
-  },
-  "all-MiniLM-L6-v2": {
-    provider: "ollama",
-    dimensions: 384,
-    supportsCustomDimensions: false,
-    costPer1kTokens: 0,
-  },
-  "snowflake-arctic-embed": {
-    provider: "ollama",
-    dimensions: 1024,
-    supportsCustomDimensions: false,
-    costPer1kTokens: 0,
-  },
-  // ── Hugging Face ─────────────────────────────────────────────────────────
-  "sentence-transformers/all-MiniLM-L6-v2": {
-    provider: "huggingface",
-    dimensions: 384,
-    supportsCustomDimensions: false,
-    costPer1kTokens: 0,
-  },
-  // ── OpenAI ───────────────────────────────────────────────────────────────
-  "text-embedding-3-small": {
-    provider: "openai",
-    dimensions: 1536,
-    supportsCustomDimensions: true,
-    costPer1kTokens: 0.00002,
-  },
-  "text-embedding-3-large": {
-    provider: "openai",
-    dimensions: 3072,
-    supportsCustomDimensions: true,
-    costPer1kTokens: 0.00013,
-  },
-  "text-embedding-ada-002": {
-    provider: "openai",
-    dimensions: 1536,
-    supportsCustomDimensions: false,
-    costPer1kTokens: 0.0001,
   },
 };
+
+export function hasProviderCredentials(provider: ProviderType): boolean {
+  switch (provider) {
+    case "huggingface":
+      return !!config.llm.huggingface?.token;
+    case "openai":
+      return !!config.llm.openai?.apiKey;
+    case "bedrock":
+      return !!(config.llm.bedrock?.accessKeyId && config.llm.bedrock?.secretAccessKey);
+    case "ollama":
+      return true; // Ollama is local, doesn't require credentials
+    default:
+      return false;
+  }
+}
 
 /** Look up an LLM model config, falling back to a sensible default if unknown */
 export function getLLMModelConfig(modelId: string): LLMModelConfig {
   return (
     LLM_REGISTRY[modelId] ?? {
-      provider: "bedrock" as ProviderType,
-      contextWindow: 8_192,
-      supportsTools: false,
+      provider: "huggingface" as ProviderType,
+      contextWindow: 128_000,
+      supportsTools: true,
       supportsVision: false,
       supportsReasoning: false,
       supportsStreaming: true,

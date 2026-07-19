@@ -48,6 +48,8 @@ interface WidgetAdvancedConfigFormProps {
   beforeContent?: ReactNode;
   generalError?: string;
   onSaveDomain?: () => void;
+  isSubscriptionExpired?: boolean;
+  isQuotaExhausted?: boolean;
 }
 
 type TabId = "general" | "appearance" | "ai" | "behavior" | "conversation" | "features" | "domain";
@@ -187,6 +189,8 @@ export function WidgetAdvancedConfigForm({
   beforeContent,
   generalError,
   onSaveDomain,
+  isSubscriptionExpired = false,
+  isQuotaExhausted = false,
 }: WidgetAdvancedConfigFormProps) {
   const [activeTab, setActiveTab] = useState<TabId>("appearance");
   const [pageRuleInput, setPageRuleInput] = useState("");
@@ -400,23 +404,39 @@ export function WidgetAdvancedConfigForm({
           subtitle="Control how AI responds and routes conversations."
         />
 
+        {(isSubscriptionExpired || isQuotaExhausted) && (
+          <div className="flex items-start gap-3 rounded-xl border border-rose-500/25 bg-rose-500/10 p-4 text-xs text-rose-600 dark:text-rose-400">
+            <span className="text-sm shrink-0">⚠️</span>
+            <div className="space-y-1">
+              <p className="font-semibold">AI Assistant Disabled</p>
+              <p className="leading-relaxed">
+                {isSubscriptionExpired
+                  ? "Your organization's billing subscription is inactive or has expired."
+                  : "Your monthly message quota limit is fully exhausted."}
+                {" "}AI has been disabled. All incoming customer messages are routed directly to human agents so no queries are lost.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="divide-y divide-border/60 overflow-hidden rounded-xl border border-border/70">
           <ToggleCard
             icon={Bot}
             label="Enable AI"
             description="Use AI to generate responses to visitor messages."
-            checked={formData.ai.enabled}
+            checked={isSubscriptionExpired || isQuotaExhausted ? false : formData.ai.enabled}
             onCheckedChange={(v) => updateAi("enabled", v)}
+            disabled={isSubscriptionExpired || isQuotaExhausted}
           />
           <ToggleCard
             icon={UserCheck}
             label="Fallback to human agent"
             description="Escalate to a live agent when AI confidence is low."
-            checked={formData.ai.fallbackToAgent}
+            checked={isSubscriptionExpired || isQuotaExhausted ? true : formData.ai.fallbackToAgent}
             onCheckedChange={(v) => updateAi("fallbackToAgent", v)}
+            disabled={isSubscriptionExpired || isQuotaExhausted}
           />
         </div>
-
       </div>
     ),
 

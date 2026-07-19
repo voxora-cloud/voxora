@@ -11,6 +11,11 @@ import {
   buildTicketLifecycleEmail,
   buildDomainVerificationPendingEmail,
   buildDomainVerificationCompletedEmail,
+  buildFreeCreditGrantedEmail,
+  buildUsageThresholdWarningEmail,
+  buildUsageExhaustedEmail,
+  buildSubscriptionActivatedEmail,
+  buildChannelVerifiedEmail,
   type TicketEmailDetails,
   type TicketEmailEvent,
   type EmailOptions,
@@ -49,7 +54,12 @@ async function enqueueEmail(
     | "ticket_resolved"
     | "ticket_closed"
     | "domain_verification_pending"
-    | "domain_verification_completed",
+    | "domain_verification_completed"
+    | "free_credit_granted"
+    | "usage_threshold_warning"
+    | "usage_exhausted"
+    | "subscription_activated"
+    | "channel_verified",
   payload: { to: string; subject: string; html: string; text?: string },
 ): Promise<void> {
   const from = await resolveFromEmail();
@@ -166,6 +176,71 @@ export async function enqueueDomainVerificationCompletedEmail(
   if (!isEmailEnabled()) return false;
   const { subject, html, text } = await buildDomainVerificationCompletedEmail(name, domain);
   await enqueueEmail("domain_verification_completed", { to, subject, html, text });
+  return true;
+}
+
+// ── Billing & channel lifecycle enqueue functions ────────────────────────────
+
+export async function enqueueFreeCreditGrantedEmail(
+  to: string,
+  name: string,
+  creditAmount: string,
+  resetDate: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildFreeCreditGrantedEmail(name, creditAmount, resetDate);
+  await enqueueEmail("free_credit_granted", { to, subject, html, text });
+  return true;
+}
+
+export async function enqueueUsageThresholdWarningEmail(
+  to: string,
+  name: string,
+  pct: number,
+  used: number,
+  limit: number,
+  resetDate: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildUsageThresholdWarningEmail(name, pct, used, limit, resetDate);
+  await enqueueEmail("usage_threshold_warning", { to, subject, html, text });
+  return true;
+}
+
+export async function enqueueUsageExhaustedEmail(
+  to: string,
+  name: string,
+  used: number,
+  limit: number,
+  resetDate: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildUsageExhaustedEmail(name, used, limit, resetDate);
+  await enqueueEmail("usage_exhausted", { to, subject, html, text });
+  return true;
+}
+
+export async function enqueueSubscriptionActivatedEmail(
+  to: string,
+  name: string,
+  planName: string,
+  nextBillingDate: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildSubscriptionActivatedEmail(name, planName, nextBillingDate);
+  await enqueueEmail("subscription_activated", { to, subject, html, text });
+  return true;
+}
+
+export async function enqueueChannelVerifiedEmail(
+  to: string,
+  name: string,
+  channelType: string,
+  channelName: string,
+): Promise<boolean> {
+  if (!isEmailEnabled()) return false;
+  const { subject, html, text } = await buildChannelVerifiedEmail(name, channelType, channelName);
+  await enqueueEmail("channel_verified", { to, subject, html, text });
   return true;
 }
 

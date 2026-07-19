@@ -229,3 +229,76 @@ export async function buildDomainVerificationCompletedEmail(
     settingsUrl,
   });
 }
+
+// ── Billing & channel lifecycle builders ─────────────────────────────────────
+
+export async function buildFreeCreditGrantedEmail(
+  name: string,
+  creditAmount: string,
+  resetDate: string,
+): Promise<BuiltEmail> {
+  return buildFromTemplate("free_credit_granted", {
+    name: escapeHtml(name),
+    creditAmount: escapeHtml(creditAmount),
+    resetDate: escapeHtml(resetDate),
+    dashboardUrl: getClientUrl(),
+  });
+}
+
+export async function buildUsageThresholdWarningEmail(
+  name: string,
+  pct: number,
+  used: number,
+  limit: number,
+  resetDate: string,
+): Promise<BuiltEmail> {
+  return buildFromTemplate("usage_threshold_warning", {
+    name: escapeHtml(name),
+    pct: String(pct),
+    used: String(used),
+    limit: String(limit),
+    resetDate: escapeHtml(resetDate),
+    upgradeUrl: `${getClientUrl()}/settings/billing`,
+  });
+}
+
+export async function buildUsageExhaustedEmail(
+  name: string,
+  used: number,
+  limit: number,
+  resetDate: string,
+): Promise<BuiltEmail> {
+  return buildFromTemplate("usage_exhausted", {
+    name: escapeHtml(name),
+    used: String(used),
+    limit: String(limit),
+    resetDate: escapeHtml(resetDate),
+    upgradeUrl: `${getClientUrl()}/settings/billing`,
+  });
+}
+
+export async function buildSubscriptionActivatedEmail(
+  name: string,
+  planName: string,
+  nextBillingDate: string,
+): Promise<BuiltEmail> {
+  return buildFromTemplate("subscription_activated", {
+    name: escapeHtml(name),
+    planName: escapeHtml(planName),
+    nextBillingDate: escapeHtml(nextBillingDate),
+    dashboardUrl: getClientUrl(),
+  });
+}
+
+export async function buildChannelVerifiedEmail(
+  name: string,
+  channelType: string,
+  channelName: string,
+): Promise<BuiltEmail> {
+  return buildFromTemplate("channel_verified", {
+    name: escapeHtml(name),
+    channelType: escapeHtml(channelType),
+    channelName: escapeHtml(channelName),
+    dashboardUrl: `${getClientUrl()}/settings/channels`,
+  });
+}

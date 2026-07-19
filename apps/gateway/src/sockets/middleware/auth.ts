@@ -16,7 +16,7 @@ export const authMiddleware = async (socket: any, next: (err?: Error) => void) =
       socket.data.user = {
         isWidget: true,
         orgId: decoded.organizationId,
-        widgetKey: decoded.publicKey,
+        widgetKey: decoded.InteraOnePublicKey || decoded.publicKey || null,
         userId: socket.id,
       };
       return next();

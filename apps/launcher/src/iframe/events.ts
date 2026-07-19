@@ -171,6 +171,26 @@ export function setupEventListeners() {
   }
 
   if (elements.messagesContainer) {
+    elements.messagesContainer.addEventListener("input", (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains("vx-otp-box")) {
+        target.value = target.value.replace(/[^0-9]/g, "");
+        if (target.value && target.nextElementSibling) {
+          (target.nextElementSibling as HTMLInputElement).focus();
+        }
+      }
+    });
+
+    elements.messagesContainer.addEventListener("keydown", (e) => {
+      const target = e.target as HTMLInputElement;
+      const key = e.key;
+      if (target.classList.contains("vx-otp-box")) {
+        if (key === "Backspace" && !target.value && target.previousElementSibling) {
+          (target.previousElementSibling as HTMLInputElement).focus();
+        }
+      }
+    });
+
     elements.messagesContainer.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
 
@@ -217,12 +237,71 @@ export function setupEventListeners() {
             submitBtn.disabled = true;
             sendFormResponse(`${fieldName}: ${radioEl.value}`);
           }
+        } else if (action === "submit-select") {
+          const selectEl = wrapper.querySelector(`select[name="${fieldName}"]`) as HTMLSelectElement | null;
+          if (selectEl) {
+            const val = selectEl.value;
+            if (!val) return;
+            selectEl.disabled = true;
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${val}`);
+          }
+        } else if (action === "submit-date") {
+          const dateEl = wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null;
+          if (dateEl) {
+            const val = dateEl.value;
+            if (!val) return;
+            dateEl.disabled = true;
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${val}`);
+          }
+        } else if (action === "submit-slider") {
+          const sliderEl = wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null;
+          if (sliderEl) {
+            const val = sliderEl.value;
+            sliderEl.disabled = true;
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${val}`);
+          }
+        } else if (action === "submit-rating") {
+          const ratingEl = wrapper.querySelector(`input[name="${fieldName}"]:checked`) as HTMLInputElement | null;
+          if (ratingEl) {
+            const val = ratingEl.value;
+            const radios = wrapper.querySelectorAll(`input[name="${fieldName}"]`) as NodeListOf<HTMLInputElement>;
+            radios.forEach(r => r.disabled = true);
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${val}`);
+          }
+        } else if (action === "submit-otp") {
+          const otpContainer = wrapper.querySelector(`[data-interaone-otp][name="${fieldName}"]`) as HTMLElement | null;
+          if (otpContainer) {
+            const boxes = otpContainer.querySelectorAll(".vx-otp-box") as NodeListOf<HTMLInputElement>;
+            let otpVal = "";
+            boxes.forEach(b => {
+              otpVal += b.value;
+            });
+            if (otpVal.length < 6) {
+              boxes.forEach(b => b.style.borderColor = "red");
+              return;
+            }
+            boxes.forEach(b => {
+              b.style.borderColor = "";
+              b.disabled = true;
+            });
+            submitBtn.disabled = true;
+            sendFormResponse(`${fieldName}: ${otpVal}`);
+          }
         } else if (action === "submit-group-form") {
           const formEl = submitBtn.closest("form[data-interaone-form]") as HTMLFormElement | null;
           if (formEl) {
             const inputs = formEl.querySelectorAll("input[data-interaone-input]") as NodeListOf<HTMLInputElement>;
             const checkboxes = formEl.querySelectorAll("input[data-interaone-checkbox]") as NodeListOf<HTMLInputElement>;
             const checkedRadios = formEl.querySelectorAll("input[data-interaone-radio]:checked") as NodeListOf<HTMLInputElement>;
+            const selects = formEl.querySelectorAll("select[data-interaone-select]") as NodeListOf<HTMLSelectElement>;
+            const dates = formEl.querySelectorAll("input[data-interaone-date]") as NodeListOf<HTMLInputElement>;
+            const sliders = formEl.querySelectorAll("input[data-interaone-slider]") as NodeListOf<HTMLInputElement>;
+            const checkedRatings = formEl.querySelectorAll("input[data-interaone-rating]:checked") as NodeListOf<HTMLInputElement>;
+            const otps = formEl.querySelectorAll("[data-interaone-otp]") as NodeListOf<HTMLElement>;
 
             const responses: string[] = [];
             let hasEmptyInput = false;
@@ -238,6 +317,28 @@ export function setupEventListeners() {
               }
             });
 
+            selects.forEach(sel => {
+              const val = sel.value;
+              if (!val) {
+                hasEmptyInput = true;
+                sel.style.borderColor = "red";
+              } else {
+                sel.style.borderColor = "";
+                responses.push(`${sel.name}: ${val}`);
+              }
+            });
+
+            dates.forEach(d => {
+              const val = d.value;
+              if (!val) {
+                hasEmptyInput = true;
+                d.style.borderColor = "red";
+              } else {
+                d.style.borderColor = "";
+                responses.push(`${d.name}: ${val}`);
+              }
+            });
+
             if (hasEmptyInput) return;
 
             checkboxes.forEach(cb => {
@@ -248,6 +349,23 @@ export function setupEventListeners() {
               responses.push(`${radio.name}: ${radio.value}`);
             });
 
+            sliders.forEach(slide => {
+              responses.push(`${slide.name}: ${slide.value}`);
+            });
+
+            checkedRatings.forEach(rating => {
+              responses.push(`${rating.name}: ${rating.value}`);
+            });
+
+            otps.forEach(otp => {
+              const name = otp.getAttribute("name") || "";
+              const boxes = otp.querySelectorAll(".vx-otp-box") as NodeListOf<HTMLInputElement>;
+              let val = "";
+              boxes.forEach(b => val += b.value);
+              responses.push(`${name}: ${val}`);
+              boxes.forEach(b => b.disabled = true);
+            });
+
             const combinedText = responses.join("\n");
             if (!combinedText) return;
 
@@ -255,6 +373,11 @@ export function setupEventListeners() {
             checkboxes.forEach(cb => cb.disabled = true);
             const allRadios = formEl.querySelectorAll("input[data-interaone-radio]") as NodeListOf<HTMLInputElement>;
             allRadios.forEach(r => r.disabled = true);
+            selects.forEach(s => s.disabled = true);
+            dates.forEach(d => d.disabled = true);
+            sliders.forEach(s => s.disabled = true);
+            const allRatings = formEl.querySelectorAll("input[data-interaone-rating]") as NodeListOf<HTMLInputElement>;
+            allRatings.forEach(r => r.disabled = true);
             submitBtn.disabled = true;
 
             sendFormResponse(combinedText);

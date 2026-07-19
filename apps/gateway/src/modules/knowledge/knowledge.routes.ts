@@ -68,6 +68,39 @@ router.patch("/ai/:documentId/status", validateAiSecret, aiUpdateDocStatus);
  */
 router.get("/ai/:documentId/sync-info", validateAiSecret, aiGetSyncInfo);
 
+/**
+ * @openapi
+ * /knowledge/ai/unanswered-questions:
+ *   post:
+ *     summary: Save unanswered questions identified by AI
+ *     tags:
+ *       - Knowledge
+ *     parameters:
+ *       - in: header
+ *         name: x-ai-tool-secret
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - question
+ *               - conversationId
+ *             properties:
+ *               question:
+ *                 type: string
+ *               conversationId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Unanswered question saved successfully
+ *       401:
+ *         description: Invalid AI secret
+ */
 router.post("/ai/unanswered-questions", validateAiSecret, aiSaveUnansweredQuestion);
 
 // ─── Admin Dashboard Routes (JWT required) ───────────────────────────────────

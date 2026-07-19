@@ -1,7 +1,10 @@
 import { redisClient } from "@shared/infra/redis";
-import { Conversation, Message } from "@shared/models";
+import { Conversation, Message, User, Membership } from "@shared/models";
 import { ChannelService } from "@modules/channels/channels.service";
 import { incrementMessageUsage } from "@shared/security/middleware";
+import { resolveUsagePeriodAndReset } from "@shared/security/middleware/rate-limit";
+import { resolveOrganizationPlan } from "@shared/ee";
+import { enqueueUsageThresholdWarningEmail, enqueueUsageExhaustedEmail } from "@shared/queues/email.queue";
 import { tracker } from "@shared/utils/tracker";
 import logger from "@shared/core/logger";
 import { socketService } from "../services/socket.service";
@@ -65,6 +68,14 @@ export async function startAIResponseConsumer(): Promise<void> {
 
       // ── Message usage tracking ──────────────────────────────────────────────
       const usageResult = await incrementMessageUsage(organizationId);
+
+      handleUsageThresholdEmails(
+        organizationId,
+        usageResult.used,
+        usageResult.limit,
+        usageResult.blocked
+      ).catch((err) => logger.error("[AI Response] Error handling threshold emails:", err));
+
       if (usageResult.blocked) {
         logger.warn(
           `[AI Response] Message limit reached for org=${organizationId} (used=${usageResult.used} limit=${usageResult.limit}) — dropping AI response`,
@@ -206,3 +217,74 @@ export async function startAIResponseConsumer(): Promise<void> {
 
   logger.info("AI response subscriber ready");
 }
+
+async function handleUsageThresholdEmails(
+  organizationId: string,
+  used: number,
+  limit: number | null,
+  blocked: boolean
+): Promise<void> {
+  if (limit === null) return;
+
+  const pct = Math.round((used / limit) * 100);
+  const is90 = pct >= 90 && pct < 100;
+  const is100 = pct >= 100 || blocked;
+
+  if (!is90 && !is100) return;
+
+  try {
+    const plan = await resolveOrganizationPlan(organizationId);
+    const { period, resetAt } = await resolveUsagePeriodAndReset(organizationId, plan);
+
+    const type = is100 ? "100pct" : "90pct";
+    const cacheKey = `usage:warned:${type}:${organizationId}:${period}`;
+
+    const alreadyWarned = await redisClient.get(cacheKey);
+    if (alreadyWarned) return;
+
+    const ownerMembership = await Membership.findOne({
+      organizationId,
+      role: "owner",
+      inviteStatus: "accepted",
+    }).lean();
+
+    if (!ownerMembership) return;
+
+    const ownerUser = await User.findById(ownerMembership.userId).lean();
+    if (!ownerUser || !ownerUser.email) return;
+
+    const resetDateStr = resetAt.toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    if (is100) {
+      const queued = await enqueueUsageExhaustedEmail(
+        ownerUser.email,
+        ownerUser.name,
+        used,
+        limit,
+        resetDateStr
+      );
+      if (queued) {
+        await redisClient.set(cacheKey, "1", { EX: 35 * 24 * 60 * 60 });
+      }
+    } else if (is90) {
+      const queued = await enqueueUsageThresholdWarningEmail(
+        ownerUser.email,
+        ownerUser.name,
+        pct,
+        used,
+        limit,
+        resetDateStr
+      );
+      if (queued) {
+        await redisClient.set(cacheKey, "1", { EX: 35 * 24 * 60 * 60 });
+      }
+    }
+  } catch (err) {
+    logger.error("[handleUsageThresholdEmails] Failed to send usage threshold email:", err);
+  }
+}
+

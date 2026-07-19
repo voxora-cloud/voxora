@@ -117,7 +117,15 @@ export class WhatsAppChannelStrategy implements IChannelStrategy {
       
       const to = input.to.startsWith("whatsapp:") ? input.to : `whatsapp:${input.to}`;
 
-      const formattedBody = parseWhatsAppMarkdown(input.body);
+      // Clean HTML tags from body text
+      const cleanedBody = input.body
+        .replace(/<interaone-button\s+action="([^"]+)">([^<]+)<\/interaone-button>/gi, '')
+        .replace(/<interaone-radio\s+name="[^"]+"\s+options="([^"]+)"\s*\/?>/gi, '')
+        .replace(/<interaone-input\s+name="([^"]+)"\s+placeholder="([^"]+)"\s*\/?>/gi, '')
+        .replace(/<\/?interaone-form[^>]*>/gi, '')
+        .trim();
+
+      const formattedBody = parseWhatsAppMarkdown(cleanedBody);
       const message = await client.messages.create({
         from,
         to,

@@ -13,6 +13,11 @@ export type EmailTemplateType =
   | "ticket_updated"
   | "ticket_resolved"
   | "ticket_closed"
+  | "free_credit_granted"
+  | "usage_threshold_warning"
+  | "usage_exhausted"
+  | "subscription_activated"
+  | "channel_verified"
   | "domain_verification_pending"
   | "domain_verification_completed";
 
@@ -50,6 +55,11 @@ const EmailTemplateSchema = new Schema<IEmailTemplate>(
          "ticket_updated",
          "ticket_resolved",
          "ticket_closed",
+         "free_credit_granted",
+         "usage_threshold_warning",
+         "usage_exhausted",
+         "subscription_activated",
+         "channel_verified",
          "domain_verification_pending",
          "domain_verification_completed",
       ],
