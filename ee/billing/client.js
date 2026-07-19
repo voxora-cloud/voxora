@@ -13,6 +13,8 @@
 /**
  * @typedef {object} DodoClient
  * @property {{ create: (params: object) => Promise<object> }} checkoutSessions
+ * @property {{ retrieve: (id: string) => Promise<any>, changePlan: (id: string, params: object) => Promise<any> }} subscriptions
+ * @property {{ customerPortal: { create: (customerId: string) => Promise<any> } }} customers
  */
 
 /**
@@ -31,9 +33,12 @@ function createClient() {
   const mod = /** @type {any} */ (require("dodopayments"));
   const DodoPayments = /** @type {new (opts: object) => DodoClient} */ (mod.default || mod);
 
+  const isProduction = process.env.NODE_ENV === "production";
+  const defaultEnv = isProduction ? "live_mode" : "test_mode";
+
   return new DodoPayments({
     bearerToken: process.env.DODO_PAYMENTS_API_KEY,
-    environment: process.env.DODO_PAYMENTS_ENVIRONMENT || "test_mode",
+    environment: process.env.DODO_PAYMENTS_ENVIRONMENT || defaultEnv,
   });
 }
 

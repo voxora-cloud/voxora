@@ -13,11 +13,14 @@
 const { createDodoCheckoutSession } = require("./checkout");
 const { verifyWebhookSignature } = require("./webhook/verify");
 const { parseSubscriptionEvent } = require("./webhook/parse");
+const { createClient } = require("./client");
+const { resolveProductId } = require("./products");
 
 /**
  * @typedef {import("./checkout").CheckoutResult} CheckoutResult
  * @typedef {import("./webhook/parse").ParsedSubscriptionEvent} ParsedSubscriptionEvent
  * @typedef {import("./webhook/verify").SignatureVerificationResult} SignatureVerificationResult
+ * @typedef {import("./client").DodoClient} DodoClient
  * @typedef {Record<string, string | string[] | undefined>} HttpHeaders
  *
  * @typedef {object} MongooseModel
@@ -165,10 +168,40 @@ async function handleSubscriptionEvent({ action, organizationId, subscriptionId,
 module.exports = {
   /**
    * Creates a Dodo Payments hosted checkout session and returns the redirect URL.
-   * @param {{ organizationId: string, userId: string, targetPlan?: "pro" | "proplus" }} params
+   * @param {{ organizationId: string, userId: string, subscriptionId?: string, targetPlan?: "pro" | "proplus" }} params
    * @returns {Promise<CheckoutResult>}
    */
-  async createPortalSession({ organizationId, userId, targetPlan }) {
+  async createPortalSession({ organizationId, userId, subscriptionId, targetPlan }) {
+    if (subscriptionId) {
+      try {
+        const client = /** @type {DodoClient} */ (createClient());
+        const sub = await client.subscriptions.retrieve(subscriptionId);
+        
+        // If targetPlan is specified and differs from current product, perform plan change via API
+        const newProductId = targetPlan ? resolveProductId(targetPlan) : null;
+        if (sub && newProductId && sub.product_id !== newProductId) {
+          await client.subscriptions.changePlan(subscriptionId, {
+            product_id: newProductId,
+            quantity: 1,
+            proration_billing_mode: "prorated_immediately",
+          });
+          
+          const successUrl =
+            process.env.DODO_PAYMENTS_SUCCESS_URL ||
+            `${process.env.CLIENT_URL || "http://localhost:5173"}/dashboard/settings/billing`;
+          return { url: successUrl, provider: "dodo" };
+        }
+
+        if (sub && sub.customer && sub.customer.customer_id) {
+          const session = await client.customers.customerPortal.create(sub.customer.customer_id);
+          if (session && session.link) {
+            return { url: session.link, provider: "dodo" };
+          }
+        }
+      } catch (err) {
+        console.error("[createPortalSession] Failed to manage Dodo subscription session:", err);
+      }
+    }
     return createDodoCheckoutSession({ organizationId, userId, targetPlan: targetPlan ?? "pro" });
   },
 

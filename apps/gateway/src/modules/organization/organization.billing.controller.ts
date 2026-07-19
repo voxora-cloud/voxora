@@ -246,6 +246,13 @@ export class OrganizationBillingController {
       const { userId } = (req as AuthenticatedRequest).user;
       const requestedPlan = (req.query.targetPlan || "pro").toString().toLowerCase();
       const targetPlan = requestedPlan === "proplus" ? "proplus" : "pro";
+      
+      const org = await Organization.findById(activeOrganizationId).select("plan").lean<{ plan?: string }>();
+      const currentPlan = normalizePlan(org?.plan);
+      
+      const sub = await BillingSubscription.findOne({ organizationId: activeOrganizationId }).lean();
+      const isPortalRequest = targetPlan === currentPlan;
+
       const ee = loadEeModule();
 
       if (!ee?.billing?.createPortalSession) {
@@ -256,6 +263,7 @@ export class OrganizationBillingController {
       const data = await ee.billing.createPortalSession({
         organizationId: activeOrganizationId,
         userId,
+        subscriptionId: sub?.providerId || null,
         targetPlan,
       });
 

@@ -25,6 +25,7 @@ export type EeModule = {
       organizationId: string;
       userId: string;
       targetPlan?: "pro" | "proplus";
+      subscriptionId?: string | null;
     }) => Promise<{
       url: string;
       provider?: string;

@@ -183,6 +183,10 @@ install: ## Install dependencies
 		echo ""; \
 		exit 1; \
 	}
+	@echo "$(BLUE)🎭 Installing Playwright Chromium browser binary...$(NC)"
+	@pnpm --filter @InteraOne/agent exec playwright install chromium || { \
+		echo "$(YELLOW)⚠️  Playwright installation failed, but continuing...$(NC)"; \
+	}
 	@echo "$(GREEN)✅ Dependencies installed$(NC)"
 
 dev: ## Start development servers (api, web, ai)
