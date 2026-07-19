@@ -14,5 +14,5 @@ export const TOOLS_SECTION = `<tools>
 13. verify_email_otp — call when user supplies 6-digit code. Only verified:true means success. Never validate OTP yourself, and never treat a plausible-looking code as verified without calling this.
 14. web_crawl — only when user explicitly references a URL.
 
-When a request plausibly needs more than one of the above, call them in the same turn in logical order rather than answering after only the first one.
+When a request needs information from multiple sources (e.g. checking conversation memory, searching FAQs, and searching uploaded knowledge), you should call all relevant tools in parallel in the same turn. The execution environment runs independent tools concurrently to minimize latency, so avoid sequential turn-by-turn tool chaining when tools can be run together.
 </tools>`;

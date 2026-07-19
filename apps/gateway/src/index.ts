@@ -71,7 +71,14 @@ class Application {
     this.app.use(globalRateLimit);
 
     // Body parsing middleware
-    this.app.use(express.json({ limit: "10mb" }));
+    this.app.use(
+      express.json({
+        limit: "10mb",
+        verify: (req: any, _res, buf) => {
+          req.rawBody = buf.toString("utf8");
+        },
+      }),
+    );
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
     // Request logging

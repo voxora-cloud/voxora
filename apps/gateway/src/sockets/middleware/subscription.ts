@@ -1,4 +1,5 @@
 import { Organization } from "@shared/models";
+import { isQuotaExhausted } from "../../shared/security/middleware/rate-limit";
 
 export const subscriptionMiddleware = async (socket: any, next: (err?: Error) => void) => {
   const user = socket.data.user;
@@ -11,11 +12,15 @@ export const subscriptionMiddleware = async (socket: any, next: (err?: Error) =>
       .select("subscriptionStatus")
       .lean();
 
-    user.subscriptionExpired = org
+    const isSubExpired = org
       ? org.subscriptionStatus !== null &&
         org.subscriptionStatus !== undefined &&
         org.subscriptionStatus !== "active"
       : false;
+
+    const isExhausted = await isQuotaExhausted(user.orgId.toString());
+
+    user.subscriptionExpired = isSubExpired || isExhausted;
 
     next();
   } catch (err: any) {

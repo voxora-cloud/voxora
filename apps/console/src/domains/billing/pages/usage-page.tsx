@@ -198,8 +198,8 @@ export function UsagePage() {
 
     const loadEntitlements = async () => {
       try {
-        const response = await apiClient.get<EntitlementsResponse>(
-          `/organizations/${orgId}/billing/entitlements`,
+        const res = await apiClient.get<EntitlementsResponse>(
+          `/organizations/${orgId}/billing/entitlements?t=${Date.now()}`
         );
         const data = response.data;
         if (!data) return;
@@ -215,8 +215,8 @@ export function UsagePage() {
 
     const loadUsage = async () => {
       try {
-        const response = await apiClient.get<UsageResponse>(`/organizations/${orgId}/billing/usage`);
-        if (response.data) setUsageSnapshot(response.data);
+        const res = await apiClient.get<UsageResponse>(`/organizations/${orgId}/billing/usage?t=${Date.now()}`);
+        if (res?.data) setUsageSnapshot(res.data);
       } catch {
         // The entitlement allocation can still render without live usage.
       }

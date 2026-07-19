@@ -344,8 +344,8 @@ export function PlansPage() {
 
     const loadEntitlements = async () => {
       try {
-        const response = await apiClient.get<EntitlementsResponse>(
-          `/organizations/${orgId}/billing/entitlements`,
+        const res = await apiClient.get<EntitlementsResponse>(
+          `/organizations/${orgId}/billing/entitlements?t=${Date.now()}`
         );
         const data = response.data;
         if (!data) return;

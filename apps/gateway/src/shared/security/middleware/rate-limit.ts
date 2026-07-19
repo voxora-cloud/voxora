@@ -240,3 +240,17 @@ export async function getOrganizationUsage(organizationId: string): Promise<OrgU
     },
   };
 }
+
+export async function isQuotaExhausted(organizationId: string): Promise<boolean> {
+  if (getInteraOneMode() === "self-host") {
+    return false;
+  }
+  const plan = await resolveOrganizationPlan(organizationId);
+  const limits = getPlanLimits(plan);
+  const limit = limits.messages;
+  if (limit === null) return false;
+
+  const used = await resolveCurrentCount("messages", organizationId, plan);
+  return used >= limit;
+}
+
