@@ -98,9 +98,12 @@ function inferPlanFromPayload(payload) {
  */
 function extractPeriodEnd(payload) {
   const raw =
+    getObject(payload, "data.next_billing_date") ||
+    getObject(payload, "data.subscription.next_billing_date") ||
     getObject(payload, "data.current_period_end") ||
     getObject(payload, "data.current_billing_period_end") ||
-    getObject(payload, "data.subscription.current_period_end");
+    getObject(payload, "data.subscription.current_period_end") ||
+    getObject(payload, "next_billing_date");
 
   if (!raw) return undefined;
   const d = new Date(/** @type {any} */ (raw));

@@ -138,7 +138,7 @@ export function UsagePage() {
     const loadEntitlements = async () => {
       try {
         const res = await apiClient.get<EntitlementsResponse>(
-          `/organizations/${orgId}/billing/entitlements`
+          `/organizations/${orgId}/billing/entitlements?t=${Date.now()}`
         );
         const data = res.data;
         if (!data) return;
@@ -155,7 +155,7 @@ export function UsagePage() {
 
     const loadUsage = async () => {
       try {
-        const res = await apiClient.get<UsageResponse>(`/organizations/${orgId}/billing/usage`);
+        const res = await apiClient.get<UsageResponse>(`/organizations/${orgId}/billing/usage?t=${Date.now()}`);
         if (res?.data) setUsageSnapshot(res.data);
       } catch {
         // Non-critical

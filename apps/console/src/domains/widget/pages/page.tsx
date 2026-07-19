@@ -138,7 +138,7 @@ export function WidgetPage() {
       try {
         const [orgRes, usageRes] = await Promise.allSettled([
           apiClient.get<any>(`/organizations/${orgId}`),
-          apiClient.get<any>(`/organizations/${orgId}/billing/usage`),
+          apiClient.get<any>(`/organizations/${orgId}/billing/usage?t=${Date.now()}`),
         ]);
 
         if (orgRes.status === "fulfilled" && orgRes.value?.data?.organization) {
