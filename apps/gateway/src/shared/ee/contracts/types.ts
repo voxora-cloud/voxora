@@ -29,6 +29,7 @@ export type EeModule = {
       url: string;
       provider?: string;
     }>;
+    createClient?: () => any;
     verifyWebhookSignature?: (params: {
       headers: Record<string, string | string[] | undefined>;
       rawBody: string;

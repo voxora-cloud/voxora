@@ -47,7 +47,7 @@ export function UsageBanner() {
     const fetchUsage = async () => {
       try {
         const res = await apiClient.get<UsageApiResponse>(
-          `/organizations/${orgId}/billing/usage`,
+          `/organizations/${orgId}/billing/usage?t=${Date.now()}`,
         );
         if (res?.data) setSnapshot(res.data);
       } catch {

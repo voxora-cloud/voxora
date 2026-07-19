@@ -378,10 +378,9 @@ export class HuggingFaceLLMProvider implements LLMProvider {
         })),
       });
 
-      // Execute tools
-      for (const call of toolCalls) {
+      const executeSingleToolCall = async (call: typeof toolCalls[number]) => {
         const tool = tools.find((t) => t.name === call.function.name);
-        if (!tool) continue;
+        if (!tool) return;
 
         const toolMeta = toolLabels[call.function.name] || "Working on it";
 
@@ -481,6 +480,21 @@ export class HuggingFaceLLMProvider implements LLMProvider {
           error: stepError,
           timestamp: stepTimestamp,
         });
+      };
+
+      // Execute tools
+      const sequentialTools = ["create_ticket", "update_ticket", "close_ticket", "send_email", "escalate_to_human"];
+      const parallelCalls = toolCalls.filter((c) => !sequentialTools.includes(c.function.name));
+      const sequentialCalls = toolCalls.filter((c) => sequentialTools.includes(c.function.name));
+
+      // 1. Run parallel read/retrieval tools concurrently
+      if (parallelCalls.length > 0) {
+        await Promise.all(parallelCalls.map((call) => executeSingleToolCall(call)));
+      }
+
+      // 2. Run sequential write/mutation tools
+      for (const call of sequentialCalls) {
+        await executeSingleToolCall(call);
       }
     }
 

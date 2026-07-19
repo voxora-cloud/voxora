@@ -138,19 +138,19 @@ export function WidgetPage() {
       try {
         const [orgRes, usageRes] = await Promise.allSettled([
           apiClient.get<any>(`/organizations/${orgId}`),
-          apiClient.get<any>(`/organizations/${orgId}/billing/usage`),
+          apiClient.get<any>(`/organizations/${orgId}/billing/usage?t=${Date.now()}`),
         ]);
 
-        if (orgRes.status === "fulfilled" && orgRes.value?.data?.data?.organization) {
-          const org = orgRes.value.data.data.organization;
+        if (orgRes.status === "fulfilled" && orgRes.value?.data?.organization) {
+          const org = orgRes.value.data.organization;
           const isExpired = org?.subscriptionStatus !== null &&
             org?.subscriptionStatus !== undefined &&
             org?.subscriptionStatus !== "active";
           setIsSubscriptionExpired(isExpired);
         }
 
-        if (usageRes.status === "fulfilled" && usageRes.value?.data?.data?.usage?.messages) {
-          const msgUsage = usageRes.value.data.data.usage.messages;
+        if (usageRes.status === "fulfilled" && usageRes.value?.data?.usage?.messages) {
+          const msgUsage = usageRes.value.data.usage.messages;
           if (msgUsage.limit !== null && msgUsage.used >= msgUsage.limit) {
             setIsQuotaExhausted(true);
           }
