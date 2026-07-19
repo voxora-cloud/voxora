@@ -125,7 +125,7 @@ export class AuthService {
     enqueueFreeCreditGrantedEmail(
       ctx.userEmail,
       ctx.userName,
-      "500 AI messages",
+      "50 AI messages",
       resetDateStr
     ).catch((err) => console.error("[completeSignup] Failed to send free credits email:", err));
 
