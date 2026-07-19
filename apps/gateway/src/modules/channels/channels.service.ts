@@ -1,6 +1,7 @@
 import { Channel, IChannel, ChannelType } from "@shared/models/Channel";
 import { Conversation, Message, Organization, Ticket, Contact, User, Membership } from "@shared/models";
 import { aiQueue } from "@shared/infra/queue";
+import { isQuotaExhausted } from "../../shared/security/middleware/rate-limit";
 import { socketService } from "@sockets/services/socket.service";
 import { ChannelStrategyFactory } from "./core/ChannelStrategyFactory";
 import { SendMessageInput } from "./core/IChannelStrategy";
@@ -421,7 +422,14 @@ export class ChannelService {
           ) {
             // Unassigned and unescalated — let the AI handle it
             const org = await Organization.findById(channel.organizationId).select("subscriptionStatus").lean();
-            const subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
+            let subscriptionExpired = org ? (org.subscriptionStatus !== null && org.subscriptionStatus !== undefined && org.subscriptionStatus !== "active") : false;
+            
+            if (!subscriptionExpired) {
+              const isExhausted = await isQuotaExhausted(channel.organizationId.toString());
+              if (isExhausted) {
+                subscriptionExpired = true;
+              }
+            }
 
             await aiQueue.add("process", {
               organizationId: channel.organizationId.toString(),
