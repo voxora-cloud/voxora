@@ -263,8 +263,8 @@ export function showAgentConnectedCard(name: string) {
 
 export function adjustTextareaHeight() {
   if (!elements.messageInput) return;
-  elements.messageInput.style.height = "20px";
-  elements.messageInput.style.maxHeight = "20px";
+  elements.messageInput.style.height = "100%";
+  elements.messageInput.style.maxHeight = "100%";
 }
 
 function reportConversationState(started: boolean) {
