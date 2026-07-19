@@ -137,6 +137,139 @@ function applyConversationVisualStateFromHistory(conversation: any) {
   setComposerEnabled(true, 'Type your message...');
 }
 
+function parseIsoDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatSelectedDate(value: string): string {
+  const date = parseIsoDate(value);
+  if (!date) return 'Choose a date';
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+function closeSelectControl(control: Element) {
+  const trigger = control.querySelector('.vx-select-trigger');
+  const menu = control.querySelector('.vx-select-menu') as HTMLElement | null;
+  trigger?.setAttribute('aria-expanded', 'false');
+  trigger?.classList.remove('is-open');
+  if (menu) menu.hidden = true;
+}
+
+function closeDateControl(control: Element) {
+  const trigger = control.querySelector('.vx-date-trigger');
+  const calendar = control.querySelector('.vx-calendar') as HTMLElement | null;
+  trigger?.setAttribute('aria-expanded', 'false');
+  trigger?.classList.remove('is-open');
+  if (calendar) calendar.hidden = true;
+}
+
+function closeInteractivePopovers(container: Element, except?: Element) {
+  container.querySelectorAll('.vx-select-control').forEach(control => {
+    if (control !== except) closeSelectControl(control);
+  });
+  container.querySelectorAll('.vx-date-control').forEach(control => {
+    if (control !== except) closeDateControl(control);
+  });
+}
+
+function setGeneratedFieldInvalid(field: HTMLInputElement | HTMLSelectElement, invalid: boolean) {
+  field.classList.toggle('is-invalid', invalid);
+  if (invalid) field.setAttribute('aria-invalid', 'true');
+  else field.removeAttribute('aria-invalid');
+
+  const trigger = field.closest('.vx-select-control, .vx-date-control')
+    ?.querySelector('.vx-select-trigger, .vx-date-trigger');
+  trigger?.classList.toggle('is-invalid', invalid);
+  if (invalid) trigger?.setAttribute('aria-invalid', 'true');
+  else trigger?.removeAttribute('aria-invalid');
+}
+
+function setGeneratedFieldDisabled(field: HTMLInputElement | HTMLSelectElement, disabled: boolean) {
+  field.disabled = disabled;
+  const control = field.closest('.vx-select-control, .vx-date-control');
+  const trigger = control?.querySelector('.vx-select-trigger, .vx-date-trigger') as HTMLButtonElement | null;
+  if (trigger) trigger.disabled = disabled;
+  if (control?.classList.contains('vx-select-control')) closeSelectControl(control);
+  if (control?.classList.contains('vx-date-control')) closeDateControl(control);
+}
+
+function renderCalendar(control: HTMLElement) {
+  const input = control.querySelector('input[data-interaone-date]') as HTMLInputElement | null;
+  const monthLabel = control.querySelector('.vx-calendar-month');
+  const grid = control.querySelector('.vx-calendar-grid');
+  if (!input || !monthLabel || !grid) return;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const minDate = parseIsoDate(control.dataset.min || input.min || '');
+  const selectedDate = parseIsoDate(input.value);
+  const fallbackDate = minDate && minDate > today ? minDate : today;
+  const viewMatch = /^(\d{4})-(\d{1,2})$/.exec(control.dataset.view || '');
+  const viewDate = viewMatch
+    ? new Date(Number(viewMatch[1]), Number(viewMatch[2]) - 1, 1)
+    : new Date((selectedDate || fallbackDate).getFullYear(), (selectedDate || fallbackDate).getMonth(), 1);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  control.dataset.view = `${year}-${month + 1}`;
+  monthLabel.textContent = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(viewDate);
+
+  const firstVisibleDate = new Date(year, month, 1 - new Date(year, month, 1).getDay());
+  const fragment = document.createDocumentFragment();
+  for (let index = 0; index < 42; index += 1) {
+    const date = new Date(firstVisibleDate);
+    date.setDate(firstVisibleDate.getDate() + index);
+    const value = toIsoDate(date);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'vx-calendar-day';
+    button.textContent = String(date.getDate());
+    button.dataset.date = value;
+    button.setAttribute('aria-label', new Intl.DateTimeFormat(undefined, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(date));
+    button.classList.toggle('is-outside', date.getMonth() !== month);
+    button.classList.toggle('is-today', value === toIsoDate(today));
+    button.classList.toggle('is-selected', value === input.value);
+    if (minDate && date < minDate) button.disabled = true;
+    fragment.appendChild(button);
+  }
+  grid.replaceChildren(fragment);
+
+  const previousButton = control.querySelector('[data-calendar-action="previous-month"]') as HTMLButtonElement | null;
+  if (previousButton && minDate) {
+    previousButton.disabled = new Date(year, month, 0) < new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  }
+}
+
+function setDateControlValue(control: HTMLElement, value: string) {
+  const input = control.querySelector('input[data-interaone-date]') as HTMLInputElement | null;
+  const trigger = control.querySelector('.vx-date-trigger');
+  const label = control.querySelector('.vx-date-trigger-label');
+  if (!input || !trigger || !label) return;
+  input.value = value;
+  label.textContent = formatSelectedDate(value);
+  trigger.classList.toggle('has-value', Boolean(value));
+  setGeneratedFieldInvalid(input, false);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
 export function setupEventListeners() {
   if (elements.messageInput) {
     elements.messageInput.addEventListener("input", function (this: HTMLTextAreaElement) {
@@ -173,17 +306,75 @@ export function setupEventListeners() {
   if (elements.messagesContainer) {
     elements.messagesContainer.addEventListener("input", (e) => {
       const target = e.target as HTMLInputElement;
+      target.classList.remove("is-invalid");
+      target.removeAttribute("aria-invalid");
+      const generatedTrigger = target.closest(".vx-select-control, .vx-date-control")
+        ?.querySelector(".vx-select-trigger, .vx-date-trigger");
+      generatedTrigger?.classList.remove("is-invalid");
+      generatedTrigger?.removeAttribute("aria-invalid");
+      target.closest(".vx-rating-wrapper")?.classList.remove("is-invalid");
+
       if (target.classList.contains("vx-otp-box")) {
         target.value = target.value.replace(/[^0-9]/g, "");
+        target.closest(".vx-otp-container")?.querySelectorAll(".vx-otp-box").forEach(box => {
+          box.classList.remove("is-invalid");
+          box.removeAttribute("aria-invalid");
+        });
         if (target.value && target.nextElementSibling) {
           (target.nextElementSibling as HTMLInputElement).focus();
         }
+      }
+
+      if (target.classList.contains("vx-form-slider")) {
+        const min = Number(target.min || 0);
+        const max = Number(target.max || 100);
+        const value = Number(target.value);
+        const progress = max > min ? ((value - min) / (max - min)) * 100 : 0;
+        target.style.setProperty("--vx-range-progress", `${progress}%`);
+        const output = target.closest(".vx-form-row, .vx-slider-wrapper")?.querySelector(".vx-slider-value-output");
+        if (output) output.textContent = target.value;
       }
     });
 
     elements.messagesContainer.addEventListener("keydown", (e) => {
       const target = e.target as HTMLInputElement;
       const key = e.key;
+
+      const selectControl = target.closest(".vx-select-control");
+      if (selectControl && key === "Escape") {
+        closeSelectControl(selectControl);
+        (selectControl.querySelector(".vx-select-trigger") as HTMLButtonElement | null)?.focus();
+        return;
+      }
+
+      const selectOption = target.closest(".vx-select-option") as HTMLButtonElement | null;
+      if (selectOption && (key === "ArrowDown" || key === "ArrowUp")) {
+        e.preventDefault();
+        const options = Array.from(selectControl?.querySelectorAll(".vx-select-option") || []) as HTMLButtonElement[];
+        const currentIndex = options.indexOf(selectOption);
+        const nextIndex = key === "ArrowDown"
+          ? (currentIndex + 1) % options.length
+          : (currentIndex - 1 + options.length) % options.length;
+        options[nextIndex]?.focus();
+        return;
+      }
+
+      const selectTrigger = target.closest(".vx-select-trigger") as HTMLButtonElement | null;
+      if (selectTrigger && (key === "ArrowDown" || key === "ArrowUp")) {
+        e.preventDefault();
+        selectTrigger.click();
+        const options = Array.from(selectControl?.querySelectorAll(".vx-select-option") || []) as HTMLButtonElement[];
+        (key === "ArrowDown" ? options[0] : options[options.length - 1])?.focus();
+        return;
+      }
+
+      const dateControl = target.closest(".vx-date-control");
+      if (dateControl && key === "Escape") {
+        closeDateControl(dateControl);
+        (dateControl.querySelector(".vx-date-trigger") as HTMLButtonElement | null)?.focus();
+        return;
+      }
+
       if (target.classList.contains("vx-otp-box")) {
         if (key === "Backspace" && !target.value && target.previousElementSibling) {
           (target.previousElementSibling as HTMLInputElement).focus();
@@ -193,14 +384,115 @@ export function setupEventListeners() {
 
     elements.messagesContainer.addEventListener("click", (e) => {
       const target = e.target as HTMLElement;
+      const messagesContainer = e.currentTarget as HTMLElement;
+
+      const selectTrigger = target.closest(".vx-select-trigger") as HTMLButtonElement | null;
+      if (selectTrigger) {
+        e.preventDefault();
+        const control = selectTrigger.closest(".vx-select-control") as HTMLElement | null;
+        const menu = control?.querySelector(".vx-select-menu") as HTMLElement | null;
+        if (!control || !menu) return;
+        const willOpen = menu.hidden;
+        closeInteractivePopovers(messagesContainer, control);
+        menu.hidden = !willOpen;
+        selectTrigger.setAttribute("aria-expanded", String(willOpen));
+        selectTrigger.classList.toggle("is-open", willOpen);
+        if (willOpen) menu.scrollIntoView({ block: "nearest" });
+        return;
+      }
+
+      const selectOption = target.closest(".vx-select-option") as HTMLButtonElement | null;
+      if (selectOption) {
+        e.preventDefault();
+        const control = selectOption.closest(".vx-select-control") as HTMLElement | null;
+        const select = control?.querySelector("select[data-interaone-select]") as HTMLSelectElement | null;
+        const trigger = control?.querySelector(".vx-select-trigger") as HTMLButtonElement | null;
+        const label = control?.querySelector(".vx-select-trigger-label");
+        if (!control || !select || !trigger || !label) return;
+        select.value = selectOption.dataset.value || "";
+        label.textContent = selectOption.querySelector("span")?.textContent || select.value;
+        trigger.classList.add("has-value");
+        control.querySelectorAll(".vx-select-option").forEach(option => {
+          option.setAttribute("aria-selected", String(option === selectOption));
+        });
+        setGeneratedFieldInvalid(select, false);
+        closeSelectControl(control);
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        trigger.focus();
+        return;
+      }
+
+      const dateTrigger = target.closest(".vx-date-trigger") as HTMLButtonElement | null;
+      if (dateTrigger) {
+        e.preventDefault();
+        const control = dateTrigger.closest(".vx-date-control") as HTMLElement | null;
+        const calendar = control?.querySelector(".vx-calendar") as HTMLElement | null;
+        if (!control || !calendar) return;
+        const willOpen = calendar.hidden;
+        closeInteractivePopovers(messagesContainer, control);
+        if (willOpen) renderCalendar(control);
+        calendar.hidden = !willOpen;
+        dateTrigger.setAttribute("aria-expanded", String(willOpen));
+        dateTrigger.classList.toggle("is-open", willOpen);
+        if (willOpen) calendar.scrollIntoView({ block: "nearest" });
+        return;
+      }
+
+      const calendarDay = target.closest(".vx-calendar-day") as HTMLButtonElement | null;
+      if (calendarDay && !calendarDay.disabled) {
+        e.preventDefault();
+        const control = calendarDay.closest(".vx-date-control") as HTMLElement | null;
+        if (!control) return;
+        setDateControlValue(control, calendarDay.dataset.date || "");
+        closeDateControl(control);
+        (control.querySelector(".vx-date-trigger") as HTMLButtonElement | null)?.focus();
+        return;
+      }
+
+      const calendarAction = target.closest("[data-calendar-action]") as HTMLButtonElement | null;
+      if (calendarAction) {
+        e.preventDefault();
+        const control = calendarAction.closest(".vx-date-control") as HTMLElement | null;
+        if (!control) return;
+        const action = calendarAction.dataset.calendarAction;
+        if (action === "previous-month" || action === "next-month") {
+          const viewMatch = /^(\d{4})-(\d{1,2})$/.exec(control.dataset.view || "");
+          const viewDate = viewMatch
+            ? new Date(Number(viewMatch[1]), Number(viewMatch[2]) - 1, 1)
+            : new Date();
+          viewDate.setMonth(viewDate.getMonth() + (action === "next-month" ? 1 : -1));
+          control.dataset.view = `${viewDate.getFullYear()}-${viewDate.getMonth() + 1}`;
+          renderCalendar(control);
+        } else if (action === "clear") {
+          setDateControlValue(control, "");
+          closeDateControl(control);
+          (control.querySelector(".vx-date-trigger") as HTMLButtonElement | null)?.focus();
+        } else if (action === "today") {
+          const minDate = parseIsoDate(control.dataset.min || "");
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          setDateControlValue(control, toIsoDate(minDate && minDate > today ? minDate : today));
+          closeDateControl(control);
+          (control.querySelector(".vx-date-trigger") as HTMLButtonElement | null)?.focus();
+        }
+        return;
+      }
+
+      if (!target.closest(".vx-select-control, .vx-date-control")) {
+        closeInteractivePopovers(messagesContainer);
+      }
 
       // Handle interactive button
-      const formBtn = target.closest(".vx-form-button") as HTMLButtonElement | null;
+      const formBtn = target.closest("[data-interaone-button]") as HTMLButtonElement | null;
       if (formBtn) {
         e.preventDefault();
-        const label = formBtn.textContent || "";
+        const response = formBtn.getAttribute("data-action")
+          || formBtn.querySelector(".vx-card-title")?.textContent
+          || formBtn.textContent
+          || "";
         formBtn.disabled = true;
-        sendFormResponse(label);
+        sendFormResponse(response.trim());
         return;
       }
 
@@ -217,7 +509,12 @@ export function setupEventListeners() {
           const inputEl = wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null;
           if (inputEl) {
             const val = inputEl.value.trim();
-            if (!val) return;
+            if (!val) {
+              inputEl.classList.add("is-invalid");
+              inputEl.setAttribute("aria-invalid", "true");
+              inputEl.focus();
+              return;
+            }
             inputEl.disabled = true;
             submitBtn.disabled = true;
             sendFormResponse(`${fieldName}: ${val}`);
@@ -241,8 +538,13 @@ export function setupEventListeners() {
           const selectEl = wrapper.querySelector(`select[name="${fieldName}"]`) as HTMLSelectElement | null;
           if (selectEl) {
             const val = selectEl.value;
-            if (!val) return;
-            selectEl.disabled = true;
+            if (!val) {
+              setGeneratedFieldInvalid(selectEl, true);
+              (selectEl.closest(".vx-select-control")?.querySelector(".vx-select-trigger") as HTMLButtonElement | null)?.focus();
+              return;
+            }
+            setGeneratedFieldInvalid(selectEl, false);
+            setGeneratedFieldDisabled(selectEl, true);
             submitBtn.disabled = true;
             sendFormResponse(`${fieldName}: ${val}`);
           }
@@ -250,8 +552,13 @@ export function setupEventListeners() {
           const dateEl = wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null;
           if (dateEl) {
             const val = dateEl.value;
-            if (!val) return;
-            dateEl.disabled = true;
+            if (!val) {
+              setGeneratedFieldInvalid(dateEl, true);
+              (dateEl.closest(".vx-date-control")?.querySelector(".vx-date-trigger") as HTMLButtonElement | null)?.focus();
+              return;
+            }
+            setGeneratedFieldInvalid(dateEl, false);
+            setGeneratedFieldDisabled(dateEl, true);
             submitBtn.disabled = true;
             sendFormResponse(`${fieldName}: ${val}`);
           }
@@ -271,6 +578,9 @@ export function setupEventListeners() {
             radios.forEach(r => r.disabled = true);
             submitBtn.disabled = true;
             sendFormResponse(`${fieldName}: ${val}`);
+          } else {
+            wrapper.classList.add("is-invalid");
+            (wrapper.querySelector(`input[name="${fieldName}"]`) as HTMLInputElement | null)?.focus();
           }
         } else if (action === "submit-otp") {
           const otpContainer = wrapper.querySelector(`[data-interaone-otp][name="${fieldName}"]`) as HTMLElement | null;
@@ -280,12 +590,17 @@ export function setupEventListeners() {
             boxes.forEach(b => {
               otpVal += b.value;
             });
-            if (otpVal.length < 6) {
-              boxes.forEach(b => b.style.borderColor = "red");
+            if (otpVal.length < boxes.length) {
+              boxes.forEach(b => {
+                b.classList.add("is-invalid");
+                b.setAttribute("aria-invalid", "true");
+              });
+              Array.from(boxes).find(b => !b.value)?.focus();
               return;
             }
             boxes.forEach(b => {
-              b.style.borderColor = "";
+              b.classList.remove("is-invalid");
+              b.removeAttribute("aria-invalid");
               b.disabled = true;
             });
             submitBtn.disabled = true;
@@ -310,9 +625,11 @@ export function setupEventListeners() {
               const val = input.value.trim();
               if (!val) {
                 hasEmptyInput = true;
-                input.style.borderColor = "red";
+                input.classList.add("is-invalid");
+                input.setAttribute("aria-invalid", "true");
               } else {
-                input.style.borderColor = "";
+                input.classList.remove("is-invalid");
+                input.removeAttribute("aria-invalid");
                 responses.push(`${input.name}: ${val}`);
               }
             });
@@ -321,9 +638,9 @@ export function setupEventListeners() {
               const val = sel.value;
               if (!val) {
                 hasEmptyInput = true;
-                sel.style.borderColor = "red";
+                setGeneratedFieldInvalid(sel, true);
               } else {
-                sel.style.borderColor = "";
+                setGeneratedFieldInvalid(sel, false);
                 responses.push(`${sel.name}: ${val}`);
               }
             });
@@ -332,14 +649,37 @@ export function setupEventListeners() {
               const val = d.value;
               if (!val) {
                 hasEmptyInput = true;
-                d.style.borderColor = "red";
+                setGeneratedFieldInvalid(d, true);
               } else {
-                d.style.borderColor = "";
+                setGeneratedFieldInvalid(d, false);
                 responses.push(`${d.name}: ${val}`);
               }
             });
 
-            if (hasEmptyInput) return;
+            otps.forEach(otp => {
+              const name = otp.getAttribute("name") || "";
+              const boxes = otp.querySelectorAll(".vx-otp-box") as NodeListOf<HTMLInputElement>;
+              const val = Array.from(boxes).map(box => box.value).join("");
+              if (val.length < boxes.length) {
+                hasEmptyInput = true;
+                boxes.forEach(box => {
+                  box.classList.add("is-invalid");
+                  box.setAttribute("aria-invalid", "true");
+                });
+              } else {
+                boxes.forEach(box => {
+                  box.classList.remove("is-invalid");
+                  box.removeAttribute("aria-invalid");
+                });
+                responses.push(`${name}: ${val}`);
+              }
+            });
+
+            if (hasEmptyInput) {
+              const firstInvalidTrigger = formEl.querySelector(".vx-select-trigger.is-invalid, .vx-date-trigger.is-invalid") as HTMLButtonElement | null;
+              firstInvalidTrigger?.focus();
+              return;
+            }
 
             checkboxes.forEach(cb => {
               responses.push(`${cb.name}: ${cb.checked ? "Yes" : "No"}`);
@@ -358,11 +698,7 @@ export function setupEventListeners() {
             });
 
             otps.forEach(otp => {
-              const name = otp.getAttribute("name") || "";
               const boxes = otp.querySelectorAll(".vx-otp-box") as NodeListOf<HTMLInputElement>;
-              let val = "";
-              boxes.forEach(b => val += b.value);
-              responses.push(`${name}: ${val}`);
               boxes.forEach(b => b.disabled = true);
             });
 
@@ -373,8 +709,8 @@ export function setupEventListeners() {
             checkboxes.forEach(cb => cb.disabled = true);
             const allRadios = formEl.querySelectorAll("input[data-interaone-radio]") as NodeListOf<HTMLInputElement>;
             allRadios.forEach(r => r.disabled = true);
-            selects.forEach(s => s.disabled = true);
-            dates.forEach(d => d.disabled = true);
+            selects.forEach(s => setGeneratedFieldDisabled(s, true));
+            dates.forEach(d => setGeneratedFieldDisabled(d, true));
             sliders.forEach(s => s.disabled = true);
             const allRatings = formEl.querySelectorAll("input[data-interaone-rating]") as NodeListOf<HTMLInputElement>;
             allRatings.forEach(r => r.disabled = true);
@@ -386,6 +722,12 @@ export function setupEventListeners() {
       }
     });
   }
+
+  document.addEventListener("click", (e) => {
+    const target = e.target as Element | null;
+    if (!elements.messagesContainer || target?.closest(".vx-select-control, .vx-date-control")) return;
+    closeInteractivePopovers(elements.messagesContainer);
+  });
 
 
   if (elements.historyBtn && elements.historyOverlay && elements.closeHistoryBtn) {

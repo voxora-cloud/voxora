@@ -28,6 +28,72 @@ function escapeHtmlAttribute(value: string) {
     .replace(/"/g, '&quot;');
 }
 
+function getLocalIsoDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function renderSelectControl(name: string, placeholder: string, options: string[]) {
+  const safeName = protectGeneratedAttribute(name);
+  const safePlaceholder = protectGeneratedAttribute(placeholder || 'Select option');
+  const normalizedOptions = options.map(option => option.trim()).filter(Boolean);
+  const nativeOptions = normalizedOptions
+    .map(option => `<option value="${protectGeneratedAttribute(option)}">${option}</option>`)
+    .join('');
+  const customOptions = normalizedOptions
+    .map(option => `
+      <button type="button" class="vx-select-option" role="option" aria-selected="false" data-value="${protectGeneratedAttribute(option)}">
+        <span>${option}</span>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3 3 7-7" /></svg>
+      </button>
+    `)
+    .join('');
+
+  return `
+    <div class="vx-select-control">
+      <select class="vx-form-select vx-native-control" name="${safeName}" tabindex="-1" aria-hidden="true" data-interaone-select>
+        <option value="" selected>${safePlaceholder}</option>
+        ${nativeOptions}
+      </select>
+      <button type="button" class="vx-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+        <span class="vx-select-trigger-label">${safePlaceholder}</span>
+        <svg class="vx-select-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+      </button>
+      <div class="vx-select-menu" role="listbox" hidden>${customOptions}</div>
+    </div>
+  `;
+}
+
+function renderDateControl(name: string, minValue: string) {
+  const safeName = protectGeneratedAttribute(name);
+  const safeMin = protectGeneratedAttribute(minValue);
+  return `
+    <div class="vx-date-control" data-min="${safeMin}">
+      <input type="hidden" class="vx-form-date vx-native-control" name="${safeName}" min="${safeMin}" data-interaone-date />
+      <button type="button" class="vx-date-trigger" aria-haspopup="dialog" aria-expanded="false">
+        <svg class="vx-date-icon" viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" /><path d="M6.5 2.75v3.5M13.5 2.75v3.5M3 8h14" /></svg>
+        <span class="vx-date-trigger-label">Choose a date</span>
+        <svg class="vx-select-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+      </button>
+      <div class="vx-calendar" role="dialog" aria-label="Choose a date" hidden>
+        <div class="vx-calendar-header">
+          <button type="button" class="vx-calendar-nav" data-calendar-action="previous-month" aria-label="Previous month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12 5-5 5 5 5" /></svg></button>
+          <strong class="vx-calendar-month" aria-live="polite"></strong>
+          <button type="button" class="vx-calendar-nav" data-calendar-action="next-month" aria-label="Next month"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 5 5 5-5 5" /></svg></button>
+        </div>
+        <div class="vx-calendar-weekdays" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+        <div class="vx-calendar-grid"></div>
+        <div class="vx-calendar-footer">
+          <button type="button" data-calendar-action="clear">Clear</button>
+          <button type="button" data-calendar-action="today">Today</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function sanitizeGeneratedDivAttributes(attrStr: string) {
   const attrs: string[] = [];
   const regex = /([a-zA-Z][\w:-]*)=&quot;([\s\S]*?)&quot;/g;
@@ -389,7 +455,12 @@ export function renderMarkdownBlock(block: MarkdownBlock): string {
     }
     case 'component': {
       if (!block.isComplete) {
-        return `<div class="vx-form-placeholder" style="padding: 10px; border: 1px dashed var(--vx-border-color, #ccc); border-radius: 6px; margin: 8px 0; font-size: 0.9em; opacity: 0.8; display: flex; align-items: center; gap: 8px;">⏳ Preparing interactive element...</div>`;
+        return `
+          <div class="vx-form-placeholder" role="status" aria-live="polite" aria-label="Creating your interactive response">
+            <span>Creating your interactive response</span>
+            <span class="vx-form-placeholder-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          </div>
+        `;
       }
       return parseMarkdown(block.content);
     }
@@ -602,19 +673,14 @@ export function parseMarkdown(text: string) {
     });
     content = content.replace(/&lt;interaone-select\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
-      const name = protectGeneratedAttribute(attrs.name || '');
-      const placeholder = protectGeneratedAttribute(attrs.placeholder || 'Select option');
-      const optionsStr = attrs.options || '';
-      const options = optionsStr.split(',').map((o: string) => o.trim());
-      const optionsHtml = options.map((opt: string) => `<option value="${protectGeneratedAttribute(opt)}">${opt}</option>`).join('');
-      return `<div class="vx-form-row"><select class="vx-form-select" name="${name}" data-interaone-select><option value="" disabled selected>${placeholder}</option>${optionsHtml}</select></div>`;
+      const options = (attrs.options || '').split(',');
+      return `<div class="vx-form-row">${renderSelectControl(attrs.name || '', attrs.placeholder || 'Select option', options)}</div>`;
     });
     content = content.replace(/&lt;interaone-date\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
-      const name = protectGeneratedAttribute(attrs.name || '');
       const minAttr = attrs.min || '';
-      const minVal = minAttr === 'today' ? new Date().toISOString().split('T')[0] : minAttr;
-      return `<div class="vx-form-row"><input type="date" class="vx-form-date" name="${name}" min="${minVal}" data-interaone-date /></div>`;
+      const minVal = minAttr === 'today' ? getLocalIsoDate() : minAttr;
+      return `<div class="vx-form-row">${renderDateControl(attrs.name || '', minVal)}</div>`;
     });
     content = content.replace(/&lt;interaone-slider\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
@@ -624,8 +690,8 @@ export function parseMarkdown(text: string) {
       const step = protectGeneratedAttribute(attrs.step || '1');
       return `
         <div class="vx-form-row">
-          <div class="vx-slider-header"><span class="vx-slider-value">Value: <span id="val-${name}">${min}</span></span></div>
-          <input type="range" class="vx-form-slider" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}" oninput="document.getElementById('val-${name}').textContent = this.value" data-interaone-slider />
+          <div class="vx-slider-header"><span class="vx-slider-value">Value <output class="vx-slider-value-output">${min}</output></span></div>
+          <input type="range" class="vx-form-slider" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}" data-interaone-slider />
         </div>
       `;
     });
@@ -642,12 +708,12 @@ export function parseMarkdown(text: string) {
     content = content.replace(/&lt;interaone-otp\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
       const attrs = parseAttributes(attrStr);
       const name = protectGeneratedAttribute(attrs.name || '');
-      const length = parseInt(attrs.length || '6', 10) || 6;
+      const length = Math.min(Math.max(parseInt(attrs.length || '6', 10) || 6, 4), 8);
       let boxesHtml = '';
       for (let i = 0; i < length; i++) {
-        boxesHtml += `<input type="text" maxlength="1" class="vx-otp-box" name="${name}-${i}" data-interaone-otp-box />`;
+        boxesHtml += `<input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="${i === 0 ? 'one-time-code' : 'off'}" aria-label="Digit ${i + 1} of ${length}" class="vx-otp-box" name="${name}-${i}" data-interaone-otp-box />`;
       }
-      return `<div class="vx-form-row"><div class="vx-otp-container" data-interaone-otp name="${name}">${boxesHtml}</div></div>`;
+      return `<div class="vx-form-row"><div class="vx-otp-container" style="--vx-otp-length: ${length}" data-interaone-otp name="${name}">${boxesHtml}</div></div>`;
     });
 
     return `
@@ -668,7 +734,7 @@ export function parseMarkdown(text: string) {
 
   s = s.replace(/&lt;interaone-button\s+action=&quot;([^&]+?)&quot;&gt;([\s\S]+?)&lt;\/interaone-button&gt;/g,
     function(_: string, action: string, label: string) {
-      return `<button class="vx-form-button" data-interaone-button data-action="${protectGeneratedAttribute(action)}">${label}</button>`;
+      return `<button type="button" class="vx-form-button" data-interaone-button data-action="${protectGeneratedAttribute(action)}">${label}</button>`;
     }
   );
 
@@ -701,16 +767,10 @@ export function parseMarkdown(text: string) {
   s = s.replace(/&lt;interaone-select\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
     const attrs = parseAttributes(attrStr);
     const name = protectGeneratedAttribute(attrs.name || '');
-    const placeholder = protectGeneratedAttribute(attrs.placeholder || 'Select option');
-    const optionsStr = attrs.options || '';
-    const options = optionsStr.split(',').map((o: string) => o.trim());
-    const optionsHtml = options.map((opt: string) => `<option value="${protectGeneratedAttribute(opt)}">${opt}</option>`).join('');
+    const options = (attrs.options || '').split(',');
     return `
       <div class="vx-interactive-form vx-select-wrapper" data-target="${name}">
-        <select class="vx-form-select" name="${name}" data-interaone-select>
-          <option value="" disabled selected>${placeholder}</option>
-          ${optionsHtml}
-        </select>
+        ${renderSelectControl(attrs.name || '', attrs.placeholder || 'Select option', options)}
         <button class="vx-form-submit" data-action="submit-select" data-target="${name}">Submit</button>
       </div>
     `;
@@ -720,10 +780,10 @@ export function parseMarkdown(text: string) {
     const attrs = parseAttributes(attrStr);
     const name = protectGeneratedAttribute(attrs.name || '');
     const minAttr = attrs.min || '';
-    const minVal = minAttr === 'today' ? new Date().toISOString().split('T')[0] : minAttr;
+    const minVal = minAttr === 'today' ? getLocalIsoDate() : minAttr;
     return `
       <div class="vx-interactive-form vx-date-wrapper" data-target="${name}">
-        <input type="date" class="vx-form-date" name="${name}" min="${minVal}" data-interaone-date />
+        ${renderDateControl(attrs.name || '', minVal)}
         <button class="vx-form-submit" data-action="submit-date" data-target="${name}">Submit</button>
       </div>
     `;
@@ -737,8 +797,8 @@ export function parseMarkdown(text: string) {
     const step = protectGeneratedAttribute(attrs.step || '1');
     return `
       <div class="vx-interactive-form vx-slider-wrapper" data-target="${name}">
-        <div class="vx-slider-header"><span class="vx-slider-value">Value: <span id="val-${name}">${min}</span></span></div>
-        <input type="range" class="vx-form-slider" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}" oninput="document.getElementById('val-${name}').textContent = this.value" data-interaone-slider />
+        <div class="vx-slider-header"><span class="vx-slider-value">Value <output class="vx-slider-value-output">${min}</output></span></div>
+        <input type="range" class="vx-form-slider" name="${name}" min="${min}" max="${max}" step="${step}" value="${min}" data-interaone-slider />
         <button class="vx-form-submit" data-action="submit-slider" data-target="${name}">Submit</button>
       </div>
     `;
@@ -751,7 +811,7 @@ export function parseMarkdown(text: string) {
     const title = attrs.title || '';
     const subtitle = attrs.subtitle || '';
     return `
-      <button class="vx-form-card" data-interaone-button data-action="${action}">
+      <button type="button" class="vx-form-card" data-interaone-button data-action="${action}">
         ${image ? `<img src="${image}" alt="${title}" class="vx-card-image" />` : ''}
         <div class="vx-card-content">
           <div class="vx-card-title">${title}</div>
@@ -780,14 +840,14 @@ export function parseMarkdown(text: string) {
   s = s.replace(/&lt;interaone-otp\s+([\s\S]*?)(?:\/)?&gt;/g, function(_: string, attrStr: string) {
     const attrs = parseAttributes(attrStr);
     const name = protectGeneratedAttribute(attrs.name || '');
-    const length = parseInt(attrs.length || '6', 10) || 6;
+    const length = Math.min(Math.max(parseInt(attrs.length || '6', 10) || 6, 4), 8);
     let boxesHtml = '';
     for (let i = 0; i < length; i++) {
-      boxesHtml += `<input type="text" maxlength="1" class="vx-otp-box" name="${name}-${i}" data-interaone-otp-box />`;
+      boxesHtml += `<input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" autocomplete="${i === 0 ? 'one-time-code' : 'off'}" aria-label="Digit ${i + 1} of ${length}" class="vx-otp-box" name="${name}-${i}" data-interaone-otp-box />`;
     }
     return `
       <div class="vx-interactive-form vx-otp-wrapper" data-target="${name}">
-        <div class="vx-otp-container" data-interaone-otp name="${name}">${boxesHtml}</div>
+        <div class="vx-otp-container" style="--vx-otp-length: ${length}" data-interaone-otp name="${name}">${boxesHtml}</div>
         <button class="vx-form-submit" data-action="submit-otp" data-target="${name}">Submit</button>
       </div>
     `;
