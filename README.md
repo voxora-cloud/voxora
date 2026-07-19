@@ -72,27 +72,13 @@ git clone https://github.com/<your-username>/InteraOne.git
 cd InteraOne
 ```
 
-### 3. Configure environment variables
-
-Copy all environment templates:
-
-```bash
-cp apps/gateway/.env.example apps/gateway/.env
-cp apps/console/.env.example apps/console/.env
-cp apps/agent/.env.example apps/agent/.env
-cp apps/worker/.env.example apps/worker/.env
-cp apps/launcher/.env.example apps/launcher/.env
-```
-
-Update the `.env` files as needed for your local setup.
-
 ### 4. Start the development environment
 
 ```bash
 make all
 ```
-
-Gateway, console, agent, worker, and launcher all spin up together.
+> Gateway, console, agent, worker, and launcher all spin up together.
+>> Update the `.env` files as needed for your local setup.
 
 <hr/>
 
