@@ -35,16 +35,6 @@ type EntitlementsResponse = {
   };
 };
 
-const ALL_COMPARE_FEATURES = [
-  "Everything in OSS core",
-  "API access",
-  "Advanced analytics",
-  "Standard email support",
-  "Remove InteraOne branding",
-  "Priority email & chat support",
-  "Custom integrations & webhooks",
-  "SLA guarantee",
-];
 
 const FALLBACK_PLANS: PlanDefinition[] = [
   {
@@ -95,14 +85,6 @@ function formatLimit(value: number | null): string {
   return value === null ? "Unlimited" : value.toLocaleString();
 }
 
-function hasFeature(plan: PlanTier, feature: string): boolean {
-  if (feature === "Everything in OSS core") return true;
-  if (plan === "free") return false;
-  if (plan === "pro") {
-    return ["API access", "Advanced analytics", "Standard email support"].includes(feature);
-  }
-  return true;
-}
 
 function PlanMark({ plan }: { plan: PlanTier }) {
   const barSets: Record<PlanTier, Array<{ x: number; y: number; height: number }>> = {
@@ -276,17 +258,7 @@ function PlanCard({ plan, canBuy, loading, selectedPlan, isCurrentPlan, onUpgrad
           ))}
         </div>
 
-        <div className="flex-1">
-          <p className="mb-3 text-xs font-semibold text-foreground">What’s included</p>
-          <ul className="space-y-2.5">
-            {ALL_COMPARE_FEATURES.filter((feature) => hasFeature(plan.plan, feature)).map((feature) => (
-              <li key={`${plan.plan}-${feature}`} className="flex items-start gap-2.5 text-xs leading-5 text-muted-foreground">
-                <span className="shrink-0 font-semibold text-foreground">✓</span>
-                {feature}
-              </li>
-            ))}
-          </ul>
-        </div>
+
 
         <div className="mt-6">
           {isCurrentPlan ? (
@@ -300,7 +272,7 @@ function PlanCard({ plan, canBuy, loading, selectedPlan, isCurrentPlan, onUpgrad
           ) : (
             <Button
               variant={isFeatured ? "default" : "outline"}
-              className={`h-10 w-full ${isFeatured ? "shadow-md shadow-primary/15" : "border-primary text-primary hover:bg-accent"}`}
+              className={`h-10 w-full cursor-pointer ${isFeatured ? "shadow-md shadow-primary/15" : "border-primary text-primary hover:bg-accent"}`}
               disabled={!canBuy || loading}
               onClick={() => canBuy && onUpgrade(plan.plan as PaidPlan)}
             >
@@ -347,7 +319,7 @@ export function PlansPage() {
         const res = await apiClient.get<EntitlementsResponse>(
           `/organizations/${orgId}/billing/entitlements?t=${Date.now()}`
         );
-        const data = response.data;
+        const data = res.data;
         if (!data) return;
         setCurrentPlan(data.currentPlan || localPlan);
         setPlans(data.plans?.length ? data.plans : FALLBACK_PLANS);
@@ -434,9 +406,6 @@ export function PlansPage() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-xs font-medium text-muted-foreground">Current subscription</p>
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-success">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" /> In good standing
-                    </span>
                   </div>
                   <h2 className="mt-1 text-lg font-semibold text-foreground">{PLAN_META[currentPlan].label}</h2>
                 </div>

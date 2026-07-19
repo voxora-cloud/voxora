@@ -4,6 +4,7 @@ import { authApi } from "@/domains/auth/api/auth.api";
 import { apiClient } from "@/shared/lib/api-client";
 import { Loader } from "@/shared/ui/loader";
 import { Button } from "@/shared/ui/button";
+import { MessageSquare, Users, Contact } from "lucide-react";
 
 type PlanTier = "free" | "pro" | "proplus";
 type LimitKey = "messages" | "humanAgents" | "contacts";
@@ -57,21 +58,29 @@ const RESOURCE_META: Array<{
   key: LimitKey;
   label: string;
   description: string;
+  icon: React.ComponentType<any>;
+  iconColor: string;
 }> = [
   {
     key: "messages",
     label: "AI messages",
     description: "Automated replies sent this billing cycle",
+    icon: MessageSquare,
+    iconColor: "text-indigo-500",
   },
   {
     key: "humanAgents",
     label: "Human agents",
     description: "Active teammates in this workspace",
+    icon: Users,
+    iconColor: "text-sky-500",
   },
   {
     key: "contacts",
     label: "Saved contacts",
     description: "Customer profiles in your directory",
+    icon: Contact,
+    iconColor: "text-emerald-500",
   },
 ];
 
@@ -132,11 +141,14 @@ function AllocationRow({ resource, stat, unmetered }: AllocationRowProps) {
   const percent = unmetered ? 0 : clampPercent(stat.pct);
   const remaining = stat.limit === null ? null : Math.max(0, stat.limit - stat.used);
   const tone = getUsageTone(percent);
+  const Icon = resource.icon;
 
   return (
     <div className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(210px,1.2fr)_90px_110px_minmax(170px,1fr)] lg:items-center">
       <div className="flex items-center gap-3">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/65 ${resource.iconColor}`}>
+          <Icon className="h-4 w-4" fill="currentColor" />
+        </div>
         <div>
           <h3 className="text-sm font-semibold text-foreground">{resource.label}</h3>
           <p className="mt-0.5 text-[11px] text-muted-foreground">{resource.description}</p>
@@ -201,7 +213,7 @@ export function UsagePage() {
         const res = await apiClient.get<EntitlementsResponse>(
           `/organizations/${orgId}/billing/entitlements?t=${Date.now()}`
         );
-        const data = response.data;
+        const data = res.data;
         if (!data) return;
         const plan = data.currentPlan || localPlan;
         setCurrentPlan(plan);
@@ -275,13 +287,6 @@ export function UsagePage() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Resource Usage</h1>
             <p className="mt-2 text-sm text-muted-foreground">Understand what your workspace is using and what remains.</p>
           </div>
-          {!isSelfHost && (
-            <Button asChild className="h-9 self-start px-4 shadow-sm sm:self-auto">
-              <Link to="/dashboard/settings/billing/plans">
-                Manage plan
-              </Link>
-            </Button>
-          )}
         </header>
 
         <div className="grid gap-4 lg:grid-cols-12">
@@ -348,9 +353,6 @@ export function UsagePage() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 {isSelfHost ? "Deployment" : "Current plan"}
               </p>
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-success">
-                <span className="h-1.5 w-1.5 rounded-full bg-success" /> In good standing
-              </span>
             </div>
 
             <div className="mt-6 flex items-center gap-3">
