@@ -56,6 +56,17 @@ export interface WidgetSuggestion {
   faqId?: string | null;
 }
 
+export interface VerifiedWidgetDomain {
+  _id: string;
+  domain: string;
+  verificationToken?: string | null;
+  status: "pending" | "verified";
+  includeSubdomains: boolean;
+  verifiedAt?: string | Date | null;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
 export interface CreateWidgetData {
   _id?: string;
   displayName: string;
@@ -66,6 +77,8 @@ export interface CreateWidgetData {
   conversation: WidgetConversationSettings;
   features: WidgetFeatureSettings;
   suggestions: WidgetSuggestion[];
+  verifiedDomains?: VerifiedWidgetDomain[];
+  // Temporary compatibility fields returned for older widget records.
   verifiedDomain?: string | null;
   domainVerificationToken?: string | null;
   domainVerificationStatus?: "pending" | "verified" | null;
@@ -93,8 +106,17 @@ export interface Widget extends CreateWidgetData {
   domainVerificationStatus?: "pending" | "verified" | null;
 }
 
-
 export interface WidgetResponse {
   success: boolean;
   data: Widget;
+}
+
+export interface WidgetDomainsResponse {
+  success: boolean;
+  data: VerifiedWidgetDomain[];
+}
+
+export interface WidgetDomainResponse {
+  success: boolean;
+  data: VerifiedWidgetDomain;
 }

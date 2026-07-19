@@ -149,6 +149,90 @@ export const verifyDomain = asyncHandler(async (req: AuthenticatedRequest, res: 
   }
 });
 
+export const listDomains = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const domains = await widgetService.listWidgetDomains(
+      req.user.activeOrganizationId,
+    );
+    sendResponse(
+      res,
+      200,
+      true,
+      "Widget domains retrieved successfully",
+      domains,
+    );
+  },
+);
+
+export const addDomain = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const domain = await widgetService.addWidgetDomain(
+        req.user.activeOrganizationId,
+        req.body.domain,
+      );
+      sendResponse(res, 201, true, "Widget domain added successfully", domain);
+    } catch (error: any) {
+      sendError(res, error?.statusCode || 500, error.message);
+    }
+  },
+);
+
+export const updateDomain = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const domain = await widgetService.updateWidgetDomain(
+        req.user.activeOrganizationId,
+        String(req.params.domainId),
+        req.body,
+      );
+      sendResponse(
+        res,
+        200,
+        true,
+        "Widget domain updated successfully",
+        domain,
+      );
+    } catch (error: any) {
+      sendError(res, error?.statusCode || 500, error.message);
+    }
+  },
+);
+
+export const removeDomain = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const domains = await widgetService.removeWidgetDomain(
+        req.user.activeOrganizationId,
+        String(req.params.domainId),
+      );
+      sendResponse(
+        res,
+        200,
+        true,
+        "Widget domain removed successfully",
+        domains,
+      );
+    } catch (error: any) {
+      sendError(res, error?.statusCode || 500, error.message);
+    }
+  },
+);
+
+export const verifyDomainById = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const result = await widgetService.verifyWidgetDomain(
+        req.user.activeOrganizationId,
+        String(req.params.domainId),
+      );
+      sendResponse(res, 200, true, "Domain verified successfully", result);
+    } catch (error: any) {
+      sendError(res, error?.statusCode || 500, error.message);
+    }
+  },
+);
+
 export const trackQrScan = asyncHandler(async (req: Request, res: Response) => {
   const { publicKey } = req.body as { publicKey?: string };
 

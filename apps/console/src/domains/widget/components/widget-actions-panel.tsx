@@ -37,10 +37,11 @@ export function WidgetActionsPanel({
       icon: Globe,
       label: "Domain",
       value:
+        (formData.verifiedDomains || []).some((domain) => domain.status === "verified") ||
         formData.domainVerificationStatus === "verified"
           ? "Verified"
-          : formData.verifiedDomain
-            ? "Not verified"
+          : (formData.verifiedDomains || []).length > 0 || formData.verifiedDomain
+            ? "Pending"
             : "Not configured",
     },
   ];

@@ -737,9 +737,9 @@ export function setupEventListeners() {
       renderHistoryList([]);
       renderHistoryLoading();
       try {
-        const res = await fetch(
+        const res = await makeAuthenticatedRequest(
           `${API_BASE_URL}/api/v1/widget/conversations?sessionId=${encodeURIComponent(state.currentSessionId || '')}`,
-          { headers: { 'Authorization': `Bearer ${state.widgetToken}` } }
+          { method: 'GET' }
         );
         if (!res.ok) throw new Error('Failed');
         const data = await res.json();

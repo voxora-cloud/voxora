@@ -295,7 +295,7 @@ window.addEventListener('message', function (event) {
           pageUrl: (window as any).__InteraOnePageUrl || '',
           source: state.interactionSource || 'widget',
         };
-        clearStoredSession(state.InteraOnePublicKey);
+        clearStoredSession(state.InteraOnePublicKey, state.parentOrigin);
         bootstrapSession(refreshPayload, function (token: string, sessionId: string) {
           state.widgetToken = token;
           state.currentSessionId = sessionId;

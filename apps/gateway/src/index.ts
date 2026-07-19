@@ -60,7 +60,12 @@ class Application {
         origin: true, // Reflect request origin — allows requests from any origin
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        allowedHeaders: [
+          "Content-Type",
+          "Authorization",
+          "X-Requested-With",
+          "X-InteraOne-Origin",
+        ],
         exposedHeaders: ["Content-Range", "X-Content-Range"],
         maxAge: 86400, // 24 hours
       }),

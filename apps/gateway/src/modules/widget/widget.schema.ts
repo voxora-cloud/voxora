@@ -87,6 +87,24 @@ const featuresSchema = Joi.object({
 });
 
 export const widgetSchema = {
+  addDomain: Joi.object({
+    domain: Joi.string().trim().min(1).max(256).required(),
+    includeSubdomains: Joi.boolean().default(true),
+  }).options({ stripUnknown: true }),
+
+  updateDomain: Joi.object({
+    domain: Joi.string().trim().min(1).max(256),
+    includeSubdomains: Joi.boolean(),
+  })
+    .or("domain", "includeSubdomains")
+    .options({ stripUnknown: true }),
+
+  domainParams: Joi.object({
+    domainId: Joi.alternatives()
+      .try(Joi.string().valid("legacy"), Joi.string().hex().length(24))
+      .required(),
+  }),
+
   createWidget: Joi.object({
     displayName: Joi.string().min(1).max(50).required(),
     appearance: appearanceSchema,

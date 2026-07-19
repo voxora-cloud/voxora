@@ -54,6 +54,7 @@ const DEFAULT_WIDGET_FORM_DATA: CreateWidgetData = {
     { text: "Learn about services", showOutside: false },
     { text: "Contact support", showOutside: true },
   ],
+  verifiedDomains: [],
   verifiedDomain: null,
   domainVerificationToken: null,
   domainVerificationStatus: null,
@@ -239,7 +240,6 @@ export function WidgetPage() {
         conversation: formData.conversation,
         features: formData.features,
         suggestions: formData.suggestions,
-        verifiedDomain: formData.verifiedDomain,
       };
 
       const response = await saveWidget.mutateAsync({
@@ -309,7 +309,6 @@ export function WidgetPage() {
             formData={formData}
             onChange={setFormData}
             generalError={validationErrors.displayName}
-            onSaveDomain={() => handleSubmit()}
             isSubscriptionExpired={isSubscriptionExpired}
             isQuotaExhausted={isQuotaExhausted}
             beforeContent={

@@ -22,11 +22,18 @@ import {
   Check,
   Loader2,
   Settings,
+  Trash2,
 } from "lucide-react";
-import { useVerifyDomain } from "../hooks";
+import {
+  useAddWidgetDomain,
+  useRemoveWidgetDomain,
+  useVerifyWidgetDomain,
+  useWidgetDomains,
+} from "../hooks";
 import { toast } from "sonner";
 import type { CreateWidgetData } from "../types";
 import { Label } from "@/shared/ui/label";
+import { DeleteConfirmDialog } from "@/shared/components/delete-confirm-dialog";
 
 import { Textarea } from "@/shared/ui/textarea";
 import { Badge } from "@/shared/ui/badge";
@@ -47,7 +54,6 @@ interface WidgetAdvancedConfigFormProps {
   onChange: (next: CreateWidgetData) => void;
   beforeContent?: ReactNode;
   generalError?: string;
-  onSaveDomain?: () => void;
   isSubscriptionExpired?: boolean;
   isQuotaExhausted?: boolean;
 }
@@ -188,21 +194,28 @@ export function WidgetAdvancedConfigForm({
   onChange,
   beforeContent,
   generalError,
-  onSaveDomain,
   isSubscriptionExpired = false,
   isQuotaExhausted = false,
 }: WidgetAdvancedConfigFormProps) {
   const [activeTab, setActiveTab] = useState<TabId>("appearance");
   const [pageRuleInput, setPageRuleInput] = useState("");
   const [pageRuleError, setPageRuleError] = useState("");
-  const [copied, setCopied] = useState(false);
-
-  const { mutate: verifyDomain, isPending: isVerifying } = useVerifyDomain();
+  const [newDomain, setNewDomain] = useState("");
+  const [copiedDomainId, setCopiedDomainId] = useState<string | null>(null);
+  const [domainToRemove, setDomainToRemove] = useState<{
+    id: string;
+    domain: string;
+  } | null>(null);
+  const { data: verifiedDomains = [] } = useWidgetDomains();
+  const addDomain = useAddWidgetDomain();
+  const removeDomain = useRemoveWidgetDomain();
+  const verifyDomain = useVerifyWidgetDomain();
   const isLocalPanel = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(window.location.hostname);
   const domainVerificationRequired =
     import.meta.env.PROD && !isLocalPanel;
   const domainAccessAllowed =
-    !domainVerificationRequired || formData.domainVerificationStatus === "verified";
+    !domainVerificationRequired ||
+    verifiedDomains.some((domain) => domain.status === "verified");
   const visibleTab = generalError ? "general" : activeTab;
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
@@ -281,9 +294,9 @@ export function WidgetAdvancedConfigForm({
       icon: Globe,
       badge: !domainVerificationRequired
         ? "Not required"
-        : formData.domainVerificationStatus === "verified"
+        : verifiedDomains.some((domain) => domain.status === "verified")
           ? "Verified"
-          : (formData.verifiedDomain ? "Pending" : undefined),
+          : (verifiedDomains.length > 0 ? "Pending" : undefined),
     },
   ];
 
@@ -628,127 +641,217 @@ export function WidgetAdvancedConfigForm({
     domain: (
       <div className="space-y-5">
         <SectionHeader
-          title="Domain Verification"
-          subtitle="Add and verify the domain name where the widget will be embedded."
+          title="Verified Domains"
+          subtitle="Control every domain where this widget is allowed to run."
         />
 
-        <div className="space-y-4">
-          <FieldRow label="Authorized Domain" htmlFor="verifiedDomain">
-            <div className="flex gap-2">
+        <div className="rounded-xl border border-border/70 bg-muted/15 p-4">
+          <FieldRow label="Add a domain" htmlFor="newVerifiedDomain">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
-                id="verifiedDomain"
-                value={formData.verifiedDomain || ""}
-                onChange={(e) => onChange({
-                  ...formData,
-                  verifiedDomain: e.target.value,
-                  ...(domainVerificationRequired
-                    ? { domainVerificationStatus: "pending", domainVerificationToken: null }
-                    : {}),
-                })}
+                id="newVerifiedDomain"
+                value={newDomain}
+                onChange={(event) => setNewDomain(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (newDomain.trim()) {
+                      addDomain.mutate(
+                        {
+                          domain: newDomain,
+                          includeSubdomains: true,
+                        },
+                        {
+                          onSuccess: () => {
+                            setNewDomain("");
+                            toast.success("Domain added");
+                          },
+                          onError: (error) => toast.error(error.message),
+                        },
+                      );
+                    }
+                  }
+                }}
                 placeholder="example.com"
-                className="h-10 text-sm flex-1 cursor-text"
+                className="h-10 flex-1 text-sm"
               />
-              {onSaveDomain && (
-                <Button
-                  type="button"
-                  onClick={onSaveDomain}
-                  className="h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/95 text-xs font-semibold cursor-pointer border-0 shadow-sm transition-all"
-                >
-                  Submit
-                </Button>
-              )}
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {domainVerificationRequired
-                ? "Changing the domain resets verification and requires a new TXT record."
-                : "DNS verification is skipped for local development."}
-            </p>
-          </FieldRow>
-
-          {formData.verifiedDomain && (
-            <div className="rounded-xl border border-border/60 bg-card/50 p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-foreground">Verification Status</span>
-                {domainAccessAllowed ? (
-                  <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-xs px-2.5 py-0.5 font-semibold">
-                    {domainVerificationRequired ? "Verified" : "Not required"}
-                  </Badge>
+              <Button
+                type="button"
+                disabled={!newDomain.trim() || addDomain.isPending}
+                onClick={() =>
+                  addDomain.mutate(
+                    {
+                      domain: newDomain,
+                      includeSubdomains: true,
+                    },
+                    {
+                      onSuccess: () => {
+                        setNewDomain("");
+                        toast.success("Domain added");
+                      },
+                      onError: (error) => toast.error(error.message),
+                    },
+                  )
+                }
+                className="h-10 px-5"
+              >
+                {addDomain.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs px-2.5 py-0.5 font-semibold animate-pulse">
-                    Pending Verification
-                  </Badge>
+                  <Plus className="mr-2 h-4 w-4" />
                 )}
-              </div>
+                Add domain
+              </Button>
+            </div>
+          </FieldRow>
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            {domainVerificationRequired
+              ? "Verify the main domain once. All current and future subdomains are authorized automatically."
+              : "DNS verification is skipped in this development environment."}
+          </p>
+        </div>
 
-              {domainVerificationRequired && formData.domainVerificationStatus !== "verified" && (
-                <div className="space-y-3 p-4 rounded-lg bg-muted/30 border border-border/40">
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {formData.domainVerificationToken
-                      ? "To verify your domain, add the following TXT record to your DNS provider (e.g., Cloudflare, GoDaddy, Namecheap):"
-                      : "Save the widget first to generate a DNS verification token for this domain."}
-                  </p>
-                  {formData.domainVerificationToken && (
-                    <>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground font-semibold">Type</span>
-                        <span className="font-mono text-foreground bg-muted px-2 py-0.5 rounded">TXT</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground font-semibold">Host / Name</span>
-                        <span className="font-mono text-foreground bg-muted px-2 py-0.5 rounded">@</span>
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] text-muted-foreground font-semibold block uppercase">Value</span>
-                        <div className="flex gap-2">
-                          <input
-                            readOnly
-                            value={formData.domainVerificationToken || ""}
-                            className="flex-1 bg-muted/50 border border-border/30 rounded px-2.5 py-1.5 text-xs text-foreground font-mono focus:outline-none"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(formData.domainVerificationToken || "");
-                              setCopied(true);
-                              setTimeout(() => setCopied(false), 2000);
-                            }}
-                            className="shrink-0 h-8 px-2.5 cursor-pointer"
-                          >
-                            {copied ? <Check className="h-3.5 w-3.5 text-green-500 animate-in fade-in" /> : <Copy className="h-3.5 w-3.5" />}
-                          </Button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {domainVerificationRequired
-                && formData.domainVerificationStatus !== "verified"
-                && formData.domainVerificationToken && (
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      verifyDomain(undefined, {
-                        onSuccess: () => {
-                          toast.success("Domain verified successfully!");
-                        },
-                        onError: (err) => {
-                          toast.error(err.message || "Domain verification failed. Please check your DNS record.");
-                        },
-                      });
-                    }}
-                    disabled={isVerifying}
-                    className="w-full h-10 text-sm shadow-md"
-                  >
-                    {isVerifying && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                    Verify Domain
-                  </Button>
-                )}
+        <div className="space-y-3">
+          {verifiedDomains.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center">
+              <Globe className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
+              <p className="text-sm font-medium">No domains configured</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Add the first website where visitors will use this widget.
+              </p>
             </div>
           )}
+
+          {verifiedDomains.map((domain) => {
+            const isVerified = domain.status === "verified";
+            const isRemovingThis =
+              removeDomain.isPending && removeDomain.variables === domain._id;
+            const isVerifyingThis =
+              verifyDomain.isPending && verifyDomain.variables === domain._id;
+
+            return (
+              <div
+                key={domain._id}
+                className="space-y-4 rounded-xl border border-border/70 bg-card p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {domain.domain}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Domain and all subdomains
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge
+                      className={
+                        isVerified
+                          ? "border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400"
+                          : "border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      }
+                    >
+                      {isVerified ? "Verified" : "Pending"}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={isRemovingThis}
+                      onClick={() =>
+                        setDomainToRemove({
+                          id: domain._id,
+                          domain: domain.domain,
+                        })
+                      }
+                      aria-label={`Remove ${domain.domain}`}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      {isRemovingThis ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {!isVerified && domain.verificationToken && (
+                  <div className="space-y-3 rounded-lg border border-border/50 bg-muted/25 p-3">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Add this TXT record at the root of{" "}
+                      <strong>{domain.domain}</strong>, then verify it.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
+                          Type
+                        </span>
+                        <span className="font-mono">TXT</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-semibold uppercase text-muted-foreground">
+                          Host / Name
+                        </span>
+                        <span className="font-mono">@</span>
+                      </div>
+                    </div>
+                    <div>
+                      <span className="mb-1 block text-[10px] font-semibold uppercase text-muted-foreground">
+                        Value
+                      </span>
+                      <div className="flex gap-2">
+                        <input
+                          readOnly
+                          value={domain.verificationToken}
+                          className="min-w-0 flex-1 rounded border border-border/40 bg-background px-2.5 py-1.5 font-mono text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              domain.verificationToken || "",
+                            );
+                            setCopiedDomainId(domain._id);
+                            setTimeout(() => setCopiedDomainId(null), 2000);
+                          }}
+                          className="h-8 px-2.5"
+                        >
+                          {copiedDomainId === domain._id ? (
+                            <Check className="h-3.5 w-3.5 text-green-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      disabled={isVerifyingThis}
+                      onClick={() =>
+                        verifyDomain.mutate(domain._id, {
+                          onSuccess: () =>
+                            toast.success(`${domain.domain} verified`),
+                          onError: (error) =>
+                            toast.error(
+                              error.message || "DNS verification failed",
+                            ),
+                        })
+                      }
+                      className="w-full"
+                    >
+                      {isVerifyingThis && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Verify domain
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     ),
@@ -757,6 +860,7 @@ export function WidgetAdvancedConfigForm({
   /* ── Render ─────────────────────────────────────────────────────────── */
 
   return (
+    <>
     <section className="grid min-w-0 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[14rem_minmax(0,1fr)]">
       <aside className="border-b border-border/70 bg-muted/10 p-3 lg:border-b-0 lg:border-r">
         <nav aria-label="Widget settings sections">
@@ -809,5 +913,34 @@ export function WidgetAdvancedConfigForm({
         </div>
       </div>
     </section>
+
+    <DeleteConfirmDialog
+      isOpen={domainToRemove !== null}
+      onClose={() => {
+        if (!removeDomain.isPending) setDomainToRemove(null);
+      }}
+      onConfirm={() => {
+        if (!domainToRemove) return;
+        removeDomain.mutate(domainToRemove.id, {
+          onSuccess: () => {
+            toast.success(`${domainToRemove.domain} removed`);
+            setDomainToRemove(null);
+          },
+          onError: (error) => toast.error(error.message),
+        });
+      }}
+      title="Remove verified domain?"
+      description={
+        domainToRemove
+          ? `The widget will stop working on ${domainToRemove.domain} and its subdomains. This action cannot be undone.`
+          : undefined
+      }
+      itemName={domainToRemove?.domain}
+      isDeleting={
+        removeDomain.isPending &&
+        removeDomain.variables === domainToRemove?.id
+      }
+    />
+    </>
   );
 }
