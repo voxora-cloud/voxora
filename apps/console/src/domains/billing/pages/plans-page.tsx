@@ -407,7 +407,20 @@ export function PlansPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-xs font-medium text-muted-foreground">Current subscription</p>
                   </div>
-                  <h2 className="mt-1 text-lg font-semibold text-foreground">{PLAN_META[currentPlan].label}</h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    <h2 className="text-lg font-semibold text-foreground">{PLAN_META[currentPlan].label}</h2>
+                    {currentPlan !== "free" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 cursor-pointer px-2.5 text-[11px] font-medium"
+                        onClick={() => openBillingPortal(currentPlan)}
+                        disabled={loading}
+                      >
+                        {loading && selectedPlan === currentPlan ? "Loading…" : "Manage Subscription"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="sm:text-right">
