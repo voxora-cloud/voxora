@@ -356,7 +356,7 @@ export function WidgetAdvancedConfigForm({
 
         <FieldRow label="Background Pattern" htmlFor="backgroundPattern">
           <Select
-            value={formData.appearance.pattern || "none"}
+            value={formData.appearance.pattern || "aurora"}
             onValueChange={(value) => updateAppearance("pattern", value)}
           >
             <SelectTrigger

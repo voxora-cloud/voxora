@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { driver, type Driver, type DriveStep } from "driver.js";
 import "driver.js/dist/driver.css";
+import "./dashboard-tour.css";
 import {
   getDashboardTourRouteKey,
   getDashboardTourSteps,

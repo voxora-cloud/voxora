@@ -1,0 +1,136 @@
+.interaone-driver-popover {
+  --tour-action: var(--primary);
+  --tour-action-text: var(--primary-foreground);
+  max-width: min(360px, calc(100vw - 32px));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--shadow-xl);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.interaone-driver-popover,
+.interaone-driver-popover * {
+  filter: none;
+  text-shadow: none;
+}
+
+.interaone-driver-popover .driver-popover-title {
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.interaone-driver-popover .driver-popover-description {
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.interaone-driver-popover .driver-popover-progress-text {
+  color: var(--muted-foreground);
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+.interaone-driver-popover .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+
+.interaone-driver-popover .driver-popover-prev-btn,
+.interaone-driver-popover .driver-popover-next-btn {
+  box-sizing: border-box;
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: none;
+  transition: background-color 150ms ease, border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.interaone-driver-popover .driver-popover-footer .driver-popover-next-btn {
+  border-color: var(--tour-action);
+  background: var(--tour-action);
+  color: var(--tour-action-text);
+  -webkit-text-fill-color: var(--tour-action-text);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--tour-action) 28%, transparent);
+}
+
+.interaone-driver-popover .driver-popover-footer .driver-popover-next-btn:hover,
+.interaone-driver-popover .driver-popover-footer .driver-popover-next-btn:focus,
+.interaone-driver-popover .driver-popover-footer .driver-popover-next-btn:active {
+  border-color: var(--tour-action);
+  background: var(--tour-action);
+  color: var(--tour-action-text);
+  -webkit-text-fill-color: var(--tour-action-text);
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--tour-action) 32%, transparent);
+}
+
+.interaone-driver-popover .driver-popover-footer .driver-popover-next-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tour-action) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.dark .interaone-driver-popover {
+  border-color: #52525b;
+  background: #27272a;
+  color: #fafafa;
+}
+
+.dark .interaone-driver-popover .driver-popover-title {
+  color: #fafafa;
+}
+
+.dark .interaone-driver-popover .driver-popover-description,
+.dark .interaone-driver-popover .driver-popover-progress-text,
+.dark .interaone-driver-popover .driver-popover-close-btn {
+  color: #d4d4d8;
+  opacity: 1;
+}
+
+.dark .interaone-driver-popover .driver-popover-prev-btn {
+  border-color: #52525b;
+  background: #3f3f46;
+  color: #fafafa;
+}
+
+.dark .interaone-driver-popover .driver-popover-arrow {
+  border-color: #27272a;
+}
+
+.dark .interaone-driver-popover .driver-popover-arrow-side-left {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+}
+
+.dark .interaone-driver-popover .driver-popover-arrow-side-right {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.dark .interaone-driver-popover .driver-popover-arrow-side-top {
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.dark .interaone-driver-popover .driver-popover-arrow-side-bottom {
+  border-top-color: transparent;
+  border-right-color: transparent;
+  border-left-color: transparent;
+}

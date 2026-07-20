@@ -119,6 +119,10 @@ export class WidgetUI {
     return window.innerWidth <= 768;
   }
 
+  private isFullscreen(): boolean {
+    return this.config.fullscreen === true;
+  }
+
   private playOpenSound(): void {
     try {
       const AudioContextConstructor =
@@ -666,7 +670,7 @@ export class WidgetUI {
   private applyDockExpandedChrome(): void {
     if (!this.dockContainer) return;
 
-    if (this.isMobileSheet()) {
+    if (this.isFullscreen() || this.isMobileSheet()) {
       Object.assign(this.dockContainer.style, {
         width: '100vw',
         maxWidth: 'none',
@@ -1245,7 +1249,7 @@ export class WidgetUI {
   private applyResponsiveLayout(): void {
     if (!this.iframe) return;
 
-    if (this.isMobileSheet()) {
+    if (this.isFullscreen() || this.isMobileSheet()) {
       if (this.mobileCloseTimer !== null) return;
       if (this.dockContainer) {
         if (this.state.isOpen) {

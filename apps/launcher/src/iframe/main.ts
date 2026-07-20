@@ -84,7 +84,7 @@ function applyWidgetAppearance(cfg: any) {
       'pattern-confetti',
       'pattern-topography',
     );
-    const selectedPattern = appearance.pattern || 'none';
+    const selectedPattern = appearance.pattern || 'aurora';
     if (selectedPattern !== 'none') {
       welcomeScreen.classList.add(`pattern-${selectedPattern}`);
     }

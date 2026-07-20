@@ -28,6 +28,7 @@ import {
   Clock,
   Ticket,
   BarChart3,
+  type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/domains/auth/hooks/useAuth";
 import { useLogout } from "@/domains/auth/hooks/useLogout";
@@ -60,6 +61,29 @@ interface DashboardLayoutProps {
 
 type OrgRole = "owner" | "admin" | "agent";
 
+const getBreadcrumbIcon = (path: string, label: string): LucideIcon | null => {
+  const normalizedLabel = label.toLowerCase();
+
+  if (path === "/dashboard") return BarChart3;
+  if (path.startsWith("/dashboard/conversations")) return Inbox;
+  if (path.startsWith("/dashboard/tickets")) return Ticket;
+  if (path.startsWith("/dashboard/contacts")) return Users2;
+  if (path.startsWith("/dashboard/channels")) return Radio;
+  if (path.startsWith("/dashboard/agents")) return UserCog;
+  if (path.startsWith("/dashboard/members")) return UserCheck;
+  if (path.startsWith("/dashboard/widget/qr") || normalizedLabel === "qr codes") return QrCode;
+  if (path.startsWith("/dashboard/widget")) return Crown;
+  if (path.startsWith("/dashboard/knowledge/realtime") || normalizedLabel === "realtime") return Bot;
+  if (path.startsWith("/dashboard/knowledge")) return BookOpen;
+  if (path.startsWith("/dashboard/settings/billing/usage")) return BarChart3;
+  if (path.startsWith("/dashboard/settings/billing")) return CreditCard;
+  if (path.startsWith("/dashboard/settings/danger-zone")) return TriangleAlert;
+  if (path.startsWith("/dashboard/settings")) return Settings;
+  if (path.startsWith("/dashboard/organizations")) return Users2;
+
+  return null;
+};
+
 const CDN_URL =
   (import.meta.env.VITE_WIDGET_URL as string | undefined) ||
   "http://localhost:9001/interaone-widget/v1/InteraOne.js";
@@ -72,7 +96,6 @@ interface Notification {
   title: string;
   description: string;
   timestamp: Date;
-  isRead: boolean;
 }
 
 interface NotificationApiItem {
@@ -83,7 +106,6 @@ interface NotificationApiItem {
   description: string;
   createdAt?: string;
   timestamp?: string;
-  isRead: boolean;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -122,7 +144,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificationFilter, setNotificationFilter] = useState<"all" | "unread">("all");
+  const [notificationFilter, setNotificationFilter] = useState<"new" | "history">("new");
   const [isContentFullscreen, setIsContentFullscreen] = useState(false);
   const [hasInboxBadge, setHasInboxBadge] = useState(false);
 
@@ -237,7 +259,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     if (orgRole === "owner") {
       if (billingVisible) {
-        base.push({ label: "Billing", to: "/dashboard/settings/billing" });
+        base.push({ label: "Billing", to: "/dashboard/settings/billing/plans" });
       }
 
       base.push(
@@ -333,6 +355,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [searchQuery, searchableRoutes]);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [newNotifications, setNewNotifications] = useState<Notification[]>([]);
+  const newNotificationsRef = useRef<Notification[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
   // Setup Socket listener for notifications
@@ -349,15 +373,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     socket.on("notification", (newNotif: NotificationApiItem) => {
       playNotificationSound();
+      const notification: Notification = {
+        id: newNotif.id || newNotif._id,
+        type: newNotif.type,
+        title: newNotif.title,
+        description: newNotif.description,
+        timestamp: new Date(newNotif.timestamp || Date.now()),
+      };
+
+      newNotificationsRef.current = [
+        notification,
+        ...newNotificationsRef.current.filter(item => item.id !== notification.id),
+      ];
+      setNewNotifications(newNotificationsRef.current);
       setNotifications(prev => [
-        {
-          ...newNotif,
-          id: newNotif.id || newNotif._id,
-          timestamp: new Date(newNotif.timestamp || Date.now()),
-          isRead: newNotif.isRead ?? false
-        },
-        ...prev
-      ].slice(0, 50)); // Keep last 50
+        notification,
+        ...prev.filter(item => item.id !== notification.id),
+      ]);
     });
 
     const handleConversationsUpdate = () => {
@@ -389,48 +421,54 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => {
       socket.disconnect();
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, queryClient, user]);
 
   // Fetch historical notifications
   useEffect(() => {
     if (!isAuthenticated || !user) return;
+    let cancelled = false;
+
+    newNotificationsRef.current = [];
+
     const fetchNotifications = async () => {
       try {
         const res = await apiClient.get<{ data?: NotificationApiItem[] }>(`/notifications`);
-        if (res?.data) {
-          setNotifications(res.data.map((n) => ({
-            ...n,
+        if (!cancelled && res?.data) {
+          const history = res.data.map((n): Notification => ({
             id: n.id || n._id,
-            timestamp: new Date(n.createdAt || n.timestamp || Date.now())
-          })));
+            type: n.type,
+            title: n.title,
+            description: n.description,
+            timestamp: new Date(n.createdAt || n.timestamp || Date.now()),
+          }));
+
+          // Keep notifications that arrived over the socket while history loaded.
+          const liveNotifications = newNotificationsRef.current;
+          const liveIds = new Set(liveNotifications.map(item => item.id));
+          setNewNotifications(liveNotifications);
+          setNotifications(
+            [...liveNotifications, ...history.filter(item => !liveIds.has(item.id))].sort(
+              (a, b) => b.timestamp.getTime() - a.timestamp.getTime(),
+            ),
+          );
         }
       } catch (err) {
-        console.error("Failed to load notifications:", err);
+        if (!cancelled) {
+          console.error("Failed to load notifications:", err);
+          setNewNotifications(newNotificationsRef.current);
+          setNotifications(newNotificationsRef.current);
+        }
       }
     };
     fetchNotifications();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, user]);
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-  const filteredNotifications = notifications.filter(n => notificationFilter === "all" || !n.isRead);
-
-  const markAllAsRead = async () => {
-    try {
-      await apiClient.patch(`/notifications/read-all`);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const markAsRead = async (id: string) => {
-    try {
-      await apiClient.patch(`/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  const newNotificationCount = newNotifications.length;
+  const filteredNotifications = notificationFilter === "new" ? newNotifications : notifications;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -790,22 +828,30 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     className="flex items-center gap-1 text-sm text-muted-foreground overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                     data-tour-id="dashboard-breadcrumbs"
                   >
-                    {breadcrumbs.map((crumb, index) => (
-                      <div key={`${crumb.to}-${index}`} className="flex items-center gap-1 shrink-0">
-                        {index > 0 && <ChevronRight className="h-3.5 w-3.5" />}
-                        {index === breadcrumbs.length - 1 ? (
-                          <span className="font-medium text-foreground">{crumb.label}</span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => navigate(crumb.to)}
-                            className="cursor-pointer hover:text-foreground transition-colors"
-                          >
-                            {crumb.label}
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                    {breadcrumbs.map((crumb, index) => {
+                      const BreadcrumbIcon = getBreadcrumbIcon(crumb.to, crumb.label);
+
+                      return (
+                        <div key={`${crumb.to}-${index}`} className="flex items-center gap-1 shrink-0">
+                          {index > 0 && <ChevronRight className="h-3.5 w-3.5" />}
+                          {index === breadcrumbs.length - 1 ? (
+                            <span className="flex items-center gap-1.5 font-medium text-foreground">
+                              {BreadcrumbIcon && <BreadcrumbIcon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} />}
+                              {crumb.label}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => navigate(crumb.to)}
+                              className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-foreground"
+                            >
+                              {BreadcrumbIcon && <BreadcrumbIcon aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.8} />}
+                              {crumb.label}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="flex items-center gap-2 lg:gap-3">
@@ -900,9 +946,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                           aria-label="Notifications"
                         >
                           <Bell className="h-4 w-4" />
-                          {unreadCount > 0 && (
+                          {newNotificationCount > 0 && (
                             <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground border-2 border-background">
-                              {unreadCount > 9 ? '9+' : unreadCount}
+                              {newNotificationCount > 9 ? '9+' : newNotificationCount}
                             </span>
                           )}
                         </Button>
@@ -915,36 +961,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                                 Notifications
                                 <div className="flex bg-background/50 border border-border/50 p-0.5 rounded-lg">
                                   <Button
-                                    variant={notificationFilter === "all" ? "secondary" : "ghost"}
+                                    variant={notificationFilter === "new" ? "secondary" : "ghost"}
                                     size="sm"
-                                    onClick={() => setNotificationFilter("all")}
+                                    onClick={() => setNotificationFilter("new")}
                                     className="h-7 text-xs px-3"
                                   >
-                                    All History
+                                    New
                                   </Button>
                                   <Button
-                                    variant={notificationFilter === "unread" ? "secondary" : "ghost"}
+                                    variant={notificationFilter === "history" ? "secondary" : "ghost"}
                                     size="sm"
-                                    onClick={() => setNotificationFilter("unread")}
+                                    onClick={() => setNotificationFilter("history")}
                                     className="h-7 text-xs px-3"
                                   >
-                                    Unread
+                                    Complete History
                                   </Button>
                                 </div>
                               </DialogTitle>
                               <p className="text-xs text-muted-foreground mt-2 font-medium">
-                                {unreadCount} Unread Messages
+                                {newNotificationCount} New Notifications
                               </p>
                             </div>
-                            {unreadCount > 0 && (
-                              <button
-                                type="button"
-                                onClick={markAllAsRead}
-                                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer mr-6"
-                              >
-                                Mark all read
-                              </button>
-                            )}
                           </div>
                         </DialogHeader>
 
@@ -954,18 +991,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                               <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
                                 <Bell className="h-8 w-8 text-muted-foreground/50" />
                               </div>
-                              <p className="text-base font-medium text-foreground">No notifications yet</p>
-                              <p className="text-sm text-muted-foreground mt-1">Important updates appear here.</p>
+                              <p className="text-base font-medium text-foreground">
+                                {notificationFilter === "new" ? "No new notifications" : "No notification history"}
+                              </p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {notificationFilter === "new"
+                                  ? "New updates will appear here as they arrive."
+                                  : "Your notification history will appear here."}
+                              </p>
                             </div>
                           ) : (
                             <div className="divide-y divide-border/40 space-y-1">
                               {filteredNotifications.map((item) => (
                                 <div
                                   key={item.id}
-                                  onClick={() => markAsRead(item.id)}
-                                  className={`group flex items-start gap-4 p-4 rounded-xl hover:bg-accent/50 transition-all cursor-pointer relative ${!item.isRead ? 'bg-primary/5' : ''}`}
+                                  className={`group flex items-start gap-4 p-4 rounded-xl hover:bg-accent/50 transition-all relative ${notificationFilter === "new" ? "bg-primary/5" : ""}`}
                                 >
-                                  {!item.isRead && (
+                                  {notificationFilter === "new" && (
                                     <div className="absolute left-0 top-3 bottom-3 w-1 bg-primary rounded-r-md" />
                                   )}
 
@@ -977,7 +1019,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-3 mb-1">
-                                      <p className={`text-base truncate ${!item.isRead ? 'font-bold text-foreground' : 'font-medium text-foreground/80'}`}>
+                                      <p className={`text-base truncate ${notificationFilter === "new" ? "font-bold text-foreground" : "font-medium text-foreground/80"}`}>
                                         {item.title}
                                       </p>
                                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">

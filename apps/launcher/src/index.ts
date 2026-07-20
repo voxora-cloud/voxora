@@ -83,7 +83,7 @@ class InteraOneLoader {
     this.ui.applyServerConfig(this.appearance);
 
     const behavior = this.appearance?.behavior;
-    if (!this.shouldRenderForCurrentDevice(behavior)) {
+    if (!this.api.getConfig().fullscreen && !this.shouldRenderForCurrentDevice(behavior)) {
       return;
     }
 
@@ -99,12 +99,15 @@ class InteraOneLoader {
     this.setupMessageHandlers();
     this.setupPageChangeDetection();
 
-    this.ui.createButton();
+    if (!this.api.getConfig().fullscreen) {
+      this.ui.createButton();
+    }
     this.iframe = this.ui.createIframe(this.api.getWidgetUrl(window.location.origin));
     this.syncPageVisibility(window.location.href);
 
     const shouldAutoOpen =
-      !this.isMobileView() && behavior?.autoOpen;
+      this.api.getConfig().autoOpen === true ||
+      (!this.isMobileView() && behavior?.autoOpen);
     if (this.isVisibleForCurrentPage && shouldAutoOpen) {
       this.open();
     }
@@ -186,7 +189,7 @@ class InteraOneLoader {
         apiUrl: this.api.getConfig().apiUrl!,
         pageUrl: this.getCurrentPageUrl(),
         pageTitle: this.getCurrentPageTitle(),
-        source: 'widget',
+        source: this.api.getConfig().source || 'widget',
         appearance: this.appearance ?? undefined,
         isMobile: this.isMobileView(),
       },
@@ -241,10 +244,9 @@ class InteraOneLoader {
   }
 
   private syncPageVisibility(pageUrl: string): boolean {
-    this.isVisibleForCurrentPage = shouldShowWidgetOnPage(
-      this.appearance?.behavior,
-      pageUrl,
-    );
+    this.isVisibleForCurrentPage = this.api.getConfig().fullscreen
+      ? true
+      : shouldShowWidgetOnPage(this.appearance?.behavior, pageUrl);
     this.ui.setPageVisibility(this.isVisibleForCurrentPage);
     return this.isVisibleForCurrentPage;
   }
@@ -258,7 +260,7 @@ class InteraOneLoader {
     else this.pendingMessages.push(msg);
   }
 
-  private open() {
+  open(): void {
     if (!this.isVisibleForCurrentPage) return;
     this.ui.open();
     this.state.isOpen = true;
@@ -307,9 +309,18 @@ class InteraOneLoader {
 function boot(): void {
   const widgetWindow = window as Window & {
     __InteraOneWidgetLoader?: InteraOneLoader;
+    InteraOne?: {
+      open: () => void;
+      destroy: () => void;
+    };
   };
   widgetWindow.__InteraOneWidgetLoader?.destroy();
-  widgetWindow.__InteraOneWidgetLoader = new InteraOneLoader();
+  const loader = new InteraOneLoader();
+  widgetWindow.__InteraOneWidgetLoader = loader;
+  widgetWindow.InteraOne = {
+    open: () => loader.open(),
+    destroy: () => loader.destroy(),
+  };
 }
 
 if (document.readyState === 'loading') {

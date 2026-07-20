@@ -19,7 +19,6 @@ class NotificationService {
       title: notification.title,
       description: notification.description,
       timestamp: notification.createdAt,
-      isRead: notification.isRead,
       metadata: notification.metadata,
     };
 
@@ -32,33 +31,19 @@ class NotificationService {
     return notification;
   }
 
-  async getNotifications(organizationId: string, userId: string, limit = 50) {
+  async getNotifications(organizationId: string, userId: string) {
     // Fetch org-wide and user-specific notifications
     const notifications = await Notification.find({
       organizationId,
       $or: [{ userId: null }, { userId }],
     })
+      .select("-isRead")
       .sort({ createdAt: -1 })
-      .limit(limit)
       .lean();
 
     return notifications;
   }
 
-  async markAsRead(organizationId: string, userId: string, notificationId: string) {
-    return Notification.findOneAndUpdate(
-      { _id: notificationId, organizationId, $or: [{ userId: null }, { userId }] },
-      { isRead: true },
-      { new: true }
-    );
-  }
-
-  async markAllAsRead(organizationId: string, userId: string) {
-    return Notification.updateMany(
-      { organizationId, $or: [{ userId: null }, { userId }], isRead: false },
-      { isRead: true }
-    );
-  }
 }
 
 export default new NotificationService();
