@@ -52,6 +52,7 @@ vi.mock("@shared/queues/email.queue", () => ({
   enqueueWelcomeEmail: vi.fn().mockResolvedValue({}),
   enqueueEmailVerificationOTPEmail: vi.fn().mockResolvedValue({}),
   enqueueForgotPasswordOTPEmail: vi.fn().mockResolvedValue({}),
+  enqueueFreeCreditGrantedEmail: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock("@modules/organization/organization.service", () => ({
