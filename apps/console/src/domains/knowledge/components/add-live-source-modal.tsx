@@ -30,6 +30,13 @@ interface AddLiveSourceModalProps {
   isSubmitting: boolean;
 }
 
+const createInitialFormData = (): Partial<AddLiveSourceFormData> => ({
+  url: "",
+  fetchMode: "single",
+  crawlDepth: 2,
+  syncFrequency: "manual",
+});
+
 export function AddLiveSourceModal({
   isOpen,
   onClose,
@@ -37,24 +44,22 @@ export function AddLiveSourceModal({
   isSubmitting,
 }: AddLiveSourceModalProps) {
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState<Partial<AddLiveSourceFormData>>({
-    url: "",
-    fetchMode: "single",
-    crawlDepth: 2,
-    syncFrequency: "manual",
-  });
+  const [formData, setFormData] = useState<Partial<AddLiveSourceFormData>>(
+    createInitialFormData,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const handleClose = () => {
+  const resetModalState = () => {
     setStep(1);
-    setFormData({
-      url: "",
-      fetchMode: "single",
-      crawlDepth: 2,
-      syncFrequency: "manual",
-    });
+    setFormData(createInitialFormData());
     setErrors({});
-    onClose();
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetModalState();
+      onClose();
+    }
   };
 
   const validateStep1 = () => {
@@ -119,7 +124,7 @@ export function AddLiveSourceModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <div className="flex items-center justify-between mb-6">
           <div>

@@ -964,7 +964,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                                     variant={notificationFilter === "new" ? "secondary" : "ghost"}
                                     size="sm"
                                     onClick={() => setNotificationFilter("new")}
-                                    className="h-7 text-xs px-3"
+                                    className="h-7 cursor-pointer text-xs px-3"
                                   >
                                     New
                                   </Button>
@@ -972,7 +972,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                                     variant={notificationFilter === "history" ? "secondary" : "ghost"}
                                     size="sm"
                                     onClick={() => setNotificationFilter("history")}
-                                    className="h-7 text-xs px-3"
+                                    className="h-7 cursor-pointer text-xs px-3"
                                   >
                                     Complete History
                                   </Button>

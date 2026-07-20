@@ -31,9 +31,6 @@ const BRAND = {
   soft: "#f7f4f5",
   border: "#e7e1e4",
   card: "#fffdfb",
-  success: "#5d9658",
-  warning: "#da8620",
-  danger: "#b94745",
 };
 
 const currentYear = new Date().getFullYear();
@@ -54,7 +51,7 @@ const styles = `
 body{margin:0;padding:0;background:${BRAND.soft};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
 table{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;}
 img{border:0;outline:none;text-decoration:none;}
-a{text-decoration:none;}
+a{color:${BRAND.primary};text-decoration:none;}
 .email-shell{width:100%;background:${BRAND.soft};}
 .email-container{width:100%;max-width:640px;margin:0 auto;}
 .email-pad{padding:28px 20px;}
@@ -205,7 +202,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       children: `
         <p class="text">Hello {{name}},</p>
         <p class="text muted">We received a request to reset your InteraOne password. Enter the code below on the password recovery screen to continue.</p>
-        ${otpBlock(BRAND.danger)}
+        ${otpBlock()}
         <p class="meta">This code expires in <strong>2 minutes</strong>. Your password will remain unchanged until verification is completed.</p>
       `,
       note: "For security, InteraOne support will never ask you to share this code.",
@@ -314,8 +311,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       children: `
         <p class="text">Hello {{name}},</p>
         <p class="text muted">{{message}}</p>
-        <div class="panel" style="border-color:#ead3d2;background:#fff8f7;">
-          <p class="section-title" style="color:${BRAND.danger};">Recommended action</p>
+        <div class="panel">
+          <p class="section-title">Recommended action</p>
           <p class="meta">{{recommendation}}</p>
         </div>
       `,
@@ -505,8 +502,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
       children: `
         <p class="text">Hello {{name}},</p>
         <p class="text muted">Your domain <strong>{{domain}}</strong> is verified and its widget security settings are now active.</p>
-        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
-          <p class="section-title" style="color:${BRAND.success};">Protection enabled</p>
+        <div class="panel">
+          <p class="section-title">Protection enabled</p>
           <p class="meta">Your chat widget is restricted to this verified domain. Other websites cannot embed it using your public key.</p>
         </div>
       `,
@@ -533,7 +530,7 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           Your account is on the <strong>Free plan</strong>. You have been credited
           <strong>{{creditAmount}}</strong> for this billing period.
         </p>
-        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
+        <div class="panel">
           <table role="presentation" cellpadding="0" cellspacing="0">
             <tr><td class="detail-label">Credits this month</td><td class="detail-value">{{creditAmount}}</td></tr>
             <tr><td class="detail-label">Resets on</td><td class="detail-value">{{resetDate}}</td></tr>
@@ -566,8 +563,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           Your workspace has used <strong>{{used}} of {{limit}} AI messages</strong> ({{pct}}%) this billing period.
           At this rate you may exhaust your quota before the period resets.
         </p>
-        <div class="panel" style="border-color:#f5ddb3;background:#fffcf5;">
-          <p class="section-title" style="color:${BRAND.warning};">Usage summary</p>
+        <div class="panel">
+          <p class="section-title">Usage summary</p>
           <table role="presentation" cellpadding="0" cellspacing="0">
             <tr><td class="detail-label">Messages used</td><td class="detail-value">{{used}} / {{limit}}</td></tr>
             <tr><td class="detail-label">Usage</td><td class="detail-value">{{pct}}%</td></tr>
@@ -601,8 +598,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           Your workspace has consumed all <strong>{{limit}} AI messages</strong> for this billing period.
           <strong>AI responses are now disabled. All customer messages are being routed directly to human agents so no support queries are missed.</strong>
         </p>
-        <div class="panel" style="border-color:#ead3d2;background:#fff8f7;">
-          <p class="section-title" style="color:${BRAND.danger};">Quota exceeded</p>
+        <div class="panel">
+          <p class="section-title">Quota exceeded</p>
           <table role="presentation" cellpadding="0" cellspacing="0">
             <tr><td class="detail-label">Messages used</td><td class="detail-value">{{used}} / {{limit}}</td></tr>
             <tr><td class="detail-label">Quota resets</td><td class="detail-value">{{resetDate}}</td></tr>
@@ -635,8 +632,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           Your <strong>{{planName}}</strong> subscription is active. All plan features and increased limits are
           now available in your workspace.
         </p>
-        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
-          <p class="section-title" style="color:${BRAND.success};">Subscription details</p>
+        <div class="panel">
+          <p class="section-title">Subscription details</p>
           <table role="presentation" cellpadding="0" cellspacing="0">
             <tr><td class="detail-label">Plan</td><td class="detail-value">{{planName}}</td></tr>
             <tr><td class="detail-label">Next billing date</td><td class="detail-value">{{nextBillingDate}}</td></tr>
@@ -669,8 +666,8 @@ export const DEFAULT_EMAIL_TEMPLATES: EmailTemplateSeed[] = [
           Your <strong>{{channelType}}</strong> channel has been successfully connected to InteraOne.
           Incoming messages from this channel will now route through your AI assistant and inbox.
         </p>
-        <div class="panel" style="border-color:#d5ead2;background:#f5fbf4;">
-          <p class="section-title" style="color:${BRAND.success};">Channel details</p>
+        <div class="panel">
+          <p class="section-title">Channel details</p>
           <table role="presentation" cellpadding="0" cellspacing="0">
             <tr><td class="detail-label">Type</td><td class="detail-value">{{channelType}}</td></tr>
             <tr><td class="detail-label">Name</td><td class="detail-value">{{channelName}}</td></tr>
