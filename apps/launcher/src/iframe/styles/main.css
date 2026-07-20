@@ -2356,16 +2356,20 @@ body {
 }
 
 .conversation-state-banner.state-human {
-  border-color: rgba(16, 185, 129, 0.18);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(0, 0, 0, 0.2));
+  border-color: color-mix(in srgb, var(--vx-text, #fafafa) 10%, transparent);
+  background: color-mix(in srgb, var(--vx-bg, #131314) 92%, #ffffff);
 }
 
 .conversation-state-banner.state-human .state-main {
-  color: #34d399;
+  color: var(--vx-text, #fafafa);
+}
+
+.conversation-state-banner.state-human .state-icon-wrapper {
+  color: var(--vx-accent, #845C6C);
 }
 
 .conversation-state-banner.state-human .state-dot {
-  background: #10b981;
+  background: var(--vx-accent, #845C6C);
 }
 
 .conversation-state-banner.state-human .state-dot::after {
@@ -3113,6 +3117,262 @@ body {
   animation: watermarkSparkleTwinkle 1.9s ease-in-out infinite;
 }
 
+/* ── Standalone desktop chat ──────────────────────────────────────────────
+   Direct links and QR entry points use a full-page, ChatGPT-style reading
+   column on larger screens. Embedded widgets and the mobile sheet retain
+   their existing layout. */
+@media (min-width: 769px) {
+  .is-desktop-standalone .widget-app {
+    border: 0;
+  }
+
+  .is-desktop-standalone .widget-topbar {
+    position: absolute;
+    inset: 0 0 auto;
+    width: 100%;
+    padding: 14px 18px;
+  }
+
+  .is-desktop-standalone .topbar-actions {
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .is-desktop-standalone #historyBtn,
+  .is-desktop-standalone #newChatBtn {
+    width: auto;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid color-mix(in srgb, var(--vx-text, #fafafa) 10%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--vx-bg, #131314) 88%, #ffffff);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  }
+
+  .is-desktop-standalone #historyBtn {
+    margin-right: auto;
+  }
+
+  .is-desktop-standalone #newChatBtn {
+    gap: 8px;
+  }
+
+  .is-desktop-standalone #newChatBtn::after {
+    content: "New chat";
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .is-desktop-standalone .topbar-action-btn + .topbar-action-btn::before {
+    display: none;
+  }
+
+  .is-desktop-standalone #vx-minimize {
+    display: none;
+  }
+
+  .is-desktop-standalone .history-overlay {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: 320px;
+    border-right: 1px solid color-mix(in srgb, var(--vx-text, #fafafa) 9%, transparent);
+    box-shadow: 18px 0 48px rgba(0, 0, 0, 0.2);
+    animation: desktopHistorySlideIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .is-desktop-standalone .history-header {
+    min-height: 72px;
+    padding: 12px 16px;
+  }
+
+  .is-desktop-standalone .history-header h3 {
+    font-size: 15px;
+  }
+
+  .is-desktop-standalone .history-header .new-conversation-btn {
+    display: none;
+  }
+
+  .is-desktop-standalone .history-search-wrapper {
+    padding: 14px 14px 12px;
+  }
+
+  .is-desktop-standalone .history-list {
+    padding: 0 14px 18px;
+  }
+
+  .is-desktop-standalone.is-history-open .input-area {
+    display: block !important;
+  }
+
+  @keyframes desktopHistorySlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .is-desktop-standalone .welcome-container {
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 104px max(24px, calc((100vw - 800px) / 2)) 156px;
+  }
+
+  .is-desktop-standalone .assistant-hero {
+    width: 100%;
+    max-width: 800px;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 4px;
+    text-align: center;
+  }
+
+  .is-desktop-standalone .assistant-brand {
+    align-items: center;
+  }
+
+  .is-desktop-standalone .assistant-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .is-desktop-standalone .assistant-greeting {
+    margin-top: 4px;
+    font-size: clamp(30px, 2.2vw, 36px);
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .is-desktop-standalone .assistant-subtext {
+    max-width: 560px;
+    font-size: 16px;
+    text-align: center;
+  }
+
+  .is-desktop-standalone .suggestions-grid {
+    width: 100%;
+    max-width: 800px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 0;
+  }
+
+  .is-desktop-standalone .suggestion-btn {
+    min-height: 58px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+  }
+
+  .is-desktop-standalone .suggestion-btn:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    width: calc(50% - 6px);
+    justify-self: center;
+  }
+
+  .is-desktop-standalone .messages-container {
+    width: min(820px, 100%);
+    margin: 0 auto;
+    padding: 76px 24px 32px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .is-desktop-standalone .messages-container::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .is-desktop-standalone .conversation-state-banner {
+    width: min(820px, calc(100% - 48px));
+    margin: 68px auto 12px;
+    transition:
+      width 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .is-desktop-standalone .input-area {
+    padding: 12px 24px 18px;
+    transition:
+      width 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+      margin-left 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .is-desktop-standalone .chat-input-box {
+    width: min(780px, 100%);
+    max-width: 780px;
+  }
+
+  .is-desktop-standalone.is-new-chat .welcome-container {
+    justify-content: flex-start;
+    padding-top: max(150px, calc(50vh - 190px));
+    padding-bottom: 260px;
+  }
+
+  .is-desktop-standalone.is-new-chat .suggestions-grid {
+    position: absolute;
+    top: calc(50% + 72px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .is-desktop-standalone.is-new-chat .input-area {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 20;
+    width: min(780px, calc(100% - 48px));
+    padding: 0;
+    background: transparent;
+    transform: translate(-50%, -50%);
+  }
+
+  .is-desktop-standalone.is-new-chat.is-history-open .input-area {
+    left: calc(50% + 160px);
+    width: min(780px, calc(100% - 368px));
+  }
+
+  .is-desktop-standalone.is-new-chat.is-history-open .suggestions-grid {
+    width: min(800px, calc(100% - 48px));
+  }
+
+  .is-desktop-standalone.is-history-open .welcome-container {
+    margin-left: 320px;
+  }
+
+  .is-desktop-standalone.is-history-open .messages-container {
+    transform: translateX(160px);
+  }
+
+  .is-desktop-standalone.is-history-open .conversation-state-banner {
+    width: min(820px, calc(100% - 368px));
+    transform: translateX(160px);
+  }
+
+  .is-desktop-standalone.is-history-open:not(.is-new-chat) .input-area {
+    width: calc(100% - 320px);
+    margin-left: 320px;
+  }
+}
+
 @keyframes watermarkSparkleSweep {
   to {
     transform: rotate(360deg);
@@ -3214,6 +3474,12 @@ body {
 /* Keep the close action available in the full-screen mobile widget. */
 .is-mobile #vx-minimize {
   display: inline-flex !important;
+}
+
+/* Standalone links have no launcher to return to, so closing would expose the
+   landing page's loading state. Browser navigation remains available. */
+.is-standalone #vx-minimize {
+  display: none !important;
 }
 
 /* ── Mobile responsive sidebar ─────────────────────────────────────────── */
@@ -3605,16 +3871,20 @@ body {
 }
 
 .light-theme .conversation-state-banner.state-human {
-  border-color: rgba(16, 185, 129, 0.15) !important;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(255, 255, 255, 0.8)) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
 }
 
 .light-theme .conversation-state-banner.state-human .state-main {
-  color: #047857 !important;
+  color: #111827 !important;
+}
+
+.light-theme .conversation-state-banner.state-human .state-icon-wrapper {
+  color: var(--vx-accent, #845C6C) !important;
 }
 
 .light-theme .conversation-state-banner.state-human .state-dot {
-  background: #10b981 !important;
+  background: var(--vx-accent, #845C6C) !important;
 }
 
 .light-theme .conversation-state-banner .state-subtitle {

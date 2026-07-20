@@ -276,6 +276,8 @@ function reportConversationState(started: boolean) {
 }
 
 export function showWelcomeScreen() {
+  document.documentElement.classList.add('is-new-chat');
+  document.body.classList.add('is-new-chat');
   if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'flex';
   if (elements.suggestionsContainer) elements.suggestionsContainer.style.display = '';
   if (elements.messagesContainer) elements.messagesContainer.style.display = 'none';
@@ -283,6 +285,8 @@ export function showWelcomeScreen() {
 }
 
 export function hideWelcomeScreen() {
+  document.documentElement.classList.remove('is-new-chat');
+  document.body.classList.remove('is-new-chat');
   if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'none';
   if (elements.suggestionsContainer) elements.suggestionsContainer.style.display = 'none';
   if (elements.messagesContainer) elements.messagesContainer.style.display = 'flex';
