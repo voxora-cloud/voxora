@@ -11,6 +11,7 @@ import config from "@shared/infra/config";
 import jwt from "jsonwebtoken";
 import dns from "dns";
 import {
+  isDomainMatch,
   isLocalDomain,
   normalizeDomain,
   requiresDomainVerification,
@@ -155,13 +156,18 @@ export class WidgetService {
       throw createServiceError("Widget not found", 404);
     }
 
-    this.enforceVerifiedDomain(widget, origin || requestOrigin);
+    const authorizedDomain = this.enforceVerifiedDomain(
+      widget,
+      origin || requestOrigin,
+    );
 
     const widgetPayload = {
       InteraOnePublicKey,
       displayName: widget.displayName || "Unknown Widget",
       organizationId: widget.organizationId,
-      origin: origin || requestOrigin || "unknown",
+      origin: authorizedDomain.domain,
+      verifiedDomainId: authorizedDomain.domainId,
+      originBound: true,
       type: "widget_session",
     };
 
@@ -185,7 +191,7 @@ export class WidgetService {
 
     const widget = await Widget.findById(InteraOnePublicKey)
       .select(
-        "organizationId displayName appearance behavior ai conversation features suggestions verifiedDomain domainVerificationStatus",
+        "organizationId displayName appearance behavior ai conversation features suggestions verifiedDomains verifiedDomain domainVerificationStatus",
       )
       .lean();
 
@@ -193,7 +199,7 @@ export class WidgetService {
       throw createServiceError("Widget not found", 404);
     }
 
-    this.enforceVerifiedDomain(widget, requestOrigin);
+    const authorizedDomain = this.enforceVerifiedDomain(widget, requestOrigin);
 
     const defaults = buildDefaultWidgetConfig();
     const { logoUrl: _ignoredLogoUrl, ...appearance } =
@@ -202,7 +208,7 @@ export class WidgetService {
     // Local development and self-hosted installs do not require DNS verification.
     const isDomainVerified =
       !requiresDomainVerification(config.app.env, requestOrigin) ||
-      widget.domainVerificationStatus === "verified";
+      authorizedDomain.verified;
     const endUserDomAccess = isDomainVerified
       ? ((widget as any).features?.endUserDomAccess ?? false)
       : false;
@@ -242,40 +248,104 @@ export class WidgetService {
     };
   }
 
-  private enforceVerifiedDomain(
-    widget: {
-      verifiedDomain?: string | null;
-      domainVerificationStatus?: string | null;
-    },
-    requestOrigin?: string,
-  ): void {
-    if (!requiresDomainVerification(config.app.env, requestOrigin)) return;
+  private getEffectiveVerifiedDomains(widget: any): any[] {
+    const domains: any[] = Array.isArray(widget.verifiedDomains)
+      ? widget.verifiedDomains.map((entry: any) => ({
+          _id: entry._id?.toString(),
+          domain: normalizeDomain(entry.domain),
+          verificationToken: entry.verificationToken || null,
+          status: entry.status,
+          includeSubdomains: entry.includeSubdomains === true,
+          verifiedAt: entry.verifiedAt || null,
+          createdAt: entry.createdAt,
+          updatedAt: entry.updatedAt,
+        }))
+      : [];
 
-    if (
-      !widget.verifiedDomain ||
-      widget.domainVerificationStatus !== "verified"
-    ) {
-      throw createServiceError(
-        "A verified domain is required for this widget",
-        403,
-      );
+    // Dual-read the previous fields until all clients and records are migrated.
+    if (widget.verifiedDomain) {
+      const legacyDomain = normalizeDomain(widget.verifiedDomain);
+      if (!domains.some((entry) => entry.domain === legacyDomain)) {
+        domains.push({
+          _id: "legacy",
+          domain: legacyDomain,
+          verificationToken: widget.domainVerificationToken || null,
+          status: widget.domainVerificationStatus || "pending",
+          includeSubdomains: true,
+          verifiedAt:
+            widget.domainVerificationStatus === "verified"
+              ? widget.updatedAt || null
+              : null,
+          createdAt: widget.createdAt,
+          updatedAt: widget.updatedAt,
+        });
+      }
     }
 
-    if (!requestOrigin) {
+    const configuredDomains = domains.filter((entry) => entry.domain);
+    const verifiedParents = configuredDomains.filter(
+      (entry) => entry.status === "verified",
+    );
+
+    return configuredDomains.map((entry) => {
+      const verifiedParent = verifiedParents.find(
+        (candidate) =>
+          candidate.domain !== entry.domain &&
+          isDomainMatch(entry.domain, candidate.domain),
+      );
+
+      if (!verifiedParent) {
+        return { ...entry, includeSubdomains: true };
+      }
+
+      return {
+        ...entry,
+        status: "verified",
+        includeSubdomains: true,
+        verificationToken: null,
+        verifiedAt: entry.verifiedAt || verifiedParent.verifiedAt || null,
+      };
+    });
+  }
+
+  private enforceVerifiedDomain(
+    widget: any,
+    requestOrigin?: string,
+  ): {
+    domain: string;
+    domainId?: string;
+    verified: boolean;
+  } {
+    const clientDomain = requestOrigin ? normalizeDomain(requestOrigin) : "";
+    if (!requiresDomainVerification(config.app.env, requestOrigin)) {
+      return { domain: clientDomain || "development", verified: true };
+    }
+
+    if (!requestOrigin || !clientDomain) {
       throw createServiceError(
         "Origin header is required for verified widgets",
         403,
       );
     }
 
-    const clientDomain = normalizeDomain(requestOrigin);
-    const allowedDomain = normalizeDomain(widget.verifiedDomain);
-    if (clientDomain !== allowedDomain) {
+    const matchedDomain = this.getEffectiveVerifiedDomains(widget).find(
+      (entry) =>
+        entry.status === "verified" &&
+        isDomainMatch(clientDomain, entry.domain),
+    );
+
+    if (!matchedDomain) {
       throw createServiceError(
-        `Unauthorized origin: widget is locked to domain "${allowedDomain}"`,
+        `Unauthorized origin: "${clientDomain}" is not a verified widget domain`,
         403,
       );
     }
+
+    return {
+      domain: clientDomain,
+      domainId: matchedDomain._id,
+      verified: true,
+    };
   }
 
   async getOrganizationIdByPublicKey(publicKey: string) {
@@ -520,34 +590,260 @@ export class WidgetService {
     return widget;
   }
 
-  async verifyWidgetDomain(organizationId: string) {
+  private createVerifiedDomainRecord(domainInput: string) {
+    const domain = normalizeDomain(domainInput);
+    if (!domain) {
+      throw createServiceError("A valid domain is required", 400);
+    }
+
+    const verificationRequired =
+      requiresDomainVerification(config.app.env, domain) &&
+      !isLocalDomain(domain);
+
+    return {
+      domain,
+      verificationToken: verificationRequired
+        ? "interaone_" + crypto.randomBytes(16).toString("hex")
+        : null,
+      status: verificationRequired ? "pending" : "verified",
+      includeSubdomains: true,
+      verifiedAt: verificationRequired ? null : new Date(),
+    };
+  }
+
+  private invalidateWidgetConfig(widget: any): void {
+    if (widget?._id) {
+      redisClient.del(`widget:${widget._id.toString()}:config`).catch(() => {});
+    }
+    if (widget?.publicKey) {
+      redisClient.del(`widget:${widget.publicKey}:config`).catch(() => {});
+    }
+  }
+
+  async listWidgetDomains(organizationId: string) {
+    const widget = await this.getWidget(organizationId);
+    return this.getEffectiveVerifiedDomains(widget);
+  }
+
+  async addWidgetDomain(
+    organizationId: string,
+    domainInput: string,
+  ) {
+    const widget = await this.getWidget(organizationId);
+
+    const record = this.createVerifiedDomainRecord(domainInput);
+    const currentDomains = this.getEffectiveVerifiedDomains(widget);
+    if (currentDomains.some((entry) => entry.domain === record.domain)) {
+      throw createServiceError("This domain is already configured", 409);
+    }
+    if (currentDomains.length >= 25) {
+      throw createServiceError("A widget can have at most 25 domains", 400);
+    }
+
+    const verifiedParent = currentDomains.find(
+      (entry) =>
+        entry.status === "verified" &&
+        entry.domain !== record.domain &&
+        isDomainMatch(record.domain, entry.domain),
+    );
+    if (verifiedParent) {
+      record.status = "verified";
+      record.verificationToken = null;
+      record.verifiedAt = verifiedParent.verifiedAt || new Date();
+    }
+
+    (widget.verifiedDomains as any).push(record);
+    await widget.save();
+    this.invalidateWidgetConfig(widget);
+
+    if (record.status === "pending" && record.verificationToken) {
+      this.sendDomainVerificationEmail(
+        organizationId,
+        "pending",
+        record.domain,
+        record.verificationToken,
+      ).catch((error) =>
+        logger.error("Failed to send domain verification email", error),
+      );
+    }
+
+    return this.getEffectiveVerifiedDomains(widget).find(
+      (entry) => entry.domain === record.domain,
+    );
+  }
+
+  async updateWidgetDomain(
+    organizationId: string,
+    domainId: string,
+    updates: { domain?: string; includeSubdomains?: boolean },
+  ) {
+    const widget = await Widget.findOne({ organizationId });
+    if (!widget) throw createServiceError("Widget not found", 404);
+    let resultDomain = "";
+    let notifyPending = false;
+
+    if (domainId === "legacy") {
+      if (!widget.verifiedDomain) {
+        throw createServiceError("Domain not found", 404);
+      }
+      const replacement = this.createVerifiedDomainRecord(
+        updates.domain || widget.verifiedDomain,
+      );
+      const legacyDomain = normalizeDomain(widget.verifiedDomain);
+      if (
+        replacement.domain === legacyDomain &&
+        widget.domainVerificationStatus === "verified"
+      ) {
+        replacement.status = "verified";
+        replacement.verificationToken = null;
+        replacement.verifiedAt = widget.updatedAt || new Date();
+      }
+      const duplicate = this.getEffectiveVerifiedDomains(widget).some(
+        (entry) =>
+          entry._id !== "legacy" && entry.domain === replacement.domain,
+      );
+      if (duplicate)
+        throw createServiceError("This domain is already configured", 409);
+
+      // Updating a legacy entry migrates it into the new collection atomically.
+      (widget.verifiedDomains as any).push(replacement);
+      resultDomain = replacement.domain;
+      notifyPending = replacement.status === "pending";
+      widget.verifiedDomain = undefined;
+      widget.domainVerificationToken = undefined;
+      widget.domainVerificationStatus = null;
+    } else {
+      const domainEntry: any = (widget.verifiedDomains as any).id(domainId);
+      if (!domainEntry) throw createServiceError("Domain not found", 404);
+
+      if (updates.domain !== undefined) {
+        const normalizedDomain = normalizeDomain(updates.domain);
+        if (!normalizedDomain)
+          throw createServiceError("A valid domain is required", 400);
+        const duplicate = this.getEffectiveVerifiedDomains(widget).some(
+          (entry) =>
+            entry._id !== domainId && entry.domain === normalizedDomain,
+        );
+        if (duplicate)
+          throw createServiceError("This domain is already configured", 409);
+
+        if (normalizedDomain !== normalizeDomain(domainEntry.domain)) {
+          const replacement = this.createVerifiedDomainRecord(
+            normalizedDomain,
+          );
+          domainEntry.set(replacement);
+          notifyPending = replacement.status === "pending";
+        }
+      }
+      domainEntry.includeSubdomains = true;
+      resultDomain = normalizeDomain(domainEntry.domain);
+    }
+
+    await widget.save();
+    this.invalidateWidgetConfig(widget);
+    const result = this.getEffectiveVerifiedDomains(widget).find(
+      (entry) => entry.domain === resultDomain,
+    );
+
+    if (notifyPending && result?.verificationToken) {
+      this.sendDomainVerificationEmail(
+        organizationId,
+        "pending",
+        result.domain,
+        result.verificationToken,
+      ).catch((error) =>
+        logger.error("Failed to send domain verification email", error),
+      );
+    }
+    return result;
+  }
+
+  async removeWidgetDomain(organizationId: string, domainId: string) {
+    const widget = await Widget.findOne({ organizationId });
+    if (!widget) throw createServiceError("Widget not found", 404);
+
+    if (domainId === "legacy") {
+      if (!widget.verifiedDomain)
+        throw createServiceError("Domain not found", 404);
+      widget.verifiedDomain = undefined;
+      widget.domainVerificationToken = undefined;
+      widget.domainVerificationStatus = null;
+    } else {
+      const domainEntry: any = (widget.verifiedDomains as any).id(domainId);
+      if (!domainEntry) throw createServiceError("Domain not found", 404);
+      domainEntry.deleteOne();
+    }
+
+    await widget.save();
+    this.invalidateWidgetConfig(widget);
+    return this.getEffectiveVerifiedDomains(widget);
+  }
+
+  async verifyWidgetDomain(organizationId: string, domainId?: string) {
     const widget = await Widget.findOne({ organizationId });
     if (!widget) {
       throw createServiceError("Widget not found", 404);
     }
 
+    let target: any;
+    let isLegacy = false;
+    if (domainId) {
+      if (domainId === "legacy") {
+        if (!widget.verifiedDomain) {
+          throw createServiceError("Domain not found", 404);
+        }
+        isLegacy = true;
+      } else {
+        target = (widget.verifiedDomains as any).id(domainId);
+        if (!target) throw createServiceError("Domain not found", 404);
+      }
+    } else if (widget.verifiedDomain) {
+      // Compatibility for POST /verify-domain.
+      isLegacy = true;
+    } else if (widget.verifiedDomains.length === 1) {
+      target = widget.verifiedDomains[0];
+    } else {
+      throw createServiceError(
+        "Choose a domain using the domain-specific verification endpoint",
+        400,
+      );
+    }
+
+    const domain = isLegacy ? widget.verifiedDomain : target?.domain;
+    const verificationToken = isLegacy
+      ? widget.domainVerificationToken
+      : target?.verificationToken;
+
     if (
-      !requiresDomainVerification(config.app.env, widget.verifiedDomain || "") ||
-      isLocalDomain(widget.verifiedDomain || "")
+      !requiresDomainVerification(config.app.env, domain || "") ||
+      isLocalDomain(domain || "")
     ) {
-      widget.domainVerificationStatus = "verified";
-      widget.domainVerificationToken = undefined;
+      if (isLegacy) {
+        widget.domainVerificationStatus = "verified";
+        widget.domainVerificationToken = undefined;
+      } else {
+        target.status = "verified";
+        target.verificationToken = null;
+        target.verifiedAt = new Date();
+      }
+      this.markConfiguredSubdomainsVerified(widget, domain || "");
       await widget.save();
+      this.invalidateWidgetConfig(widget);
       return {
         success: true,
         domainVerificationStatus: "verified",
-        verifiedDomain: widget.verifiedDomain,
+        verifiedDomain: domain,
       };
     }
 
-    if (!widget.verifiedDomain || !widget.domainVerificationToken) {
+    if (!domain || !verificationToken) {
       throw createServiceError(
         "Domain verification has not been configured for this widget",
         400,
       );
     }
 
-    const host = normalizeDomain(widget.verifiedDomain);
+    const host = normalizeDomain(domain);
 
     let txtRecords: string[][];
     try {
@@ -561,28 +857,34 @@ export class WidgetService {
     }
 
     const isTokenFound = txtRecords.some((record) =>
-      record.some((value) => value.trim() === widget.domainVerificationToken),
+      record.some((value) => value.trim() === verificationToken),
     );
 
     if (!isTokenFound) {
       throw createServiceError(
-        `Verification failed: Token "${widget.domainVerificationToken}" not found in DNS TXT records for "${host}".`,
+        `Verification failed: Token "${verificationToken}" not found in DNS TXT records for "${host}".`,
         400,
       );
     }
 
-    widget.domainVerificationStatus = "verified";
+    if (isLegacy) {
+      widget.domainVerificationStatus = "verified";
+    } else {
+      target.status = "verified";
+      target.verifiedAt = new Date();
+    }
+    this.markConfiguredSubdomainsVerified(widget, domain);
     await widget.save();
 
     logger.info(
-      `Widget domain verified successfully for org ${organizationId}: ${widget.verifiedDomain}`,
+      `Widget domain verified successfully for org ${organizationId}: ${domain}`,
     );
 
-    if (widget.verifiedDomain) {
+    if (domain) {
       this.sendDomainVerificationEmail(
         organizationId,
         "completed",
-        widget.verifiedDomain,
+        domain,
       ).catch((err) => {
         logger.error(
           `Failed to send domain completed email for org ${organizationId}:`,
@@ -591,18 +893,50 @@ export class WidgetService {
       });
     }
 
-    if (widget?._id) {
-      redisClient.del(`widget:${widget._id.toString()}:config`).catch(() => {});
-    }
-    if (widget?.publicKey) {
-      redisClient.del(`widget:${widget.publicKey}:config`).catch(() => {});
-    }
+    this.invalidateWidgetConfig(widget);
 
     return {
       success: true,
       domainVerificationStatus: "verified",
-      verifiedDomain: widget.verifiedDomain,
+      verifiedDomain: domain,
     };
+  }
+
+  private markConfiguredSubdomainsVerified(
+    widget: any,
+    parentDomainInput: string,
+  ): void {
+    const parentDomain = normalizeDomain(parentDomainInput);
+    if (!parentDomain) return;
+
+    const verifiedAt = new Date();
+    const configuredDomains = Array.isArray(widget.verifiedDomains)
+      ? widget.verifiedDomains
+      : [];
+
+    for (const entry of configuredDomains) {
+      const childDomain = normalizeDomain(entry.domain || "");
+      entry.includeSubdomains = true;
+      if (
+        childDomain &&
+        childDomain !== parentDomain &&
+        isDomainMatch(childDomain, parentDomain)
+      ) {
+        entry.status = "verified";
+        entry.verificationToken = null;
+        entry.verifiedAt = entry.verifiedAt || verifiedAt;
+      }
+    }
+
+    const legacyDomain = normalizeDomain(widget.verifiedDomain || "");
+    if (
+      legacyDomain &&
+      legacyDomain !== parentDomain &&
+      isDomainMatch(legacyDomain, parentDomain)
+    ) {
+      widget.domainVerificationStatus = "verified";
+      widget.domainVerificationToken = undefined;
+    }
   }
 
   async sendDomainVerificationEmail(

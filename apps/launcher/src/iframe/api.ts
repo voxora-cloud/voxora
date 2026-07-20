@@ -9,6 +9,9 @@ export async function makeAuthenticatedRequest(url: string, options: any = {}) {
 
   if (state.widgetToken) {
     defaultHeaders.Authorization = `Bearer ${state.widgetToken}`;
+    if (state.parentOrigin) {
+      defaultHeaders['X-InteraOne-Origin'] = state.parentOrigin;
+    }
   }
 
   const mergedOptions = {
@@ -33,8 +36,9 @@ export async function makeAuthenticatedRequest(url: string, options: any = {}) {
 
 export async function bootstrapSession(initPayload: any, onReady: (token: string, sessionId: string) => void) {
   const { publicKey, apiUrl, identity } = initPayload;
+  const pageOrigin = initPayload.pageUrl ? new URL(initPayload.pageUrl).origin : state.parentOrigin;
 
-  const stored = loadStoredSession(publicKey);
+  const stored = loadStoredSession(publicKey, pageOrigin);
   if (stored) {
     console.log('[InteraOneWidget] Resuming session from iframe localStorage');
     state.currentSessionId = stored.sessionId;
@@ -44,7 +48,7 @@ export async function bootstrapSession(initPayload: any, onReady: (token: string
 
   let preservedSessionId = null;
   try {
-    const raw = localStorage.getItem(getSessionKey(publicKey));
+    const raw = localStorage.getItem(getSessionKey(publicKey, pageOrigin));
     if (raw) {
       const old = JSON.parse(raw);
       if (old?.sessionId) preservedSessionId = old.sessionId;
@@ -57,7 +61,7 @@ export async function bootstrapSession(initPayload: any, onReady: (token: string
   try {
     const body: any = {
       InteraOnePublicKey: publicKey,
-      origin: initPayload.pageUrl ? new URL(initPayload.pageUrl).origin : undefined,
+      origin: pageOrigin || undefined,
     };
     if (identity && identity.userId) {
       body.userId = identity.userId;
@@ -88,12 +92,12 @@ export async function bootstrapSession(initPayload: any, onReady: (token: string
     const expiresAt = data.data.expiresAt || (Date.now() + 60 * 60 * 1000);
     const sessionId = data.data.sessionId || preservedSessionId || ('sess_' + Date.now());
 
-    persistSession(publicKey, token, expiresAt, sessionId);
+    persistSession(publicKey, token, expiresAt, sessionId, pageOrigin);
     state.currentSessionId = sessionId;
     onReady(token, sessionId);
   } catch (err) {
     console.error('[InteraOneWidget] Session bootstrap failed:', err);
-    clearStoredSession(publicKey);
+    clearStoredSession(publicKey, pageOrigin);
     if (elements.messageInput && elements.sendBtn) {
       elements.messageInput.disabled = false;
       elements.messageInput.placeholder = 'Connection failed — try refreshing';
@@ -105,14 +109,11 @@ export async function bootstrapSession(initPayload: any, onReady: (token: string
 export async function fetchMessagesFromBackend(conversationId: string) {
   if (!state.widgetToken || !state.currentSessionId) return [];
   try {
-    const response = await fetch(
+    const response = await makeAuthenticatedRequest(
       `${API_BASE_URL}/api/v1/widget/conversations/${conversationId}/messages?sessionId=${encodeURIComponent(state.currentSessionId)}`,
       {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.widgetToken}`
-        }
+        headers: { 'Content-Type': 'application/json' }
       }
     );
     if (!response.ok) return [];
@@ -123,4 +124,3 @@ export async function fetchMessagesFromBackend(conversationId: string) {
     return [];
   }
 }
-

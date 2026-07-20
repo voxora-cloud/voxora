@@ -59,6 +59,23 @@ export function isAllowedDomain(domain: string): boolean {
   return allowed.some(d => normalizeDomain(d) === normalized);
 }
 
+/**
+ * Checks an origin/hostname against a configured widget domain. Verified
+ * domains authorize their subdomains by default. Matching is boundary-aware,
+ * so `badexample.com` never matches `example.com`.
+ */
+export function isDomainMatch(
+  origin: string,
+  configuredDomain: string,
+  includeSubdomains = true,
+): boolean {
+  const clientDomain = normalizeDomain(origin);
+  const allowedDomain = normalizeDomain(configuredDomain);
+  if (!clientDomain || !allowedDomain) return false;
+  if (clientDomain === allowedDomain) return true;
+  return includeSubdomains && clientDomain.endsWith(`.${allowedDomain}`);
+}
+
 export function requiresDomainVerification(environment: string, origin?: string): boolean {
   if (environment !== "production") return false;
   if (!origin) return true;

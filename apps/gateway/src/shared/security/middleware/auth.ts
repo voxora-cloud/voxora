@@ -4,6 +4,7 @@ import { sendError } from "@shared/core/response";
 import { User, Membership, Organization, MembershipRole } from "@shared/models";
 import jwt from "jsonwebtoken";
 import config from "@shared/infra/config";
+import { normalizeDomain } from "@shared/utils/domain";
 
 // ─────────────── Augmented Request Type ───────────────
 
@@ -167,6 +168,20 @@ export const authenticateWidget = async (
 
     if (!decoded || decoded.type !== "widget_session") {
       sendError(res, 401, "Invalid widget access token");
+      return;
+    }
+
+    const requestOrigin = req.get("x-interaone-origin");
+    if (decoded.originBound === true && !requestOrigin) {
+      sendError(res, 401, "Widget session origin is required");
+      return;
+    }
+    if (
+      requestOrigin &&
+      decoded.origin &&
+      normalizeDomain(requestOrigin) !== normalizeDomain(decoded.origin)
+    ) {
+      sendError(res, 401, "Widget session origin mismatch");
       return;
     }
 

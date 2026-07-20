@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { User, Membership } from "@shared/models";
 import config from "@shared/infra/config";
+import { normalizeDomain } from "@shared/utils/domain";
 
 export const authMiddleware = async (socket: any, next: (err?: Error) => void) => {
   try {
@@ -12,11 +13,23 @@ export const authMiddleware = async (socket: any, next: (err?: Error) => void) =
     const decoded = jwt.verify(token, config.jwt.secret!) as any;
 
     if (decoded.type === "widget_session") {
+      const handshakeOrigin = socket.handshake.auth.origin;
+      if (decoded.originBound === true && !handshakeOrigin) {
+        return next(new Error("Authentication error: Session origin is required"));
+      }
+      if (
+        handshakeOrigin &&
+        decoded.origin &&
+        normalizeDomain(handshakeOrigin) !== normalizeDomain(decoded.origin)
+      ) {
+        return next(new Error("Authentication error: Session origin mismatch"));
+      }
       // Widget Connection
       socket.data.user = {
         isWidget: true,
         orgId: decoded.organizationId,
         widgetKey: decoded.InteraOnePublicKey || decoded.publicKey || null,
+        origin: decoded.origin || null,
         userId: socket.id,
       };
       return next();

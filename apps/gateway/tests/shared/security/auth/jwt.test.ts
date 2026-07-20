@@ -10,11 +10,19 @@ import {
 // Mock the config module so we don't need real env vars
 vi.mock("@shared/infra/config", () => ({
   default: {
+    app: {
+      env: "test",
+    },
     jwt: {
       secret: "test-access-secret",
       expiresIn: "15m",
       refreshSecret: "test-refresh-secret",
       refreshExpiresIn: "7d",
+    },
+    redis: {
+      redisUri: undefined,
+      host: "localhost",
+      port: 6379,
     },
   },
 }));

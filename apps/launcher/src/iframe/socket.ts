@@ -448,7 +448,7 @@ export function initializeSocket() {
   }
 
   state.socket = io(API_BASE_URL, {
-    auth: { token: state.widgetToken },
+    auth: { token: state.widgetToken, origin: state.parentOrigin },
     transports: ['websocket', 'polling']
   });
 
@@ -475,7 +475,7 @@ export function initializeSocket() {
               state.socket?.disconnect();
               setTimeout(() => {
                 state.socket = io(API_BASE_URL, {
-                  auth: { token: state.widgetToken },
+                  auth: { token: state.widgetToken, origin: state.parentOrigin },
                   transports: ['websocket', 'polling']
                 });
                 bindSocketEvents();

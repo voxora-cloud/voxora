@@ -3,6 +3,8 @@ import { IOrganization } from "./Organization";
 import { DEFAULT_WIDGET_CONFIG } from "@shared/core/widget-default-config";
 
 export interface IWidget extends Document {
+  createdAt: Date;
+  updatedAt: Date;
   organizationId: Types.ObjectId | IOrganization;
   displayName: string;
   logoUrl?: string;
@@ -61,10 +63,37 @@ export interface IWidget extends Document {
     faqId?: string | null;
   }>;
   publicKey?: string;
+  verifiedDomains: Array<{
+    _id: Types.ObjectId;
+    domain: string;
+    verificationToken?: string | null;
+    status: "pending" | "verified";
+    includeSubdomains: boolean;
+    verifiedAt?: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
+  // Temporary compatibility fields for widgets created before multi-domain support.
   verifiedDomain?: string;
   domainVerificationToken?: string;
   domainVerificationStatus?: "pending" | "verified" | null;
 }
+
+const VerifiedDomainSchema = new Schema(
+  {
+    domain: { type: String, required: true },
+    verificationToken: { type: String, default: null },
+    status: {
+      type: String,
+      enum: ["pending", "verified"],
+      default: "pending",
+      required: true,
+    },
+    includeSubdomains: { type: Boolean, default: true },
+    verifiedAt: { type: Date, default: null },
+  },
+  { _id: true, timestamps: true },
+);
 
 const WidgetSchema = new Schema<IWidget>(
   {
@@ -144,6 +173,7 @@ const WidgetSchema = new Schema<IWidget>(
       default: DEFAULT_WIDGET_CONFIG.suggestions,
     },
     publicKey: { type: String, default: null },
+    verifiedDomains: { type: [VerifiedDomainSchema], default: [] },
     verifiedDomain: { type: String, default: null },
     domainVerificationToken: { type: String, default: null },
     domainVerificationStatus: {
