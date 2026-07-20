@@ -27,6 +27,8 @@ export interface SendMessageInput {
   html?: string;
   /** Reply-to header (email only) */
   replyTo?: string;
+  inReplyTo?: string;
+  references?: string;
   /** Optional from email address (email only) */
   from?: string;
   channelConfig: IChannelConfig;

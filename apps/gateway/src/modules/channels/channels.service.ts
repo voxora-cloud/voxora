@@ -498,12 +498,24 @@ export class ChannelService {
       if (!to && convMeta.senderEmail) {
         to = convMeta.senderEmail;
       }
+      if (!to && conversation.sessionId) {
+        const contact = await Contact.findOne({ sessionId: conversation.sessionId, organizationId }).lean();
+        if (contact?.email) {
+          to = contact.email;
+        }
+      }
     } else if (channelType === "whatsapp_channel") {
       if (conversation.sessionId?.startsWith("whatsapp-")) {
         to = conversation.sessionId.replace("whatsapp-", "");
       }
       if (!to && convMeta.phone) {
         to = convMeta.phone;
+      }
+      if (!to && conversation.sessionId) {
+        const contact = await Contact.findOne({ sessionId: conversation.sessionId, organizationId }).lean();
+        if (contact?.phone) {
+          to = contact.phone;
+        }
       }
     } else if (channelType === "telegram_channel") {
       if (conversation.sessionId?.startsWith("telegram-")) {
@@ -520,6 +532,8 @@ export class ChannelService {
         subject: conversation.subject || "Reply from Support",
         body: content,
         from: convMeta.supportEmail,
+        inReplyTo: convMeta.lastInboundMessageId,
+        references: convMeta.lastInboundMessageId,
       });
     }
   }

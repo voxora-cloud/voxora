@@ -158,6 +158,14 @@ export class SesAdapter implements IEmailProviderAdapter {
 
   async sendEmail(params: SendEmailParams): Promise<SendEmailResult> {
     try {
+      const headers: { Name: string; Value: string }[] = [];
+      if (params.inReplyTo) {
+        headers.push({ Name: "In-Reply-To", Value: params.inReplyTo });
+      }
+      if (params.references) {
+        headers.push({ Name: "References", Value: params.references });
+      }
+
       const response = await this.client.send(
         new SendEmailCommand({
           FromEmailAddress: params.from,
@@ -172,6 +180,7 @@ export class SesAdapter implements IEmailProviderAdapter {
                   ? { Text: { Data: params.text, Charset: "UTF-8" } }
                   : {}),
               },
+              Headers: headers.length > 0 ? headers : undefined,
             },
           },
         }),

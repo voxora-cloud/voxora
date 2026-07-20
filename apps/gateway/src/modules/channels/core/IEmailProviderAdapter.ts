@@ -31,6 +31,8 @@ export interface SendEmailParams {
   html: string;
   text?: string;
   replyTo?: string;
+  inReplyTo?: string;
+  references?: string;
 }
 
 export interface SendEmailResult {

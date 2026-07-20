@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import { asyncHandler, sendError, sendResponse } from "@shared/core/response";
 import { ConversationService } from "./conversation.service";
 import { AuthenticatedRequest } from "@shared/security/middleware/auth";
-import { Contact, Message, Conversation } from "@shared/models";
+import { Contact, Message, Conversation, Organization } from "@shared/models";
 import { socketService } from "@sockets/services/socket.service";
 import logger from "@shared/core/logger";
 import { tracker } from "@shared/utils/tracker";
@@ -384,6 +384,28 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     .select("channel channelId sessionId metadata subject")
     .lean();
 
+  let bodyText = "";
+  if (conv && conv.channel === "email_channel") {
+    const contact = await Contact.findOne({ sessionId: conv.sessionId, organizationId }).lean();
+    const recipientName = contact?.name && contact.name !== "Anonymous User" ? contact.name : "there";
+    const recipientEmail = contact?.email || (conv.metadata as any)?.senderEmail || conv.sessionId?.replace("email-", "");
+    const organization = await Organization.findById(organizationId).lean();
+    const company = organization?.name || "Support";
+
+    bodyText = `Dear ${recipientName},
+
+I've saved your contact details so the right team member can follow up with you.
+
+Your inquiry has been noted and will be assigned to a member of our team. They'll be reaching out to you at ${recipientEmail} shortly.
+
+If you want to continue talking with me, please create a new email instead of replying to this thread. This thread is now connected to a human agent who will continue the conversation; the AI assistant is only available on a new email thread.
+
+If there's anything else I can help you with in the meantime, please don't hesitate to let me know.
+
+Best regards,
+the ${company} Team`;
+  }
+
   const notifyChannel = async (messageText: string) => {
     if (conv && conv.channel && conv.channelId) {
       let to: string | undefined;
@@ -461,7 +483,7 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     }
 
     // Send Telegram/WhatsApp/Email notification to user
-    await notifyChannel(`You are being connected to ${result.agentName || "a support agent"}.`);
+    await notifyChannel(bodyText || `You are being connected to ${result.agentName || "a support agent"}.`);
 
     return sendResponse(res, 200, true, "Escalated to human agent", {
       conversationId,
@@ -477,7 +499,7 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
     organizationId,
     conversationId,
     senderId: "support-team",
-    content: "Our team will get back to you shortly.",
+    content: bodyText || "Our team will get back to you shortly.",
     type: "text",
     metadata: {
       senderName: "Support Team",
@@ -499,7 +521,7 @@ export const aiEscalate = asyncHandler(async (req: Request, res: Response) => {
   });
 
   // Send Telegram/WhatsApp/Email notification to user
-  await notifyChannel("Our team will get back to you shortly.");
+  await notifyChannel(bodyText || "Our team will get back to you shortly.");
 
   // Notify organization room so lists refresh in real-time
   socketService.getIO().to(`org:${organizationId}`).emit("conversation_pending", {
