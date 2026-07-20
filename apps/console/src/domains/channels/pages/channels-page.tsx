@@ -81,6 +81,20 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
   const [copiedValue, setCopiedValue] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  let cleanValue = record.value;
+  let priority = record.priority;
+
+  if (record.type === "MX") {
+    const mxMatch = record.value.match(/^(\d+)\s+(.+)$/);
+    if (mxMatch) {
+      priority = parseInt(mxMatch[1], 10);
+      cleanValue = mxMatch[2];
+    }
+    if (!cleanValue.endsWith(".")) {
+      cleanValue = cleanValue + ".";
+    }
+  }
+
   const copyName = async () => {
     await navigator.clipboard.writeText(record.name);
     setCopiedName(true);
@@ -88,12 +102,12 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
   };
 
   const copyValue = async () => {
-    await navigator.clipboard.writeText(record.value);
+    await navigator.clipboard.writeText(cleanValue);
     setCopiedValue(true);
     setTimeout(() => setCopiedValue(false), 2000);
   };
 
-  const isLong = record.value.length > 50;
+  const isLong = cleanValue.length > 50;
 
   return (
     <div className="space-y-4 rounded-lg border border-border bg-card p-4 shadow-xs">
@@ -102,9 +116,9 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
           <span className="flex h-7 items-center rounded-md bg-primary/10 px-2.5 font-mono text-[11px] font-bold uppercase tracking-wide text-primary">
             {record.type} record
           </span>
-          {record.priority !== undefined && (
+          {priority !== undefined && (
             <span className="rounded-md bg-muted px-2 py-1 text-[10px] font-medium text-muted-foreground">
-              Priority: {record.priority}
+              Priority: {priority}
             </span>
           )}
         </div>
@@ -153,7 +167,7 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
           </span>
           <div className="flex min-h-11 items-center gap-2 rounded-md bg-muted/35 px-3 font-mono text-xs ring-1 ring-inset ring-border/70">
             <span className={`flex-1 break-all text-foreground ${!expanded && isLong ? "line-clamp-1 truncate" : ""}`}>
-              {record.value}
+              {cleanValue}
             </span>
             <button
               type="button"
