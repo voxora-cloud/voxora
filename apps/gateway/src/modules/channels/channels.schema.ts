@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-const domainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/;
+const domainPattern = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])+(\.[a-zA-Z]{2,})$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const channelsSchema = {
@@ -10,7 +10,7 @@ export const channelsSchema = {
       "string.pattern.base": "Must be a valid email address",
     }),
     domain: Joi.string().pattern(domainPattern).required().messages({
-      "string.pattern.base": "Must be a valid domain name (e.g. acme.com)",
+      "string.pattern.base": "Must be a valid subdomain (e.g. support.acme.com)",
     }),
   }),
 

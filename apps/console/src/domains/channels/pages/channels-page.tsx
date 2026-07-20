@@ -76,7 +76,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function DnsRecordRow({ record }: { record: DnsRecord }) {
+function DnsRecordRow({ record, domain }: { record: DnsRecord; domain: string }) {
   const [copiedName, setCopiedName] = useState(false);
   const [copiedValue, setCopiedValue] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -95,8 +95,19 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
     }
   }
 
+  const getRelativeHost = (recordName: string) => {
+    const parts = domain.split(".");
+    if (parts.length < 3) return recordName;
+    const parentDomain = parts.slice(1).join(".");
+    if (recordName === parentDomain) return "@";
+    if (recordName.endsWith("." + parentDomain)) {
+      return recordName.slice(0, -(parentDomain.length + 1));
+    }
+    return recordName;
+  };
+
   const copyName = async () => {
-    await navigator.clipboard.writeText(record.name);
+    await navigator.clipboard.writeText(getRelativeHost(record.name));
     setCopiedName(true);
     setTimeout(() => setCopiedName(false), 2000);
   };
@@ -133,32 +144,30 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
         )}
       </div>
 
-      <div className={record.type === "MX" || record.type === "TXT" ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 md:grid-cols-2"}>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {/* Name / Host */}
-        {record.type !== "MX" && record.type !== "TXT" && (
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Name / Host
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Name / Host
+          </span>
+          <div className="flex min-h-11 items-center gap-2 rounded-md bg-muted/35 px-3 font-mono text-xs ring-1 ring-inset ring-border/70">
+            <span className="flex-1 truncate text-foreground" title={getRelativeHost(record.name)}>
+              {getRelativeHost(record.name)}
             </span>
-            <div className="flex min-h-11 items-center gap-2 rounded-md bg-muted/35 px-3 font-mono text-xs ring-1 ring-inset ring-border/70">
-              <span className="flex-1 truncate text-foreground" title={record.name}>
-                {record.name}
-              </span>
-              <button
-                type="button"
-                onClick={copyName}
-                className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-                title="Copy Host/Name"
-              >
-                {copiedName ? (
-                  <Check className="h-3.5 w-3.5 text-emerald-500" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={copyName}
+              className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+              title="Copy Host/Name"
+            >
+              {copiedName ? (
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Value / Content */}
         <div className="space-y-1.5">
@@ -396,7 +405,7 @@ function ManageEmailsSection({
   );
 }
 
-function DnsRecordsTable({ records }: { records: DnsRecord[] }) {
+function DnsRecordsTable({ records, domain }: { records: DnsRecord[]; domain: string }) {
   if (!records.length) return null;
   return (
     <div className="-mx-5 -mb-5 mt-2 border-t border-border bg-muted/15 px-5 py-5 sm:-mx-6 sm:-mb-6 sm:px-6 sm:py-6">
@@ -418,7 +427,7 @@ function DnsRecordsTable({ records }: { records: DnsRecord[] }) {
       </div>
       <div className="mt-5 space-y-3">
         {records.map((rec, i) => (
-          <DnsRecordRow key={i} record={rec} />
+          <DnsRecordRow key={i} record={rec} domain={domain} />
         ))}
       </div>
     </div>
@@ -662,7 +671,7 @@ export function ChannelsPage() {
 
             {/* DNS Records */}
             {(!isEmailDomainVerified || showDns) && (
-              <DnsRecordsTable records={emailChannel.config.email?.dnsRecords ?? []} />
+              <DnsRecordsTable records={emailChannel.config.email?.dnsRecords ?? []} domain={emailChannel.config.email?.domain || ""} />
             )}
 
             {/* Email creation unlocks only after domain verification */}

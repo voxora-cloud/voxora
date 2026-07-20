@@ -120,12 +120,14 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
 function DnsRecordsStep({
   records,
+  domain,
   onVerify,
   isVerifying,
   verificationMessage,
   verificationError,
 }: {
   records: DnsRecord[];
+  domain: string;
   onVerify: () => void;
   isVerifying: boolean;
   verificationMessage?: string;
@@ -164,6 +166,17 @@ function DnsRecordsStep({
               }
             }
 
+            const getRelativeHost = (recordName: string) => {
+              const parts = domain.split(".");
+              if (parts.length < 3) return recordName;
+              const parentDomain = parts.slice(1).join(".");
+              if (recordName === parentDomain) return "@";
+              if (recordName.endsWith("." + parentDomain)) {
+                return recordName.slice(0, -(parentDomain.length + 1));
+              }
+              return recordName;
+            };
+
             return (
               <div key={i} className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
@@ -174,9 +187,7 @@ function DnsRecordsStep({
                     <span className="text-xs text-muted-foreground">Priority: {priority}</span>
                   )}
                 </div>
-                {rec.type !== "MX" && rec.type !== "TXT" && (
-                  <CopyField label="Name / Host" value={rec.name} />
-                )}
+                <CopyField label="Name / Host" value={getRelativeHost(rec.name)} />
                 <CopyField label="Value / Content" value={cleanValue} />
               </div>
             );
@@ -334,9 +345,9 @@ function validate(name: string, domain: string): FormErrors {
   if (!name.trim() || name.trim().length < 2) errors.name = "Name must be at least 2 characters";
   if (
     !domain.trim() ||
-    !/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/.test(domain)
+    !/^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])+(\.[a-zA-Z]{2,})$/.test(domain)
   )
-    errors.domain = "Enter a valid domain name (e.g. acme.com)";
+    errors.domain = "Enter a valid subdomain (e.g. support.acme.com)";
   return errors;
 }
 
@@ -455,15 +466,15 @@ export function EmailChannelSetupPage() {
             {/* Domain */}
             <SetupField
               htmlFor="channel-domain"
-              label="Sending domain"
-              hint="You’ll need access to this domain’s DNS settings to complete verification."
+              label="Sending subdomain"
+              hint="Use a subdomain specifically for support (e.g. support.acme.com) so your corporate email isn't affected."
               error={touched.domain ? errors.domain : undefined}
             >
               <div className="relative">
                 <Globe className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="channel-domain"
-                  placeholder="acme.com"
+                  placeholder="support.acme.com"
                   className={`${setupInputClassName} pl-10`}
                   value={domain}
                   onChange={(e) => {
@@ -513,6 +524,7 @@ export function EmailChannelSetupPage() {
         {step === "dns" && (
           <DnsRecordsStep
             records={dnsRecords}
+            domain={domain}
             onVerify={handleVerifyDomain}
             isVerifying={verifyMutation.isPending}
             verificationMessage={verificationMessage}
