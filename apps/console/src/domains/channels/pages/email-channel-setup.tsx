@@ -159,7 +159,9 @@ function DnsRecordsStep({
                   <span className="text-xs text-muted-foreground">Priority: {rec.priority}</span>
                 )}
               </div>
-              <CopyField label="Name / Host" value={rec.name} />
+              {rec.type !== "MX" && rec.type !== "TXT" && (
+                <CopyField label="Name / Host" value={rec.name} />
+              )}
               <CopyField label="Value / Content" value={rec.value} />
             </div>
           ))}

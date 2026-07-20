@@ -119,30 +119,32 @@ function DnsRecordRow({ record }: { record: DnsRecord }) {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className={record.type === "MX" || record.type === "TXT" ? "grid grid-cols-1 gap-3" : "grid grid-cols-1 gap-3 md:grid-cols-2"}>
         {/* Name / Host */}
-        <div className="space-y-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Name / Host
-          </span>
-          <div className="flex min-h-11 items-center gap-2 rounded-md bg-muted/35 px-3 font-mono text-xs ring-1 ring-inset ring-border/70">
-            <span className="flex-1 truncate text-foreground" title={record.name}>
-              {record.name}
+        {record.type !== "MX" && record.type !== "TXT" && (
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Name / Host
             </span>
-            <button
-              type="button"
-              onClick={copyName}
-              className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-              title="Copy Host/Name"
-            >
-              {copiedName ? (
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-            </button>
+            <div className="flex min-h-11 items-center gap-2 rounded-md bg-muted/35 px-3 font-mono text-xs ring-1 ring-inset ring-border/70">
+              <span className="flex-1 truncate text-foreground" title={record.name}>
+                {record.name}
+              </span>
+              <button
+                type="button"
+                onClick={copyName}
+                className="shrink-0 cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                title="Copy Host/Name"
+              >
+                {copiedName ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-500" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Value / Content */}
         <div className="space-y-1.5">

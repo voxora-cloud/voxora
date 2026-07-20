@@ -131,12 +131,7 @@ export class EmailChannelStrategy implements IChannelStrategy {
       if (!fromAddress) {
         return { success: false, error: "Create an email address before sending email." };
       }
-      const parsedHtml = parseMarkdown(input.body);
-      const emailHtml = input.html ?? `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          ${parsedHtml}
-        </div>
-      `.trim();
+      const emailHtml = input.html ?? parseMarkdown(input.body);
 
       const { messageId } = await this.adapter.sendEmail({
         from: fromAddress,
@@ -145,6 +140,8 @@ export class EmailChannelStrategy implements IChannelStrategy {
         html: emailHtml,
         text: input.body,
         replyTo: input.replyTo,
+        inReplyTo: input.inReplyTo,
+        references: input.references,
       });
 
       return { success: true, messageId };
@@ -166,6 +163,8 @@ export class EmailChannelStrategy implements IChannelStrategy {
       let bodyText = "";
       let toEmail = "";
 
+      let messageIdHeader = "";
+      let isInReplyToMessage = false;
       if (data.content) {
         // SES provides the raw email as a Base64-encoded MIME string
         const rawMime = Buffer.from(data.content, "base64").toString("utf-8");
@@ -190,12 +189,19 @@ export class EmailChannelStrategy implements IChannelStrategy {
             : (parsedTo.value || []);
           toEmail = toAddresses[0]?.address?.trim().toLowerCase() || "";
         }
+
+        messageIdHeader = parsed.messageId || data.mail?.messageId || "";
+        const hasReSubject = subject.trim().toLowerCase().startsWith("re:");
+        isInReplyToMessage = hasReSubject || !!(parsed.inReplyTo || (parsed.references && parsed.references.length > 0));
       } else if (data.mail) {
         // Fallback for SES notifications without content body (headers only)
         fromEmail = data.mail.source?.trim() || "";
         subject = data.mail.commonHeaders?.subject || "(No Subject)";
         bodyHtml = "";
         bodyText = "";
+        messageIdHeader = data.mail.messageId || "";
+        const hasReSubject = subject.trim().toLowerCase().startsWith("re:");
+        isInReplyToMessage = hasReSubject;
       } else {
         // Fallback/mock check: if they send data.from, data.subject, data.text/html (like the old Resend payload)
         fromEmail = data.from?.trim() || "";
@@ -203,6 +209,9 @@ export class EmailChannelStrategy implements IChannelStrategy {
         bodyHtml = data.html || "";
         bodyText = data.text || bodyHtml.replace(/<[^>]+>/g, "");
         toEmail = data.to?.trim().toLowerCase() || "";
+        messageIdHeader = data.messageId || "";
+        const hasReSubject = subject.trim().toLowerCase().startsWith("re:");
+        isInReplyToMessage = hasReSubject;
       }
 
       if (!toEmail && data.mail?.destination) {
@@ -236,15 +245,18 @@ export class EmailChannelStrategy implements IChannelStrategy {
       const contactDoc = await Contact.findOne({ organizationId, email: fromEmail }).lean();
       const sessionId = contactDoc?.sessionId || `email-${fromEmail}`;
 
-      let conversation = await Conversation.findOne({
-        organizationId,
-        sessionId,
-        status: { $in: ["open", "pending"] },
-        $or: [
-          { channel: "email_channel", channelId: payload.channelId },
-          { "metadata.channel": "email_channel", "metadata.channelId": payload.channelId }
-        ],
-      });
+      let conversation = null;
+      if (isInReplyToMessage) {
+        conversation = await Conversation.findOne({
+          organizationId,
+          sessionId,
+          status: { $in: ["open", "pending"] },
+          $or: [
+            { channel: "email_channel", channelId: payload.channelId },
+            { "metadata.channel": "email_channel", "metadata.channelId": payload.channelId }
+          ],
+        });
+      }
 
       if (!conversation) {
         // Build a minimal system user ID for createdBy (system placeholder)
@@ -262,6 +274,8 @@ export class EmailChannelStrategy implements IChannelStrategy {
           channelId: payload.channelId,
           metadata: {
             supportEmail,
+            senderEmail: fromEmail,
+            lastInboundMessageId: messageIdHeader,
           },
           sessionId,
         });
@@ -272,17 +286,17 @@ export class EmailChannelStrategy implements IChannelStrategy {
           channelId: payload.channelId,
         });
       } else {
-        // Update supportEmail to the latest one they emailed if it is one of our configured addresses
-        if (supportEmail && conversation.metadata?.supportEmail !== supportEmail) {
-          conversation.metadata = {
-            ...conversation.metadata,
-            supportEmail,
-          };
-          await Conversation.updateOne(
-            { _id: conversation._id },
-            { $set: { "metadata.supportEmail": supportEmail } }
-          );
-        }
+        // Update supportEmail and lastInboundMessageId on existing conversation if changed
+        const updatedMeta = {
+          ...conversation.metadata,
+          supportEmail: supportEmail || conversation.metadata?.supportEmail,
+          lastInboundMessageId: messageIdHeader || conversation.metadata?.lastInboundMessageId,
+        };
+
+        await Conversation.updateOne(
+          { _id: conversation._id },
+          { $set: { metadata: updatedMeta } }
+        );
       }
 
       // Add the inbound email as a visitor message
