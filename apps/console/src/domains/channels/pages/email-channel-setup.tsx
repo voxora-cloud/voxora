@@ -149,22 +149,38 @@ function DnsRecordsStep({
           <p className="text-sm font-semibold">DNS Configuration</p>
         </div>
         <div className="divide-y divide-border">
-          {records.map((rec, i) => (
-            <div key={i} className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-xs">
-                  {rec.type}
-                </span>
-                {rec.priority !== undefined && (
-                  <span className="text-xs text-muted-foreground">Priority: {rec.priority}</span>
+          {records.map((rec, i) => {
+            let cleanValue = rec.value;
+            let priority = rec.priority;
+
+            if (rec.type === "MX") {
+              const mxMatch = rec.value.match(/^(\d+)\s+(.+)$/);
+              if (mxMatch) {
+                priority = parseInt(mxMatch[1], 10);
+                cleanValue = mxMatch[2];
+              }
+              if (!cleanValue.endsWith(".")) {
+                cleanValue = cleanValue + ".";
+              }
+            }
+
+            return (
+              <div key={i} className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-xs">
+                    {rec.type}
+                  </span>
+                  {priority !== undefined && (
+                    <span className="text-xs text-muted-foreground">Priority: {priority}</span>
+                  )}
+                </div>
+                {rec.type !== "MX" && rec.type !== "TXT" && (
+                  <CopyField label="Name / Host" value={rec.name} />
                 )}
+                <CopyField label="Value / Content" value={cleanValue} />
               </div>
-              {rec.type !== "MX" && rec.type !== "TXT" && (
-                <CopyField label="Name / Host" value={rec.name} />
-              )}
-              <CopyField label="Value / Content" value={rec.value} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

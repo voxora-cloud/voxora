@@ -244,13 +244,14 @@ export class SesAdapter implements IEmailProviderAdapter {
     }));
 
     const region = config.aws.region || "us-east-1";
-    const mxValue = `10 inbound-smtp.${region}.amazonaws.com`;
+    const mxValue = `inbound-smtp.${region}.amazonaws.com.`;
 
     const extraRecords: IDnsRecord[] = [
       {
         type: "MX" as const,
         name: domain,
         value: mxValue,
+        priority: 10,
         ttl: 3600,
       },
       {
