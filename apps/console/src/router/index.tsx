@@ -158,6 +158,10 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/dashboard/contacts",
+        element: <Navigate to="/dashboard/contacts/all-contacts" replace />,
+    },
+    {
         path: "/dashboard/contacts/all-contacts",
         element: (
             <ProtectedRoute requiredRole="agent">
@@ -260,6 +264,10 @@ const router = createBrowserRouter([
         ),
     },
     {
+        path: "/dashboard/settings",
+        element: <Navigate to="/dashboard/settings/general" replace />,
+    },
+    {
         path: "/dashboard/settings/general",
         element: (
             <ProtectedRoute requiredRole="owner">
@@ -268,6 +276,10 @@ const router = createBrowserRouter([
                 </DashboardLayout>
             </ProtectedRoute>
         ),
+    },
+    {
+        path: "/dashboard/settings/billing",
+        element: <Navigate to="/dashboard/settings/billing/plans" replace />,
     },
     {
         path: "/dashboard/settings/billing/plans",

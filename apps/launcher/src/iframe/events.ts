@@ -22,7 +22,8 @@ function setHistoryMode(active: boolean) {
   document.body.classList.toggle('is-history-open', active);
 
   const inputArea = document.querySelector('.input-area') as HTMLElement | null;
-  if (inputArea) inputArea.style.display = active ? 'none' : '';
+  const keepDesktopChatVisible = document.documentElement.classList.contains('is-desktop-standalone');
+  if (inputArea) inputArea.style.display = active && !keepDesktopChatVisible ? 'none' : '';
 
   if (!active && elements.historySearch) elements.historySearch.value = '';
 }
@@ -783,7 +784,8 @@ export function setupEventListeners() {
   // (suggestion click listener removed: handled by main.ts directly on the buttons to prevent bubble conflicts)
 
   document.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && window.parent) {
+    const isStandalone = document.documentElement.classList.contains('is-standalone');
+    if (e.key === 'Escape' && window.parent && !isStandalone) {
       window.parent.postMessage({ type: 'CLOSE_WIDGET', version: PROTO_VERSION }, state.parentOrigin || '*');
     }
   });

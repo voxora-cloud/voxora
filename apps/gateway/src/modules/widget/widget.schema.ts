@@ -57,7 +57,7 @@ const pageRuleSchema = Joi.string()
 const appearanceSchema = Joi.object({
   theme: Joi.string().valid("dark", "light").required(),
   welcomeMessage: Joi.string().min(1).max(500).required(),
-  pattern: Joi.string().valid(...widgetPatternValues).optional().default("none"),
+  pattern: Joi.string().valid(...widgetPatternValues).optional().default("aurora"),
 }).options({ stripUnknown: true });
 
 const behaviorSchema = Joi.object({

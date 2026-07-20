@@ -136,7 +136,7 @@ const WidgetSchema = new Schema<IWidget>(
           "confetti",
           "topography",
         ],
-        default: "none",
+        default: DEFAULT_WIDGET_CONFIG.appearance.pattern,
       },
     },
     // backgroundColor removed, using theme only

@@ -84,7 +84,7 @@ function applyWidgetAppearance(cfg: any) {
       'pattern-confetti',
       'pattern-topography',
     );
-    const selectedPattern = appearance.pattern || 'none';
+    const selectedPattern = appearance.pattern || 'aurora';
     if (selectedPattern !== 'none') {
       welcomeScreen.classList.add(`pattern-${selectedPattern}`);
     }
@@ -151,6 +151,7 @@ function toggleMaximizeWidget() {
 }
 
 function minimizeWidget() {
+  if (document.documentElement.classList.contains('is-standalone')) return;
   const target = state.parentOrigin || '*';
   if (window.parent) {
     window.parent.postMessage({ type: 'CLOSE_WIDGET', version: PROTO_VERSION }, target);
@@ -180,9 +181,12 @@ function setActiveTab(tab: WidgetTab) {
     document.documentElement.classList.add('is-history-open');
     document.body.classList.add('is-history-open');
     if (elements.historyBtn) elements.historyBtn.click();
-    if (inputArea) inputArea.style.display = 'none';
-    if (messagesContainer) messagesContainer.style.display = 'none';
-    if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'none';
+    const keepDesktopChatVisible = document.documentElement.classList.contains('is-desktop-standalone');
+    if (!keepDesktopChatVisible) {
+      if (inputArea) inputArea.style.display = 'none';
+      if (messagesContainer) messagesContainer.style.display = 'none';
+      if (elements.welcomeScreen) elements.welcomeScreen.style.display = 'none';
+    }
     return;
   }
 
@@ -200,11 +204,23 @@ function setActiveTab(tab: WidgetTab) {
   }
 }
 
+function applyStandaloneLayout(isMobile: boolean): void {
+  const isStandalone = state.interactionSource === 'link' || state.interactionSource === 'qr';
+  const isDesktopStandalone =
+    !isMobile &&
+    isStandalone;
+  document.documentElement.classList.toggle('is-standalone', isStandalone);
+  document.body.classList.toggle('is-standalone', isStandalone);
+  document.documentElement.classList.toggle('is-desktop-standalone', isDesktopStandalone);
+  document.body.classList.toggle('is-desktop-standalone', isDesktopStandalone);
+}
+
 async function handleInitWidget(payload: any) {
   if (state._connectTimeout) { clearTimeout(state._connectTimeout); state._connectTimeout = null; }
 
   state.InteraOnePublicKey = payload.publicKey;
   state.interactionSource = normalizeInteractionSource(payload.source || state.interactionSource);
+  applyStandaloneLayout(payload.isMobile === true);
   if (payload.identity?.name) {
     state.userName = payload.identity.name;
   }
@@ -235,6 +251,7 @@ async function handleInitWidget(payload: any) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  applyStandaloneLayout(window.matchMedia('(max-width: 768px)').matches);
   setupEventListeners();
   showWelcomeScreen();
 

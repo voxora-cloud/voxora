@@ -3,7 +3,7 @@ export const DEFAULT_WIDGET_CONFIG = {
     theme: "dark" as const,
     welcomeMessage:
       "Need help? Ask here and we’ll point you in the right direction.",
-    pattern: "uiverse-alexruix" as const,
+    pattern: "aurora" as const,
   },
   behavior: {
     showWidget: true,

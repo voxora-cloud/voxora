@@ -4,7 +4,12 @@ import { authApi } from "@/domains/auth/api/auth.api";
 import { apiClient } from "@/shared/lib/api-client";
 import { Loader } from "@/shared/ui/loader";
 import { Button } from "@/shared/ui/button";
-import { MessageSquare, Users, Contact } from "lucide-react";
+import {
+  ContactRound,
+  Headset,
+  MessageCircleMore,
+  type LucideIcon,
+} from "lucide-react";
 
 type PlanTier = "free" | "pro" | "proplus";
 type LimitKey = "messages" | "humanAgents" | "contacts";
@@ -58,29 +63,25 @@ const RESOURCE_META: Array<{
   key: LimitKey;
   label: string;
   description: string;
-  icon: React.ComponentType<any>;
-  iconColor: string;
+  icon: LucideIcon;
 }> = [
   {
     key: "messages",
     label: "AI messages",
     description: "Automated replies sent this billing cycle",
-    icon: MessageSquare,
-    iconColor: "text-indigo-500",
+    icon: MessageCircleMore,
   },
   {
     key: "humanAgents",
     label: "Human agents",
     description: "Active teammates in this workspace",
-    icon: Users,
-    iconColor: "text-sky-500",
+    icon: Headset,
   },
   {
     key: "contacts",
     label: "Saved contacts",
     description: "Customer profiles in your directory",
-    icon: Contact,
-    iconColor: "text-emerald-500",
+    icon: ContactRound,
   },
 ];
 
@@ -146,8 +147,8 @@ function AllocationRow({ resource, stat, unmetered }: AllocationRowProps) {
   return (
     <div className="grid gap-4 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(210px,1.2fr)_90px_110px_minmax(170px,1fr)] lg:items-center">
       <div className="flex items-center gap-3">
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/65 ${resource.iconColor}`}>
-          <Icon className="h-4 w-4" fill="currentColor" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-foreground/70 shadow-xs">
+          <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-foreground">{resource.label}</h3>

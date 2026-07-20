@@ -45,40 +45,4 @@ router.use(authenticate, resolveOrganization);
  */
 router.get("/", NotificationController.getNotifications);
 
-/**
- * @openapi
- * /notifications/read-all:
- *   patch:
- *     summary: Mark all notifications as read for current user
- *     tags:
- *       - Notifications
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: All notifications marked read
- */
-router.patch("/read-all", NotificationController.markAllAsRead);
-
-/**
- * @openapi
- * /notifications/{id}/read:
- *   patch:
- *     summary: Mark a specific notification as read by ID
- *     tags:
- *       - Notifications
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Notification marked read
- */
-router.patch("/:id/read", NotificationController.markAsRead);
-
 export default router;

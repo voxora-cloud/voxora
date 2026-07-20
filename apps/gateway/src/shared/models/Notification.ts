@@ -6,7 +6,6 @@ export interface INotification extends Document {
   type: "assignment" | "ai_sync" | "administrative" | "system" | "billing";
   title: string;
   description: string;
-  isRead: boolean;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -19,7 +18,6 @@ const NotificationSchema = new Schema<INotification>(
     type: { type: String, required: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
-    isRead: { type: Boolean, default: false, index: true },
     metadata: { type: Schema.Types.Mixed, default: {} },
   },
   {
@@ -30,7 +28,6 @@ const NotificationSchema = new Schema<INotification>(
 // Indexes for common queries
 NotificationSchema.index({ organizationId: 1, createdAt: -1 });
 NotificationSchema.index({ userId: 1, createdAt: -1 });
-NotificationSchema.index({ organizationId: 1, isRead: 1 });
 
 export const Notification: Model<INotification> = mongoose.model<INotification>(
   "Notification",

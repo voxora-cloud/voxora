@@ -17,6 +17,13 @@ export interface WidgetConfig {
   position?: 'bottom-right' | 'bottom-left';
   /** Override button accent color */
 
+  /** Render the chat as a full-page experience instead of a floating dock. */
+  fullscreen?: boolean;
+  /** Open immediately after the widget configuration has loaded. */
+  autoOpen?: boolean;
+  /** Analytics attribution for standalone QR and direct-link entry points. */
+  source?: 'widget' | 'qr' | 'link';
+
   // The following are populated from the API response, not the script tag:
   displayName?: string;
 

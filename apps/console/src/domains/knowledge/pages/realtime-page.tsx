@@ -31,6 +31,7 @@ export function KnowledgeRealtimePage() {
     refetch,
   } = useKnowledgeItems();
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [addModalKey, setAddModalKey] = useState(0);
   const [showViewModal, setShowViewModal] = useState<boolean>(false);
   const [selectedSource, setSelectedSource] = useState<LiveSource | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<boolean>(false);
@@ -41,6 +42,11 @@ export function KnowledgeRealtimePage() {
   const deleteKnowledge = useDeleteKnowledgeItem();
   const reindexKnowledge = useReindexKnowledgeItem();
   const updateKnowledge = useUpdateKnowledgeItem();
+
+  const openAddModal = () => {
+    setAddModalKey((current) => current + 1);
+    setShowAddModal(true);
+  };
 
   const mapStatus = (status: string): LiveSource["status"] => {
     if (status === "indexed") return "synced";
@@ -196,7 +202,7 @@ export function KnowledgeRealtimePage() {
           >
             <RefreshCw className={isFetching ? "animate-spin" : ""} />
           </Button>
-          <Button data-tour-id="page-knowledge-realtime-primary-action" onClick={() => setShowAddModal(true)} className="cursor-pointer">
+          <Button data-tour-id="page-knowledge-realtime-primary-action" onClick={openAddModal} className="cursor-pointer">
             <Plus className="h-4 w-4 mr-2" />
             Add Live Source
           </Button>
@@ -230,7 +236,7 @@ export function KnowledgeRealtimePage() {
           <p className="text-muted-foreground mt-1">
             Add a URL to start auto-syncing content with your vector database
           </p>
-          <Button className="mt-4 cursor-pointer" onClick={() => setShowAddModal(true)}>
+          <Button className="mt-4 cursor-pointer" onClick={openAddModal}>
             <Plus className="h-4 w-4 mr-2" />
             Add Live Source
           </Button>
@@ -238,6 +244,7 @@ export function KnowledgeRealtimePage() {
       )}
 
       <AddLiveSourceModal
+        key={addModalKey}
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSubmit={handleAddSource}

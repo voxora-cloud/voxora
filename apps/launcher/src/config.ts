@@ -18,6 +18,21 @@ function isInjectedValue(value: string): boolean {
 interface WindowInteraOneConfig {
   publicKey?: string;
   InteraOnePublicKey?: string;
+  fullscreen?: boolean;
+  autoOpen?: boolean;
+  source?: 'widget' | 'qr' | 'link';
+}
+
+function parseBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return undefined;
+  if (value.toLowerCase() === "true") return true;
+  if (value.toLowerCase() === "false") return false;
+  return undefined;
+}
+
+function parseSource(value: unknown): 'widget' | 'qr' | 'link' {
+  return value === 'qr' || value === 'link' ? value : 'widget';
 }
 
 export function getApiUrl(): string {
@@ -97,6 +112,15 @@ export function parseWidgetConfig(): WidgetConfig | null {
       publicKey,
       apiUrl,
       cdnUrl,
+      fullscreen:
+        parseBoolean(globalConfig.fullscreen) ??
+        parseBoolean(script?.getAttribute("data-InteraOne-fullscreen")),
+      autoOpen:
+        parseBoolean(globalConfig.autoOpen) ??
+        parseBoolean(script?.getAttribute("data-InteraOne-auto-open")),
+      source: parseSource(
+        globalConfig.source ?? script?.getAttribute("data-InteraOne-source"),
+      ),
     };
 
     return config;
